@@ -1,0 +1,14 @@
+[package]
+name = "arlo"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "arlo"
+path = "src/main.rs"
+
+[dependencies]
+arlo-runtime.workspace = true
+tokio.workspace = true

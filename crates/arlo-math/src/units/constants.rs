@@ -1,0 +1,4 @@
+pub const AINA_TO_METERS: f64 = 0.8349;
+pub const MIRIM_TO_AINAS: f64 = 1.2;
+pub const MIRIM_TO_METERS: f64 = MIRIM_TO_AINAS * AINA_TO_METERS;
+pub const VAINA_TO_METERS: f64 = 0.0100019;

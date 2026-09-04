@@ -1,0 +1,13 @@
+[package]
+name = "arlo-db"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+arlo-domain.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true

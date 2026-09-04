@@ -1,0 +1,15 @@
+[package]
+name = "arlo-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+arlo-domain.workspace = true
+arlo-db.workspace = true
+arlo-engine.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+sqlx.workspace = true
