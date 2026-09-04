@@ -10,6 +10,7 @@ pub mod person_repository;
 pub mod player_repository;
 pub mod position_repository;
 pub mod rule_repository;
+pub mod save_metadata_repository;
 pub mod team_repository;
 pub mod title_repository;
 
@@ -24,5 +25,6 @@ pub use person_repository as person;
 pub use player_repository as player;
 pub use position_repository as position;
 pub use rule_repository as rule;
+pub use save_metadata_repository as save_metadata;
 pub use team_repository as team;
 pub use title_repository as title;

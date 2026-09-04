@@ -12,6 +12,7 @@ pub mod player_position_row;
 pub mod player_row;
 pub mod position_row;
 pub mod rule_row;
+pub mod save_metadata_row;
 pub mod team_row;
 pub mod title_row;
 
@@ -29,5 +30,6 @@ pub use player_position_row::PlayerPositionRow;
 pub use player_row::PlayerRow;
 pub use position_row::PositionRow;
 pub use rule_row::RuleRow;
+pub use save_metadata_row::SaveMetadataRow;
 pub use team_row::TeamRow;
 pub use title_row::{parse_title_winner, TitleRow};
