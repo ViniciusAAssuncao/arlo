@@ -35,6 +35,17 @@ pub fn validate_integer_range(value: i32, min: i32, max: i32, field: &str) -> Do
     }
 }
 
+pub fn validate_float_range(value: f64, min: f64, max: f64, field: &str) -> DomainResult<()> {
+    if value >= min && value <= max {
+        Ok(())
+    } else {
+        Err(DomainError::InvalidInvariant {
+            field: field.to_string(),
+            reason: format!("must be between {min} and {max}"),
+        })
+    }
+}
+
 pub fn validate_hex_color(value: &str, field: &str) -> DomainResult<()> {
     if value.len() == 7
         && value.starts_with('#')
