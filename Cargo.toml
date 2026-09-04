@@ -7,6 +7,7 @@ members = [
     "crates/arlo-math",
     "crates/arlo-db",
     "crates/arlo-engine",
+    "crates/arlo-formatter",
 ]
 
 [workspace.package]
@@ -28,9 +29,9 @@ thiserror  = "2.0"
 directories = "5.0.1"
 tracing    = "0.1"
 
-# Crates internos do workspace
-arlo-domain  = { path = "crates/arlo-domain" }
-arlo-math    = { path = "crates/arlo-math" }
-arlo-db      = { path = "crates/arlo-db" }
-arlo-engine  = { path = "crates/arlo-engine" }
-arlo-runtime = { path = "crates/arlo-runtime" }
+arlo-domain    = { path = "crates/arlo-domain" }
+arlo-math      = { path = "crates/arlo-math" }
+arlo-db        = { path = "crates/arlo-db" }
+arlo-engine    = { path = "crates/arlo-engine" }
+arlo-formatter = { path = "crates/arlo-formatter" }
+arlo-runtime   = { path = "crates/arlo-runtime" }
