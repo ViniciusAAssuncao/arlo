@@ -1,3 +1,4 @@
+use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::sport_constants::{
     PITCH_LENGTH_MIRIM_MAX, PITCH_LENGTH_MIRIM_MIN, PITCH_WIDTH_MIRIM_MAX, PITCH_WIDTH_MIRIM_MIN,
 };
@@ -42,11 +43,11 @@ impl Venue {
             VenueKind::MatchStadium => {
                 let length = pitch_length_mirim.ok_or_else(|| DomainError::InvalidInvariant {
                     field: "pitch_length_mirim".to_string(),
-                    reason: "pitch_length_mirim must be present for MatchStadium".to_string(),
+                    violation: InvariantViolation::MissingRequiredValue,
                 })?;
                 let width = pitch_width_mirim.ok_or_else(|| DomainError::InvalidInvariant {
                     field: "pitch_width_mirim".to_string(),
-                    reason: "pitch_width_mirim must be present for MatchStadium".to_string(),
+                    violation: InvariantViolation::MissingRequiredValue,
                 })?;
 
                 validate_float_range(
@@ -66,13 +67,13 @@ impl Venue {
                 if pitch_length_mirim.is_some() {
                     return Err(DomainError::InvalidInvariant {
                         field: "pitch_length_mirim".to_string(),
-                        reason: "pitch_length_mirim must be None for TrainingCenter".to_string(),
+                        violation: InvariantViolation::UnexpectedValue,
                     });
                 }
                 if pitch_width_mirim.is_some() {
                     return Err(DomainError::InvalidInvariant {
                         field: "pitch_width_mirim".to_string(),
-                        reason: "pitch_width_mirim must be None for TrainingCenter".to_string(),
+                        violation: InvariantViolation::UnexpectedValue,
                     });
                 }
             }

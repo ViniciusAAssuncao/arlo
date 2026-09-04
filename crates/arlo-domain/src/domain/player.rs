@@ -1,4 +1,5 @@
 use crate::domain::captaincy_role::CaptaincyRole;
+use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::player_attribute_value::PlayerAttributeValue;
 use crate::domain::player_position::PlayerPosition;
 use crate::domain::validation::{
@@ -153,7 +154,7 @@ impl PlayerBuilder {
         if self.captaincy_role.is_some() && self.team_id.is_none() {
             return Err(DomainError::InvalidInvariant {
                 field: "captaincy_role".to_string(),
-                reason: "captaincy requires player to be associated with a team".to_string(),
+                violation: InvariantViolation::MissingRequiredValue,
             });
         }
 
