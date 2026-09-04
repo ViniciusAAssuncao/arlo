@@ -21,6 +21,7 @@ impl AttributeDefinitionRow {
             "Physical" => AttributeCategory::Physical,
             "Tactical" => AttributeCategory::Tactical,
             "Managerial" => AttributeCategory::Managerial,
+            "Goalkeeping" => AttributeCategory::Goalkeeping,
             _ => {
                 return Err(DbError::InvalidEnum(format!(
                     "Invalid attribute category: {}",
