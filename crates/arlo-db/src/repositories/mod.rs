@@ -12,6 +12,7 @@ pub mod rule_repository;
 pub mod save_metadata_repository;
 pub mod team_repository;
 pub mod title_repository;
+pub mod venue_repository;
 
 pub use attribute_definition_repository as attribute_definition;
 pub use competition_repository as competition;
@@ -26,3 +27,4 @@ pub use rule_repository as rule;
 pub use save_metadata_repository as save_metadata;
 pub use team_repository as team;
 pub use title_repository as title;
+pub use venue_repository as venue;

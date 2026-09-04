@@ -19,6 +19,7 @@ pub mod sport_constants;
 pub mod team;
 pub mod title;
 pub mod validation;
+pub mod venue;
 
 pub use attribute_definition::{AttributeCategory, AttributeDefinition, AttributeTarget};
 pub use captaincy_role::CaptaincyRole;
@@ -41,3 +42,4 @@ pub use sport_constants::*;
 pub use team::{Team, TeamBuilder};
 pub use title::{Title, TitleWinner};
 pub use validation::*;
+pub use venue::{Venue, VenueKind};

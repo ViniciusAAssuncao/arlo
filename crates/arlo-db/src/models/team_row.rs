@@ -13,6 +13,7 @@ pub struct TeamRow {
     pub prestige: i32,
     pub primary_color_hex: Option<String>,
     pub secondary_color_hex: Option<String>,
+    pub home_venue_id: Option<String>,
 }
 
 impl TeamRow {
@@ -21,6 +22,10 @@ impl TeamRow {
         let country_id = Uuid::parse_str(&self.country_id)?;
         let league_id = match &self.league_id {
             Some(lid) => Some(Uuid::parse_str(lid)?),
+            None => None,
+        };
+        let home_venue_id = match &self.home_venue_id {
+            Some(vid) => Some(Uuid::parse_str(vid)?),
             None => None,
         };
         let mut builder = Team::builder(
@@ -33,6 +38,7 @@ impl TeamRow {
         builder = builder.with_league_id(league_id);
         builder = builder.with_primary_color_hex(self.primary_color_hex.clone());
         builder = builder.with_secondary_color_hex(self.secondary_color_hex.clone());
+        builder = builder.with_home_venue_id(home_venue_id);
         builder.build().map_err(Into::into)
     }
 }

@@ -15,6 +15,7 @@ pub mod rule_row;
 pub mod save_metadata_row;
 pub mod team_row;
 pub mod title_row;
+pub mod venue_row;
 
 pub use attribute_definition_row::AttributeDefinitionRow;
 pub use competition_row::CompetitionRow;
@@ -33,3 +34,4 @@ pub use rule_row::RuleRow;
 pub use save_metadata_row::SaveMetadataRow;
 pub use team_row::TeamRow;
 pub use title_row::{parse_title_winner, TitleRow};
+pub use venue_row::VenueRow;
