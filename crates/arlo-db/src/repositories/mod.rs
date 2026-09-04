@@ -1,0 +1,28 @@
+pub mod attribute_definition_repository;
+pub mod competition_repository;
+pub mod continent_repository;
+pub mod country_repository;
+pub mod federation_repository;
+pub mod fetch;
+pub mod league_repository;
+pub mod manager_repository;
+pub mod person_repository;
+pub mod player_repository;
+pub mod position_repository;
+pub mod rule_repository;
+pub mod team_repository;
+pub mod title_repository;
+
+pub use attribute_definition_repository as attribute_definition;
+pub use competition_repository as competition;
+pub use continent_repository as continent;
+pub use country_repository as country;
+pub use federation_repository as federation;
+pub use league_repository as league;
+pub use manager_repository as manager;
+pub use person_repository as person;
+pub use player_repository as player;
+pub use position_repository as position;
+pub use rule_repository as rule;
+pub use team_repository as team;
+pub use title_repository as title;
