@@ -29,7 +29,7 @@ async fn assemble_player(
 ) -> DbResult<Player> {
     let pos_rows = fetch_all_by_param::<PlayerPositionRow>(
         pool,
-        "SELECT player_id, position_id, proficiency FROM player_positions WHERE player_id = ?",
+        "SELECT player_id, position, proficiency FROM player_positions WHERE player_id = ?",
         &player_row.id,
     )
     .await?;

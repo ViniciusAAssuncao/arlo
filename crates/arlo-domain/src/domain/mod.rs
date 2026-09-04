@@ -31,7 +31,7 @@ pub use person::Person;
 pub use player::{Player, PlayerBuilder};
 pub use player_attribute_value::PlayerAttributeValue;
 pub use player_position::PlayerPosition;
-pub use position::Position;
+pub use position::{Position, PositionLine};
 pub use rule::{Rule, RuleCategory};
 pub use save_metadata::SaveMetadata;
 pub use scope::Scope;

@@ -139,9 +139,9 @@ impl PlayerBuilder {
 
         validate_no_duplicate_keys(
             &self.positions,
-            |p| p.position_id(),
+            |p| p.position(),
             "positions",
-            "position_id",
+            "position",
         )?;
 
         validate_no_duplicate_keys(
