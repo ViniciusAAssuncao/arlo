@@ -6,6 +6,7 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+arlo-math.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 uuid.workspace = true

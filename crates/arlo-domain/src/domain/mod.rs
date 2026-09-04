@@ -9,6 +9,7 @@ pub mod league;
 pub mod manager;
 pub mod manager_attribute_value;
 pub mod person;
+pub mod pitch;
 pub mod player;
 pub mod player_attribute_value;
 pub mod player_position;

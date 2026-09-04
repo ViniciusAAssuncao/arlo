@@ -1,0 +1,4 @@
+pub const ARTRO_SIZE_VAINA: f64 = 35.0;
+pub const ARTRO_ROW_SPACING_MIRIM: f64 = 3.0;
+pub const ARTROS_PER_ROW: usize = 3;
+pub const DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM: f64 = 25.0;

@@ -23,6 +23,7 @@ impl RuleRow {
             "Phases" => RuleCategory::Phases,
             "TieBreaker" => RuleCategory::TieBreaker,
             "PromotionRelegation" => RuleCategory::PromotionRelegation,
+            "FieldGeometry" => RuleCategory::FieldGeometry,
             _ => {
                 return Err(DbError::InvalidEnum(format!(
                     "Invalid rule category: {}",

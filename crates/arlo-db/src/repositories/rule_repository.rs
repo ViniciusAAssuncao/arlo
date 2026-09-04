@@ -63,6 +63,7 @@ pub async fn list_by_competition_id_and_category(
         RuleCategory::Phases => "Phases",
         RuleCategory::TieBreaker => "TieBreaker",
         RuleCategory::PromotionRelegation => "PromotionRelegation",
+        RuleCategory::FieldGeometry => "FieldGeometry",
     };
     let rows = fetch_all_by_two_params::<RuleRow>(
         pool,
