@@ -1,10 +1,11 @@
+use crate::domain::captaincy_role::CaptaincyRole;
 use crate::domain::player_attribute_value::PlayerAttributeValue;
 use crate::domain::player_position::PlayerPosition;
 use crate::domain::validation::{
     validate_integer_range, validate_no_duplicate_keys, validate_not_empty,
     validate_positive_finite,
 };
-use crate::error::DomainResult;
+use crate::error::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -17,6 +18,7 @@ pub struct Player {
     nationality_id: Uuid,
     team_id: Option<Uuid>,
     squad_number: Option<i32>,
+    captaincy_role: Option<CaptaincyRole>,
     positions: Vec<PlayerPosition>,
     attributes: Vec<PlayerAttributeValue>,
 }
@@ -66,6 +68,10 @@ impl Player {
         self.squad_number
     }
 
+    pub fn captaincy_role(&self) -> Option<CaptaincyRole> {
+        self.captaincy_role
+    }
+
     pub fn positions(&self) -> &[PlayerPosition] {
         &self.positions
     }
@@ -84,6 +90,7 @@ pub struct PlayerBuilder {
     nationality_id: Uuid,
     team_id: Option<Uuid>,
     squad_number: Option<i32>,
+    captaincy_role: Option<CaptaincyRole>,
     positions: Vec<PlayerPosition>,
     attributes: Vec<PlayerAttributeValue>,
 }
@@ -104,6 +111,7 @@ impl PlayerBuilder {
             nationality_id,
             team_id: None,
             squad_number: None,
+            captaincy_role: None,
             positions: Vec::new(),
             attributes: Vec::new(),
         }
@@ -116,6 +124,11 @@ impl PlayerBuilder {
 
     pub fn with_squad_number(mut self, squad_number: Option<i32>) -> Self {
         self.squad_number = squad_number;
+        self
+    }
+
+    pub fn with_captaincy_role(mut self, captaincy_role: Option<CaptaincyRole>) -> Self {
+        self.captaincy_role = captaincy_role;
         self
     }
 
@@ -135,6 +148,13 @@ impl PlayerBuilder {
 
         if let Some(squad_number) = self.squad_number {
             validate_integer_range(squad_number, 0, 100, "squad_number")?;
+        }
+
+        if self.captaincy_role.is_some() && self.team_id.is_none() {
+            return Err(DomainError::InvalidInvariant {
+                field: "captaincy_role".to_string(),
+                reason: "captaincy requires player to be associated with a team".to_string(),
+            });
         }
 
         validate_no_duplicate_keys(
@@ -159,6 +179,7 @@ impl PlayerBuilder {
             nationality_id: self.nationality_id,
             team_id: self.team_id,
             squad_number: self.squad_number,
+            captaincy_role: self.captaincy_role,
             positions: self.positions,
             attributes: self.attributes,
         })

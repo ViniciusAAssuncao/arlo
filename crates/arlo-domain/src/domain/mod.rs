@@ -1,4 +1,5 @@
 pub mod attribute_definition;
+pub mod captaincy_role;
 pub mod competition;
 pub mod continent;
 pub mod country;
@@ -20,6 +21,7 @@ pub mod title;
 pub mod validation;
 
 pub use attribute_definition::{AttributeCategory, AttributeDefinition, AttributeTarget};
+pub use captaincy_role::CaptaincyRole;
 pub use competition::{Competition, CompetitionKind};
 pub use continent::Continent;
 pub use country::Country;

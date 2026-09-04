@@ -61,7 +61,7 @@ async fn assemble_player(
 pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> DbResult<Option<Player>> {
     let player_row = fetch_optional_by_param::<PlayerRow>(
         pool,
-        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number FROM players WHERE id = ?",
+        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number, captaincy_role FROM players WHERE id = ?",
         &id.to_string(),
     )
     .await?;
@@ -79,7 +79,7 @@ pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> DbResult<Option<Player>> 
 pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Player>> {
     let player_rows = fetch_all::<PlayerRow>(
         pool,
-        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number FROM players",
+        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number, captaincy_role FROM players",
     )
     .await?;
 
@@ -94,7 +94,7 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Player>> {
 pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<Player>> {
     let player_rows = fetch_all_by_param::<PlayerRow>(
         pool,
-        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number FROM players WHERE team_id = ?",
+        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number, captaincy_role FROM players WHERE team_id = ?",
         &team_id.to_string(),
     )
     .await?;
@@ -113,7 +113,7 @@ pub async fn list_by_nationality_id(
 ) -> DbResult<Vec<Player>> {
     let player_rows = fetch_all_by_param::<PlayerRow>(
         pool,
-        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number FROM players WHERE nationality_id = ?",
+        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number, captaincy_role FROM players WHERE nationality_id = ?",
         &nationality_id.to_string(),
     )
     .await?;

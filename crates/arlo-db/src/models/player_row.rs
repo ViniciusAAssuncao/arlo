@@ -1,5 +1,5 @@
-use crate::error::DbResult;
-use arlo_domain::{Player, PlayerAttributeValue, PlayerPosition};
+use crate::error::{DbError, DbResult};
+use arlo_domain::{CaptaincyRole, Player, PlayerAttributeValue, PlayerPosition};
 use sqlx::FromRow;
 use uuid::Uuid;
 
@@ -12,6 +12,7 @@ pub struct PlayerRow {
     pub nationality_id: String,
     pub team_id: Option<String>,
     pub squad_number: Option<i32>,
+    pub captaincy_role: Option<String>,
 }
 
 impl PlayerRow {
@@ -26,6 +27,18 @@ impl PlayerRow {
             Some(tid) => Some(Uuid::parse_str(tid)?),
             None => None,
         };
+        let captaincy_role = match &self.captaincy_role {
+            Some(role) => match role.as_str() {
+                "Captain" => Some(CaptaincyRole::Captain),
+                "ViceCaptain" => Some(CaptaincyRole::ViceCaptain),
+                _ => {
+                    return Err(DbError::InvalidEnum(format!(
+                        "Invalid captaincy role: {role}"
+                    )))
+                }
+            },
+            None => None,
+        };
         let builder = Player::builder(
             id,
             &self.name,
@@ -35,6 +48,7 @@ impl PlayerRow {
         )
         .with_team_id(team_id)
         .with_squad_number(self.squad_number)
+        .with_captaincy_role(captaincy_role)
         .with_positions(positions)
         .with_attributes(attributes);
 
