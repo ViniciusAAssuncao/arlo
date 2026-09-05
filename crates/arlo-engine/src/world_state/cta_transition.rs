@@ -7,12 +7,14 @@ use crate::match_decision::event_translation::{
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::transition;
+use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::ArtrineDecisionKind;
 use arlo_events::{CountdownReason, EventArtroPlacement, EventSink};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use rand::Rng;
 use uuid::Uuid;
 
 pub fn apply_play_transition(
@@ -215,9 +217,20 @@ pub fn apply_play_transition(
 
     *state.possession_mut() = next_snapshot;
 
+    let reorganization_seconds = if !arbitral_stoppage {
+        let mut time_rng = state
+            .rng_provider()
+            .indexed_rng_for(RngStream::SpatialNoise, seq);
+        time_rng.gen_range(15.0f64..25.0f64)
+    } else {
+        0.0
+    };
+
+    let total_elapsed = execution_outcome.elapsed_seconds + reorganization_seconds;
+
     let period_ended = state
         .clock_mut()
-        .advance_seconds(execution_outcome.elapsed_seconds);
+        .advance_seconds(total_elapsed);
     if period_ended {
         if state.clock().period() < 4 {
             state.clock_mut().next_period();

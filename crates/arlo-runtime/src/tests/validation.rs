@@ -776,7 +776,7 @@ fn generate_markdown_report(
     md.push_str(&format!("- **Total de Call-to-Actions executados**: {}\n", outcomes.len()));
     md.push_str(&format!("- **Total de Eventos Registrados no Sink**: {}\n", session.sink().len()));
     md.push_str(&format!("- **Quartos Disputados**: {}\n", session.state().clock().period()));
-    md.push_str(&format!("- **Duração do Cronômetro Ativo**: {:.1} segundos\n\n", session.state().clock().seconds_in_period()));
+    md.push_str(&format!("- **Duração do Cronômetro Ativo**: {:.1} segundos\n\n", session.state().clock().to_instant().total_elapsed_seconds()));
 
     let mut total_drives = 0;
     let mut total_turnovers = 0;
