@@ -1,3 +1,32 @@
 pub const LINE_PLAYERS_PER_TEAM: u32 = 13;
 pub const GOALGUARDS_PER_TEAM: u32 = 1;
 pub const TOTAL_PLAYERS_PER_TEAM: u32 = LINE_PLAYERS_PER_TEAM + GOALGUARDS_PER_TEAM;
+
+pub const REQUIRED_GOALGUARDS_PER_FORMATION: usize = 1;
+pub const REQUIRED_PASSERS_PER_FORMATION: usize = 1;
+pub const REQUIRED_ARTRINES_PER_FORMATION: usize = 1;
+
+pub const MANDATORY_GOALGUARDS_PER_FORMATION: usize = 1;
+pub const MANDATORY_PASSERS_PER_FORMATION: usize = 1;
+pub const MANDATORY_ARTRINES_PER_FORMATION: usize = 1;
+
+pub const REQUIRED_GOALGUARDS: usize = 1;
+pub const REQUIRED_PASSERS: usize = 1;
+pub const REQUIRED_ARTRINES: usize = 1;
+
+pub const MANDATORY_GOALGUARDS: usize = 1;
+pub const MANDATORY_PASSERS: usize = 1;
+pub const MANDATORY_ARTRINES: usize = 1;
+
+pub const REQUIRED_GOALGUARD_COUNT: usize = 1;
+pub const REQUIRED_PASSER_COUNT: usize = 1;
+pub const REQUIRED_ARTRINE_COUNT: usize = 1;
+
+pub const MIN_DIMENSIONAL_RATIO: f64 = 0.0;
+pub const MAX_DIMENSIONAL_RATIO: f64 = 1.0;
+pub const MIN_NORMALIZED_RATIO: f64 = 0.0;
+pub const MAX_NORMALIZED_RATIO: f64 = 1.0;
+pub const DIMENSIONAL_RATIO_MIN: f64 = 0.0;
+pub const DIMENSIONAL_RATIO_MAX: f64 = 1.0;
+pub const NORMALIZED_RATIO_MIN: f64 = 0.0;
+pub const NORMALIZED_RATIO_MAX: f64 = 1.0;
