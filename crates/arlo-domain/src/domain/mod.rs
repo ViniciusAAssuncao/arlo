@@ -1,3 +1,4 @@
+pub mod artrine_decision;
 pub mod attribute_definition;
 pub mod attribute_key;
 pub mod captaincy_role;
@@ -25,6 +26,7 @@ pub mod title;
 pub mod validation;
 pub mod venue;
 
+pub use artrine_decision::ArtrineDecisionKind;
 pub use attribute_definition::{AttributeCategory, AttributeDefinition, AttributeTarget};
 pub use attribute_key::AttributeKey;
 pub use captaincy_role::CaptaincyRole;
