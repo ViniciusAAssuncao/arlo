@@ -119,7 +119,7 @@ pub fn apply_play_transition(
         arbitral_stoppage,
         last_valid_possession_point: execution_outcome.end_position,
         possession_control_seconds: if pass_phase.pass_completed {
-            Some(execution_outcome.elapsed_seconds)
+            Some(execution_outcome.duration_ledger.total_live().value())
         } else {
             None
         },
@@ -226,7 +226,7 @@ pub fn apply_play_transition(
         0.0
     };
 
-    let total_elapsed = execution_outcome.elapsed_seconds + reorganization_seconds;
+    let total_elapsed = execution_outcome.duration_ledger.total().value() + reorganization_seconds;
 
     let period_ended = state
         .clock_mut()

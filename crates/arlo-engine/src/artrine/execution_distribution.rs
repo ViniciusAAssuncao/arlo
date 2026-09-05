@@ -3,16 +3,22 @@ use crate::artrine::execution_security::resolve_ball_security;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::duel_timing::{derive_duel_duration, nearest_opponent};
 use crate::resolution::group_rating::{calculate_anchored_side_rating, calculate_side_rating};
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{DuelContext, DuelKind};
+use crate::spatial::ball_kinematics::{
+    ball_flight_duration, calculate_cross_speed, calculate_pass_speed,
+};
+use crate::spatial::decision_vector::calculate_player_speed;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
+use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
-use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
+use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
-use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -48,19 +54,56 @@ pub fn execute_distribution<R: Rng + ?Sized>(
     let defender_rating = calculate_side_rating(defenders, attribute_keys, &defense_profile);
     let dist_duel = resolve_duel(duel_kind, attacker_rating, defender_rating, context, rng);
 
+    let artrine_speed = calculate_player_speed(artrine, attribute_keys);
+    let (dist_duration, nearest_def_opt) = match nearest_opponent(start_pos, defenders, spatial_map) {
+        Some((d, pos)) => {
+            let d_spd = calculate_player_speed(d, attribute_keys);
+            (
+                derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
+                Some((d, pos)),
+            )
+        }
+        None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
+    };
+
     if !dist_duel.attacker_won() {
-        let close_defenders: Vec<&Player> = defenders
-            .iter()
-            .copied()
-            .filter(|d| {
-                spatial_map
-                    .get_position(&d.id())
-                    .map(|pos| calculate_distance_mirim(start_pos, pos) < PROXIMITY_CONTEST_RADIUS_MIRIM)
-                    .unwrap_or(false)
-            })
-            .collect();
+        let mut ledger = DurationLedger::new();
+        ledger.record_live(
+            DurationComponentKind::DistributionEngagement,
+            dist_duration,
+        );
+
+        let (close_defenders, closest_def_info) = match nearest_def_opt {
+            Some((d, pos)) if calculate_distance_mirim(start_pos, pos) <= PROXIMITY_CONTEST_RADIUS_MIRIM => {
+                let list: Vec<&Player> = defenders
+                    .iter()
+                    .copied()
+                    .filter(|cand| {
+                        spatial_map
+                            .get_position(&cand.id())
+                            .map(|p| calculate_distance_mirim(start_pos, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM)
+                            .unwrap_or(false)
+                    })
+                    .collect();
+                (list, Some((d, pos)))
+            }
+            _ => (Vec::new(), None),
+        };
 
         let (turnover, recovering_player_id, duels) = if !close_defenders.is_empty() {
+            if let Some((closest_def, closest_pos)) = closest_def_info {
+                let closest_def_speed = calculate_player_speed(closest_def, attribute_keys);
+                let sec_duration = derive_duel_duration(
+                    start_pos,
+                    artrine_speed,
+                    closest_pos,
+                    closest_def_speed,
+                );
+                ledger.record_live(
+                    DurationComponentKind::BallSecurityEngagement,
+                    sec_duration,
+                );
+            }
             let sec_result = resolve_ball_security(
                 DuelKind::BallSecurityDistribution,
                 artrine,
@@ -79,7 +122,6 @@ pub fn execute_distribution<R: Rng + ?Sized>(
             (None, None, vec![dist_duel])
         };
 
-        let elapsed_seconds = (8.0f64 + rng.gen_range(0.0f64..6.0f64)).clamp(8.0f64, 14.0f64);
         return ArtrineExecutionOutcome {
             mirins_advanced: 0.0,
             drives_recorded: 0,
@@ -87,7 +129,7 @@ pub fn execute_distribution<R: Rng + ?Sized>(
             turnover,
             recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
-            elapsed_seconds,
+            duration_ledger: ledger,
             end_position: start_pos,
             duels,
         };
@@ -109,8 +151,22 @@ pub fn execute_distribution<R: Rng + ?Sized>(
         start_pos.raw().1,
         0.0,
     );
-    let elapsed_seconds =
-        (14.0f64 + mirins_advanced * 0.7f64 + rng.gen_range(0.0f64..3.0f64)).clamp(15.0f64, 28.0f64);
+
+    let ball_speed = match decision_kind {
+        ArtrineDecisionKind::Cross => calculate_cross_speed(artrine, attribute_keys),
+        _ => calculate_pass_speed(artrine, attribute_keys),
+    };
+    let flight_duration = ball_flight_duration(mirins_advanced, ball_speed);
+
+    let mut ledger = DurationLedger::new();
+    ledger.record_live(
+        DurationComponentKind::DistributionEngagement,
+        dist_duration,
+    );
+    ledger.record_live(
+        DurationComponentKind::DistributionFlight,
+        flight_duration,
+    );
 
     ArtrineExecutionOutcome {
         mirins_advanced,
@@ -119,7 +175,7 @@ pub fn execute_distribution<R: Rng + ?Sized>(
         turnover: None,
         recovering_player_id: None,
         scoring_decision: ScoringDecision::NoOpportunity,
-        elapsed_seconds,
+        duration_ledger: ledger,
         end_position,
         duels: vec![dist_duel],
     }

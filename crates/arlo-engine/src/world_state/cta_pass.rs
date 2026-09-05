@@ -4,9 +4,14 @@ use crate::match_decision::event_translation::{
 };
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
+use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::resolve_duel_for_participants;
 use crate::rng::RngStream;
+use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
+use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::proximity::calculate_distance_mirim;
+use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::match_state::MatchState;
 use arlo_domain::{Player, Position as DomainPosition};
 use arlo_events::EventSink;
@@ -25,6 +30,7 @@ pub struct PassPhaseResult<'a> {
     pub down_number: u32,
     pub scrimmage_point: VectorPosition,
     pub scrimmage_x_mirim: f64,
+    pub duration_ledger: DurationLedger,
 }
 
 pub fn find_player_by_position<'a>(
@@ -70,6 +76,19 @@ pub fn resolve_pass_phase<'a>(
         .series_state()
         .remaining_mirins_to_target();
 
+    let passer_pos = state
+        .spatial_map()
+        .get_position(&passer.id())
+        .unwrap_or(scrimmage_point);
+    let artrine_pos = state
+        .spatial_map()
+        .get_position(&artrine.id())
+        .unwrap_or(scrimmage_point);
+    let pass_rusher_pos = state
+        .spatial_map()
+        .get_position(&pass_rusher.id())
+        .unwrap_or(scrimmage_point);
+
     let cta_event = translate_call_to_action_started(
         offense_team_id,
         defense_team_id,
@@ -112,17 +131,40 @@ pub fn resolve_pass_phase<'a>(
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, pass_duel_event));
 
+    let passer_speed = calculate_player_speed(passer, state.attribute_keys());
+    let pass_rusher_speed = calculate_player_speed(pass_rusher, state.attribute_keys());
+    let pass_protection_duration = derive_duel_duration(
+        passer_pos,
+        passer_speed,
+        pass_rusher_pos,
+        pass_rusher_speed,
+    );
+
     let pass_completed = pass_duel_outcome.attacker_won();
     let is_aerial = false;
-    let reception_point = scrimmage_point;
+    let reception_point = artrine_pos;
+    let pass_distance_mirim = calculate_distance_mirim(passer_pos, artrine_pos);
+
+    let mut duration_ledger = DurationLedger::new();
+    duration_ledger.record_live(
+        DurationComponentKind::PassProtectionEngagement,
+        pass_protection_duration,
+    );
 
     if pass_completed {
+        let pass_speed = calculate_pass_speed(passer, state.attribute_keys());
+        let flight_duration = ball_flight_duration(pass_distance_mirim, pass_speed);
+        duration_ledger.record_live(
+            DurationComponentKind::InitialHandoffFlight,
+            flight_duration,
+        );
+
         let pass_event = translate_pass_completed(
             passer.id(),
             artrine.id(),
             is_aerial,
             reception_point,
-            3.0,
+            pass_distance_mirim,
         );
         let seq = state.next_sequence();
         let clock_inst = state.clock().to_instant();
@@ -141,5 +183,6 @@ pub fn resolve_pass_phase<'a>(
         down_number,
         scrimmage_point,
         scrimmage_x_mirim,
+        duration_ledger,
     }
 }

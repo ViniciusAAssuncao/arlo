@@ -118,8 +118,8 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
                 let mut combined_duels = dist_outcome.duels;
                 combined_duels.extend(finish_outcome.duels);
 
-                let total_elapsed = (dist_outcome.elapsed_seconds + finish_outcome.elapsed_seconds)
-                    .clamp(20.0f64, 35.0f64);
+                let mut combined_ledger = dist_outcome.duration_ledger;
+                combined_ledger.merge(finish_outcome.duration_ledger);
 
                 ArtrineExecutionOutcome {
                     mirins_advanced: dist_outcome.mirins_advanced,
@@ -128,7 +128,7 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
                     turnover: finish_outcome.turnover,
                     recovering_player_id: finish_outcome.recovering_player_id,
                     scoring_decision: finish_outcome.scoring_decision,
-                    elapsed_seconds: total_elapsed,
+                    duration_ledger: combined_ledger,
                     end_position: dist_outcome.end_position,
                     duels: combined_duels,
                 }
@@ -137,12 +137,15 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
         ArtrineDecisionKind::SelfFinish => execute_self_finish(
             artrine,
             goalguard,
+            spatial_map,
+            pitch,
             attribute_keys,
             offense_team_id,
             defense_team_id,
             drives_in_series,
             accumulated_advance_mirim,
             is_last_down,
+            attacking_positive_x,
             start_pos,
             context,
             rng,

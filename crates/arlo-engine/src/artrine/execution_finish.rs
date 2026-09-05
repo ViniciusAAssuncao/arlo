@@ -3,8 +3,15 @@ use crate::match_decision::finisher_selection::select_finisher;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringOpportunity,
 };
+use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::DuelContext;
+use crate::spatial::ball_kinematics::{
+    ball_flight_duration, calculate_cross_speed, calculate_shot_speed,
+};
+use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
+use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
     FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
@@ -12,7 +19,7 @@ use arlo_domain::sport_constants::{
 };
 use arlo_domain::{AttributeKey, Player};
 use arlo_events::ScoringPost;
-use arlo_math::units::Position as VectorPosition;
+use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -20,17 +27,49 @@ use uuid::Uuid;
 pub fn execute_self_finish<R: Rng + ?Sized>(
     artrine: &Player,
     goalguard: &Player,
+    spatial_map: &DynamicSpatialMap,
+    pitch: &Pitch,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     offense_team_id: Uuid,
     defense_team_id: Uuid,
     drives_in_series: u32,
     accumulated_advance_mirim: f64,
     is_last_down: bool,
+    attacking_positive_x: bool,
     start_pos: VectorPosition,
     context: &DuelContext,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome {
-    let elapsed_seconds = (20.0f64 + rng.gen_range(2.0f64..13.0f64)).clamp(20.0f64, 35.0f64);
+    let finisher_pos = spatial_map.get_position(&artrine.id()).unwrap_or(start_pos);
+    let goalguard_pos = spatial_map.get_position(&goalguard.id()).unwrap_or(start_pos);
+    let finisher_speed = calculate_player_speed(artrine, attribute_keys);
+    let goalguard_speed = calculate_player_speed(goalguard, attribute_keys);
+    let finishing_duration = derive_duel_duration(
+        finisher_pos,
+        finisher_speed,
+        goalguard_pos,
+        goalguard_speed,
+    );
+
+    let shot_speed = calculate_shot_speed(artrine, attribute_keys);
+    let finisher_x_mirim = finisher_pos.raw().0 / MIRIM_TO_METERS;
+    let dist_to_goal_mirim = if attacking_positive_x {
+        (pitch.length_mirim() - finisher_x_mirim).max(0.0)
+    } else {
+        finisher_x_mirim.max(0.0)
+    };
+    let shot_flight = ball_flight_duration(dist_to_goal_mirim, shot_speed);
+
+    let mut ledger = DurationLedger::new();
+    ledger.record_live(
+        DurationComponentKind::FinishingEngagement,
+        finishing_duration,
+    );
+    ledger.record_live(
+        DurationComponentKind::ShotFlight,
+        shot_flight,
+    );
+
     execute_finishing_with_player(
         artrine,
         artrine,
@@ -42,7 +81,7 @@ pub fn execute_self_finish<R: Rng + ?Sized>(
         accumulated_advance_mirim,
         is_last_down,
         start_pos,
-        elapsed_seconds,
+        ledger,
         context,
         rng,
     )
@@ -83,7 +122,44 @@ pub fn execute_cross_finish<R: Rng + ?Sized>(
         .and_then(|fid| eligible_teammates.iter().copied().find(|p| p.id() == fid))
         .unwrap_or(artrine);
 
-    let elapsed_seconds = (6.0f64 + rng.gen_range(1.0f64..6.0f64)).clamp(5.0f64, 10.0f64);
+    let artrine_pos = spatial_map.get_position(&artrine.id()).unwrap_or(start_pos);
+    let finisher_pos = spatial_map.get_position(&finisher.id()).unwrap_or(start_pos);
+    let cross_dist_mirim = calculate_distance_mirim(artrine_pos, finisher_pos);
+    let cross_speed = calculate_cross_speed(artrine, attribute_keys);
+    let cross_flight = ball_flight_duration(cross_dist_mirim, cross_speed);
+
+    let goalguard_pos = spatial_map.get_position(&goalguard.id()).unwrap_or(start_pos);
+    let finisher_speed = calculate_player_speed(finisher, attribute_keys);
+    let goalguard_speed = calculate_player_speed(goalguard, attribute_keys);
+    let finishing_duration = derive_duel_duration(
+        finisher_pos,
+        finisher_speed,
+        goalguard_pos,
+        goalguard_speed,
+    );
+
+    let shot_speed = calculate_shot_speed(finisher, attribute_keys);
+    let finisher_x_mirim = finisher_pos.raw().0 / MIRIM_TO_METERS;
+    let dist_to_goal_mirim = if attacking_positive_x {
+        (pitch.length_mirim() - finisher_x_mirim).max(0.0)
+    } else {
+        finisher_x_mirim.max(0.0)
+    };
+    let shot_flight = ball_flight_duration(dist_to_goal_mirim, shot_speed);
+
+    let mut ledger = DurationLedger::new();
+    ledger.record_live(
+        DurationComponentKind::CrossFlight,
+        cross_flight,
+    );
+    ledger.record_live(
+        DurationComponentKind::FinishingEngagement,
+        finishing_duration,
+    );
+    ledger.record_live(
+        DurationComponentKind::ShotFlight,
+        shot_flight,
+    );
 
     execute_finishing_with_player(
         finisher,
@@ -96,7 +172,7 @@ pub fn execute_cross_finish<R: Rng + ?Sized>(
         accumulated_advance_mirim,
         is_last_down,
         start_pos,
-        elapsed_seconds,
+        ledger,
         context,
         rng,
     )
@@ -113,7 +189,7 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
     accumulated_advance_mirim: f64,
     is_last_down: bool,
     start_pos: VectorPosition,
-    elapsed_seconds: f64,
+    duration_ledger: DurationLedger,
     context: &DuelContext,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome {
@@ -155,7 +231,7 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
         turnover,
         recovering_player_id,
         scoring_decision,
-        elapsed_seconds,
+        duration_ledger,
         end_position: start_pos,
         duels: vec![finish_duel],
     }
