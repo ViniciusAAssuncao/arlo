@@ -8,7 +8,6 @@ pub const SPLITMIX_MIX_2: u64 = 0x94d049bb133111eb;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RngStream {
     DuelResolution,
-    SpatialNoise,
     FinisherSelection,
     ProgressionDistribution,
     ArtrineDecision,
@@ -19,18 +18,16 @@ impl RngStream {
     pub fn stream_id(self) -> u64 {
         match self {
             Self::DuelResolution => 1,
-            Self::SpatialNoise => 2,
-            Self::FinisherSelection => 3,
-            Self::ProgressionDistribution => 4,
-            Self::ArtrineDecision => 5,
-            Self::BallSecurity => 6,
+            Self::FinisherSelection => 2,
+            Self::ProgressionDistribution => 3,
+            Self::ArtrineDecision => 4,
+            Self::BallSecurity => 5,
         }
     }
 
-    pub fn all() -> [Self; 6] {
+    pub fn all() -> [Self; 5] {
         [
             Self::DuelResolution,
-            Self::SpatialNoise,
             Self::FinisherSelection,
             Self::ProgressionDistribution,
             Self::ArtrineDecision,

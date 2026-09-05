@@ -7,14 +7,15 @@ use crate::match_decision::event_translation::{
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::transition;
-use crate::rng::RngStream;
+use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
+use crate::world_state::period_resolution::resolve_period_end;
+use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::ArtrineDecisionKind;
 use arlo_events::{CountdownReason, EventArtroPlacement, EventSink};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
-use rand::Rng;
 use uuid::Uuid;
 
 pub fn apply_play_transition(
@@ -100,6 +101,15 @@ pub fn apply_play_transition(
     let mut resolved_duels = vec![pass_phase.pass_duel_outcome];
     resolved_duels.extend(execution_outcome.duels);
 
+    let mut play_ledger = pass_phase.duration_ledger;
+    play_ledger.merge(execution_outcome.duration_ledger);
+
+    let possession_control_seconds = if pass_phase.pass_completed {
+        Some(play_ledger.total_live().value())
+    } else {
+        None
+    };
+
     let detailed_outcome = DetailedPlayOutcome {
         offense_team_id,
         defense_team_id,
@@ -118,11 +128,7 @@ pub fn apply_play_transition(
         out_of_bounds,
         arbitral_stoppage,
         last_valid_possession_point: execution_outcome.end_position,
-        possession_control_seconds: if pass_phase.pass_completed {
-            Some(execution_outcome.duration_ledger.total_live().value())
-        } else {
-            None
-        },
+        possession_control_seconds,
         scoring_decision: execution_outcome.scoring_decision,
     };
 
@@ -215,38 +221,20 @@ pub fn apply_play_transition(
         next_snapshot.series_state_mut().reset(center_scrimmage);
     }
 
-    *state.possession_mut() = next_snapshot;
-
-    let reorganization_seconds = if !arbitral_stoppage {
-        let mut time_rng = state
-            .rng_provider()
-            .indexed_rng_for(RngStream::SpatialNoise, seq);
-        time_rng.gen_range(15.0f64..25.0f64)
-    } else {
-        0.0
-    };
-
-    let total_elapsed = execution_outcome.duration_ledger.total().value() + reorganization_seconds;
+    if transition_result.countdown_to_size_triggered {
+        let next_scrimmage_x_mirim =
+            next_snapshot.series_state().scrimmage_point().raw().0 / MIRIM_TO_METERS;
+        let reorg_duration = derive_and_apply_reorganization(state, next_scrimmage_x_mirim);
+        play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
+    }
 
     let period_ended = state
         .clock_mut()
-        .advance_seconds(total_elapsed);
+        .advance_seconds(play_ledger.total_live().value());
+    state.real_time_mut().add(play_ledger.total());
+    *state.possession_mut() = next_snapshot;
     if period_ended {
-        if state.clock().period() < 4 {
-            state.clock_mut().next_period();
-        } else if state.clock().period() == 4 {
-            let home_pts = state.home_score().total_points;
-            let away_pts = state.away_score().total_points;
-            if home_pts == away_pts {
-                state.clock_mut().next_period();
-            } else {
-                state.clock_mut().finish_match();
-            }
-        } else if state.clock().period() < 6 {
-            state.clock_mut().next_period();
-        } else {
-            state.clock_mut().finish_match();
-        }
+        resolve_period_end(state);
     }
 
     detailed_outcome

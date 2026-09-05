@@ -1,7 +1,4 @@
-use arlo_domain::sport_constants::{
-    CHALLENGE_CALLS_PER_MATCH, OVERTIME_PERIODS_COUNT, OVERTIME_PERIOD_DURATION_MINUTES,
-    PERIOD_DURATION_MINUTES, REGULAR_PERIODS_COUNT, TIME_CALLS_PER_PERIOD,
-};
+use arlo_domain::MatchFormatRules;
 use arlo_events::MatchClockInstant;
 use serde::{Deserialize, Serialize};
 
@@ -14,18 +11,30 @@ pub struct MatchClock {
     home_challenges: u32,
     away_challenges: u32,
     is_finished: bool,
+    regulation_periods: u32,
+    regulation_period_duration_seconds: f64,
+    allows_overtime: bool,
+    overtime_periods: u32,
+    overtime_period_duration_seconds: f64,
+    time_calls_per_period: u32,
 }
 
 impl MatchClock {
-    pub fn new() -> Self {
+    pub fn new(format_rules: &MatchFormatRules) -> Self {
         Self {
             period: 1,
             seconds_in_period: 0.0,
-            home_time_calls: TIME_CALLS_PER_PERIOD,
-            away_time_calls: TIME_CALLS_PER_PERIOD,
-            home_challenges: CHALLENGE_CALLS_PER_MATCH,
-            away_challenges: CHALLENGE_CALLS_PER_MATCH,
+            home_time_calls: format_rules.time_calls_per_period(),
+            away_time_calls: format_rules.time_calls_per_period(),
+            home_challenges: format_rules.challenges_per_match(),
+            away_challenges: format_rules.challenges_per_match(),
             is_finished: false,
+            regulation_periods: format_rules.regulation_periods(),
+            regulation_period_duration_seconds: (format_rules.regulation_period_duration_minutes() * 60) as f64,
+            allows_overtime: format_rules.allows_overtime(),
+            overtime_periods: format_rules.overtime_periods(),
+            overtime_period_duration_seconds: (format_rules.overtime_period_duration_minutes() * 60) as f64,
+            time_calls_per_period: format_rules.time_calls_per_period(),
         }
     }
 
@@ -58,14 +67,14 @@ impl MatchClock {
     }
 
     pub fn is_overtime(&self) -> bool {
-        self.period > REGULAR_PERIODS_COUNT
+        self.period > self.regulation_periods
     }
 
     pub fn period_duration_seconds(&self) -> f64 {
         if self.is_overtime() {
-            (OVERTIME_PERIOD_DURATION_MINUTES * 60) as f64
+            self.overtime_period_duration_seconds
         } else {
-            (PERIOD_DURATION_MINUTES * 60) as f64
+            self.regulation_period_duration_seconds
         }
     }
 
@@ -88,15 +97,20 @@ impl MatchClock {
     }
 
     pub fn next_period(&mut self) -> bool {
-        let max_periods = REGULAR_PERIODS_COUNT + OVERTIME_PERIODS_COUNT;
+        let max_periods = self.regulation_periods
+            + if self.allows_overtime {
+                self.overtime_periods
+            } else {
+                0
+            };
         if self.period >= max_periods {
             self.is_finished = true;
             return false;
         }
         self.period += 1;
         self.seconds_in_period = 0.0;
-        self.home_time_calls = TIME_CALLS_PER_PERIOD;
-        self.away_time_calls = TIME_CALLS_PER_PERIOD;
+        self.home_time_calls = self.time_calls_per_period;
+        self.away_time_calls = self.time_calls_per_period;
         true
     }
 
@@ -141,6 +155,6 @@ impl MatchClock {
 
 impl Default for MatchClock {
     fn default() -> Self {
-        Self::new()
+        Self::new(&MatchFormatRules::default_ruleset())
     }
 }

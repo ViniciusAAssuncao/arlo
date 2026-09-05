@@ -8,6 +8,7 @@ use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::DuelContext;
 use crate::rng::RngStream;
+use crate::time::DurationLedger;
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::cta_transition::apply_play_transition;
 use crate::world_state::match_state::MatchState;
@@ -129,7 +130,7 @@ pub fn step_call_to_action(
             .rng_provider()
             .indexed_rng_for(RngStream::DuelResolution, seq_execution);
 
-        let mut execution_outcome = execute_artrine_decision(
+        let execution_outcome = execute_artrine_decision(
             chosen_decision,
             pass_phase.artrine,
             &offense_players,
@@ -148,10 +149,6 @@ pub fn step_call_to_action(
             &mut execution_rng,
         );
 
-        let mut combined_ledger = pass_phase.duration_ledger.clone();
-        combined_ledger.merge(execution_outcome.duration_ledger);
-        execution_outcome.duration_ledger = combined_ledger;
-
         (chosen_decision, execution_outcome)
     } else {
         (
@@ -163,7 +160,7 @@ pub fn step_call_to_action(
                 turnover: None,
                 recovering_player_id: None,
                 scoring_decision: ScoringDecision::NoOpportunity,
-                duration_ledger: pass_phase.duration_ledger.clone(),
+                duration_ledger: DurationLedger::new(),
                 end_position: pass_phase.scrimmage_point,
                 duels: Vec::new(),
             },

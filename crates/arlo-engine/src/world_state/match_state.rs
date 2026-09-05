@@ -1,21 +1,19 @@
 use crate::error::EngineResult;
 use crate::possession::PossessionSnapshot;
-use crate::rng::{ MatchSeed, RngProvider };
+use crate::rng::{MatchSeed, RngProvider};
 use crate::spatial::DynamicSpatialMap;
 use crate::tactics::Lineup;
+use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
-    FIELD_GOAL_FIELDPOST_VALUE,
-    FIELD_GOAL_GOALPOST_VALUE,
-    FIELD_POINT_VALUE,
-    GOAL_POINT_VALUE,
+    FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
 };
-use arlo_domain::AttributeKey;
+use arlo_domain::{AttributeKey, MatchFormatRules};
 use arlo_events::ScoringPost;
 use arlo_formatter::ScoreBreakdown;
 use arlo_math::units::Position;
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -42,7 +40,7 @@ impl TeamScore {
             self.goal_points,
             self.field_goals,
             self.field_points,
-            self.total_points
+            self.total_points,
         )
     }
 }
@@ -55,9 +53,11 @@ pub struct MatchState {
     away_lineup: Lineup,
     pitch: Pitch,
     attribute_keys: HashMap<Uuid, AttributeKey>,
+    format_rules: MatchFormatRules,
     possession: PossessionSnapshot,
     spatial_map: DynamicSpatialMap,
     clock: MatchClock,
+    real_time: RealTimeAccumulator,
     rng_provider: RngProvider,
     event_sequence: u64,
     home_score: TeamScore,
@@ -74,17 +74,19 @@ impl MatchState {
         away_lineup: Lineup,
         pitch: Pitch,
         attribute_keys: HashMap<Uuid, AttributeKey>,
-        seed: MatchSeed
+        format_rules: MatchFormatRules,
+        seed: MatchSeed,
     ) -> EngineResult<Self> {
         let spatial_map = DynamicSpatialMap::from_pitch(&pitch, &home_lineup, &away_lineup)?;
         let initial_scrimmage = Position::from_components(
             pitch.length().value() / 2.0,
             pitch.width().value() / 2.0,
-            0.0
+            0.0,
         );
         let possession = PossessionSnapshot::opening(home_team_id, away_team_id, initial_scrimmage);
         let rng_provider = RngProvider::new(seed);
-        let clock = MatchClock::new();
+        let clock = MatchClock::new(&format_rules);
+        let real_time = RealTimeAccumulator::new();
 
         Ok(Self {
             home_team_id,
@@ -93,9 +95,11 @@ impl MatchState {
             away_lineup,
             pitch,
             attribute_keys,
+            format_rules,
             possession,
             spatial_map,
             clock,
+            real_time,
             rng_provider,
             event_sequence: 0,
             home_score: TeamScore::default(),
@@ -129,6 +133,10 @@ impl MatchState {
         &self.attribute_keys
     }
 
+    pub fn format_rules(&self) -> &MatchFormatRules {
+        &self.format_rules
+    }
+
     pub fn possession(&self) -> &PossessionSnapshot {
         &self.possession
     }
@@ -151,6 +159,14 @@ impl MatchState {
 
     pub fn clock_mut(&mut self) -> &mut MatchClock {
         &mut self.clock
+    }
+
+    pub fn real_time(&self) -> &RealTimeAccumulator {
+        &self.real_time
+    }
+
+    pub fn real_time_mut(&mut self) -> &mut RealTimeAccumulator {
+        &mut self.real_time
     }
 
     pub fn rng_provider(&self) -> &RngProvider {

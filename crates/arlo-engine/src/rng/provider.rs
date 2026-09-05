@@ -42,10 +42,6 @@ impl RngProvider {
         self.rng_for(RngStream::DuelResolution)
     }
 
-    pub fn spatial_noise_rng(&self) -> ChaCha8Rng {
-        self.rng_for(RngStream::SpatialNoise)
-    }
-
     pub fn finisher_selection_rng(&self) -> ChaCha8Rng {
         self.rng_for(RngStream::FinisherSelection)
     }
