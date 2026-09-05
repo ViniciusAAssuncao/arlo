@@ -1,9 +1,13 @@
+pub mod ball_kinematics;
 pub mod decision_vector;
 pub mod dynamic_map;
 pub mod kinematics;
 pub mod proximity;
 pub mod tick_loop;
 
+pub use ball_kinematics::{
+    ball_flight_duration, calculate_cross_speed, calculate_pass_speed, calculate_shot_speed,
+};
 pub use decision_vector::{
     calculate_player_speed, derive_player_velocity_towards_target,
     derive_velocity_towards_target, extract_attribute_value, ACCELERATION_SPEED_SCALE,

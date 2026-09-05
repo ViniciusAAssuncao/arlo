@@ -1,5 +1,6 @@
 pub mod fit_calculator;
 pub mod lineup;
+pub mod scrimmage_translation;
 pub mod spatial_anchor;
 
 pub use fit_calculator::{
@@ -8,4 +9,5 @@ pub use fit_calculator::{
     GOALGUARD_MISMATCH_FACTOR, SAME_LINE_PENALTY_FACTOR,
 };
 pub use lineup::{Lineup, LineupAssignment, LineupBuilder};
+pub use scrimmage_translation::translate_formation_to_scrimmage;
 pub use spatial_anchor::SpatialAnchorMap;
