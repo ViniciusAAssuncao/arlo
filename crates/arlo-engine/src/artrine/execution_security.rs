@@ -41,10 +41,21 @@ pub fn resolve_ball_security<R: Rng + ?Sized>(
         attribute_keys,
         &defender_profile,
     );
+    let lead_defender = identify_lead_player_from_index(
+        defenders,
+        defense_position_index,
+        attribute_keys,
+        &defender_profile,
+    );
+    let defender_primary = lead_defender.unwrap_or(defenders[0]);
+
     let duel_outcome = resolve_duel(
         security_kind,
         attacker_rating,
         defender_rating,
+        ball_carrier,
+        defender_primary,
+        attribute_keys,
         context,
         rng,
     );
@@ -56,12 +67,6 @@ pub fn resolve_ball_security<R: Rng + ?Sized>(
             duel_outcome,
         }
     } else {
-        let lead_defender = identify_lead_player_from_index(
-            defenders,
-            defense_position_index,
-            attribute_keys,
-            &defender_profile,
-        );
         SecurityResolutionResult {
             turnover_team_id: Some(defense_team_id),
             recovering_player_id: lead_defender.map(|p| p.id()),
@@ -69,4 +74,3 @@ pub fn resolve_ball_security<R: Rng + ?Sized>(
         }
     }
 }
-

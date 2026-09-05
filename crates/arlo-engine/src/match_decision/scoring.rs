@@ -158,6 +158,9 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         DuelKind::FinishingAttempt,
         attacker_rating,
         defender_rating,
+        finisher,
+        goalguard,
+        attribute_keys,
         context,
         rng,
     );

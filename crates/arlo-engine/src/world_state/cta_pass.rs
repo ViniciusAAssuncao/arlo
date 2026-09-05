@@ -120,7 +120,9 @@ pub fn resolve_pass_phase<'a>(
     ];
     let pass_duel_outcome = resolve_duel_for_participants(
         DuelKind::PassProtection,
+        passer,
         &pass_blockers,
+        pass_rusher,
         &pass_rushers,
         state.attribute_keys(),
         &context,

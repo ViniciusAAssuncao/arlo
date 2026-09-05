@@ -8,6 +8,7 @@ use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::{derive_duel_duration, nearest_opponent};
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating_from_index, calculate_side_rating_from_index,
+    identify_lead_player_from_index,
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
@@ -55,10 +56,21 @@ pub fn execute_carry<R: Rng + ?Sized>(
         attribute_keys,
         &defense_profile,
     );
+    let lead_defender = identify_lead_player_from_index(
+        defenders,
+        defense_position_index,
+        attribute_keys,
+        &defense_profile,
+    )
+    .unwrap_or(defenders[0]);
+
     let artro_duel = resolve_duel(
         DuelKind::ArtroBreakthrough,
         attacker_rating,
         defender_rating,
+        artrine,
+        lead_defender,
+        attribute_keys,
         context,
         rng,
     );

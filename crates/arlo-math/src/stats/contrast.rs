@@ -13,8 +13,17 @@ pub fn softmax_weights(utilities: &[f64], steepness: f64) -> Vec<f64> {
 }
 
 pub fn bradley_terry_probability(rating_a: f64, rating_b: f64, steepness: f64) -> Probability {
+    bradley_terry_with_offset(rating_a, rating_b, steepness, 0.0)
+}
+
+pub fn bradley_terry_with_offset(
+    rating_a: f64,
+    rating_b: f64,
+    steepness: f64,
+    logit_offset: f64,
+) -> Probability {
     let diff = rating_a - rating_b;
-    let prob = logistic_scaled(diff, steepness);
+    let prob = logistic(steepness * diff + logit_offset);
     Probability::new_clamped(prob)
 }
 

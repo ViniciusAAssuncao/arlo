@@ -6,6 +6,7 @@ use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::{derive_duel_duration, nearest_opponent};
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating_from_index, calculate_side_rating_from_index,
+    identify_lead_player_from_index,
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
@@ -63,7 +64,24 @@ pub fn execute_distribution<R: Rng + ?Sized>(
         attribute_keys,
         &defense_profile,
     );
-    let dist_duel = resolve_duel(duel_kind, attacker_rating, defender_rating, context, rng);
+    let lead_defender = identify_lead_player_from_index(
+        defenders,
+        defense_position_index,
+        attribute_keys,
+        &defense_profile,
+    )
+    .unwrap_or(defenders[0]);
+
+    let dist_duel = resolve_duel(
+        duel_kind,
+        attacker_rating,
+        defender_rating,
+        artrine,
+        lead_defender,
+        attribute_keys,
+        context,
+        rng,
+    );
 
     let artrine_speed = calculate_player_speed(artrine, attribute_keys);
     let (dist_duration, nearest_def_opt) = match nearest_opponent(start_pos, defenders, spatial_map) {
