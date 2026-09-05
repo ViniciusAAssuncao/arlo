@@ -1,5 +1,6 @@
 pub mod ball_state;
 pub mod clock_state;
+pub mod drive;
 pub mod immediate_loss;
 pub mod role;
 pub mod series_state;
@@ -8,6 +9,7 @@ pub mod transition;
 
 pub use ball_state::*;
 pub use clock_state::*;
+pub use drive::*;
 pub use immediate_loss::*;
 pub use role::*;
 pub use series_state::*;
