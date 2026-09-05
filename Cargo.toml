@@ -9,6 +9,7 @@ members = [
     "crates/arlo-engine",
     "crates/arlo-formatter",
     "crates/arlo-events",
+    "crates/arlo-stats",
 ]
 
 [workspace.package]
@@ -38,3 +39,4 @@ arlo-engine    = { path = "crates/arlo-engine" }
 arlo-formatter = { path = "crates/arlo-formatter" }
 arlo-runtime   = { path = "crates/arlo-runtime" }
 arlo-events    = { path = "crates/arlo-events" }
+arlo-stats     = { path = "crates/arlo-stats" }
