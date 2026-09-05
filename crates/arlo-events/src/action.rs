@@ -15,6 +15,9 @@ pub enum DuelKind {
     ArtroBreakthrough,
     AerialDuel,
     FinishingAttempt,
+    ShortDistribution,
+    LongDistribution,
+    CrossDistribution,
 }
 
 impl DuelKind {
@@ -28,6 +31,9 @@ impl DuelKind {
             Self::ArtroBreakthrough => "ArtroBreakthrough",
             Self::AerialDuel => "AerialDuel",
             Self::FinishingAttempt => "FinishingAttempt",
+            Self::ShortDistribution => "ShortDistribution",
+            Self::LongDistribution => "LongDistribution",
+            Self::CrossDistribution => "CrossDistribution",
         }
     }
 }

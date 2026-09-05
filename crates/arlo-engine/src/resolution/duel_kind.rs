@@ -10,4 +10,7 @@ pub enum DuelKind {
     ArtroBreakthrough,
     AerialDuel,
     FinishingAttempt,
+    ShortDistribution,
+    LongDistribution,
+    CrossDistribution,
 }

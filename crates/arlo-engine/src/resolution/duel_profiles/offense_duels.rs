@@ -101,3 +101,32 @@ pub fn finishing_attempt_profile() -> DuelProfile {
         w(AttributeKey::Balance, 3.0),
     ])
 }
+
+pub fn short_distribution_profile() -> DuelProfile {
+    DuelProfile::new(vec![
+        w(AttributeKey::Passing, 5.0),
+        w(AttributeKey::Decisions, 4.5),
+        w(AttributeKey::Composure, 4.0),
+        w(AttributeKey::Technique, 3.5),
+        w(AttributeKey::Teamwork, 3.5),
+    ])
+}
+
+pub fn long_distribution_profile() -> DuelProfile {
+    DuelProfile::new(vec![
+        w(AttributeKey::Passing, 5.0),
+        w(AttributeKey::Vision, 5.0),
+        w(AttributeKey::ArloControl, 4.0),
+        w(AttributeKey::Flair, 4.0),
+        w(AttributeKey::Technique, 3.5),
+    ])
+}
+
+pub fn cross_distribution_profile() -> DuelProfile {
+    DuelProfile::new(vec![
+        w(AttributeKey::Crossing, 5.0),
+        w(AttributeKey::Vision, 4.5),
+        w(AttributeKey::Flair, 4.0),
+        w(AttributeKey::Technique, 3.5),
+    ])
+}
