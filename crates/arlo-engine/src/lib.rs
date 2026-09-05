@@ -3,6 +3,7 @@ pub mod current_ability;
 pub mod error;
 pub mod injuries;
 pub mod match_decision;
+pub mod resolution;
 pub mod rng;
 pub mod tactics;
 pub mod weighting;
