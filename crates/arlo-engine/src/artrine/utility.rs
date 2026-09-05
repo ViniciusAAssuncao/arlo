@@ -1,9 +1,9 @@
-use arlo_domain::sport_constants::FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use crate::artrine::context_terms::total_context_utility;
 use crate::artrine::decision_profiles::get_artrine_decision_profile;
 use crate::match_decision::scoring::{evaluate_scoring_opportunity, ScoringOpportunity};
 use crate::resolution::group_rating::calculate_player_duel_rating;
+use arlo_domain::sport_constants::FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST;
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -46,7 +46,12 @@ pub fn calculate_decision_utilities(
 
     for &kind in available_kinds {
         let profile = get_artrine_decision_profile(kind);
-        let intrinsic_rating = calculate_player_duel_rating(artrine, attribute_keys, &profile);
+        let intrinsic_rating = calculate_player_duel_rating(
+            artrine,
+            Position::Artrine,
+            attribute_keys,
+            &profile,
+        );
         let context_util = total_context_utility(
             kind,
             normalized_proximity,

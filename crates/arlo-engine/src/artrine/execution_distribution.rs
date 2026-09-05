@@ -4,7 +4,9 @@ use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::{derive_duel_duration, nearest_opponent};
-use crate::resolution::group_rating::{calculate_anchored_side_rating, calculate_side_rating};
+use crate::resolution::group_rating::{
+    calculate_anchored_side_rating_from_index, calculate_side_rating_from_index,
+};
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{DuelContext, DuelKind};
@@ -17,7 +19,7 @@ use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
@@ -27,7 +29,9 @@ pub fn execute_distribution<R: Rng + ?Sized>(
     decision_kind: ArtrineDecisionKind,
     artrine: &Player,
     offense_helpers: &[&Player],
+    offense_position_index: &HashMap<Uuid, DomainPosition>,
     defenders: &[&Player],
+    defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     pitch: &Pitch,
     spatial_map: &DynamicSpatialMap,
@@ -45,13 +49,20 @@ pub fn execute_distribution<R: Rng + ?Sized>(
     };
 
     let (offense_profile, defense_profile) = get_duel_profiles(duel_kind);
-    let attacker_rating = calculate_anchored_side_rating(
+    let attacker_rating = calculate_anchored_side_rating_from_index(
         artrine,
+        DomainPosition::Artrine,
         offense_helpers,
+        offense_position_index,
         attribute_keys,
         &offense_profile,
     );
-    let defender_rating = calculate_side_rating(defenders, attribute_keys, &defense_profile);
+    let defender_rating = calculate_side_rating_from_index(
+        defenders,
+        defense_position_index,
+        attribute_keys,
+        &defense_profile,
+    );
     let dist_duel = resolve_duel(duel_kind, attacker_rating, defender_rating, context, rng);
 
     let artrine_speed = calculate_player_speed(artrine, attribute_keys);
@@ -107,7 +118,9 @@ pub fn execute_distribution<R: Rng + ?Sized>(
             let sec_result = resolve_ball_security(
                 DuelKind::BallSecurityDistribution,
                 artrine,
+                DomainPosition::Artrine,
                 &close_defenders,
+                defense_position_index,
                 attribute_keys,
                 defense_team_id,
                 context,

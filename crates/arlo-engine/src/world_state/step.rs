@@ -63,6 +63,12 @@ pub fn step_call_to_action(
         (state.away_lineup().clone(), state.home_lineup().clone())
     };
 
+    let (offense_pos_index, defense_pos_index) = if is_home_offense {
+        (state.home_position_index().clone(), state.away_position_index().clone())
+    } else {
+        (state.away_position_index().clone(), state.home_position_index().clone())
+    };
+
     let offense_players: Vec<&Player> = offense_lineup.players();
     let defense_players: Vec<&Player> = defense_lineup.players();
 
@@ -134,7 +140,9 @@ pub fn step_call_to_action(
             chosen_decision,
             pass_phase.artrine,
             &offense_players,
+            &offense_pos_index,
             &defense_players,
+            &defense_pos_index,
             &attribute_keys,
             &pitch,
             state.spatial_map_mut(),

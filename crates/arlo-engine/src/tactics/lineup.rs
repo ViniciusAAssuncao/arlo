@@ -1,8 +1,8 @@
 use crate::error::{EngineError, EngineResult};
 use arlo_domain::sport_constants::TOTAL_PLAYERS_PER_TEAM;
-use arlo_domain::{Formation, FormationSlot, Player};
+use arlo_domain::{Formation, FormationSlot, Player, Position};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -117,6 +117,13 @@ impl Lineup {
 
     pub fn players(&self) -> Vec<&Player> {
         self.assignments.iter().map(|a| a.player()).collect()
+    }
+
+    pub fn position_index(&self) -> HashMap<Uuid, Position> {
+        self.assignments
+            .iter()
+            .map(|a| (a.player().id(), a.slot().position()))
+            .collect()
     }
 
     pub fn get_slot_for_player(&self, player_id: &Uuid) -> Option<&FormationSlot> {

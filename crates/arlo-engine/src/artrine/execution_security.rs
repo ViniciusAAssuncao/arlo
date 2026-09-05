@@ -1,9 +1,11 @@
 use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::group_rating::identify_lead_player;
+use crate::resolution::group_rating::{
+    calculate_player_duel_rating, calculate_side_rating_from_index, identify_lead_player_from_index,
+};
 use crate::resolution::outcome::DuelOutcome;
-use crate::resolution::resolver::resolve_duel_for_participants;
+use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{DuelContext, DuelKind};
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::{AttributeKey, Player, Position};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -18,18 +20,31 @@ pub struct SecurityResolutionResult {
 pub fn resolve_ball_security<R: Rng + ?Sized>(
     security_kind: DuelKind,
     ball_carrier: &Player,
+    carrier_position: Position,
     defenders: &[&Player],
+    defense_position_index: &HashMap<Uuid, Position>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     defense_team_id: Uuid,
     context: &DuelContext,
     rng: &mut R,
 ) -> SecurityResolutionResult {
-    let (_, defender_profile) = get_duel_profiles(security_kind);
-    let duel_outcome = resolve_duel_for_participants(
-        security_kind,
-        &[ball_carrier],
-        defenders,
+    let (attacker_profile, defender_profile) = get_duel_profiles(security_kind);
+    let attacker_rating = calculate_player_duel_rating(
+        ball_carrier,
+        carrier_position,
         attribute_keys,
+        &attacker_profile,
+    );
+    let defender_rating = calculate_side_rating_from_index(
+        defenders,
+        defense_position_index,
+        attribute_keys,
+        &defender_profile,
+    );
+    let duel_outcome = resolve_duel(
+        security_kind,
+        attacker_rating,
+        defender_rating,
         context,
         rng,
     );
@@ -41,7 +56,12 @@ pub fn resolve_ball_security<R: Rng + ?Sized>(
             duel_outcome,
         }
     } else {
-        let lead_defender = identify_lead_player(defenders, attribute_keys, &defender_profile);
+        let lead_defender = identify_lead_player_from_index(
+            defenders,
+            defense_position_index,
+            attribute_keys,
+            &defender_profile,
+        );
         SecurityResolutionResult {
             turnover_team_id: Some(defense_team_id),
             recovering_player_id: lead_defender.map(|p| p.id()),
@@ -49,3 +69,4 @@ pub fn resolve_ball_security<R: Rng + ?Sized>(
         }
     }
 }
+

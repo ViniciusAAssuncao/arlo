@@ -111,8 +111,13 @@ pub fn resolve_pass_phase<'a>(
     let mut duel_rng = state
         .rng_provider()
         .indexed_rng_for(RngStream::DuelResolution, seq);
-    let pass_blockers = vec![passer, artrine];
-    let pass_rushers = vec![pass_rusher];
+    let pass_blockers = vec![
+        (passer, DomainPosition::Passer),
+        (artrine, DomainPosition::Artrine),
+    ];
+    let pass_rushers = vec![
+        (pass_rusher, DomainPosition::PassRusher),
+    ];
     let pass_duel_outcome = resolve_duel_for_participants(
         DuelKind::PassProtection,
         &pass_blockers,

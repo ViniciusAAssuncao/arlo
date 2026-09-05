@@ -9,7 +9,7 @@ use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
 };
-use arlo_domain::{AttributeKey, MatchFormatRules};
+use arlo_domain::{AttributeKey, MatchFormatRules, Position as DomainPosition};
 use arlo_events::ScoringPost;
 use arlo_formatter::ScoreBreakdown;
 use arlo_math::units::Position;
@@ -51,6 +51,8 @@ pub struct MatchState {
     away_team_id: Uuid,
     home_lineup: Lineup,
     away_lineup: Lineup,
+    home_position_index: HashMap<Uuid, DomainPosition>,
+    away_position_index: HashMap<Uuid, DomainPosition>,
     pitch: Pitch,
     attribute_keys: HashMap<Uuid, AttributeKey>,
     format_rules: MatchFormatRules,
@@ -87,12 +89,16 @@ impl MatchState {
         let rng_provider = RngProvider::new(seed);
         let clock = MatchClock::new(&format_rules);
         let real_time = RealTimeAccumulator::new();
+        let home_position_index = home_lineup.position_index();
+        let away_position_index = away_lineup.position_index();
 
         Ok(Self {
             home_team_id,
             away_team_id,
             home_lineup,
             away_lineup,
+            home_position_index,
+            away_position_index,
             pitch,
             attribute_keys,
             format_rules,
@@ -123,6 +129,22 @@ impl MatchState {
 
     pub fn away_lineup(&self) -> &Lineup {
         &self.away_lineup
+    }
+
+    pub fn home_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        &self.home_position_index
+    }
+
+    pub fn away_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        &self.away_position_index
+    }
+
+    pub fn position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+        if team_id == self.home_team_id {
+            &self.home_position_index
+        } else {
+            &self.away_position_index
+        }
     }
 
     pub fn pitch(&self) -> &Pitch {

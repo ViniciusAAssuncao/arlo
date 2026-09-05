@@ -1,15 +1,15 @@
+use crate::resolution::calculate_player_duel_rating;
+use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::resolver::resolve_duel;
+use crate::resolution::{DuelContext, DuelKind, DuelOutcome};
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE,
     FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
     FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
     FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::{AttributeKey, Player, Position};
 use arlo_events::ScoringPost;
-use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::group_rating::calculate_side_rating;
-use crate::resolution::resolver::resolve_duel;
-use crate::resolution::{DuelContext, DuelKind, DuelOutcome};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -127,8 +127,18 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> (ScoringDecision, DuelOutcome) {
     let (attacker_profile, defender_profile) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let mut attacker_rating = calculate_side_rating(&[finisher], attribute_keys, &attacker_profile);
-    let defender_rating = calculate_side_rating(&[goalguard], attribute_keys, &defender_profile);
+    let mut attacker_rating = calculate_player_duel_rating(
+        finisher,
+        Position::CenterOffense,
+        attribute_keys,
+        &attacker_profile,
+    );
+    let defender_rating = calculate_player_duel_rating(
+        goalguard,
+        Position::Goalguard,
+        attribute_keys,
+        &defender_profile,
+    );
 
     let distance_adjustment = match opportunity {
         ScoringOpportunity::GoalPoint => 0.5,

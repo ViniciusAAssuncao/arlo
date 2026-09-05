@@ -1,12 +1,12 @@
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::group_rating::calculate_side_rating;
+use crate::resolution::group_rating::{calculate_side_rating, calculate_side_rating_from_index};
 use crate::resolution::outcome::DuelOutcome;
 use arlo_domain::sport_constants::{
     CONTRAST_LOGISTIC_SLOPE, GAUSSIAN_NOISE_STD_DEV, HOME_FIELD_ADVANTAGE_LOGIT,
 };
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::{AttributeKey, Player, Position};
 use arlo_math::stats::contrast::logistic;
 use arlo_math::stats::noise::sample_gaussian_noise;
 use arlo_math::Probability;
@@ -51,8 +51,8 @@ pub fn resolve_duel<R: Rng + ?Sized>(
 
 pub fn resolve_duel_for_participants<R: Rng + ?Sized>(
     kind: DuelKind,
-    attackers: &[&Player],
-    defenders: &[&Player],
+    attackers: &[(&Player, Position)],
+    defenders: &[(&Player, Position)],
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     context: &DuelContext,
     rng: &mut R,
@@ -60,6 +60,33 @@ pub fn resolve_duel_for_participants<R: Rng + ?Sized>(
     let (attacker_profile, defender_profile) = get_duel_profiles(kind);
     let attacker_rating = calculate_side_rating(attackers, attribute_keys, &attacker_profile);
     let defender_rating = calculate_side_rating(defenders, attribute_keys, &defender_profile);
+
+    resolve_duel(kind, attacker_rating, defender_rating, context, rng)
+}
+
+pub fn resolve_duel_for_participants_from_index<R: Rng + ?Sized>(
+    kind: DuelKind,
+    attackers: &[&Player],
+    attacker_positions: &HashMap<Uuid, Position>,
+    defenders: &[&Player],
+    defender_positions: &HashMap<Uuid, Position>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    context: &DuelContext,
+    rng: &mut R,
+) -> DuelOutcome {
+    let (attacker_profile, defender_profile) = get_duel_profiles(kind);
+    let attacker_rating = calculate_side_rating_from_index(
+        attackers,
+        attacker_positions,
+        attribute_keys,
+        &attacker_profile,
+    );
+    let defender_rating = calculate_side_rating_from_index(
+        defenders,
+        defender_positions,
+        attribute_keys,
+        &defender_profile,
+    );
 
     resolve_duel(kind, attacker_rating, defender_rating, context, rng)
 }
