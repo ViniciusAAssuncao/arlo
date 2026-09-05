@@ -9,6 +9,7 @@ pub mod roster;
 pub mod scoring;
 pub mod spatial;
 pub mod tactics;
+pub mod timing;
 
 pub use ability::*;
 pub use artro::*;
@@ -21,3 +22,4 @@ pub use roster::*;
 pub use scoring::*;
 pub use spatial::*;
 pub use tactics::*;
+pub use timing::*;

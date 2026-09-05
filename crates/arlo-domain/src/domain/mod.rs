@@ -10,6 +10,7 @@ pub mod invariant_violation;
 pub mod league;
 pub mod manager;
 pub mod manager_attribute_value;
+pub mod match_format_rules;
 pub mod person;
 pub mod pitch;
 pub mod player;
@@ -38,6 +39,7 @@ pub use invariant_violation::InvariantViolation;
 pub use league::League;
 pub use manager::Manager;
 pub use manager_attribute_value::ManagerAttributeValue;
+pub use match_format_rules::MatchFormatRules;
 pub use person::Person;
 pub use pitch::{
     artro_rows_for_pitch, project_formation, project_formation_mirrored,
