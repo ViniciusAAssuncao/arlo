@@ -360,38 +360,24 @@ pub fn validate_choice_set_legality() -> (bool, usize) {
         let (state, _, _, _) = build_mock_match_state(seed);
         let reg = AggregatorRegistry::new();
         let mut session = MatchSession::new(state, reg);
-        let _ = session.step_until_finished().unwrap();
 
-        let events = session.sink().events();
-        let mut current_down = 1u32;
-        let mut drives_in_series = 0u32;
-        let mut advance_in_series = 0.0f64;
+        while !session.is_finished() {
+            let drives_in_series = session.state().drives_in_current_series();
+            let is_last_down = session.state().possession().series_state().is_last_down();
+            let advanced_mirins = session.state().possession().series_state().advanced_mirins();
 
-        for envelope in events {
-            match envelope.event() {
-                MatchEvent::CallToActionStarted(e) => {
-                    current_down = e.down_number();
-                }
-                MatchEvent::DriveRecorded(e) => {
-                    drives_in_series = e.drives_in_series();
-                }
-                MatchEvent::ArtrineDecisionMade(e) => {
+            let prev_event_count = session.sink().len();
+            let _ = session.step().unwrap();
+
+            for envelope in &session.sink().events()[prev_event_count..] {
+                if let MatchEvent::ArtrineDecisionMade(e) = envelope.event() {
                     checks += 1;
                     let kind = e.decision_kind();
-                    let is_last_down = current_down >= 4;
-                    let allowed = available_decision_kinds(drives_in_series, advance_in_series, is_last_down);
+                    let allowed = available_decision_kinds(drives_in_series, advanced_mirins, is_last_down);
                     if !allowed.contains(&kind) {
                         illegal_choices += 1;
                     }
                 }
-                MatchEvent::DownAdvanced(e) => {
-                    advance_in_series = e.total_mirins_advanced_in_series();
-                    if e.new_down() == 1 {
-                        drives_in_series = 0;
-                        advance_in_series = 0.0;
-                    }
-                }
-                _ => {}
             }
         }
     }
