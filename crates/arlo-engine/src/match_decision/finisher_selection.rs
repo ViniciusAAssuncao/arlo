@@ -1,5 +1,6 @@
 use crate::spatial::DynamicSpatialMap;
-use arlo_domain::{ Pitch, Player, Position };
+use arlo_domain::{Pitch, Player, Position};
+use arlo_math::stats::sample_categorical;
 use rand::Rng;
 use uuid::Uuid;
 
@@ -18,7 +19,7 @@ pub fn position_finishing_bias(position: Position) -> f64 {
         Position::Lineback => 1.0,
         Position::Fullback => 1.0,
         Position::PassRusher => 0.8,
-        | Position::Centerback
+        Position::Centerback
         | Position::DefensiveEnd
         | Position::Rougieback
         | Position::DefensiveBlocker
@@ -46,7 +47,7 @@ pub fn calculate_player_finishing_weight(
     player: &Player,
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
-    attacking_positive_x: bool
+    attacking_positive_x: bool,
 ) -> f64 {
     let base_weight = player_base_finishing_weight(player);
     let proximity_factor = match spatial_map.get_position(&player.id()) {
@@ -74,7 +75,7 @@ pub fn select_finisher<R: Rng + ?Sized>(
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     attacking_positive_x: bool,
-    rng: &mut R
+    rng: &mut R,
 ) -> Option<Uuid> {
     if candidates.is_empty() {
         return None;
@@ -88,19 +89,6 @@ pub fn select_finisher<R: Rng + ?Sized>(
         .map(|p| calculate_player_finishing_weight(p, spatial_map, pitch, attacking_positive_x))
         .collect();
 
-    let total_weight: f64 = weights.iter().sum();
-    if total_weight <= 0.0 {
-        return Some(candidates[0].id());
-    }
-
-    let sample = rng.gen_range(0.0..total_weight);
-    let mut cumulative = 0.0;
-    for (i, &w) in weights.iter().enumerate() {
-        cumulative += w;
-        if sample <= cumulative {
-            return Some(candidates[i].id());
-        }
-    }
-
-    Some(candidates[candidates.len() - 1].id())
+    let index = sample_categorical(&weights, rng).unwrap_or(0);
+    Some(candidates[index].id())
 }

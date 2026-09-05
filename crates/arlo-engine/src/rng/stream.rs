@@ -11,6 +11,8 @@ pub enum RngStream {
     SpatialNoise,
     FinisherSelection,
     ProgressionDistribution,
+    ArtrineDecision,
+    BallSecurity,
 }
 
 impl RngStream {
@@ -20,15 +22,19 @@ impl RngStream {
             Self::SpatialNoise => 2,
             Self::FinisherSelection => 3,
             Self::ProgressionDistribution => 4,
+            Self::ArtrineDecision => 5,
+            Self::BallSecurity => 6,
         }
     }
 
-    pub fn all() -> [Self; 4] {
+    pub fn all() -> [Self; 6] {
         [
             Self::DuelResolution,
             Self::SpatialNoise,
             Self::FinisherSelection,
             Self::ProgressionDistribution,
+            Self::ArtrineDecision,
+            Self::BallSecurity,
         ]
     }
 }

@@ -8,6 +8,10 @@ pub fn logistic_scaled(x: f64, steepness: f64) -> f64 {
     1.0 / (1.0 + (-steepness * x).exp())
 }
 
+pub fn softmax_weights(utilities: &[f64], steepness: f64) -> Vec<f64> {
+    utilities.iter().map(|&u| (steepness * u).exp()).collect()
+}
+
 pub fn bradley_terry_probability(rating_a: f64, rating_b: f64, steepness: f64) -> Probability {
     let diff = rating_a - rating_b;
     let prob = logistic_scaled(diff, steepness);
