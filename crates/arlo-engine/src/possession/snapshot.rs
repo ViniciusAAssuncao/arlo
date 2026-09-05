@@ -3,9 +3,10 @@ use crate::possession::clock_state::{ClockState, ClockStopReason};
 use crate::possession::role::{opening_possession, PossessionRole};
 use crate::possession::series_state::SeriesState;
 use arlo_math::units::Position;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PossessionSnapshot {
     pub ball_state: BallState,
     pub clock_state: ClockState,

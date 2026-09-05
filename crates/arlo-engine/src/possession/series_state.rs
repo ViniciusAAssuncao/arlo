@@ -2,8 +2,9 @@ use arlo_domain::sport_constants::{
     MAX_CALL_TO_ACTIONS_PER_SERIES, MINIMUM_ADVANCE_MIRINS_PER_SERIES,
 };
 use arlo_math::units::Position;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SeriesState {
     down: u8,
     advanced_mirins: f64,

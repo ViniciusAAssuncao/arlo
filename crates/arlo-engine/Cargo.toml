@@ -7,6 +7,8 @@ license.workspace = true
 
 [dependencies]
 arlo-domain.workspace = true
+arlo-events.workspace = true
+arlo-formatter.workspace = true
 arlo-math.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

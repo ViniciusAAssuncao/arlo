@@ -2,8 +2,9 @@ use crate::rng::seed::MatchSeed;
 use crate::rng::stream::{derive_sub_seed, derive_sub_seed_indexed, RngStream};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RngProvider {
     seed: MatchSeed,
 }

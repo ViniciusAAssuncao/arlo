@@ -1,4 +1,7 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ClockStopReason {
     OutOfBounds,
     ArbitralStoppage,
@@ -12,7 +15,7 @@ pub enum ClockStopReason {
     PeriodEnd,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ClockState {
     Running,
     Stopped(ClockStopReason),

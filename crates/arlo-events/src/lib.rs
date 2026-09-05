@@ -7,7 +7,7 @@ pub mod sink;
 
 pub use action::{
     ActionEvent, CallToActionStarted, DriveRecorded, DriveRegistered, DuelKind, DuelResolved,
-    PassCompleted,
+    EventArtroPlacement, PassCompleted,
 };
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};

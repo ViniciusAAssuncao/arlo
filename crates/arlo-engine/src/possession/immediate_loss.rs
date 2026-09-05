@@ -1,6 +1,7 @@
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PossessionLossClassification {
     Immediate,
     Established,

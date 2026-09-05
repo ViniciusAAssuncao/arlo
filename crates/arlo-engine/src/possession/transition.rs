@@ -4,9 +4,10 @@ use crate::possession::immediate_loss::is_immediate_loss;
 use crate::possession::role::PossessionRole;
 use crate::possession::snapshot::PossessionSnapshot;
 use arlo_math::units::Position;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayOutcome {
     pub turnover: Option<Uuid>,
     pub out_of_bounds: bool,
@@ -17,7 +18,7 @@ pub struct PlayOutcome {
     pub score_occurred: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TransitionResult {
     pub snapshot: PossessionSnapshot,
     pub countdown_to_size_triggered: bool,

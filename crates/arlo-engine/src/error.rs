@@ -20,6 +20,8 @@ pub enum EngineError {
     InvalidVenueKind,
     #[error("Total anchor count mismatch: expected {expected}, found {actual}")]
     AnchorCountMismatch { expected: usize, actual: usize },
+    #[error("Missing required position '{0}' in lineup")]
+    MissingRequiredPosition(String),
 }
 
 pub type EngineResult<T> = Result<T, EngineError>;
