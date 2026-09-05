@@ -158,12 +158,17 @@ pub fn apply_play_transition(
 
     let end_x_mirim = execution_outcome.end_position.raw().0 / MIRIM_TO_METERS;
     let new_down = transition_result.snapshot.down() as u32;
+    let is_possession_change = transition_result.snapshot.role().offense() != offense_team_id;
+    let is_first_down = (transition_result.snapshot.down() == 1 && previous_down > 1)
+        || is_possession_change
+        || transition_result.snapshot.down() == 1;
+
     let down_advanced_event = translate_down_advanced(
         previous_down,
         new_down,
         execution_outcome.mirins_advanced,
         transition_result.snapshot.advanced_mirins(),
-        transition_result.snapshot.down() == 1 && previous_down > 1,
+        is_first_down,
         end_x_mirim,
     );
     let seq = state.next_sequence();
@@ -175,7 +180,7 @@ pub fn apply_play_transition(
             CountdownReason::AfterScore
         } else if detailed_outcome.turnover.is_some() {
             CountdownReason::OutOfBoundsAfterTurnover
-        } else if transition_result.snapshot.role().offense() != offense_team_id {
+        } else if is_possession_change {
             CountdownReason::TurnoverOnDowns
         } else {
             CountdownReason::OutOfBoundsPlayEnd
@@ -192,7 +197,8 @@ pub fn apply_play_transition(
     }
 
     if detailed_outcome.scoring_decision.is_scored()
-        || transition_result.snapshot.role().offense() != offense_team_id
+        || is_possession_change
+        || transition_result.snapshot.down() == 1
     {
         state.reset_drives();
     }

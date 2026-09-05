@@ -28,30 +28,34 @@ pub struct TransitionResult {
 pub fn handle_turnover_without_out(
     current: &PossessionSnapshot,
     new_offense: Uuid,
+    scrimmage: Position,
 ) -> TransitionResult {
     let new_role = PossessionRole::new(new_offense, current.role().offense());
+    let mut new_series = current.series_state.clone();
+    new_series.reset(scrimmage);
     let new_snapshot = PossessionSnapshot::new(
         current.ball_state,
         current.clock_state,
         new_role,
-        current.series_state.clone(),
+        new_series,
     );
 
     TransitionResult {
         snapshot: new_snapshot,
         countdown_to_size_triggered: false,
-        next_scrimmage_point: None,
+        next_scrimmage_point: Some(scrimmage),
     }
 }
 
 pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> TransitionResult {
+    let next_scrimmage = outcome.last_valid_possession_point;
+
     if let Some(new_offense) = outcome.turnover {
         if !outcome.out_of_bounds && !outcome.arbitral_stoppage {
-            return handle_turnover_without_out(current, new_offense);
+            return handle_turnover_without_out(current, new_offense, next_scrimmage);
         }
     }
 
-    let next_scrimmage = outcome.last_valid_possession_point;
     let mut updated_series = current.series_state.clone();
     updated_series.record_advance(outcome.mirins_advanced);
 

@@ -20,7 +20,7 @@ pub fn available_decision_kinds(
 
     let opportunity =
         evaluate_scoring_opportunity(drives_in_current_series, accumulated_advance_mirim);
-    let field_goal_reachable = is_last_down
+    let field_goal_reachable = (is_last_down || accumulated_advance_mirim >= 5.0)
         && (accumulated_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST
             || drives_in_current_series >= 1);
 

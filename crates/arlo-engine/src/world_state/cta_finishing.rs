@@ -41,7 +41,9 @@ pub fn resolve_finishing_phase(
     let mut scoring_opp =
         evaluate_scoring_opportunity(state.drives_in_current_series(), total_advance_in_series);
 
-    if scoring_opp == ScoringOpportunity::None && pass_phase.down_number >= 4 {
+    if scoring_opp == ScoringOpportunity::None
+        && (pass_phase.down_number >= 3 || total_advance_in_series >= 5.0)
+    {
         if state.drives_in_current_series() >= 2 {
             scoring_opp = ScoringOpportunity::FieldPoint;
         } else if total_advance_in_series >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST {

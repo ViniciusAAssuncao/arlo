@@ -120,7 +120,7 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
     let mut opportunity =
         evaluate_scoring_opportunity(drives_in_series, accumulated_advance_mirim);
 
-    if opportunity == ScoringOpportunity::None && is_last_down {
+    if opportunity == ScoringOpportunity::None && (is_last_down || accumulated_advance_mirim >= 5.0) {
         if drives_in_series >= 2 {
             opportunity = ScoringOpportunity::FieldPoint;
         } else if accumulated_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST {

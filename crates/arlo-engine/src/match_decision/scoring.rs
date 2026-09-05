@@ -1,10 +1,14 @@
 use arlo_domain::sport_constants::{
-    FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
+    FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE,
+    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
+    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST, FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
     FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use arlo_domain::{AttributeKey, Player};
 use arlo_events::ScoringPost;
-use crate::resolution::resolver::resolve_duel_for_participants;
+use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::group_rating::calculate_side_rating;
+use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{DuelContext, DuelKind, DuelOutcome};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -79,7 +83,7 @@ pub fn can_attempt_field_point(drives_in_series: u32, territory_advance_mirim: f
 }
 
 pub fn can_attempt_field_goal(territory_advance_mirim: f64) -> bool {
-    territory_advance_mirim >= 3.0
+    territory_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST
 }
 
 pub fn evaluate_scoring_opportunity(
@@ -90,6 +94,12 @@ pub fn evaluate_scoring_opportunity(
         ScoringOpportunity::GoalPoint
     } else if can_attempt_field_point(drives_in_series, territory_advance_mirim) {
         ScoringOpportunity::FieldPoint
+    } else if territory_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST {
+        ScoringOpportunity::FieldGoal(ScoringPost::Goalpost)
+    } else if territory_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST
+        || drives_in_series >= 1
+    {
+        ScoringOpportunity::FieldGoal(ScoringPost::Fieldpost)
     } else {
         ScoringOpportunity::None
     }
@@ -122,11 +132,28 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     context: &DuelContext,
     rng: &mut R,
 ) -> (ScoringDecision, DuelOutcome) {
-    let outcome = resolve_duel_for_participants(
+    let (attacker_profile, defender_profile) = get_duel_profiles(DuelKind::FinishingAttempt);
+    let mut attacker_rating = calculate_side_rating(&[finisher], attribute_keys, &attacker_profile);
+    let defender_rating = calculate_side_rating(&[goalguard], attribute_keys, &defender_profile);
+
+    let distance_adjustment = match opportunity {
+        ScoringOpportunity::GoalPoint => 0.5,
+        ScoringOpportunity::FieldPoint => ((territory_advance_mirim - 8.0) * 0.25).clamp(-1.0, 1.0),
+        ScoringOpportunity::FieldGoal(ScoringPost::Goalpost) => {
+            ((territory_advance_mirim - 5.0) * 0.35 - 0.5).clamp(-3.0, 0.5)
+        }
+        ScoringOpportunity::FieldGoal(ScoringPost::Fieldpost) => {
+            ((territory_advance_mirim - 3.0) * 0.35 - 1.0).clamp(-3.5, 0.0)
+        }
+        ScoringOpportunity::None => -5.0,
+    };
+
+    attacker_rating += distance_adjustment;
+
+    let outcome = resolve_duel(
         DuelKind::FinishingAttempt,
-        &[finisher],
-        &[goalguard],
-        attribute_keys,
+        attacker_rating,
+        defender_rating,
         context,
         rng,
     );

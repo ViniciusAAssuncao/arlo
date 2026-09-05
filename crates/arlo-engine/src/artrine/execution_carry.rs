@@ -9,9 +9,11 @@ use crate::resolution::group_rating::{calculate_anchored_side_rating, calculate_
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{DuelContext, DuelKind};
+use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::run_spatial_tick_loop;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
+use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
@@ -48,26 +50,47 @@ pub fn execute_carry<R: Rng + ?Sized>(
     );
 
     if !artro_duel.attacker_won() {
-        let sec_result = resolve_ball_security(
-            DuelKind::BallSecurityCarry,
-            artrine,
-            defenders,
-            attribute_keys,
-            defense_team_id,
-            context,
-            rng,
-        );
+        let close_defenders: Vec<&Player> = defenders
+            .iter()
+            .copied()
+            .filter(|d| {
+                spatial_map
+                    .get_position(&d.id())
+                    .map(|pos| calculate_distance_mirim(start_pos, pos) < PROXIMITY_CONTEST_RADIUS_MIRIM)
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        let (turnover, recovering_player_id, duels) = if !close_defenders.is_empty() {
+            let sec_result = resolve_ball_security(
+                DuelKind::BallSecurityCarry,
+                artrine,
+                &close_defenders,
+                attribute_keys,
+                defense_team_id,
+                context,
+                rng,
+            );
+            (
+                sec_result.turnover_team_id,
+                sec_result.recovering_player_id,
+                vec![artro_duel, sec_result.duel_outcome],
+            )
+        } else {
+            (None, None, vec![artro_duel])
+        };
+
         let elapsed_seconds = (8.0f64 + rng.gen_range(0.0f64..6.0f64)).clamp(8.0f64, 14.0f64);
         return ArtrineExecutionOutcome {
             mirins_advanced: 0.0,
             drives_recorded: 0,
             drive_row_indices: Vec::new(),
-            turnover: sec_result.turnover_team_id,
-            recovering_player_id: sec_result.recovering_player_id,
+            turnover,
+            recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
             elapsed_seconds,
             end_position: start_pos,
-            duels: vec![artro_duel, sec_result.duel_outcome],
+            duels,
         };
     }
 

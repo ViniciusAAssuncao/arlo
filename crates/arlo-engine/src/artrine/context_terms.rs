@@ -6,6 +6,7 @@ use arlo_domain::sport_constants::{
     PRESSURE_READ_UTILITY_SCALE, RANGE_UTILITY_SCALE,
 };
 use arlo_domain::{ArtrineDecisionKind, Pitch};
+use arlo_math::stats::contrast::logistic;
 use arlo_math::units::Position;
 
 pub fn calculate_normalized_proximity(
@@ -60,7 +61,7 @@ pub fn down_pressure_term(decision: ArtrineDecisionKind, remaining_downs: u8) ->
         ArtrineDecisionKind::LongLaunch => DOWN_PRESSURE_UTILITY_SCALE * urgency,
         ArtrineDecisionKind::ShortPass => -DOWN_PRESSURE_UTILITY_SCALE * urgency,
         ArtrineDecisionKind::Cross => DOWN_PRESSURE_UTILITY_SCALE * urgency * 0.5,
-        ArtrineDecisionKind::SelfFinish => 0.0,
+        ArtrineDecisionKind::SelfFinish => DOWN_PRESSURE_UTILITY_SCALE * urgency * 0.5,
     }
 }
 
@@ -84,20 +85,29 @@ pub fn last_down_desperation_term(
     territory_advance_mirim: f64,
     drives_in_series: u32,
 ) -> f64 {
-    if !is_last_down {
-        return 0.0;
-    }
-
     let goal_point_available = drives_in_series >= GOAL_POINT_REQUIRED_DRIVES;
     let field_point_available = drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
         && territory_advance_mirim >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM;
+
+    if goal_point_available || field_point_available {
+        return 0.0;
+    }
+
     let field_goal_reachable =
         territory_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST;
 
-    if !goal_point_available && !field_point_available && field_goal_reachable {
+    if is_last_down && field_goal_reachable {
         match decision {
             ArtrineDecisionKind::SelfFinish => LAST_DOWN_DESPERATION_UTILITY_SCALE,
             ArtrineDecisionKind::Cross => LAST_DOWN_DESPERATION_UTILITY_SCALE * 0.8,
+            _ => 0.0,
+        }
+    } else if territory_advance_mirim >= 5.0 {
+        let logistic_factor = logistic((territory_advance_mirim - 5.0) * 0.5);
+        let weight = LAST_DOWN_DESPERATION_UTILITY_SCALE * 0.6 * logistic_factor;
+        match decision {
+            ArtrineDecisionKind::SelfFinish => weight,
+            ArtrineDecisionKind::Cross => weight * 0.8,
             _ => 0.0,
         }
     } else {

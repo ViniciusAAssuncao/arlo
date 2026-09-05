@@ -7,7 +7,10 @@ use crate::resolution::group_rating::{calculate_anchored_side_rating, calculate_
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{DuelContext, DuelKind};
+use crate::spatial::proximity::calculate_distance_mirim;
+use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
+use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
@@ -21,6 +24,7 @@ pub fn execute_distribution<R: Rng + ?Sized>(
     defenders: &[&Player],
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     pitch: &Pitch,
+    spatial_map: &DynamicSpatialMap,
     start_pos: VectorPosition,
     attacking_positive_x: bool,
     defense_team_id: Uuid,
@@ -45,26 +49,47 @@ pub fn execute_distribution<R: Rng + ?Sized>(
     let dist_duel = resolve_duel(duel_kind, attacker_rating, defender_rating, context, rng);
 
     if !dist_duel.attacker_won() {
-        let sec_result = resolve_ball_security(
-            DuelKind::BallSecurityDistribution,
-            artrine,
-            defenders,
-            attribute_keys,
-            defense_team_id,
-            context,
-            rng,
-        );
+        let close_defenders: Vec<&Player> = defenders
+            .iter()
+            .copied()
+            .filter(|d| {
+                spatial_map
+                    .get_position(&d.id())
+                    .map(|pos| calculate_distance_mirim(start_pos, pos) < PROXIMITY_CONTEST_RADIUS_MIRIM)
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        let (turnover, recovering_player_id, duels) = if !close_defenders.is_empty() {
+            let sec_result = resolve_ball_security(
+                DuelKind::BallSecurityDistribution,
+                artrine,
+                &close_defenders,
+                attribute_keys,
+                defense_team_id,
+                context,
+                rng,
+            );
+            (
+                sec_result.turnover_team_id,
+                sec_result.recovering_player_id,
+                vec![dist_duel, sec_result.duel_outcome],
+            )
+        } else {
+            (None, None, vec![dist_duel])
+        };
+
         let elapsed_seconds = (8.0f64 + rng.gen_range(0.0f64..6.0f64)).clamp(8.0f64, 14.0f64);
         return ArtrineExecutionOutcome {
             mirins_advanced: 0.0,
             drives_recorded: 0,
             drive_row_indices: Vec::new(),
-            turnover: sec_result.turnover_team_id,
-            recovering_player_id: sec_result.recovering_player_id,
+            turnover,
+            recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
             elapsed_seconds,
             end_position: start_pos,
-            duels: vec![dist_duel, sec_result.duel_outcome],
+            duels,
         };
     }
 
