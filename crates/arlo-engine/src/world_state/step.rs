@@ -1,8 +1,9 @@
 use crate::artrine::{
     calculate_normalized_proximity, execute_artrine_decision, resolve_artrine_decision,
-    ArtrineExecutionOutcome,
+    translate_artrine_decision_made, ArtrineExecutionOutcome,
 };
 use crate::error::EngineResult;
+use crate::match_decision::event_translation::create_envelope;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::DuelContext;
@@ -112,6 +113,16 @@ pub fn step_call_to_action(
         );
 
         let chosen_decision = decision_result.chosen();
+
+        let decision_event = translate_artrine_decision_made(
+            pass_phase.artrine.id(),
+            chosen_decision,
+            pass_phase.down_number,
+            decision_result.chosen_probability(),
+        );
+        let seq = state.next_sequence();
+        let clock_inst = state.clock().to_instant();
+        sink.record(create_envelope(seq, clock_inst, decision_event));
 
         let seq_execution = state.next_sequence();
         let mut execution_rng = state

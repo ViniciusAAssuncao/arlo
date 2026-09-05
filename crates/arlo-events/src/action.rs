@@ -1,4 +1,5 @@
 use arlo_domain::pitch::ArtroPlacement;
+use arlo_domain::ArtrineDecisionKind;
 use arlo_math::Probability;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -158,6 +159,46 @@ impl PassCompleted {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArtrineDecisionMade {
+    artrine_id: Uuid,
+    decision_kind: ArtrineDecisionKind,
+    down_number: u32,
+    decision_probability: Probability,
+}
+
+impl ArtrineDecisionMade {
+    pub fn new(
+        artrine_id: Uuid,
+        decision_kind: ArtrineDecisionKind,
+        down_number: u32,
+        decision_probability: Probability,
+    ) -> Self {
+        Self {
+            artrine_id,
+            decision_kind,
+            down_number,
+            decision_probability,
+        }
+    }
+
+    pub fn artrine_id(&self) -> Uuid {
+        self.artrine_id
+    }
+
+    pub fn decision_kind(&self) -> ArtrineDecisionKind {
+        self.decision_kind
+    }
+
+    pub fn down_number(&self) -> u32 {
+        self.down_number
+    }
+
+    pub fn decision_probability(&self) -> Probability {
+        self.decision_probability
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DriveRecorded {
     artrine_id: Uuid,
     artro_row_index: usize,
@@ -294,6 +335,7 @@ impl DuelResolved {
 pub enum ActionEvent {
     CallToActionStarted(CallToActionStarted),
     PassCompleted(PassCompleted),
+    ArtrineDecisionMade(ArtrineDecisionMade),
     DriveRecorded(DriveRecorded),
     DuelResolved(DuelResolved),
 }
@@ -307,6 +349,12 @@ impl From<CallToActionStarted> for ActionEvent {
 impl From<PassCompleted> for ActionEvent {
     fn from(ev: PassCompleted) -> Self {
         Self::PassCompleted(ev)
+    }
+}
+
+impl From<ArtrineDecisionMade> for ActionEvent {
+    fn from(ev: ArtrineDecisionMade) -> Self {
+        Self::ArtrineDecisionMade(ev)
     }
 }
 

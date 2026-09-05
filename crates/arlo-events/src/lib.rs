@@ -6,8 +6,8 @@ pub mod scoring;
 pub mod sink;
 
 pub use action::{
-    ActionEvent, CallToActionStarted, DriveRecorded, DriveRegistered, DuelKind, DuelResolved,
-    EventArtroPlacement, PassCompleted,
+    ActionEvent, ArtrineDecisionMade, CallToActionStarted, DriveRecorded, DriveRegistered,
+    DuelKind, DuelResolved, EventArtroPlacement, PassCompleted,
 };
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 pub enum MatchEvent {
     CallToActionStarted(CallToActionStarted),
     PassCompleted(PassCompleted),
+    ArtrineDecisionMade(ArtrineDecisionMade),
     DriveRecorded(DriveRecorded),
     DuelResolved(DuelResolved),
     Turnover(Turnover),
@@ -41,6 +42,7 @@ impl MatchEvent {
             self,
             Self::CallToActionStarted(_)
                 | Self::PassCompleted(_)
+                | Self::ArtrineDecisionMade(_)
                 | Self::DriveRecorded(_)
                 | Self::DuelResolved(_)
         )
@@ -67,6 +69,7 @@ impl MatchEvent {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
             Self::PassCompleted(_) => "PassCompleted",
+            Self::ArtrineDecisionMade(_) => "ArtrineDecisionMade",
             Self::DriveRecorded(_) => "DriveRecorded",
             Self::DuelResolved(_) => "DuelResolved",
             Self::Turnover(_) => "Turnover",
@@ -89,6 +92,12 @@ impl From<CallToActionStarted> for MatchEvent {
 impl From<PassCompleted> for MatchEvent {
     fn from(ev: PassCompleted) -> Self {
         Self::PassCompleted(ev)
+    }
+}
+
+impl From<ArtrineDecisionMade> for MatchEvent {
+    fn from(ev: ArtrineDecisionMade) -> Self {
+        Self::ArtrineDecisionMade(ev)
     }
 }
 
@@ -151,6 +160,7 @@ impl From<ActionEvent> for MatchEvent {
         match ev {
             ActionEvent::CallToActionStarted(e) => Self::CallToActionStarted(e),
             ActionEvent::PassCompleted(e) => Self::PassCompleted(e),
+            ActionEvent::ArtrineDecisionMade(e) => Self::ArtrineDecisionMade(e),
             ActionEvent::DriveRecorded(e) => Self::DriveRecorded(e),
             ActionEvent::DuelResolved(e) => Self::DuelResolved(e),
         }
