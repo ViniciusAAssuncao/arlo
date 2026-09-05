@@ -1,16 +1,5 @@
-use arlo_domain::{AttributeKey, Position};
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct AttributeWeight {
-    pub key: AttributeKey,
-    pub weight: f64,
-}
-
-impl AttributeWeight {
-    pub fn new(key: AttributeKey, weight: f64) -> Self {
-        Self { key, weight }
-    }
-}
+pub use crate::weighting::AttributeWeight;
+use arlo_domain::Position;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PositionWeightProfile {

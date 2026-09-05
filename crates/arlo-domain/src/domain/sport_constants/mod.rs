@@ -1,15 +1,21 @@
 pub mod ability;
 pub mod artro;
 pub mod clock;
+pub mod downs;
 pub mod pitch;
+pub mod resolution;
 pub mod roster;
 pub mod scoring;
+pub mod spatial;
 pub mod tactics;
 
 pub use ability::*;
 pub use artro::*;
 pub use clock::*;
+pub use downs::*;
 pub use pitch::*;
+pub use resolution::*;
 pub use roster::*;
 pub use scoring::*;
+pub use spatial::*;
 pub use tactics::*;
