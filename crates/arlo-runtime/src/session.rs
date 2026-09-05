@@ -3,7 +3,10 @@ use crate::validation::{run_full_validation_and_simulation, ValidationResults};
 use crate::MatchSession;
 use arlo_engine::match_decision::DetailedPlayOutcome;
 use arlo_engine::EngineResult;
-use arlo_stats::player::{PlayerDrivesAggregator, PlayerDuelAggregator, PlayerTouchesAggregator};
+use arlo_stats::player::{
+    PlayerArtrineDecisionAggregator, PlayerDrivesAggregator, PlayerDuelAggregator,
+    PlayerTouchesAggregator,
+};
 use arlo_stats::AggregatorRegistry;
 
 pub struct GameSimulationSession {
@@ -17,6 +20,7 @@ impl GameSimulationSession {
         registry.register_aggregator(PlayerDuelAggregator::new());
         registry.register_aggregator(PlayerDrivesAggregator::new());
         registry.register_aggregator(PlayerTouchesAggregator::new());
+        registry.register_aggregator(PlayerArtrineDecisionAggregator::new());
         let session = MatchSession::new(state, registry);
         Self { session }
     }

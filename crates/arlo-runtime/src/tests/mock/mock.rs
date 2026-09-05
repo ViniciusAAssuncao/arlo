@@ -103,25 +103,25 @@ pub fn create_mock_players(
     let prefix = if is_home { "Valoria" } else { "Aethelgard" };
 
     let player_roles = [
-        (1, "Eldor Vance", Position::Goalguard, 16, 17, 15),
-        (2, "Goran Shield", Position::Centerback, 15, 14, 16),
-        (3, "Thorne Edge", Position::DefensiveEnd, 14, 15, 15),
-        (4, "Kaelen Ward", Position::Rougieback, 15, 16, 14),
-        (5, "Boran Stone", Position::DefensiveBlocker, 17, 13, 17),
-        (6, "Darin Flank", Position::WideBlocker, 14, 15, 14),
-        (7, "Roric Sentinel", Position::Lineback, 16, 15, 15),
-        (8, "Alric Haven", Position::Fullback, 14, 14, 16),
-        (9, "Joran Strike", Position::PassRusher, 16, 17, 16),
-        (10, "Marek Vector", Position::Passer, 18, 16, 15),
-        (11, "Valen Swift", Position::Artrine, 19, 18, 17),
-        (12, "Corin Pivot", Position::Midcenter, 15, 15, 15),
-        (13, "Loran Gale", Position::WingOffense, 16, 17, 14),
-        (14, "Draven Apex", Position::CenterOffense, 18, 17, 16),
+        (1, "Eldor Vance", Position::Goalguard, 16, 17, 15, 10),
+        (2, "Goran Shield", Position::Centerback, 15, 14, 16, 8),
+        (3, "Thorne Edge", Position::DefensiveEnd, 14, 15, 15, 8),
+        (4, "Kaelen Ward", Position::Rougieback, 15, 16, 14, 9),
+        (5, "Boran Stone", Position::DefensiveBlocker, 17, 13, 17, 6),
+        (6, "Darin Flank", Position::WideBlocker, 14, 15, 14, 8),
+        (7, "Roric Sentinel", Position::Lineback, 16, 15, 15, 11),
+        (8, "Alric Haven", Position::Fullback, 14, 14, 16, 11),
+        (9, "Joran Strike", Position::PassRusher, 16, 17, 16, 9),
+        (10, "Marek Vector", Position::Passer, 18, 16, 15, 18),
+        (11, "Valen Swift", Position::Artrine, 19, 18, 17, 19),
+        (12, "Corin Pivot", Position::Midcenter, 15, 15, 15, 16),
+        (13, "Loran Gale", Position::WingOffense, 16, 17, 14, 15),
+        (14, "Draven Apex", Position::CenterOffense, 18, 17, 16, 14),
     ];
 
     let mut players = Vec::with_capacity(14);
 
-    for (squad_num, name_suffix, primary_pos, core_stat, speed_stat, power_stat) in player_roles {
+    for (squad_num, name_suffix, primary_pos, core_stat, speed_stat, power_stat, creativity_stat) in player_roles {
         let player_id = Uuid::from_u128((base_offset << 32) | (squad_num as u128));
         let full_name = format!("{prefix} {name_suffix}");
 
@@ -157,9 +157,10 @@ pub fn create_mock_players(
                 AttributeKey::Finishing | AttributeKey::Reflexes | AttributeKey::Passing | AttributeKey::DriveTechnique => core_stat,
                 AttributeKey::Pace | AttributeKey::Acceleration | AttributeKey::Agility => speed_stat,
                 AttributeKey::Strength | AttributeKey::Stamina | AttributeKey::Balance | AttributeKey::Bravery => power_stat,
-                AttributeKey::Decisions | AttributeKey::Composure | AttributeKey::Anticipation => ((core_stat + speed_stat) / 2).clamp(1, 20),
-                AttributeKey::Vision | AttributeKey::Positioning | AttributeKey::Teamwork => 14,
-                AttributeKey::HandsReception | AttributeKey::OffensiveBlocking | AttributeKey::DefensiveContainment => 13,
+                AttributeKey::Vision | AttributeKey::Flair | AttributeKey::Crossing | AttributeKey::ArloControl | AttributeKey::Leadership | AttributeKey::Technique | AttributeKey::FalseArtrineBluff => creativity_stat,
+                AttributeKey::Decisions | AttributeKey::Composure | AttributeKey::Anticipation => ((core_stat + creativity_stat) / 2).clamp(1, 20),
+                AttributeKey::Positioning | AttributeKey::Teamwork | AttributeKey::Concentration | AttributeKey::WorkRate => ((power_stat + creativity_stat) / 2).clamp(1, 20),
+                AttributeKey::HandsReception | AttributeKey::OffensiveBlocking | AttributeKey::DefensiveContainment | AttributeKey::PasserPressure | AttributeKey::ControlledAggression => power_stat,
                 _ => 12,
             };
             attributes.push(PlayerAttributeValue::new(def, val).unwrap());
@@ -177,6 +178,37 @@ pub fn create_mock_players(
     }
 
     players
+}
+
+pub fn create_custom_mock_player(
+    player_id: Uuid,
+    name: impl Into<String>,
+    primary_pos: Position,
+    defs: &[AttributeDefinition],
+    nationality_id: Uuid,
+    team_id: Option<Uuid>,
+    overrides: &[(AttributeKey, i32)],
+) -> Player {
+    let pos = PlayerPosition::new(primary_pos, 10).unwrap();
+    let mut attributes = Vec::with_capacity(defs.len());
+    for def in defs {
+        let mut val = 10;
+        for (k, v) in overrides {
+            if *k == def.key() {
+                val = *v;
+                break;
+            }
+        }
+        attributes.push(PlayerAttributeValue::new(def, val).unwrap());
+    }
+
+    Player::builder(player_id, name, 1.85, 946684800, nationality_id)
+        .with_team_id(team_id)
+        .with_squad_number(Some(10))
+        .with_positions(vec![pos])
+        .with_attributes(attributes)
+        .build()
+        .unwrap()
 }
 
 pub fn create_mock_teams() -> (Team, Team, Uuid) {
