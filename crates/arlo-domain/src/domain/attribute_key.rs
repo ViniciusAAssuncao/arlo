@@ -27,6 +27,7 @@ pub enum AttributeKey {
     Bravery,
     Flair,
     WorkRate,
+    Consistency,
     Acceleration,
     Pace,
     Agility,

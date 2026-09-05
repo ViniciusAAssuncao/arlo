@@ -1,0 +1,2 @@
+INSERT INTO attribute_definitions (id, key, display_name, category, applies_to) VALUES
+    (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-a' || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))), 'consistency', 'Consistência / Regularidade', 'Mental', 'Player');
