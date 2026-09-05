@@ -29,3 +29,29 @@ pub fn parse_position(code: &str) -> DbResult<Position> {
         ))),
     }
 }
+
+pub fn position_to_code(position: Position) -> &'static str {
+    match position {
+        Position::CenterOffense => "C-O",
+        Position::WingOffense => "W-O",
+        Position::Midcenter => "MC",
+        Position::TightWing => "TW",
+        Position::CenterTight => "CW",
+        Position::Corridor => "C",
+        Position::Artrine => "A",
+        Position::Passer => "P",
+        Position::PassRusher => "P-R",
+        Position::WideEnd => "W-E",
+        Position::RunningEnd => "R-E",
+        Position::Lineback => "L",
+        Position::Fullback => "F",
+        Position::Centerback => "CB",
+        Position::DefensiveEnd => "DE",
+        Position::Rougieback => "RB",
+        Position::DefensiveBlocker => "D-B",
+        Position::WideBlocker => "W-B",
+        Position::OutsideZonerback => "OZB",
+        Position::MiddleZonerback => "MZB",
+        Position::Goalguard => "G",
+    }
+}
