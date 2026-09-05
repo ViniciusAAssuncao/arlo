@@ -8,6 +8,7 @@ pub mod rng;
 pub mod tactics;
 pub mod weighting;
 pub mod world_state;
+pub mod possession;
 
 pub use error::{EngineError, EngineResult};
 pub use rng::{
