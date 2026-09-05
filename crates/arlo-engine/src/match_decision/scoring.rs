@@ -2,8 +2,13 @@ use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
     FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
+use arlo_domain::{AttributeKey, Player};
 use arlo_events::ScoringPost;
+use crate::resolution::resolver::resolve_duel_for_participants;
+use crate::resolution::{DuelContext, DuelKind, DuelOutcome};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -103,4 +108,77 @@ pub fn field_goal_points(post: ScoringPost) -> u32 {
         ScoringPost::Goalpost => FIELD_GOAL_GOALPOST_VALUE as u32,
         ScoringPost::Fieldpost => FIELD_GOAL_FIELDPOST_VALUE as u32,
     }
+}
+
+pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
+    finisher: &Player,
+    goalguard: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    team_id: Uuid,
+    artrine_id: Uuid,
+    opportunity: ScoringOpportunity,
+    drives_completed: u32,
+    territory_advance_mirim: f64,
+    context: &DuelContext,
+    rng: &mut R,
+) -> (ScoringDecision, DuelOutcome) {
+    let outcome = resolve_duel_for_participants(
+        DuelKind::FinishingAttempt,
+        &[finisher],
+        &[goalguard],
+        attribute_keys,
+        context,
+        rng,
+    );
+
+    let decision = if outcome.attacker_won() {
+        match opportunity {
+            ScoringOpportunity::GoalPoint => {
+                let pts = goal_point_points();
+                ScoringDecision::GoalPoint {
+                    team_id,
+                    scorer_id: finisher.id(),
+                    artrine_id,
+                    drives_completed,
+                    points: pts,
+                    post: ScoringPost::Goalpost,
+                }
+            }
+            ScoringOpportunity::FieldPoint => {
+                let pts = field_point_points();
+                ScoringDecision::FieldPoint {
+                    team_id,
+                    scorer_id: finisher.id(),
+                    territory_advance_mirim,
+                    drives_completed,
+                    points: pts,
+                    post: ScoringPost::Fieldpost,
+                }
+            }
+            ScoringOpportunity::FieldGoal(post) => {
+                let pts = field_goal_points(post);
+                ScoringDecision::FieldGoal {
+                    team_id,
+                    scorer_id: finisher.id(),
+                    points: pts,
+                    post,
+                }
+            }
+            ScoringOpportunity::None => ScoringDecision::NoOpportunity,
+        }
+    } else {
+        let attempted_post = match opportunity {
+            ScoringOpportunity::GoalPoint => ScoringPost::Goalpost,
+            ScoringOpportunity::FieldPoint => ScoringPost::Fieldpost,
+            ScoringOpportunity::FieldGoal(post) => post,
+            ScoringOpportunity::None => ScoringPost::Fieldpost,
+        };
+        ScoringDecision::Missed {
+            team_id,
+            scorer_id: finisher.id(),
+            attempted_post,
+        }
+    };
+
+    (decision, outcome)
 }
