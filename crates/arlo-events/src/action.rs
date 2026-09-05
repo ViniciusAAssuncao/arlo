@@ -18,6 +18,8 @@ pub enum DuelKind {
     ShortDistribution,
     LongDistribution,
     CrossDistribution,
+    BallSecurityCarry,
+    BallSecurityDistribution,
 }
 
 impl DuelKind {
@@ -34,6 +36,8 @@ impl DuelKind {
             Self::ShortDistribution => "ShortDistribution",
             Self::LongDistribution => "LongDistribution",
             Self::CrossDistribution => "CrossDistribution",
+            Self::BallSecurityCarry => "BallSecurityCarry",
+            Self::BallSecurityDistribution => "BallSecurityDistribution",
         }
     }
 }

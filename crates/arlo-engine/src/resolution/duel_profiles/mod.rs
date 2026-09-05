@@ -71,5 +71,13 @@ pub fn get_duel_profiles(kind: DuelKind) -> (DuelProfile, DuelProfile) {
             offense_duels::cross_distribution_profile(),
             defense_duels::coverage_profile(),
         ),
+        DuelKind::BallSecurityCarry => (
+            offense_duels::ball_security_carry_profile(),
+            defense_duels::dispossession_profile(),
+        ),
+        DuelKind::BallSecurityDistribution => (
+            offense_duels::ball_security_distribution_profile(),
+            defense_duels::dispossession_profile(),
+        ),
     }
 }

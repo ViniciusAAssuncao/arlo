@@ -22,6 +22,8 @@ pub fn translate_duel_kind(kind: EngineDuelKind) -> PublicDuelKind {
         EngineDuelKind::ShortDistribution => PublicDuelKind::ShortDistribution,
         EngineDuelKind::LongDistribution => PublicDuelKind::LongDistribution,
         EngineDuelKind::CrossDistribution => PublicDuelKind::CrossDistribution,
+        EngineDuelKind::BallSecurityCarry => PublicDuelKind::BallSecurityCarry,
+        EngineDuelKind::BallSecurityDistribution => PublicDuelKind::BallSecurityDistribution,
     }
 }
 

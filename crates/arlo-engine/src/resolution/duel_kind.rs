@@ -13,4 +13,6 @@ pub enum DuelKind {
     ShortDistribution,
     LongDistribution,
     CrossDistribution,
+    BallSecurityCarry,
+    BallSecurityDistribution,
 }

@@ -87,3 +87,12 @@ pub fn aerial_defense_profile() -> DuelProfile {
         w(AttributeKey::Balance, 3.0),
     ])
 }
+
+pub fn dispossession_profile() -> DuelProfile {
+    DuelProfile::new(vec![
+        w(AttributeKey::ControlledAggression, 5.0),
+        w(AttributeKey::DefensiveContainment, 4.5),
+        w(AttributeKey::Strength, 4.0),
+        w(AttributeKey::Anticipation, 3.5),
+    ])
+}

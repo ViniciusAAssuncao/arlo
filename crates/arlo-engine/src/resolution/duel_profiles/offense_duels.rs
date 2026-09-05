@@ -130,3 +130,22 @@ pub fn cross_distribution_profile() -> DuelProfile {
         w(AttributeKey::Technique, 3.5),
     ])
 }
+
+pub fn ball_security_carry_profile() -> DuelProfile {
+    DuelProfile::new(vec![
+        w(AttributeKey::ArloControl, 5.0),
+        w(AttributeKey::Balance, 4.5),
+        w(AttributeKey::Strength, 4.0),
+        w(AttributeKey::Determination, 3.5),
+        w(AttributeKey::Bravery, 3.0),
+    ])
+}
+
+pub fn ball_security_distribution_profile() -> DuelProfile {
+    DuelProfile::new(vec![
+        w(AttributeKey::Composure, 5.0),
+        w(AttributeKey::Decisions, 4.5),
+        w(AttributeKey::ArloControl, 4.0),
+        w(AttributeKey::Technique, 3.5),
+    ])
+}
