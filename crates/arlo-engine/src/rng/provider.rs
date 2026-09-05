@@ -49,4 +49,8 @@ impl RngProvider {
     pub fn progression_distribution_rng(&self) -> ChaCha8Rng {
         self.rng_for(RngStream::ProgressionDistribution)
     }
+
+    pub fn positional_drift_rng(&self) -> ChaCha8Rng {
+        self.rng_for(RngStream::PositionalDrift)
+    }
 }

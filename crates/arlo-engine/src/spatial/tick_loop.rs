@@ -1,7 +1,7 @@
-use crate::spatial::decision_vector::derive_player_velocity_towards_target;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
+use crate::spatial::steering::derive_player_steered_velocity;
 use arlo_domain::sport_constants::{
     MAX_OPEN_PLAY_TICKS, SPATIAL_TICK_DURATION_SECONDS, TARGET_ARRIVAL_TOLERANCE_MIRIM,
 };
@@ -139,7 +139,11 @@ pub fn run_spatial_tick_loop(
 
             if dist_mirim > TARGET_ARRIVAL_TOLERANCE_MIRIM {
                 all_arrived = false;
-                let vel = derive_player_velocity_towards_target(
+                let current_vel = spatial_map
+                    .get_velocity(&pid)
+                    .unwrap_or_else(Velocity::zero);
+                let vel = derive_player_steered_velocity(
+                    current_vel,
                     current_pos,
                     *target,
                     player,

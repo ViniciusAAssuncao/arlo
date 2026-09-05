@@ -1,21 +1,23 @@
-use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
-use crate::match_decision::target_selection::{select_target, ReceptionRole};
+use crate::fatigue::{ compute_player_fatigue_multiplier, FatigueState };
+use crate::match_decision::target_selection::{ select_target, ReceptionRole };
 use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::duel_timing::{derive_duel_duration, nearest_opponent};
+use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating, calculate_side_rating_from_index,
+    calculate_player_duel_rating,
+    calculate_side_rating_from_index,
     identify_lead_player_from_index,
 };
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::resolve_duel;
-use crate::resolution::{DuelContext, DuelKind};
+use crate::resolution::{ DuelContext, DuelKind };
 use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::positioning_drift::{ get_drifted_defender_position, nearest_drifted_opponent };
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
-use arlo_math::units::{Duration, Position as VectorPosition};
+use arlo_domain::sport_constants::{ MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM };
+use arlo_domain::{ ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition };
+use arlo_math::units::{ Duration, Position as VectorPosition };
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -43,11 +45,10 @@ pub fn resolve_reception<F, R>(
     attacking_positive_x: bool,
     context: &DuelContext,
     fatigue_for: &F,
-    rng: &mut R,
-) -> ReceptionOutcome
-where
-    F: Fn(&Uuid) -> FatigueState,
-    R: Rng + ?Sized,
+    rng: &mut R
+)
+    -> ReceptionOutcome
+    where F: Fn(&Uuid) -> FatigueState, R: Rng + ?Sized
 {
     let receiver_id = select_target(
         candidates,
@@ -55,9 +56,8 @@ where
         pitch,
         attacking_positive_x,
         ReceptionRole::OpenPlayReceiver,
-        rng,
-    )
-    .unwrap_or_else(|| passer_or_artrine.id());
+        rng
+    ).unwrap_or_else(|| passer_or_artrine.id());
 
     let receiver_player = candidates
         .iter()
@@ -70,11 +70,7 @@ where
         ArtrineDecisionKind::LongLaunch | ArtrineDecisionKind::Cross
     );
 
-    let duel_kind = if is_aerial {
-        DuelKind::AerialDuel
-    } else {
-        DuelKind::RouteContest
-    };
+    let duel_kind = if is_aerial { DuelKind::AerialDuel } else { DuelKind::RouteContest };
 
     let (offense_profile, defense_profile) = get_duel_profiles(duel_kind);
 
@@ -93,7 +89,7 @@ where
         receiver_player,
         receiver_pos_domain,
         attribute_keys,
-        &offense_profile,
+        &offense_profile
     );
 
     let receiver_pos_vec = spatial_map
@@ -104,9 +100,12 @@ where
         .iter()
         .copied()
         .filter(|cand| {
-            spatial_map
-                .get_position(&cand.id())
-                .map(|p| calculate_distance_mirim(receiver_pos_vec, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM)
+            get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
+                .map(
+                    |p|
+                        calculate_distance_mirim(receiver_pos_vec, p) <=
+                        PROXIMITY_CONTEST_RADIUS_MIRIM
+                )
                 .unwrap_or(false)
         })
         .collect();
@@ -121,16 +120,15 @@ where
         active_defenders,
         defense_position_index,
         attribute_keys,
-        &defense_profile,
+        &defense_profile
     );
 
     let lead_defender = identify_lead_player_from_index(
         active_defenders,
         defense_position_index,
         attribute_keys,
-        &defense_profile,
-    )
-    .unwrap_or(defenders[0]);
+        &defense_profile
+    ).unwrap_or(defenders[0]);
 
     let duel = resolve_duel(
         duel_kind,
@@ -140,7 +138,7 @@ where
         lead_defender,
         attribute_keys,
         context,
-        rng,
+        rng
     );
 
     let caught = duel.attacker_won();
@@ -148,12 +146,18 @@ where
     let rec_mult = compute_player_fatigue_multiplier(
         receiver_player,
         &fatigue_for(&receiver_player.id()),
-        attribute_keys,
+        attribute_keys
     );
     let receiver_speed = calculate_player_speed(receiver_player, attribute_keys, rec_mult);
-    let duration = match nearest_opponent(receiver_pos_vec, defenders, spatial_map) {
+    let duration = match
+        nearest_drifted_opponent(receiver_pos_vec, defenders, spatial_map, attribute_keys, rng)
+    {
         Some((d, pos)) => {
-            let d_mult = compute_player_fatigue_multiplier(d, &fatigue_for(&d.id()), attribute_keys);
+            let d_mult = compute_player_fatigue_multiplier(
+                d,
+                &fatigue_for(&d.id()),
+                attribute_keys
+            );
             let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
             derive_duel_duration(receiver_pos_vec, receiver_speed, pos, d_spd)
         }

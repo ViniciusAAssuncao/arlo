@@ -5,7 +5,7 @@ use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::duel_timing::{derive_duel_duration, nearest_opponent};
+use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating_from_index, calculate_side_rating_from_index,
     identify_lead_player_from_index,
@@ -17,6 +17,7 @@ use crate::spatial::ball_kinematics::{
     ball_flight_duration, calculate_cross_speed, calculate_pass_speed,
 };
 use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
@@ -95,18 +96,18 @@ where
     let artrine_speed =
         calculate_player_speed(artrine, attribute_keys, artrine_fatigue_mult);
 
-    let (dist_duration, nearest_def_opt) = match nearest_opponent(start_pos, defenders, spatial_map)
-    {
-        Some((d, pos)) => {
-            let d_mult = compute_player_fatigue_multiplier(d, &fatigue_for(&d.id()), attribute_keys);
-            let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
-            (
-                derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
-                Some((d, pos)),
-            )
-        }
-        None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
-    };
+    let (dist_duration, nearest_def_opt) =
+        match nearest_drifted_opponent(start_pos, defenders, spatial_map, attribute_keys, rng) {
+            Some((d, pos)) => {
+                let d_mult = compute_player_fatigue_multiplier(d, &fatigue_for(&d.id()), attribute_keys);
+                let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
+                (
+                    derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
+                    Some((d, pos)),
+                )
+            }
+            None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
+        };
 
     if !dist_duel.attacker_won() {
         let mut ledger = DurationLedger::new();
@@ -123,8 +124,7 @@ where
                     .iter()
                     .copied()
                     .filter(|cand| {
-                        spatial_map
-                            .get_position(&cand.id())
+                        get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
                             .map(|p| {
                                 calculate_distance_mirim(start_pos, p)
                                     <= PROXIMITY_CONTEST_RADIUS_MIRIM

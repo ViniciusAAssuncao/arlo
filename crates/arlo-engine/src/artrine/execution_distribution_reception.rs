@@ -8,6 +8,7 @@ use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::{DuelContext, DuelKind};
 use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::positioning_drift::get_drifted_defender_position;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
@@ -82,8 +83,7 @@ where
             .iter()
             .copied()
             .filter(|cand| {
-                spatial_map
-                    .get_position(&cand.id())
+                get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
                     .map(|p| {
                         calculate_distance_mirim(receiver_pos_vec, p)
                             <= PROXIMITY_CONTEST_RADIUS_MIRIM
@@ -110,8 +110,7 @@ where
             rng,
         );
 
-        let sec_def_pos = spatial_map
-            .get_position(&sec_lead.id())
+        let sec_def_pos = get_drifted_defender_position(sec_lead, spatial_map, attribute_keys, rng)
             .unwrap_or(receiver_pos_vec);
         let sec_def_mult = compute_player_fatigue_multiplier(
             sec_lead,

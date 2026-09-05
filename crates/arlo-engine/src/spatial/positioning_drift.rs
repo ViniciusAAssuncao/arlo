@@ -1,0 +1,66 @@
+use crate::spatial::decision_vector::extract_attribute_value;
+use crate::spatial::dynamic_map::DynamicSpatialMap;
+use crate::spatial::proximity::calculate_distance;
+use crate::weighting::apply_saturation;
+use arlo_domain::{ AttributeKey, Player };
+use arlo_math::units::{ Position, MIRIM_TO_METERS };
+use rand::Rng;
+use std::collections::HashMap;
+use std::f64::consts::PI;
+use uuid::Uuid;
+
+pub fn anchor_drift_radius_mirim(positioning: f64) -> f64 {
+    let deficit = (20.0 - positioning).max(0.0);
+    let raw = deficit * 0.175;
+    apply_saturation(raw, 1.5, 0.6)
+}
+
+pub fn apply_positioning_drift<R: Rng + ?Sized>(
+    anchor: Position,
+    positioning: f64,
+    rng: &mut R
+) -> Position {
+    let radius_mirim = anchor_drift_radius_mirim(positioning);
+    if radius_mirim <= 1e-6 {
+        return anchor;
+    }
+    let angle = rng.gen_range(0.0..2.0 * PI);
+    let dist_mirim = radius_mirim * rng.gen_range(0.0..1.0_f64).sqrt();
+    let dx_meters = dist_mirim * angle.cos() * MIRIM_TO_METERS;
+    let dy_meters = dist_mirim * angle.sin() * MIRIM_TO_METERS;
+    Position::from_components(
+        anchor.raw().0 + dx_meters,
+        anchor.raw().1 + dy_meters,
+        anchor.raw().2
+    )
+}
+
+pub fn get_drifted_defender_position<R: Rng + ?Sized>(
+    defender: &Player,
+    spatial_map: &DynamicSpatialMap,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    rng: &mut R
+) -> Option<Position> {
+    let anchor = spatial_map.get_position(&defender.id())?;
+    let positioning = extract_attribute_value(defender, attribute_keys, AttributeKey::Positioning);
+    Some(apply_positioning_drift(anchor, positioning, rng))
+}
+
+pub fn nearest_drifted_opponent<'a, R: Rng + ?Sized>(
+    reference_pos: Position,
+    candidates: &[&'a Player],
+    spatial_map: &DynamicSpatialMap,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    rng: &mut R
+) -> Option<(&'a Player, Position)> {
+    candidates
+        .iter()
+        .filter_map(|&p| {
+            get_drifted_defender_position(p, spatial_map, attribute_keys, rng).map(|pos| (p, pos))
+        })
+        .min_by(|(_, pos_a), (_, pos_b)| {
+            let dist_a = calculate_distance(reference_pos, *pos_a).value();
+            let dist_b = calculate_distance(reference_pos, *pos_b).value();
+            dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
