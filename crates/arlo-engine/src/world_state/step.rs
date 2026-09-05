@@ -14,6 +14,7 @@ use crate::world_state::match_state::MatchState;
 use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
+use rand::Rng;
 use uuid::Uuid;
 
 fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
@@ -150,6 +151,12 @@ pub fn step_call_to_action(
 
         (chosen_decision, execution_outcome)
     } else {
+        let seq_fail = state.next_sequence();
+        let mut fail_rng = state
+            .rng_provider()
+            .indexed_rng_for(RngStream::DuelResolution, seq_fail);
+        let fail_elapsed = (8.0f64 + fail_rng.gen_range(0.0f64..6.0f64)).clamp(8.0f64, 14.0f64);
+
         (
             ArtrineDecisionKind::SelfCarry,
             ArtrineExecutionOutcome {
@@ -159,7 +166,7 @@ pub fn step_call_to_action(
                 turnover: None,
                 recovering_player_id: None,
                 scoring_decision: ScoringDecision::NoOpportunity,
-                elapsed_seconds: 1.0,
+                elapsed_seconds: fail_elapsed,
                 end_position: pass_phase.scrimmage_point,
                 duels: Vec::new(),
             },

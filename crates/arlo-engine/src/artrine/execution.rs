@@ -116,6 +116,9 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
                 let mut combined_duels = dist_outcome.duels;
                 combined_duels.extend(finish_outcome.duels);
 
+                let total_elapsed = (dist_outcome.elapsed_seconds + finish_outcome.elapsed_seconds)
+                    .clamp(20.0f64, 35.0f64);
+
                 ArtrineExecutionOutcome {
                     mirins_advanced: dist_outcome.mirins_advanced,
                     drives_recorded: 0,
@@ -123,7 +126,7 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
                     turnover: finish_outcome.turnover,
                     recovering_player_id: finish_outcome.recovering_player_id,
                     scoring_decision: finish_outcome.scoring_decision,
-                    elapsed_seconds: dist_outcome.elapsed_seconds + finish_outcome.elapsed_seconds,
+                    elapsed_seconds: total_elapsed,
                     end_position: dist_outcome.end_position,
                     duels: combined_duels,
                 }

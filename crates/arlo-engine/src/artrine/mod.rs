@@ -14,10 +14,12 @@ pub use context_terms::*;
 pub use decision_engine::*;
 pub use decision_profiles::*;
 pub use event_translation::*;
-pub use execution::*;
-pub use execution_carry::*;
-pub use execution_distribution::*;
-pub use execution_finish::*;
-pub use execution_outcome::*;
-pub use execution_security::*;
+pub use execution::{execute_artrine_decision, find_goalguard};
+pub use execution_carry::execute_carry;
+pub use execution_distribution::execute_distribution;
+pub use execution_finish::{
+    execute_cross_finish, execute_finishing_with_player, execute_self_finish,
+};
+pub use execution_outcome::ArtrineExecutionOutcome;
+pub use execution_security::{resolve_ball_security, SecurityResolutionResult};
 pub use utility::*;

@@ -12,10 +12,10 @@ use crate::spatial::run_spatial_tick_loop;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::pitch::artro_rows_for_pitch;
-use arlo_domain::sport_constants::SPATIAL_TICK_DURATION_SECONDS;
 use arlo_domain::Player;
 use arlo_events::{EventArtroPlacement, EventSink};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use rand::Rng;
 
 pub struct ProgressionPhaseResult {
     pub artro_duel_outcome: DuelOutcome,
@@ -118,24 +118,26 @@ pub fn resolve_progression_phase(
 
     let attribute_keys = state.attribute_keys().clone();
     let tick_result = if pass_phase.pass_completed {
-        state.spatial_map_mut().set_position(pass_phase.artrine.id(), pass_phase.reception_point);
+        state
+            .spatial_map_mut()
+            .set_position(pass_phase.artrine.id(), pass_phase.reception_point);
         run_spatial_tick_loop(
             state.spatial_map_mut(),
             &[(pass_phase.artrine, end_position)],
             &attribute_keys,
         )
     } else {
-        run_spatial_tick_loop(
-            state.spatial_map_mut(),
-            &[],
-            &attribute_keys,
-        )
+        run_spatial_tick_loop(state.spatial_map_mut(), &[], &attribute_keys)
     };
 
     let elapsed_seconds = if pass_phase.pass_completed {
-        tick_result.elapsed_seconds().max(SPATIAL_TICK_DURATION_SECONDS)
+        (14.0f64
+            + tick_result.elapsed_seconds() * 1.5f64
+            + mirins_advanced * 0.6f64
+            + prog_rng.gen_range(0.0f64..3.0f64))
+        .clamp(15.0f64, 28.0f64)
     } else {
-        1.0
+        (8.0f64 + prog_rng.gen_range(0.0f64..6.0f64)).clamp(8.0f64, 14.0f64)
     };
 
     ProgressionPhaseResult {

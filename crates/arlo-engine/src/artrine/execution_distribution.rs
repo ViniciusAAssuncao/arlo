@@ -54,6 +54,7 @@ pub fn execute_distribution<R: Rng + ?Sized>(
             context,
             rng,
         );
+        let elapsed_seconds = (8.0f64 + rng.gen_range(0.0f64..6.0f64)).clamp(8.0f64, 14.0f64);
         return ArtrineExecutionOutcome {
             mirins_advanced: 0.0,
             drives_recorded: 0,
@@ -61,7 +62,7 @@ pub fn execute_distribution<R: Rng + ?Sized>(
             turnover: sec_result.turnover_team_id,
             recovering_player_id: sec_result.recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
-            elapsed_seconds: 1.0,
+            elapsed_seconds,
             end_position: start_pos,
             duels: vec![dist_duel, sec_result.duel_outcome],
         };
@@ -83,7 +84,8 @@ pub fn execute_distribution<R: Rng + ?Sized>(
         start_pos.raw().1,
         0.0,
     );
-    let elapsed_seconds = (mirins_advanced * 0.25).max(1.0);
+    let elapsed_seconds =
+        (14.0f64 + mirins_advanced * 0.7f64 + rng.gen_range(0.0f64..3.0f64)).clamp(15.0f64, 28.0f64);
 
     ArtrineExecutionOutcome {
         mirins_advanced,

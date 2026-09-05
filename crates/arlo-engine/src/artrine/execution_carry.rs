@@ -12,7 +12,6 @@ use crate::resolution::{DuelContext, DuelKind};
 use crate::spatial::run_spatial_tick_loop;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
-use arlo_domain::sport_constants::SPATIAL_TICK_DURATION_SECONDS;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
@@ -58,6 +57,7 @@ pub fn execute_carry<R: Rng + ?Sized>(
             context,
             rng,
         );
+        let elapsed_seconds = (8.0f64 + rng.gen_range(0.0f64..6.0f64)).clamp(8.0f64, 14.0f64);
         return ArtrineExecutionOutcome {
             mirins_advanced: 0.0,
             drives_recorded: 0,
@@ -65,7 +65,7 @@ pub fn execute_carry<R: Rng + ?Sized>(
             turnover: sec_result.turnover_team_id,
             recovering_player_id: sec_result.recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
-            elapsed_seconds: 1.0,
+            elapsed_seconds,
             end_position: start_pos,
             duels: vec![artro_duel, sec_result.duel_outcome],
         };
@@ -88,15 +88,9 @@ pub fn execute_carry<R: Rng + ?Sized>(
     );
 
     spatial_map.set_position(artrine.id(), start_pos);
-    let tick_result = run_spatial_tick_loop(
-        spatial_map,
-        &[(artrine, target_pos)],
-        attribute_keys,
-    );
+    let tick_result =
+        run_spatial_tick_loop(spatial_map, &[(artrine, target_pos)], attribute_keys);
 
-    let elapsed_seconds = tick_result
-        .elapsed_seconds()
-        .max(SPATIAL_TICK_DURATION_SECONDS);
     let end_position = spatial_map
         .get_position(&artrine.id())
         .unwrap_or(target_pos);
@@ -135,6 +129,12 @@ pub fn execute_carry<R: Rng + ?Sized>(
     }
 
     let drives_recorded = drive_row_indices.len() as u32;
+
+    let elapsed_seconds = (14.0f64
+        + tick_result.elapsed_seconds() * 1.5f64
+        + mirins_advanced * 0.6f64
+        + rng.gen_range(0.0f64..3.0f64))
+    .clamp(15.0f64, 28.0f64);
 
     ArtrineExecutionOutcome {
         mirins_advanced,

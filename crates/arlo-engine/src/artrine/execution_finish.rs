@@ -30,6 +30,7 @@ pub fn execute_self_finish<R: Rng + ?Sized>(
     context: &DuelContext,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome {
+    let elapsed_seconds = (20.0f64 + rng.gen_range(2.0f64..13.0f64)).clamp(20.0f64, 35.0f64);
     execute_finishing_with_player(
         artrine,
         artrine,
@@ -41,6 +42,7 @@ pub fn execute_self_finish<R: Rng + ?Sized>(
         accumulated_advance_mirim,
         is_last_down,
         start_pos,
+        elapsed_seconds,
         context,
         rng,
     )
@@ -81,6 +83,8 @@ pub fn execute_cross_finish<R: Rng + ?Sized>(
         .and_then(|fid| eligible_teammates.iter().copied().find(|p| p.id() == fid))
         .unwrap_or(artrine);
 
+    let elapsed_seconds = (6.0f64 + rng.gen_range(1.0f64..6.0f64)).clamp(5.0f64, 10.0f64);
+
     execute_finishing_with_player(
         finisher,
         artrine,
@@ -92,6 +96,7 @@ pub fn execute_cross_finish<R: Rng + ?Sized>(
         accumulated_advance_mirim,
         is_last_down,
         start_pos,
+        elapsed_seconds,
         context,
         rng,
     )
@@ -108,6 +113,7 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
     accumulated_advance_mirim: f64,
     is_last_down: bool,
     start_pos: VectorPosition,
+    elapsed_seconds: f64,
     context: &DuelContext,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome {
@@ -153,7 +159,7 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
         turnover,
         recovering_player_id,
         scoring_decision,
-        elapsed_seconds: 1.5,
+        elapsed_seconds,
         end_position: start_pos,
         duels: vec![finish_duel],
     }
