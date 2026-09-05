@@ -1,9 +1,11 @@
 pub mod context;
 pub mod error;
+pub mod match_session;
 pub mod session;
 
 pub use context::Context;
 pub use error::RuntimeError;
+pub use match_session::MatchSession;
 
 pub fn run(rt: &tokio::runtime::Runtime) -> Result<(), RuntimeError> {
     rt.block_on(async {
