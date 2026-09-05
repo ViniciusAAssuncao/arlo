@@ -1,6 +1,6 @@
 use crate::aggregator::StatAggregator;
 use arlo_events::MatchEvent;
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -85,7 +85,9 @@ impl PlayerTouchesAggregator {
     }
 
     fn get_mut_or_create(&mut self, player_id: Uuid) -> &mut PlayerTouchStats {
-        self.stats.entry(player_id).or_insert_with(|| PlayerTouchStats::new(player_id))
+        self.stats
+            .entry(player_id)
+            .or_insert_with(|| PlayerTouchStats::new(player_id))
     }
 
     pub fn record_pass_attempt(&mut self, player_id: Uuid) {
@@ -127,6 +129,11 @@ impl StatAggregator for PlayerTouchesAggregator {
             }
             MatchEvent::PassCompleted(e) => {
                 self.record_pass_reception(e.receiver_id());
+            }
+            MatchEvent::ReceptionResolved(e) => {
+                if e.caught() {
+                    self.record_pass_reception(e.receiver_id());
+                }
             }
             MatchEvent::DriveRecorded(e) => {
                 self.record_drive(e.artrine_id());

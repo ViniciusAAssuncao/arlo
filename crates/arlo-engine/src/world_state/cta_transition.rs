@@ -2,7 +2,7 @@ use crate::artrine::ArtrineExecutionOutcome;
 use crate::match_decision::event_translation::{
     create_envelope, translate_countdown_started, translate_down_advanced,
     translate_drive_recorded, translate_duel_resolved, translate_out_of_bounds,
-    translate_scoring_decision, translate_turnover,
+    translate_reception_resolved, translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
@@ -61,6 +61,18 @@ pub fn apply_play_transition(
         let seq = state.next_sequence();
         let clock_inst = state.clock().to_instant();
         sink.record(create_envelope(seq, clock_inst, duel_event));
+
+        if matches!(duel.kind(), EngineDuelKind::RouteContest | EngineDuelKind::AerialDuel) {
+            let reception_event = translate_reception_resolved(
+                attacker_id,
+                pass_phase.artrine.id(),
+                duel.attacker_won(),
+                duel.kind() == EngineDuelKind::AerialDuel,
+            );
+            let seq = state.next_sequence();
+            let clock_inst = state.clock().to_instant();
+            sink.record(create_envelope(seq, clock_inst, reception_event));
+        }
     }
 
     match &execution_outcome.scoring_decision {

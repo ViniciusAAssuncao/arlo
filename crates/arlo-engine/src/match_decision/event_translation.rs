@@ -4,7 +4,7 @@ use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DownAdvanced, DriveRecorded,
     DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement, FieldGoalScored,
     FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent, MatchEventEnvelope,
-    OutOfBounds, PassCompleted, Turnover,
+    OutOfBounds, PassCompleted, ReceptionResolved, Turnover,
 };
 use arlo_math::units::Position;
 use uuid::Uuid;
@@ -40,6 +40,15 @@ pub fn translate_duel_resolved(
         outcome.win_probability(),
         outcome.net_advantage(),
     )
+}
+
+pub fn translate_reception_resolved(
+    receiver_id: Uuid,
+    passer_id: Uuid,
+    caught: bool,
+    is_aerial: bool,
+) -> ReceptionResolved {
+    ReceptionResolved::new(receiver_id, passer_id, caught, is_aerial)
 }
 
 pub fn translate_call_to_action_started(

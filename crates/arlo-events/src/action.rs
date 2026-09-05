@@ -44,6 +44,46 @@ impl DuelKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ReceptionResolved {
+    receiver_id: Uuid,
+    passer_id: Uuid,
+    caught: bool,
+    is_aerial: bool,
+}
+
+impl ReceptionResolved {
+    pub fn new(
+        receiver_id: Uuid,
+        passer_id: Uuid,
+        caught: bool,
+        is_aerial: bool,
+    ) -> Self {
+        Self {
+            receiver_id,
+            passer_id,
+            caught,
+            is_aerial,
+        }
+    }
+
+    pub fn receiver_id(&self) -> Uuid {
+        self.receiver_id
+    }
+
+    pub fn passer_id(&self) -> Uuid {
+        self.passer_id
+    }
+
+    pub fn caught(&self) -> bool {
+        self.caught
+    }
+
+    pub fn is_aerial(&self) -> bool {
+        self.is_aerial
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallToActionStarted {
     offense_team_id: Uuid,
     defense_team_id: Uuid,
@@ -335,6 +375,7 @@ impl DuelResolved {
 pub enum ActionEvent {
     CallToActionStarted(CallToActionStarted),
     PassCompleted(PassCompleted),
+    ReceptionResolved(ReceptionResolved),
     ArtrineDecisionMade(ArtrineDecisionMade),
     DriveRecorded(DriveRecorded),
     DuelResolved(DuelResolved),
@@ -349,6 +390,12 @@ impl From<CallToActionStarted> for ActionEvent {
 impl From<PassCompleted> for ActionEvent {
     fn from(ev: PassCompleted) -> Self {
         Self::PassCompleted(ev)
+    }
+}
+
+impl From<ReceptionResolved> for ActionEvent {
+    fn from(ev: ReceptionResolved) -> Self {
+        Self::ReceptionResolved(ev)
     }
 }
 
