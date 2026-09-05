@@ -1,31 +1,77 @@
+use crate::artrine::ArtrineExecutionOutcome;
 use crate::match_decision::event_translation::{
     create_envelope, translate_countdown_started, translate_down_advanced,
-    translate_out_of_bounds, translate_turnover,
+    translate_drive_recorded, translate_duel_resolved, translate_out_of_bounds,
+    translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::transition;
-use crate::world_state::cta_finishing::FinishingPhaseResult;
 use crate::world_state::cta_pass::PassPhaseResult;
-use crate::world_state::cta_progression::ProgressionPhaseResult;
 use crate::world_state::match_state::MatchState;
-use arlo_events::{CountdownReason, EventSink};
-use arlo_math::units::Position as VectorPosition;
+use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
+use arlo_domain::ArtrineDecisionKind;
+use arlo_events::{CountdownReason, EventArtroPlacement, EventSink};
+use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use uuid::Uuid;
 
 pub fn apply_play_transition(
     state: &mut MatchState,
     pass_phase: PassPhaseResult<'_>,
-    prog_phase: ProgressionPhaseResult,
-    finishing_phase: FinishingPhaseResult,
+    _decision: ArtrineDecisionKind,
+    execution_outcome: ArtrineExecutionOutcome,
     offense_team_id: Uuid,
     defense_team_id: Uuid,
-    play_duration_seconds: f64,
     sink: &mut impl EventSink,
 ) -> DetailedPlayOutcome {
-    let is_scored = finishing_phase.scoring_decision.is_scored();
+    for &row_index in &execution_outcome.drive_row_indices {
+        state.increment_drives();
+        let rx = (row_index as f64 + 1.0) * ARTRO_ROW_SPACING_MIRIM;
+        let drive_event = translate_drive_recorded(
+            pass_phase.artrine.id(),
+            row_index,
+            EventArtroPlacement::Central,
+            state.drives_in_current_series(),
+            rx,
+        );
+        let seq = state.next_sequence();
+        let clock_inst = state.clock().to_instant();
+        sink.record(create_envelope(seq, clock_inst, drive_event));
+    }
+
+    for duel in &execution_outcome.duels {
+        let duel_event = translate_duel_resolved(
+            duel,
+            vec![pass_phase.artrine.id()],
+            vec![pass_phase.goalguard.id()],
+        );
+        let seq = state.next_sequence();
+        let clock_inst = state.clock().to_instant();
+        sink.record(create_envelope(seq, clock_inst, duel_event));
+    }
+
+    match &execution_outcome.scoring_decision {
+        ScoringDecision::GoalPoint { .. } => {
+            state.record_goal_point(offense_team_id);
+        }
+        ScoringDecision::FieldPoint { .. } => {
+            state.record_field_point(offense_team_id);
+        }
+        ScoringDecision::FieldGoal { post, .. } => {
+            state.record_field_goal(offense_team_id, *post);
+        }
+        _ => {}
+    }
+
+    if let Some(match_event) = translate_scoring_decision(&execution_outcome.scoring_decision) {
+        let seq = state.next_sequence();
+        let clock_inst = state.clock().to_instant();
+        sink.record(create_envelope(seq, clock_inst, match_event));
+    }
+
+    let is_scored = execution_outcome.scoring_decision.is_scored();
     let is_missed = matches!(
-        finishing_phase.scoring_decision,
+        execution_outcome.scoring_decision,
         ScoringDecision::Missed { .. }
     );
     let pass_failed = !pass_phase.pass_completed;
@@ -33,16 +79,24 @@ pub fn apply_play_transition(
     let out_of_bounds = pass_failed || is_scored || is_missed;
     let arbitral_stoppage = is_scored;
 
-    let turnover = if is_missed {
+    let turnover = if execution_outcome.turnover.is_some() {
+        execution_outcome.turnover
+    } else if is_missed {
         Some(defense_team_id)
     } else {
         None
     };
 
-    let mut resolved_duels = vec![pass_phase.pass_duel_outcome, prog_phase.artro_duel_outcome];
-    if let Some(finish_duel) = finishing_phase.finish_duel_outcome {
-        resolved_duels.push(finish_duel);
-    }
+    let recovering_player_id = if execution_outcome.recovering_player_id.is_some() {
+        execution_outcome.recovering_player_id
+    } else if turnover.is_some() {
+        Some(pass_phase.goalguard.id())
+    } else {
+        None
+    };
+
+    let mut resolved_duels = vec![pass_phase.pass_duel_outcome];
+    resolved_duels.extend(execution_outcome.duels);
 
     let detailed_outcome = DetailedPlayOutcome {
         offense_team_id,
@@ -54,24 +108,20 @@ pub fn apply_play_transition(
         pass_completed: pass_phase.pass_completed,
         pass_is_aerial: pass_phase.is_aerial,
         reception_point: pass_phase.reception_point,
-        drives_recorded: prog_phase.drives_recorded_count,
-        mirins_advanced: prog_phase.mirins_advanced,
+        drives_recorded: execution_outcome.drives_recorded,
+        mirins_advanced: execution_outcome.mirins_advanced,
         duels: resolved_duels,
         turnover,
-        recovering_player_id: if turnover.is_some() {
-            Some(pass_phase.goalguard.id())
+        recovering_player_id,
+        out_of_bounds,
+        arbitral_stoppage,
+        last_valid_possession_point: execution_outcome.end_position,
+        possession_control_seconds: if pass_phase.pass_completed {
+            Some(execution_outcome.elapsed_seconds)
         } else {
             None
         },
-        out_of_bounds,
-        arbitral_stoppage,
-        last_valid_possession_point: prog_phase.end_position,
-        possession_control_seconds: if pass_phase.pass_completed {
-            Some(2.0)
-        } else {
-            Some(0.8)
-        },
-        scoring_decision: finishing_phase.scoring_decision,
+        scoring_decision: execution_outcome.scoring_decision,
     };
 
     let previous_down = state.possession().down() as u32;
@@ -84,7 +134,7 @@ pub fn apply_play_transition(
             new_offense,
             detailed_outcome.recovering_player_id,
             !out_of_bounds,
-            prog_phase.end_position,
+            execution_outcome.end_position,
         );
         let seq = state.next_sequence();
         let clock_inst = state.clock().to_instant();
@@ -95,7 +145,7 @@ pub fn apply_play_transition(
         let oob_event = translate_out_of_bounds(
             offense_team_id,
             Some(pass_phase.artrine.id()),
-            prog_phase.end_position,
+            execution_outcome.end_position,
             detailed_outcome
                 .possession_control_seconds
                 .map(|s| s < 0.7)
@@ -106,14 +156,15 @@ pub fn apply_play_transition(
         sink.record(create_envelope(seq, clock_inst, oob_event));
     }
 
+    let end_x_mirim = execution_outcome.end_position.raw().0 / MIRIM_TO_METERS;
     let new_down = transition_result.snapshot.down() as u32;
     let down_advanced_event = translate_down_advanced(
         previous_down,
         new_down,
-        prog_phase.mirins_advanced,
+        execution_outcome.mirins_advanced,
         transition_result.snapshot.advanced_mirins(),
         transition_result.snapshot.down() == 1 && previous_down > 1,
-        prog_phase.end_x_mirim,
+        end_x_mirim,
     );
     let seq = state.next_sequence();
     let clock_inst = state.clock().to_instant();
@@ -132,7 +183,7 @@ pub fn apply_play_transition(
 
         let countdown_event = translate_countdown_started(
             transition_result.snapshot.offense(),
-            prog_phase.end_x_mirim,
+            end_x_mirim,
             reason,
         );
         let seq = state.next_sequence();
@@ -158,7 +209,9 @@ pub fn apply_play_transition(
 
     *state.possession_mut() = next_snapshot;
 
-    let period_ended = state.clock_mut().advance_seconds(play_duration_seconds);
+    let period_ended = state
+        .clock_mut()
+        .advance_seconds(execution_outcome.elapsed_seconds);
     if period_ended {
         if state.clock().period() < 4 {
             state.clock_mut().next_period();

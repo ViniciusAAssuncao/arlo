@@ -1,12 +1,16 @@
+use crate::artrine::{
+    calculate_normalized_proximity, execute_artrine_decision, resolve_artrine_decision,
+    ArtrineExecutionOutcome,
+};
 use crate::error::EngineResult;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::world_state::cta_finishing::resolve_finishing_phase;
+use crate::resolution::DuelContext;
+use crate::rng::RngStream;
 use crate::world_state::cta_pass::resolve_pass_phase;
-use crate::world_state::cta_progression::resolve_progression_phase;
 use crate::world_state::cta_transition::apply_play_transition;
 use crate::world_state::match_state::MatchState;
-use arlo_domain::Player;
+use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
 use uuid::Uuid;
@@ -70,35 +74,94 @@ pub fn step_call_to_action(
         sink,
     );
 
-    let prog_phase = resolve_progression_phase(
-        state,
-        &pass_phase,
-        &offense_players,
-        &defense_players,
-        is_home_offense,
-        sink,
-    );
+    let (chosen_decision, execution_outcome) = if pass_phase.pass_completed {
+        let context = if is_home_offense {
+            DuelContext::attacker_home()
+        } else {
+            DuelContext::defender_home()
+        };
 
-    let finishing_phase = resolve_finishing_phase(
-        state,
-        &pass_phase,
-        &prog_phase,
-        &offense_players,
-        is_home_offense,
-        offense_team_id,
-        sink,
-    );
+        let pitch = *state.pitch();
+        let attribute_keys = state.attribute_keys().clone();
+        let drives_in_series = state.drives_in_current_series();
+        let remaining_downs = state.possession().series_state().remaining_downs();
+        let is_last_down = state.possession().series_state().is_last_down();
+        let advanced_mirins = state.possession().series_state().advanced_mirins();
 
-    let play_duration_seconds = prog_phase.elapsed_seconds;
+        let normalized_proximity = calculate_normalized_proximity(
+            pass_phase.reception_point,
+            &pitch,
+            is_home_offense,
+        );
+
+        let seq_decision = state.next_sequence();
+        let mut decision_rng = state
+            .rng_provider()
+            .indexed_rng_for(RngStream::ArtrineDecision, seq_decision);
+
+        let decision_result = resolve_artrine_decision(
+            pass_phase.artrine,
+            &attribute_keys,
+            normalized_proximity,
+            drives_in_series,
+            remaining_downs,
+            pass_phase.pass_duel_outcome.net_advantage(),
+            is_last_down,
+            advanced_mirins,
+            &mut decision_rng,
+        );
+
+        let chosen_decision = decision_result.chosen();
+
+        let seq_execution = state.next_sequence();
+        let mut execution_rng = state
+            .rng_provider()
+            .indexed_rng_for(RngStream::DuelResolution, seq_execution);
+
+        let execution_outcome = execute_artrine_decision(
+            chosen_decision,
+            pass_phase.artrine,
+            &offense_players,
+            &defense_players,
+            &attribute_keys,
+            &pitch,
+            state.spatial_map_mut(),
+            pass_phase.reception_point,
+            is_home_offense,
+            offense_team_id,
+            defense_team_id,
+            drives_in_series,
+            advanced_mirins,
+            is_last_down,
+            &context,
+            &mut execution_rng,
+        );
+
+        (chosen_decision, execution_outcome)
+    } else {
+        (
+            ArtrineDecisionKind::SelfCarry,
+            ArtrineExecutionOutcome {
+                mirins_advanced: 0.0,
+                drives_recorded: 0,
+                drive_row_indices: Vec::new(),
+                turnover: None,
+                recovering_player_id: None,
+                scoring_decision: ScoringDecision::NoOpportunity,
+                elapsed_seconds: 1.0,
+                end_position: pass_phase.scrimmage_point,
+                duels: Vec::new(),
+            },
+        )
+    };
 
     let detailed_outcome = apply_play_transition(
         state,
         pass_phase,
-        prog_phase,
-        finishing_phase,
+        chosen_decision,
+        execution_outcome,
         offense_team_id,
         defense_team_id,
-        play_duration_seconds,
         sink,
     );
 
