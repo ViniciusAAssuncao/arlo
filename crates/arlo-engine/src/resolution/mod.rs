@@ -12,7 +12,8 @@ pub use context::DuelContext;
 pub use duel_kind::DuelKind;
 pub use duel_profiles::{get_duel_profiles, DuelProfile};
 pub use group_rating::{
-    calculate_group_rating, calculate_player_duel_rating, calculate_side_rating,
+    calculate_anchored_rating, calculate_anchored_side_rating, calculate_group_rating,
+    calculate_player_duel_rating, calculate_side_rating, identify_lead_player,
 };
 pub use outcome::DuelOutcome;
 pub use progression_strategy::ProgressionResolutionStrategy;

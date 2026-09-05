@@ -69,3 +69,56 @@ pub fn calculate_side_rating(
         .collect();
     calculate_group_rating(&ratings)
 }
+
+pub fn calculate_anchored_rating(anchor_rating: f64, helper_ratings: &[f64]) -> f64 {
+    if helper_ratings.is_empty() {
+        return anchor_rating;
+    }
+
+    let mut helper_sum = 0.0;
+    for &rating in helper_ratings {
+        let raw_contrib = (rating / ATTRIBUTE_SATURATION_THRESHOLD) * GROUP_SATURATION_THRESHOLD;
+        let sat_contrib = apply_saturation(
+            raw_contrib,
+            GROUP_SATURATION_THRESHOLD,
+            GROUP_SATURATION_MULTIPLIER,
+        );
+        helper_sum += sat_contrib;
+    }
+
+    let aggregated_bonus = apply_saturation(
+        helper_sum,
+        GROUP_AGGREGATION_SATURATION_THRESHOLD,
+        GROUP_AGGREGATION_SATURATION_MULTIPLIER,
+    );
+
+    anchor_rating + aggregated_bonus
+}
+
+pub fn calculate_anchored_side_rating(
+    anchor: &Player,
+    helpers: &[&Player],
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    profile: &DuelProfile,
+) -> f64 {
+    let anchor_rating = calculate_player_duel_rating(anchor, attribute_keys, profile);
+    let helper_ratings: Vec<f64> = helpers
+        .iter()
+        .map(|p| calculate_player_duel_rating(p, attribute_keys, profile))
+        .collect();
+    calculate_anchored_rating(anchor_rating, &helper_ratings)
+}
+
+pub fn identify_lead_player<'a>(
+    players: &[&'a Player],
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    profile: &DuelProfile,
+) -> Option<&'a Player> {
+    players.iter().copied().max_by(|a, b| {
+        let rating_a = calculate_player_duel_rating(a, attribute_keys, profile);
+        let rating_b = calculate_player_duel_rating(b, attribute_keys, profile);
+        rating_a
+            .partial_cmp(&rating_b)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    })
+}
