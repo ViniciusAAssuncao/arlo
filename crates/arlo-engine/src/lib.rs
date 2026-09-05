@@ -5,3 +5,5 @@ pub mod injuries;
 pub mod match_decision;
 pub mod tactics;
 pub mod world_state;
+
+pub use error::{EngineError, EngineResult};
