@@ -1,3 +1,4 @@
+use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::scope::Scope;
 use crate::domain::validation::{validate_integer_range, validate_not_empty};
 use crate::error::{DomainError, DomainResult};
@@ -31,14 +32,13 @@ impl Federation {
             (Scope::Continental, None) => {
                 return Err(DomainError::InvalidInvariant {
                     field: "continent_id".to_string(),
-                    reason: "continent_id must be present when scope is Continental".to_string(),
+                    violation: InvariantViolation::MissingRequiredValue,
                 });
             }
             (s, Some(_)) if s != Scope::Continental => {
                 return Err(DomainError::InvalidInvariant {
                     field: "continent_id".to_string(),
-                    reason: "continent_id must not be present when scope is not Continental"
-                        .to_string(),
+                    violation: InvariantViolation::UnexpectedValue,
                 });
             }
             _ => {}
@@ -47,7 +47,7 @@ impl Federation {
         if parent_federation_id == Some(id) {
             return Err(DomainError::InvalidInvariant {
                 field: "parent_federation_id".to_string(),
-                reason: "federation cannot have itself as parent".to_string(),
+                violation: InvariantViolation::SelfReference,
             });
         }
 

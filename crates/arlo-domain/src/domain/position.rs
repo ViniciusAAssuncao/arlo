@@ -1,38 +1,62 @@
-use crate::domain::validation::validate_not_empty;
-use crate::error::DomainResult;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Position {
-    id: Uuid,
-    code: String,
-    name: String,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PositionLine {
+    OffensiveLine,
+    BackLine,
+    DefenseLine,
+    Goalguard,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Position {
+    CenterOffense,
+    WingOffense,
+    Midcenter,
+    TightWing,
+    CenterTight,
+    Corridor,
+    Artrine,
+    Passer,
+    PassRusher,
+    WideEnd,
+    RunningEnd,
+    Lineback,
+    Fullback,
+    Centerback,
+    DefensiveEnd,
+    Rougieback,
+    DefensiveBlocker,
+    WideBlocker,
+    OutsideZonerback,
+    MiddleZonerback,
+    Goalguard,
 }
 
 impl Position {
-    pub fn new(
-        id: Uuid,
-        code: impl Into<String>,
-        name: impl Into<String>,
-    ) -> DomainResult<Self> {
-        let code = code.into();
-        let name = name.into();
-        validate_not_empty(&code, "code")?;
-        validate_not_empty(&name, "name")?;
-
-        Ok(Self { id, code, name })
-    }
-
-    pub fn id(&self) -> Uuid {
-        self.id
-    }
-
-    pub fn code(&self) -> &str {
-        &self.code
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn line(&self) -> PositionLine {
+        match self {
+            Position::CenterOffense
+            | Position::WingOffense
+            | Position::Midcenter
+            | Position::TightWing
+            | Position::CenterTight
+            | Position::Corridor => PositionLine::OffensiveLine,
+            Position::Artrine
+            | Position::Passer
+            | Position::PassRusher
+            | Position::WideEnd
+            | Position::RunningEnd
+            | Position::Lineback
+            | Position::Fullback => PositionLine::BackLine,
+            Position::Centerback
+            | Position::DefensiveEnd
+            | Position::Rougieback
+            | Position::DefensiveBlocker
+            | Position::WideBlocker
+            | Position::OutsideZonerback
+            | Position::MiddleZonerback => PositionLine::DefenseLine,
+            Position::Goalguard => PositionLine::Goalguard,
+        }
     }
 }

@@ -7,8 +7,8 @@ pub use error::RuntimeError;
 
 pub fn run(rt: &tokio::runtime::Runtime) -> Result<(), RuntimeError> {
     rt.block_on(async {
-        let db_path = std::path::Path::new("arlo.db");
-        let _pool = arlo_db::connection::provision_database(db_path).await?;
+        let pool = arlo_db::save::resolve_current_save_pool().await?;
+        let _context = Context::new(pool, tokio::runtime::Handle::current());
         Ok(())
     })
 }

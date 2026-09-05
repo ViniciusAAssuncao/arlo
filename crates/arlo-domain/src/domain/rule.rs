@@ -11,6 +11,7 @@ pub enum RuleCategory {
     Phases,
     TieBreaker,
     PromotionRelegation,
+    FieldGeometry,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
