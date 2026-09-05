@@ -1,7 +1,7 @@
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE,
     FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
-    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST, FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
+    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
     FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use arlo_domain::{AttributeKey, Player};
@@ -94,12 +94,6 @@ pub fn evaluate_scoring_opportunity(
         ScoringOpportunity::GoalPoint
     } else if can_attempt_field_point(drives_in_series, territory_advance_mirim) {
         ScoringOpportunity::FieldPoint
-    } else if territory_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST {
-        ScoringOpportunity::FieldGoal(ScoringPost::Goalpost)
-    } else if territory_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST
-        || drives_in_series >= 1
-    {
-        ScoringOpportunity::FieldGoal(ScoringPost::Fieldpost)
     } else {
         ScoringOpportunity::None
     }

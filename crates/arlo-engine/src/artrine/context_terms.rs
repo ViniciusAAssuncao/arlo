@@ -6,7 +6,6 @@ use arlo_domain::sport_constants::{
     PRESSURE_READ_UTILITY_SCALE, RANGE_UTILITY_SCALE,
 };
 use arlo_domain::{ArtrineDecisionKind, Pitch};
-use arlo_math::stats::contrast::logistic;
 use arlo_math::units::Position;
 
 pub fn calculate_normalized_proximity(
@@ -100,14 +99,6 @@ pub fn last_down_desperation_term(
         match decision {
             ArtrineDecisionKind::SelfFinish => LAST_DOWN_DESPERATION_UTILITY_SCALE,
             ArtrineDecisionKind::Cross => LAST_DOWN_DESPERATION_UTILITY_SCALE * 0.8,
-            _ => 0.0,
-        }
-    } else if territory_advance_mirim >= 5.0 {
-        let logistic_factor = logistic((territory_advance_mirim - 5.0) * 0.5);
-        let weight = LAST_DOWN_DESPERATION_UTILITY_SCALE * 0.6 * logistic_factor;
-        match decision {
-            ArtrineDecisionKind::SelfFinish => weight,
-            ArtrineDecisionKind::Cross => weight * 0.8,
             _ => 0.0,
         }
     } else {
