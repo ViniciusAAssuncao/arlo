@@ -1,10 +1,13 @@
-use crate::match_decision::event_translation::{create_envelope, translate_drive_recorded, translate_duel_resolved};
+use crate::match_decision::event_translation::{
+    create_envelope, translate_drive_recorded, translate_duel_resolved,
+};
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel_for_participants;
+use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::pitch::artro_rows_for_pitch;
@@ -36,7 +39,10 @@ pub fn resolve_progression_phase(
         DuelContext::defender_home()
     };
 
-    let mut duel_rng = state.rng_provider().duel_resolution_rng();
+    let duel_seq = state.event_sequence();
+    let mut duel_rng = state
+        .rng_provider()
+        .indexed_rng_for(RngStream::DuelResolution, duel_seq);
     let artro_duel_outcome = resolve_duel_for_participants(
         DuelKind::ArtroBreakthrough,
         offense_players,
@@ -55,7 +61,9 @@ pub fn resolve_progression_phase(
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, artro_duel_event));
 
-    let mut prog_rng = state.rng_provider().progression_distribution_rng();
+    let mut prog_rng = state
+        .rng_provider()
+        .indexed_rng_for(RngStream::ProgressionDistribution, seq);
     let progression_strategy = AggregateProgressionStrategy::default();
     let raw_mirins_advanced =
         progression_strategy.resolve_progression(&artro_duel_outcome, &mut prog_rng);

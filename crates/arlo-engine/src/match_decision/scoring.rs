@@ -10,6 +10,7 @@ use uuid::Uuid;
 pub enum ScoringOpportunity {
     GoalPoint,
     FieldPoint,
+    FieldGoal(ScoringPost),
     None,
 }
 
@@ -70,6 +71,10 @@ pub fn can_attempt_goal_point(drives_in_series: u32) -> bool {
 pub fn can_attempt_field_point(drives_in_series: u32, territory_advance_mirim: f64) -> bool {
     drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
         && territory_advance_mirim >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+}
+
+pub fn can_attempt_field_goal(territory_advance_mirim: f64) -> bool {
+    territory_advance_mirim >= 3.0
 }
 
 pub fn evaluate_scoring_opportunity(

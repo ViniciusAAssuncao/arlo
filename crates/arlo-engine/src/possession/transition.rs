@@ -51,10 +51,11 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
         }
     }
 
-    if outcome.out_of_bounds || outcome.arbitral_stoppage {
-        let mut updated_series = current.series_state.clone();
-        updated_series.record_advance(outcome.mirins_advanced);
+    let next_scrimmage = outcome.last_valid_possession_point;
+    let mut updated_series = current.series_state.clone();
+    updated_series.record_advance(outcome.mirins_advanced);
 
+    if outcome.out_of_bounds || outcome.arbitral_stoppage {
         let ball_state = if outcome.out_of_bounds {
             BallState::OutOfBounds
         } else {
@@ -69,9 +70,10 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             ClockStopReason::ArbitralStoppage
         };
 
-        let next_scrimmage = outcome.last_valid_possession_point;
-
-        let next_role = if let Some(turnover_team) = outcome.turnover {
+        let next_role = if outcome.score_occurred {
+            updated_series.reset(next_scrimmage);
+            current.role().swap()
+        } else if let Some(turnover_team) = outcome.turnover {
             updated_series.reset(next_scrimmage);
             PossessionRole::new(turnover_team, current.role().offense())
         } else if updated_series.should_turnover_on_downs() {
@@ -88,6 +90,7 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
 
             if !is_immediate {
                 updated_series.advance_down();
+                updated_series.set_scrimmage_point(next_scrimmage);
             }
             *current.role()
         };
@@ -105,20 +108,32 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             next_scrimmage_point: Some(next_scrimmage),
         }
     } else {
-        let mut updated_series = current.series_state.clone();
-        updated_series.record_advance(outcome.mirins_advanced);
+        let (next_role, countdown) = if outcome.score_occurred {
+            updated_series.reset(next_scrimmage);
+            (current.role().swap(), true)
+        } else if updated_series.has_achieved_target() {
+            updated_series.reset(next_scrimmage);
+            (*current.role(), false)
+        } else if updated_series.should_turnover_on_downs() {
+            updated_series.reset(next_scrimmage);
+            (current.role().swap(), true)
+        } else {
+            updated_series.advance_down();
+            updated_series.set_scrimmage_point(next_scrimmage);
+            (*current.role(), false)
+        };
 
         let new_snapshot = PossessionSnapshot::new(
             BallState::InPlay,
             ClockState::Running,
-            *current.role(),
+            next_role,
             updated_series,
         );
 
         TransitionResult {
             snapshot: new_snapshot,
-            countdown_to_size_triggered: false,
-            next_scrimmage_point: None,
+            countdown_to_size_triggered: countdown,
+            next_scrimmage_point: Some(next_scrimmage),
         }
     }
 }

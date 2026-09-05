@@ -3,13 +3,14 @@ use crate::match_decision::event_translation::{
 };
 use crate::match_decision::finisher_selection::select_finisher;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, field_point_points, goal_point_points, ScoringDecision,
-    ScoringOpportunity,
+    evaluate_scoring_opportunity, field_goal_points, field_point_points, goal_point_points,
+    ScoringDecision, ScoringOpportunity,
 };
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::resolve_duel_for_participants;
+use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::cta_progression::ProgressionPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -33,8 +34,18 @@ pub fn resolve_finishing_phase(
 ) -> FinishingPhaseResult {
     let total_advance_in_series =
         state.possession().series_state().advanced_mirins() + prog_phase.mirins_advanced;
-    let scoring_opp =
+    let mut scoring_opp =
         evaluate_scoring_opportunity(state.drives_in_current_series(), total_advance_in_series);
+
+    if scoring_opp == ScoringOpportunity::None && pass_phase.down_number >= 4 {
+        if state.drives_in_current_series() >= 2 {
+            scoring_opp = ScoringOpportunity::FieldPoint;
+        } else if total_advance_in_series >= 5.0 {
+            scoring_opp = ScoringOpportunity::FieldGoal(ScoringPost::Goalpost);
+        } else if total_advance_in_series >= 2.0 || state.drives_in_current_series() >= 1 {
+            scoring_opp = ScoringOpportunity::FieldGoal(ScoringPost::Fieldpost);
+        }
+    }
 
     if !pass_phase.pass_completed || scoring_opp == ScoringOpportunity::None {
         return FinishingPhaseResult {
@@ -49,7 +60,10 @@ pub fn resolve_finishing_phase(
         DuelContext::defender_home()
     };
 
-    let mut finisher_rng = state.rng_provider().finisher_selection_rng();
+    let seq_finisher = state.event_sequence();
+    let mut finisher_rng = state
+        .rng_provider()
+        .indexed_rng_for(RngStream::FinisherSelection, seq_finisher);
     let selected_finisher_id = select_finisher(
         offense_players,
         state.spatial_map(),
@@ -65,7 +79,9 @@ pub fn resolve_finishing_phase(
         .find(|p| p.id() == selected_finisher_id)
         .unwrap_or(pass_phase.artrine);
 
-    let mut duel_rng = state.rng_provider().duel_resolution_rng();
+    let mut duel_rng = state
+        .rng_provider()
+        .indexed_rng_for(RngStream::DuelResolution, seq_finisher + 1);
     let finish_duel_outcome = resolve_duel_for_participants(
         DuelKind::FinishingAttempt,
         &[finisher_player],
@@ -110,6 +126,16 @@ pub fn resolve_finishing_phase(
                     post: ScoringPost::Fieldpost,
                 }
             }
+            ScoringOpportunity::FieldGoal(post) => {
+                let pts = field_goal_points(post);
+                state.record_field_goal(offense_team_id, post);
+                ScoringDecision::FieldGoal {
+                    team_id: offense_team_id,
+                    scorer_id: finisher_player.id(),
+                    points: pts,
+                    post,
+                }
+            }
             ScoringOpportunity::None => ScoringDecision::NoOpportunity,
         };
 
@@ -123,7 +149,9 @@ pub fn resolve_finishing_phase(
     } else {
         let attempted_post = match scoring_opp {
             ScoringOpportunity::GoalPoint => ScoringPost::Goalpost,
-            _ => ScoringPost::Fieldpost,
+            ScoringOpportunity::FieldPoint => ScoringPost::Fieldpost,
+            ScoringOpportunity::FieldGoal(post) => post,
+            ScoringOpportunity::None => ScoringPost::Fieldpost,
         };
         ScoringDecision::Missed {
             team_id: offense_team_id,

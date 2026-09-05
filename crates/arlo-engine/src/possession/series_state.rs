@@ -44,6 +44,10 @@ impl SeriesState {
         self.scrimmage_point
     }
 
+    pub fn set_scrimmage_point(&mut self, new_scrimmage: Position) {
+        self.scrimmage_point = new_scrimmage;
+    }
+
     pub fn record_advance(&mut self, mirins: f64) {
         self.advanced_mirins += mirins;
     }

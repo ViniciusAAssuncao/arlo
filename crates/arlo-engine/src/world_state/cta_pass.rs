@@ -6,6 +6,7 @@ use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::resolve_duel_for_participants;
+use crate::rng::RngStream;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::{Player, Position as DomainPosition};
 use arlo_events::EventSink;
@@ -88,7 +89,9 @@ pub fn resolve_pass_phase<'a>(
         DuelContext::defender_home()
     };
 
-    let mut duel_rng = state.rng_provider().duel_resolution_rng();
+    let mut duel_rng = state
+        .rng_provider()
+        .indexed_rng_for(RngStream::DuelResolution, seq);
     let pass_blockers = vec![passer, artrine];
     let pass_rushers = vec![pass_rusher];
     let pass_duel_outcome = resolve_duel_for_participants(

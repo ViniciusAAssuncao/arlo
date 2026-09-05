@@ -3,12 +3,14 @@ use crate::match_decision::event_translation::{
     translate_out_of_bounds, translate_turnover,
 };
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
+use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::transition;
 use crate::world_state::cta_finishing::FinishingPhaseResult;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::cta_progression::ProgressionPhaseResult;
 use crate::world_state::match_state::MatchState;
 use arlo_events::{CountdownReason, EventSink};
+use arlo_math::units::Position as VectorPosition;
 use uuid::Uuid;
 
 pub fn apply_play_transition(
@@ -20,9 +22,17 @@ pub fn apply_play_transition(
     defense_team_id: Uuid,
     sink: &mut impl EventSink,
 ) -> DetailedPlayOutcome {
-    let out_of_bounds = !pass_phase.pass_completed || finishing_phase.scoring_decision.is_scored();
-    let arbitral_stoppage = finishing_phase.scoring_decision.is_scored();
-    let turnover = if !pass_phase.pass_completed && !finishing_phase.scoring_decision.is_scored() {
+    let is_scored = finishing_phase.scoring_decision.is_scored();
+    let is_missed = matches!(
+        finishing_phase.scoring_decision,
+        ScoringDecision::Missed { .. }
+    );
+    let pass_failed = !pass_phase.pass_completed;
+
+    let out_of_bounds = pass_failed || is_scored || is_missed;
+    let arbitral_stoppage = is_scored;
+
+    let turnover = if is_missed {
         Some(defense_team_id)
     } else {
         None
@@ -48,7 +58,7 @@ pub fn apply_play_transition(
         duels: resolved_duels,
         turnover,
         recovering_player_id: if turnover.is_some() {
-            Some(pass_phase.pass_rusher.id())
+            Some(pass_phase.goalguard.id())
         } else {
             None
         },
@@ -58,7 +68,7 @@ pub fn apply_play_transition(
         possession_control_seconds: if pass_phase.pass_completed {
             Some(2.0)
         } else {
-            Some(0.3)
+            Some(0.8)
         },
         scoring_decision: finishing_phase.scoring_decision,
     };
@@ -135,7 +145,17 @@ pub fn apply_play_transition(
         state.reset_drives();
     }
 
-    *state.possession_mut() = transition_result.snapshot;
+    let mut next_snapshot = transition_result.snapshot;
+    if detailed_outcome.scoring_decision.is_scored() {
+        let center_scrimmage = VectorPosition::from_components(
+            state.pitch().length().value() / 2.0,
+            state.pitch().width().value() / 2.0,
+            0.0,
+        );
+        next_snapshot.series_state_mut().reset(center_scrimmage);
+    }
+
+    *state.possession_mut() = next_snapshot;
 
     let period_ended = state.clock_mut().advance_seconds(25.0);
     if period_ended {
