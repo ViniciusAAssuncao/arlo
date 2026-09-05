@@ -1,3 +1,4 @@
+use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::run_spatial_tick_loop;
 use crate::tactics::scrimmage_translation::translate_formation_to_scrimmage;
 use crate::world_state::match_state::MatchState;
@@ -31,5 +32,15 @@ pub fn derive_and_apply_reorganization(
 
     let tick_result =
         run_spatial_tick_loop(state.spatial_map_mut(), &movers, &attribute_keys);
+
+    for (player_id, traj) in tick_result.trajectories() {
+        let dist_mirim: f64 = traj
+            .segments()
+            .iter()
+            .map(|(a, b)| calculate_distance_mirim(*a, *b))
+            .sum();
+        state.record_distance(*player_id, dist_mirim);
+    }
+
     Duration::new(tick_result.elapsed_seconds())
 }

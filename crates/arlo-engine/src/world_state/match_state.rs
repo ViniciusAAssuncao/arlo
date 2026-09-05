@@ -1,4 +1,5 @@
 use crate::error::EngineResult;
+use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::possession::PossessionSnapshot;
 use crate::rng::{MatchSeed, RngProvider};
 use crate::spatial::DynamicSpatialMap;
@@ -9,7 +10,7 @@ use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
 };
-use arlo_domain::{AttributeKey, MatchFormatRules, Position as DomainPosition};
+use arlo_domain::{AttributeKey, MatchFormatRules, Player, Position as DomainPosition};
 use arlo_events::ScoringPost;
 use arlo_formatter::ScoreBreakdown;
 use arlo_math::units::Position;
@@ -66,6 +67,8 @@ pub struct MatchState {
     away_score: TeamScore,
     drives_in_current_series: u32,
     last_action_score_occurred: bool,
+    home_fatigue: HashMap<Uuid, FatigueState>,
+    away_fatigue: HashMap<Uuid, FatigueState>,
 }
 
 impl MatchState {
@@ -112,6 +115,8 @@ impl MatchState {
             away_score: TeamScore::default(),
             drives_in_current_series: 0,
             last_action_score_occurred: false,
+            home_fatigue: HashMap::new(),
+            away_fatigue: HashMap::new(),
         })
     }
 
@@ -268,5 +273,40 @@ impl MatchState {
 
     pub fn is_match_finished(&self) -> bool {
         self.clock.is_finished()
+    }
+
+    pub fn home_fatigue(&self) -> &HashMap<Uuid, FatigueState> {
+        &self.home_fatigue
+    }
+
+    pub fn away_fatigue(&self) -> &HashMap<Uuid, FatigueState> {
+        &self.away_fatigue
+    }
+
+    pub fn fatigue_for(&self, player_id: &Uuid) -> FatigueState {
+        self.home_fatigue
+            .get(player_id)
+            .or_else(|| self.away_fatigue.get(player_id))
+            .copied()
+            .unwrap_or_default()
+    }
+
+    pub fn record_distance(&mut self, player_id: Uuid, mirim: f64) {
+        if self.home_position_index.contains_key(&player_id) {
+            self.home_fatigue
+                .entry(player_id)
+                .or_default()
+                .add_distance(mirim);
+        } else {
+            self.away_fatigue
+                .entry(player_id)
+                .or_default()
+                .add_distance(mirim);
+        }
+    }
+
+    pub fn player_fatigue_multiplier(&self, player: &Player) -> f64 {
+        let fatigue = self.fatigue_for(&player.id());
+        compute_player_fatigue_multiplier(player, &fatigue, &self.attribute_keys)
     }
 }

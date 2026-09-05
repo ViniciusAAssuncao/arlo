@@ -1,3 +1,4 @@
+use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::match_decision::target_selection::{select_target, ReceptionRole};
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::{derive_duel_duration, nearest_opponent};
@@ -29,7 +30,7 @@ pub struct ReceptionOutcome {
     pub duration: Duration,
 }
 
-pub fn resolve_reception<R: Rng + ?Sized>(
+pub fn resolve_reception<F, R>(
     decision_kind: ArtrineDecisionKind,
     passer_or_artrine: &Player,
     candidates: &[&Player],
@@ -41,8 +42,13 @@ pub fn resolve_reception<R: Rng + ?Sized>(
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attacking_positive_x: bool,
     context: &DuelContext,
+    fatigue_for: &F,
     rng: &mut R,
-) -> ReceptionOutcome {
+) -> ReceptionOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
     let receiver_id = select_target(
         candidates,
         spatial_map,
@@ -139,10 +145,16 @@ pub fn resolve_reception<R: Rng + ?Sized>(
 
     let caught = duel.attacker_won();
 
-    let receiver_speed = calculate_player_speed(receiver_player, attribute_keys);
+    let rec_mult = compute_player_fatigue_multiplier(
+        receiver_player,
+        &fatigue_for(&receiver_player.id()),
+        attribute_keys,
+    );
+    let receiver_speed = calculate_player_speed(receiver_player, attribute_keys, rec_mult);
     let duration = match nearest_opponent(receiver_pos_vec, defenders, spatial_map) {
         Some((d, pos)) => {
-            let d_spd = calculate_player_speed(d, attribute_keys);
+            let d_mult = compute_player_fatigue_multiplier(d, &fatigue_for(&d.id()), attribute_keys);
+            let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
             derive_duel_duration(receiver_pos_vec, receiver_speed, pos, d_spd)
         }
         None => Duration::new(MINIMUM_ENGAGEMENT_SECONDS),

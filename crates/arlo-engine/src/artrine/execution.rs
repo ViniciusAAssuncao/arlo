@@ -2,6 +2,7 @@ use crate::artrine::execution_carry::execute_carry;
 use crate::artrine::execution_distribution::execute_distribution;
 use crate::artrine::execution_finish::{execute_cross_finish, execute_self_finish};
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
+use crate::fatigue::FatigueState;
 use crate::resolution::DuelContext;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
@@ -23,7 +24,7 @@ pub fn find_goalguard<'a>(defenders: &[&'a Player]) -> &'a Player {
         .unwrap_or_else(|| defenders[defenders.len() - 1])
 }
 
-pub fn execute_artrine_decision<R: Rng + ?Sized>(
+pub fn execute_artrine_decision<F, R>(
     decision: ArtrineDecisionKind,
     artrine: &Player,
     offense_lineup_players: &[&Player],
@@ -41,8 +42,13 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
     accumulated_advance_mirim: f64,
     is_last_down: bool,
     context: &DuelContext,
+    fatigue_for: &F,
     rng: &mut R,
-) -> ArtrineExecutionOutcome {
+) -> ArtrineExecutionOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
     let offense_helpers: Vec<&Player> = offense_lineup_players
         .iter()
         .copied()
@@ -65,6 +71,7 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
             attacking_positive_x,
             defense_team_id,
             context,
+            fatigue_for,
             rng,
         ),
         ArtrineDecisionKind::ShortPass | ArtrineDecisionKind::LongLaunch => execute_distribution(
@@ -81,6 +88,7 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
             attacking_positive_x,
             defense_team_id,
             context,
+            fatigue_for,
             rng,
         ),
         ArtrineDecisionKind::Cross => {
@@ -98,6 +106,7 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
                 attacking_positive_x,
                 defense_team_id,
                 context,
+                fatigue_for,
                 rng,
             );
 
@@ -120,6 +129,7 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
                     attacking_positive_x,
                     dist_outcome.end_position,
                     context,
+                    fatigue_for,
                     rng,
                 );
 
@@ -157,6 +167,7 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
             attacking_positive_x,
             start_pos,
             context,
+            fatigue_for,
             rng,
         ),
     }

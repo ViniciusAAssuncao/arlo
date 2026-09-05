@@ -135,7 +135,7 @@ impl DynamicSpatialMap {
             if let (Some(&current_pos), Some(&target_pos)) =
                 (self.positions.get(&pid), self.targets.get(&pid))
             {
-                let speed = calculate_player_speed(player, attribute_keys);
+                let speed = calculate_player_speed(player, attribute_keys, 1.0);
                 let vel = crate::spatial::decision_vector::derive_velocity_towards_target(
                     current_pos,
                     target_pos,

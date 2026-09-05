@@ -25,11 +25,14 @@ pub fn extract_attribute_value(
 pub fn calculate_player_speed(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    fatigue_multiplier: f64,
 ) -> Speed {
     let pace = extract_attribute_value(player, attribute_keys, AttributeKey::Pace);
     let accel = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-    let speed_val =
-        BASE_SPRINT_SPEED_METERS_PER_SEC + (pace * PACE_SPEED_SCALE) + (accel * ACCELERATION_SPEED_SCALE);
+    let speed_val = (BASE_SPRINT_SPEED_METERS_PER_SEC
+        + (pace * PACE_SPEED_SCALE)
+        + (accel * ACCELERATION_SPEED_SCALE))
+        * fatigue_multiplier;
     Speed::new(speed_val)
 }
 
@@ -54,7 +57,8 @@ pub fn derive_player_velocity_towards_target(
     target_pos: Position,
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    fatigue_multiplier: f64,
 ) -> Velocity {
-    let speed = calculate_player_speed(player, attribute_keys);
+    let speed = calculate_player_speed(player, attribute_keys, fatigue_multiplier);
     derive_velocity_towards_target(current_pos, target_pos, speed)
 }

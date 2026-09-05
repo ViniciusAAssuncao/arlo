@@ -1,5 +1,6 @@
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution_security::resolve_ball_security;
+use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::drive::artrine_identity::TrueArtrine;
 use crate::possession::drive::validator::validate_drive;
@@ -26,7 +27,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn execute_carry<R: Rng + ?Sized>(
+pub fn execute_carry<F, R>(
     artrine: &Player,
     offense_helpers: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
@@ -39,8 +40,13 @@ pub fn execute_carry<R: Rng + ?Sized>(
     attacking_positive_x: bool,
     defense_team_id: Uuid,
     context: &DuelContext,
+    fatigue_for: &F,
     rng: &mut R,
-) -> ArtrineExecutionOutcome {
+) -> ArtrineExecutionOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
     let (offense_profile, defense_profile) = get_duel_profiles(DuelKind::ArtroBreakthrough);
     let attacker_rating = calculate_anchored_side_rating_from_index(
         artrine,
@@ -75,10 +81,15 @@ pub fn execute_carry<R: Rng + ?Sized>(
         rng,
     );
 
-    let artrine_speed = calculate_player_speed(artrine, attribute_keys);
+    let artrine_fatigue_mult =
+        compute_player_fatigue_multiplier(artrine, &fatigue_for(&artrine.id()), attribute_keys);
+    let artrine_speed =
+        calculate_player_speed(artrine, attribute_keys, artrine_fatigue_mult);
+
     let (artro_duration, nearest_def_opt) = match nearest_opponent(start_pos, defenders, spatial_map) {
         Some((d, pos)) => {
-            let d_spd = calculate_player_speed(d, attribute_keys);
+            let d_mult = compute_player_fatigue_multiplier(d, &fatigue_for(&d.id()), attribute_keys);
+            let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
             (
                 derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
                 Some((d, pos)),
@@ -113,7 +124,13 @@ pub fn execute_carry<R: Rng + ?Sized>(
 
         let (turnover, recovering_player_id, duels) = if !close_defenders.is_empty() {
             if let Some((closest_def, closest_pos)) = closest_def_info {
-                let closest_def_speed = calculate_player_speed(closest_def, attribute_keys);
+                let closest_def_mult = compute_player_fatigue_multiplier(
+                    closest_def,
+                    &fatigue_for(&closest_def.id()),
+                    attribute_keys,
+                );
+                let closest_def_speed =
+                    calculate_player_speed(closest_def, attribute_keys, closest_def_mult);
                 let sec_duration = derive_duel_duration(
                     start_pos,
                     artrine_speed,

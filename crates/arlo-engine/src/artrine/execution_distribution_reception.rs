@@ -2,6 +2,7 @@ use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution_security::resolve_ball_security;
 use crate::artrine::reception::resolve_reception;
 use crate::artrine::run_after_catch::resolve_run_after_catch;
+use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::outcome::DuelOutcome;
@@ -18,7 +19,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn execute_post_throw_reception<R: Rng + ?Sized>(
+pub fn execute_post_throw_reception<F, R>(
     decision_kind: ArtrineDecisionKind,
     artrine: &Player,
     offense_helpers: &[&Player],
@@ -36,8 +37,13 @@ pub fn execute_post_throw_reception<R: Rng + ?Sized>(
     attacking_positive_x: bool,
     defense_team_id: Uuid,
     context: &DuelContext,
+    fatigue_for: &F,
     rng: &mut R,
-) -> ArtrineExecutionOutcome {
+) -> ArtrineExecutionOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
     let reception_outcome = resolve_reception(
         decision_kind,
         artrine,
@@ -50,6 +56,7 @@ pub fn execute_post_throw_reception<R: Rng + ?Sized>(
         defense_position_index,
         attacking_positive_x,
         context,
+        fatigue_for,
         rng,
     );
 
@@ -106,8 +113,19 @@ pub fn execute_post_throw_reception<R: Rng + ?Sized>(
         let sec_def_pos = spatial_map
             .get_position(&sec_lead.id())
             .unwrap_or(receiver_pos_vec);
-        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys);
-        let rec_spd = calculate_player_speed(&receiver_player, attribute_keys);
+        let sec_def_mult = compute_player_fatigue_multiplier(
+            sec_lead,
+            &fatigue_for(&sec_lead.id()),
+            attribute_keys,
+        );
+        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys, sec_def_mult);
+
+        let rec_mult = compute_player_fatigue_multiplier(
+            &receiver_player,
+            &fatigue_for(&receiver_player.id()),
+            attribute_keys,
+        );
+        let rec_spd = calculate_player_speed(&receiver_player, attribute_keys, rec_mult);
         let sec_duration =
             derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
 
@@ -164,6 +182,7 @@ pub fn execute_post_throw_reception<R: Rng + ?Sized>(
         spatial_map,
         defense_team_id,
         context,
+        fatigue_for,
         rng,
     );
 

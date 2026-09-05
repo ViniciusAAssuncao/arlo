@@ -1,4 +1,5 @@
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
+use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::match_decision::finisher_selection::select_finisher;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringOpportunity,
@@ -24,7 +25,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn execute_self_finish<R: Rng + ?Sized>(
+pub fn execute_self_finish<F, R>(
     artrine: &Player,
     goalguard: &Player,
     spatial_map: &DynamicSpatialMap,
@@ -38,12 +39,23 @@ pub fn execute_self_finish<R: Rng + ?Sized>(
     attacking_positive_x: bool,
     start_pos: VectorPosition,
     context: &DuelContext,
+    fatigue_for: &F,
     rng: &mut R,
-) -> ArtrineExecutionOutcome {
+) -> ArtrineExecutionOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
     let finisher_pos = spatial_map.get_position(&artrine.id()).unwrap_or(start_pos);
     let goalguard_pos = spatial_map.get_position(&goalguard.id()).unwrap_or(start_pos);
-    let finisher_speed = calculate_player_speed(artrine, attribute_keys);
-    let goalguard_speed = calculate_player_speed(goalguard, attribute_keys);
+
+    let finisher_mult =
+        compute_player_fatigue_multiplier(artrine, &fatigue_for(&artrine.id()), attribute_keys);
+    let goalguard_mult =
+        compute_player_fatigue_multiplier(goalguard, &fatigue_for(&goalguard.id()), attribute_keys);
+
+    let finisher_speed = calculate_player_speed(artrine, attribute_keys, finisher_mult);
+    let goalguard_speed = calculate_player_speed(goalguard, attribute_keys, goalguard_mult);
     let finishing_duration = derive_duel_duration(
         finisher_pos,
         finisher_speed,
@@ -87,7 +99,7 @@ pub fn execute_self_finish<R: Rng + ?Sized>(
     )
 }
 
-pub fn execute_cross_finish<R: Rng + ?Sized>(
+pub fn execute_cross_finish<F, R>(
     artrine: &Player,
     teammates: &[&Player],
     goalguard: &Player,
@@ -102,8 +114,13 @@ pub fn execute_cross_finish<R: Rng + ?Sized>(
     attacking_positive_x: bool,
     start_pos: VectorPosition,
     context: &DuelContext,
+    fatigue_for: &F,
     rng: &mut R,
-) -> ArtrineExecutionOutcome {
+) -> ArtrineExecutionOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
     let eligible_teammates: Vec<&Player> = teammates
         .iter()
         .copied()
@@ -129,8 +146,14 @@ pub fn execute_cross_finish<R: Rng + ?Sized>(
     let cross_flight = ball_flight_duration(cross_dist_mirim, cross_speed);
 
     let goalguard_pos = spatial_map.get_position(&goalguard.id()).unwrap_or(start_pos);
-    let finisher_speed = calculate_player_speed(finisher, attribute_keys);
-    let goalguard_speed = calculate_player_speed(goalguard, attribute_keys);
+
+    let finisher_mult =
+        compute_player_fatigue_multiplier(finisher, &fatigue_for(&finisher.id()), attribute_keys);
+    let goalguard_mult =
+        compute_player_fatigue_multiplier(goalguard, &fatigue_for(&goalguard.id()), attribute_keys);
+
+    let finisher_speed = calculate_player_speed(finisher, attribute_keys, finisher_mult);
+    let goalguard_speed = calculate_player_speed(goalguard, attribute_keys, goalguard_mult);
     let finishing_duration = derive_duel_duration(
         finisher_pos,
         finisher_speed,

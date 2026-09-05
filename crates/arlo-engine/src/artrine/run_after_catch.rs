@@ -1,4 +1,5 @@
 use crate::artrine::execution_security::resolve_ball_security;
+use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
@@ -31,7 +32,7 @@ pub struct RunAfterCatchOutcome {
     pub duration_ledger: DurationLedger,
 }
 
-pub fn resolve_run_after_catch<R: Rng + ?Sized>(
+pub fn resolve_run_after_catch<F, R>(
     receiver: &Player,
     receiver_pos_domain: DomainPosition,
     offense_helpers: &[&Player],
@@ -43,8 +44,13 @@ pub fn resolve_run_after_catch<R: Rng + ?Sized>(
     spatial_map: &DynamicSpatialMap,
     defense_team_id: Uuid,
     context: &DuelContext,
+    fatigue_for: &F,
     rng: &mut R,
-) -> RunAfterCatchOutcome {
+) -> RunAfterCatchOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
     let receiver_pos_vec = spatial_map
         .get_position(&receiver.id())
         .unwrap_or_else(VectorPosition::zero);
@@ -122,11 +128,23 @@ pub fn resolve_run_after_catch<R: Rng + ?Sized>(
     let blocker_pos = spatial_map
         .get_position(&lead_blocker.id())
         .unwrap_or(receiver_pos_vec);
-    let blocker_spd = calculate_player_speed(lead_blocker, attribute_keys);
+    let blocker_mult = compute_player_fatigue_multiplier(
+        lead_blocker,
+        &fatigue_for(&lead_blocker.id()),
+        attribute_keys,
+    );
+    let blocker_spd = calculate_player_speed(lead_blocker, attribute_keys, blocker_mult);
+
     let block_def_pos = spatial_map
         .get_position(&lead_block_defender.id())
         .unwrap_or(receiver_pos_vec);
-    let block_def_spd = calculate_player_speed(lead_block_defender, attribute_keys);
+    let block_def_mult = compute_player_fatigue_multiplier(
+        lead_block_defender,
+        &fatigue_for(&lead_block_defender.id()),
+        attribute_keys,
+    );
+    let block_def_spd =
+        calculate_player_speed(lead_block_defender, attribute_keys, block_def_mult);
     let block_duration =
         derive_duel_duration(blocker_pos, blocker_spd, block_def_pos, block_def_spd);
 
@@ -166,8 +184,19 @@ pub fn resolve_run_after_catch<R: Rng + ?Sized>(
         let sec_def_pos = spatial_map
             .get_position(&sec_lead.id())
             .unwrap_or(receiver_pos_vec);
-        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys);
-        let rec_spd = calculate_player_speed(receiver, attribute_keys);
+        let sec_def_mult = compute_player_fatigue_multiplier(
+            sec_lead,
+            &fatigue_for(&sec_lead.id()),
+            attribute_keys,
+        );
+        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys, sec_def_mult);
+
+        let rec_mult = compute_player_fatigue_multiplier(
+            receiver,
+            &fatigue_for(&receiver.id()),
+            attribute_keys,
+        );
+        let rec_spd = calculate_player_speed(receiver, attribute_keys, rec_mult);
         let sec_duration =
             derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
 
@@ -227,8 +256,19 @@ pub fn resolve_run_after_catch<R: Rng + ?Sized>(
     let rb_def_pos = spatial_map
         .get_position(&lead_defender.id())
         .unwrap_or(receiver_pos_vec);
-    let rb_def_spd = calculate_player_speed(lead_defender, attribute_keys);
-    let rec_spd = calculate_player_speed(receiver, attribute_keys);
+    let rb_def_mult = compute_player_fatigue_multiplier(
+        lead_defender,
+        &fatigue_for(&lead_defender.id()),
+        attribute_keys,
+    );
+    let rb_def_spd = calculate_player_speed(lead_defender, attribute_keys, rb_def_mult);
+
+    let rec_mult = compute_player_fatigue_multiplier(
+        receiver,
+        &fatigue_for(&receiver.id()),
+        attribute_keys,
+    );
+    let rec_spd = calculate_player_speed(receiver, attribute_keys, rec_mult);
     let rb_duration = derive_duel_duration(receiver_pos_vec, rec_spd, rb_def_pos, rb_def_spd);
 
     let mut duration_ledger = DurationLedger::new();
@@ -284,7 +324,12 @@ pub fn resolve_run_after_catch<R: Rng + ?Sized>(
         let sec_def_pos = spatial_map
             .get_position(&sec_lead.id())
             .unwrap_or(receiver_pos_vec);
-        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys);
+        let sec_def_mult = compute_player_fatigue_multiplier(
+            sec_lead,
+            &fatigue_for(&sec_lead.id()),
+            attribute_keys,
+        );
+        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys, sec_def_mult);
         let sec_duration =
             derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
         duration_ledger

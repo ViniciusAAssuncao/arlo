@@ -154,6 +154,13 @@ pub fn apply_play_transition(
         scoring_decision: execution_outcome.scoring_decision,
     };
 
+    let runner_id = execution_outcome
+        .receiver_id
+        .unwrap_or(pass_phase.artrine.id());
+    if execution_outcome.mirins_advanced > 0.0 {
+        state.record_distance(runner_id, execution_outcome.mirins_advanced);
+    }
+
     let previous_down = state.possession().down() as u32;
     let possession_outcome = detailed_outcome.to_possession_outcome();
     let transition_result = transition(state.possession(), &possession_outcome);

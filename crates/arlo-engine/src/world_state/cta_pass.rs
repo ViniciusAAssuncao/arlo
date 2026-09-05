@@ -138,8 +138,10 @@ pub fn resolve_pass_phase<'a>(
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, pass_duel_event));
 
-    let passer_speed = calculate_player_speed(passer, state.attribute_keys());
-    let pass_rusher_speed = calculate_player_speed(pass_rusher, state.attribute_keys());
+    let passer_mult = state.player_fatigue_multiplier(passer);
+    let pass_rusher_mult = state.player_fatigue_multiplier(pass_rusher);
+    let passer_speed = calculate_player_speed(passer, state.attribute_keys(), passer_mult);
+    let pass_rusher_speed = calculate_player_speed(pass_rusher, state.attribute_keys(), pass_rusher_mult);
     let pass_protection_duration = derive_duel_duration(
         passer_pos,
         passer_speed,

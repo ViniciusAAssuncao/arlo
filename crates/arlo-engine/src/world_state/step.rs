@@ -136,6 +136,16 @@ pub fn step_call_to_action(
             .rng_provider()
             .indexed_rng_for(RngStream::DuelResolution, seq_execution);
 
+        let home_fatigue = state.home_fatigue().clone();
+        let away_fatigue = state.away_fatigue().clone();
+        let fatigue_lookup = move |id: &Uuid| {
+            home_fatigue
+                .get(id)
+                .or_else(|| away_fatigue.get(id))
+                .copied()
+                .unwrap_or_default()
+        };
+
         let execution_outcome = execute_artrine_decision(
             chosen_decision,
             pass_phase.artrine,
@@ -154,6 +164,7 @@ pub fn step_call_to_action(
             advanced_mirins,
             is_last_down,
             &context,
+            &fatigue_lookup,
             &mut execution_rng,
         );
 

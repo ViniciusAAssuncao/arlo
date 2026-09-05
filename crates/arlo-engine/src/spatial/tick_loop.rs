@@ -62,6 +62,13 @@ impl SpatialTrajectory {
             .map(|w| (w[0], w[1]))
             .collect()
     }
+
+    pub fn total_distance_mirim(&self) -> f64 {
+        self.segments()
+            .iter()
+            .map(|(a, b)| calculate_distance_mirim(*a, *b))
+            .sum()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -137,6 +144,7 @@ pub fn run_spatial_tick_loop(
                     *target,
                     player,
                     attribute_keys,
+                    1.0,
                 );
                 let step_dist = vel.magnitude().value() * SPATIAL_TICK_DURATION_SECONDS;
                 let dist_meters = calculate_distance(current_pos, *target).value();
