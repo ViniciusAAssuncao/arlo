@@ -14,6 +14,10 @@ use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::cta_progression::ProgressionPhaseResult;
 use crate::world_state::match_state::MatchState;
+use arlo_domain::sport_constants::{
+    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
+    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST,
+};
 use arlo_domain::Player;
 use arlo_events::{EventSink, ScoringPost};
 use uuid::Uuid;
@@ -40,9 +44,11 @@ pub fn resolve_finishing_phase(
     if scoring_opp == ScoringOpportunity::None && pass_phase.down_number >= 4 {
         if state.drives_in_current_series() >= 2 {
             scoring_opp = ScoringOpportunity::FieldPoint;
-        } else if total_advance_in_series >= 5.0 {
+        } else if total_advance_in_series >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST {
             scoring_opp = ScoringOpportunity::FieldGoal(ScoringPost::Goalpost);
-        } else if total_advance_in_series >= 2.0 || state.drives_in_current_series() >= 1 {
+        } else if total_advance_in_series >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST
+            || state.drives_in_current_series() >= 1
+        {
             scoring_opp = ScoringOpportunity::FieldGoal(ScoringPost::Fieldpost);
         }
     }
