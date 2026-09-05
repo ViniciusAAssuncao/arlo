@@ -7,6 +7,7 @@ use crate::match_decision::event_translation::{
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::transition;
+use crate::resolution::DuelKind as EngineDuelKind;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -43,9 +44,18 @@ pub fn apply_play_transition(
     }
 
     for duel in &execution_outcome.duels {
+        let attacker_id = match duel.kind() {
+            EngineDuelKind::ShortDistribution
+            | EngineDuelKind::LongDistribution
+            | EngineDuelKind::CrossDistribution
+            | EngineDuelKind::ArtroBreakthrough => pass_phase.artrine.id(),
+            _ => execution_outcome
+                .receiver_id
+                .unwrap_or(pass_phase.artrine.id()),
+        };
         let duel_event = translate_duel_resolved(
             duel,
-            vec![pass_phase.artrine.id()],
+            vec![attacker_id],
             vec![pass_phase.goalguard.id()],
         );
         let seq = state.next_sequence();

@@ -13,4 +13,6 @@ pub enum DurationComponentKind {
     ShotFlight,
     CrossFlight,
     Reorganization,
+    ReceptionEngagement,
+    RunAfterCatchEngagement,
 }

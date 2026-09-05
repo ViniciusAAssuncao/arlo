@@ -234,5 +234,6 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
         duration_ledger,
         end_position: start_pos,
         duels: vec![finish_duel],
+        receiver_id: Some(finisher.id()),
     }
 }

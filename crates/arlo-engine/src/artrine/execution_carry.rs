@@ -155,6 +155,7 @@ pub fn execute_carry<R: Rng + ?Sized>(
             duration_ledger: ledger,
             end_position: start_pos,
             duels,
+            receiver_id: None,
         };
     }
 
@@ -237,5 +238,6 @@ pub fn execute_carry<R: Rng + ?Sized>(
         duration_ledger: ledger,
         end_position,
         duels: vec![artro_duel],
+        receiver_id: None,
     }
 }

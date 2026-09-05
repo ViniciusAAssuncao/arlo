@@ -16,4 +16,5 @@ pub struct ArtrineExecutionOutcome {
     pub duration_ledger: DurationLedger,
     pub end_position: VectorPosition,
     pub duels: Vec<DuelOutcome>,
+    pub receiver_id: Option<Uuid>,
 }

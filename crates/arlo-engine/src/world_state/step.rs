@@ -171,6 +171,7 @@ pub fn step_call_to_action(
                 duration_ledger: DurationLedger::new(),
                 end_position: pass_phase.scrimmage_point,
                 duels: Vec::new(),
+                receiver_id: None,
             },
         )
     };

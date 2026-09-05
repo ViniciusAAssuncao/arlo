@@ -139,6 +139,7 @@ pub fn execute_artrine_decision<R: Rng + ?Sized>(
                     duration_ledger: combined_ledger,
                     end_position: dist_outcome.end_position,
                     duels: combined_duels,
+                    receiver_id: dist_outcome.receiver_id,
                 }
             }
         }
