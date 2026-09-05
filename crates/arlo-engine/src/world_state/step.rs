@@ -89,6 +89,8 @@ pub fn step_call_to_action(
         sink,
     );
 
+    let play_duration_seconds = prog_phase.elapsed_seconds;
+
     let detailed_outcome = apply_play_transition(
         state,
         pass_phase,
@@ -96,6 +98,7 @@ pub fn step_call_to_action(
         finishing_phase,
         offense_team_id,
         defense_team_id,
+        play_duration_seconds,
         sink,
     );
 

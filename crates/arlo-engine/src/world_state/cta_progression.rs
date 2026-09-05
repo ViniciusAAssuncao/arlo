@@ -8,13 +8,14 @@ use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel_for_participants;
 use crate::rng::RngStream;
+use crate::spatial::run_spatial_tick_loop;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::pitch::artro_rows_for_pitch;
 use arlo_domain::sport_constants::SPATIAL_TICK_DURATION_SECONDS;
 use arlo_domain::Player;
 use arlo_events::{EventArtroPlacement, EventSink};
-use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 
 pub struct ProgressionPhaseResult {
     pub artro_duel_outcome: DuelOutcome,
@@ -23,6 +24,7 @@ pub struct ProgressionPhaseResult {
     pub start_x_mirim: f64,
     pub end_x_mirim: f64,
     pub end_position: VectorPosition,
+    pub elapsed_seconds: f64,
 }
 
 pub fn resolve_progression_phase(
@@ -108,14 +110,33 @@ pub fn resolve_progression_phase(
         }
     }
 
-    let tick_duration = Duration::new(SPATIAL_TICK_DURATION_SECONDS * 5.0);
-    state.spatial_map_mut().tick(tick_duration);
-
     let end_position = VectorPosition::from_components(
         end_x_mirim * MIRIM_TO_METERS,
         pass_phase.scrimmage_point.raw().1,
         0.0,
     );
+
+    let attribute_keys = state.attribute_keys().clone();
+    let tick_result = if pass_phase.pass_completed {
+        state.spatial_map_mut().set_position(pass_phase.artrine.id(), pass_phase.reception_point);
+        run_spatial_tick_loop(
+            state.spatial_map_mut(),
+            &[(pass_phase.artrine, end_position)],
+            &attribute_keys,
+        )
+    } else {
+        run_spatial_tick_loop(
+            state.spatial_map_mut(),
+            &[],
+            &attribute_keys,
+        )
+    };
+
+    let elapsed_seconds = if pass_phase.pass_completed {
+        tick_result.elapsed_seconds().max(SPATIAL_TICK_DURATION_SECONDS)
+    } else {
+        1.0
+    };
 
     ProgressionPhaseResult {
         artro_duel_outcome,
@@ -124,5 +145,6 @@ pub fn resolve_progression_phase(
         start_x_mirim,
         end_x_mirim,
         end_position,
+        elapsed_seconds,
     }
 }

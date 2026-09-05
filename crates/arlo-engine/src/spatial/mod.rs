@@ -2,6 +2,7 @@ pub mod decision_vector;
 pub mod dynamic_map;
 pub mod kinematics;
 pub mod proximity;
+pub mod tick_loop;
 
 pub use decision_vector::{
     calculate_player_speed, derive_player_velocity_towards_target,
@@ -13,4 +14,7 @@ pub use kinematics::{advance_position, calculate_displacement};
 pub use proximity::{
     calculate_distance, calculate_distance_mirim, calculate_time_to_direct_intercept,
     calculate_time_to_moving_intercept, is_in_contest_range, is_within_proximity_mirim,
+};
+pub use tick_loop::{
+    run_spatial_tick_loop, SpatialTrajectory, TickSimulationResult,
 };

@@ -20,6 +20,7 @@ pub fn apply_play_transition(
     finishing_phase: FinishingPhaseResult,
     offense_team_id: Uuid,
     defense_team_id: Uuid,
+    play_duration_seconds: f64,
     sink: &mut impl EventSink,
 ) -> DetailedPlayOutcome {
     let is_scored = finishing_phase.scoring_decision.is_scored();
@@ -157,7 +158,7 @@ pub fn apply_play_transition(
 
     *state.possession_mut() = next_snapshot;
 
-    let period_ended = state.clock_mut().advance_seconds(25.0);
+    let period_ended = state.clock_mut().advance_seconds(play_duration_seconds);
     if period_ended {
         if state.clock().period() < 4 {
             state.clock_mut().next_period();
