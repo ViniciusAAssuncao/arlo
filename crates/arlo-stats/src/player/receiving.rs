@@ -202,9 +202,7 @@ impl StatAggregator for PlayerReceivingAggregator {
                     self.current_reception = None;
                 }
             }
-            MatchEvent::ReceptionResolved(_) => {
-                self.finalize_pending();
-            }
+            MatchEvent::ReceptionResolved(_) => {}
             MatchEvent::DuelResolved(e) => {
                 if let Some(pending) = &mut self.current_reception {
                     if e.kind() == DuelKind::RunBreakthrough {
