@@ -23,12 +23,12 @@ impl ActionUtilityEvaluator for CrossUtilityEvaluator {
         } else if ctx.drives_in_series >= 1 {
             FIELD_POINT_VALUE as f64
         } else {
-            1.5
+            2.0
         };
 
-        let raw_p = (0.30
-            + 0.40 * ctx.normalized_proximity
-            + 0.15 * target_qual
+        let raw_p = (0.35
+            + 0.35 * ctx.normalized_proximity
+            + 0.20 * target_qual
             + 0.10 * skill_mult)
             * (0.60 + 0.40 * ctx.offensive_gravity.min(2.0));
         let p_goal = ctx.bound_probability(raw_p);

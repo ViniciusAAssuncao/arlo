@@ -104,7 +104,13 @@ impl GameStatePressure {
 
     pub fn bias_for_decision(&self, kind: ArtrineDecisionKind, drives_in_series: u32) -> f64 {
         let raw = match kind {
-            ArtrineDecisionKind::SelfCarry => self.carry_bias,
+            ArtrineDecisionKind::SelfCarry => {
+                if drives_in_series < 3 {
+                    self.carry_bias * (1.0 + 0.35 * ((3 - drives_in_series) as f64))
+                } else {
+                    self.carry_bias
+                }
+            }
             ArtrineDecisionKind::ShortPass => self.short_pass_bias,
             ArtrineDecisionKind::LongLaunch => self.long_launch_bias,
             ArtrineDecisionKind::Cross => {

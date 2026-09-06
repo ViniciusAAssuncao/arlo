@@ -58,8 +58,13 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
         let v_to = ctx.risk_profile.transform_value(delta_to);
 
         let (min_p, _max_p) = ctx.probability_bounds();
-        let p_succ = ctx.bound_probability(pc * 0.75 + 0.15 * skill_mult);
-        let p_to = ((1.0 - pc) * 0.15 / ctx.game_state_pressure.turnover_aversion_scale())
+        let p_succ = ctx.bound_probability(
+            0.40
+            + 0.35 * pc
+            + 0.15 * skill_mult
+            + 0.03 * ctx.pass_protection_net_advantage
+        );
+        let p_to = (((1.0 - p_succ) * 0.12) / ctx.game_state_pressure.turnover_aversion_scale())
             .clamp(min_p, (1.0 - p_succ).max(min_p));
         let p_fail = (1.0 - p_succ - p_to).max(0.0);
 
@@ -79,6 +84,12 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
         let risk_multiplier = ctx.risk_profile.risk_multiplier_for_action(ArtrineDecisionKind::SelfCarry);
         let game_state_bias = ctx.game_state_pressure.bias_for_decision(ArtrineDecisionKind::SelfCarry, ctx.drives_in_series);
 
-        (expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5 + (intrinsic_rating * 0.2)
+        let drive_urgency_bonus = if ctx.drives_in_series < 3 && artros_crossed > 0 {
+            (artros_crossed as f64) * ((3 - ctx.drives_in_series) as f64) * 0.45 * skill_mult
+        } else {
+            0.0
+        };
+
+        (expected_future_value * gravity_factor + drive_urgency_bonus) * risk_multiplier * game_state_bias * 3.5 + (intrinsic_rating * 0.2)
     }
 }

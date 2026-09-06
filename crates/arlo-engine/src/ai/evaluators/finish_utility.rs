@@ -22,10 +22,10 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
         } else if ctx.drives_in_series >= 1 {
             FIELD_POINT_VALUE as f64
         } else {
-            1.5
+            2.0
         };
 
-        let raw_p = 0.25 + 0.50 * ctx.normalized_proximity + 0.15 * skill_mult;
+        let raw_p = 0.30 + 0.45 * ctx.normalized_proximity + 0.15 * skill_mult;
         let p_goal = ctx.bound_probability(raw_p);
         let v_opp = ctx.epv_model.opponent_epa(ctx.normalized_proximity);
 

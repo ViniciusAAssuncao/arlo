@@ -4,6 +4,10 @@ use crate::match_decision::scoring::{evaluate_scoring_opportunity, ScoringOpport
 use crate::physical::PhysicalState;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::world_state::GameStatePressure;
+use arlo_domain::sport_constants::{
+    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM, FIELD_POINT_REQUIRED_DRIVES,
+    GOAL_POINT_REQUIRED_DRIVES,
+};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
 use std::collections::HashMap;
@@ -28,7 +32,13 @@ pub fn available_decision_kinds(
         10.0,
     );
 
-    if opportunity != ScoringOpportunity::None {
+    let can_cross_or_finish = opportunity != ScoringOpportunity::None
+        || is_bonus_phase
+        || drives_in_current_series >= GOAL_POINT_REQUIRED_DRIVES
+        || (drives_in_current_series >= FIELD_POINT_REQUIRED_DRIVES
+            && accumulated_advance_mirim >= (FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM - 3.0));
+
+    if can_cross_or_finish {
         kinds.push(ArtrineDecisionKind::Cross);
         kinds.push(ArtrineDecisionKind::SelfFinish);
     }

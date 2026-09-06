@@ -88,7 +88,13 @@ where
             spatial_map,
             start_pos,
             attacking_positive_x,
+            offense_team_id,
             defense_team_id,
+            goalguard,
+            drives_in_series,
+            accumulated_advance_mirim,
+            is_last_down,
+            is_bonus_phase,
             context,
             fatigue_for,
             rng,
@@ -106,13 +112,19 @@ where
                 spatial_map,
                 start_pos,
                 attacking_positive_x,
+                offense_team_id,
                 defense_team_id,
+                goalguard,
+                drives_in_series,
+                accumulated_advance_mirim,
+                is_last_down,
+                is_bonus_phase,
                 context,
                 fatigue_for,
                 rng,
             );
 
-            if dist_outcome.turnover.is_some() {
+            if dist_outcome.turnover.is_some() || dist_outcome.scoring_decision.is_scored() {
                 dist_outcome
             } else {
                 let total_advance = accumulated_advance_mirim + dist_outcome.mirins_advanced;
