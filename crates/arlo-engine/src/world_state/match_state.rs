@@ -330,17 +330,81 @@ impl MatchState {
     }
 
     pub fn record_distance(&mut self, player_id: Uuid, mirim: f64) {
-        if self.home_offensive_position_index.contains_key(&player_id) {
-            self.home_fatigue
-                .entry(player_id)
-                .or_default()
-                .add_distance(mirim);
+        let player = self
+            .home_lineup
+            .players()
+            .into_iter()
+            .chain(self.away_lineup.players().into_iter())
+            .find(|p| p.id() == player_id);
+
+        let is_home = self.home_offensive_position_index.contains_key(&player_id);
+        let fatigue = if is_home {
+            self.home_fatigue.entry(player_id).or_default()
         } else {
-            self.away_fatigue
-                .entry(player_id)
-                .or_default()
-                .add_distance(mirim);
+            self.away_fatigue.entry(player_id).or_default()
+        };
+        fatigue.add_distance(mirim);
+        if let Some(p) = player {
+            crate::physical::models::aerobic::update_physical_state_aerobic(
+                fatigue,
+                p,
+                &self.attribute_keys,
+                0,
+            );
         }
+    }
+
+    pub fn apply_duel_anaerobic_cost(
+        &mut self,
+        player_id: Uuid,
+        duration_seconds: f64,
+        intensity: f64,
+    ) {
+        let player = self
+            .home_lineup
+            .players()
+            .into_iter()
+            .chain(self.away_lineup.players().into_iter())
+            .find(|p| p.id() == player_id);
+
+        if let Some(p) = player {
+            let max_w = crate::physical::models::anaerobic::calculate_player_max_w_prime(
+                p,
+                &self.attribute_keys,
+            );
+            let crit_speed = crate::physical::models::anaerobic::calculate_player_critical_speed(
+                p,
+                &self.attribute_keys,
+            );
+            let cost = crate::physical::models::anaerobic::calculate_anaerobic_cost(
+                duration_seconds,
+                crit_speed + 2.0,
+                crit_speed,
+                intensity,
+            );
+            let is_home = self.home_offensive_position_index.contains_key(&player_id);
+            let fatigue = if is_home {
+                self.home_fatigue.entry(player_id).or_default()
+            } else {
+                self.away_fatigue.entry(player_id).or_default()
+            };
+            crate::physical::models::anaerobic::apply_anaerobic_cost_to_state(
+                fatigue, cost, max_w,
+            );
+        }
+    }
+
+    pub fn apply_dead_ball_recovery(&mut self, dead_ball_seconds: f64) {
+        let home_players = self.home_lineup.players();
+        let away_players = self.away_lineup.players();
+        crate::physical::systems::recovery::apply_intra_match_recovery(
+            &mut self.home_fatigue,
+            &mut self.away_fatigue,
+            &home_players,
+            &away_players,
+            &self.attribute_keys,
+            dead_ball_seconds,
+        );
     }
 
     pub fn player_fatigue_multiplier(&self, player: &Player) -> f64 {

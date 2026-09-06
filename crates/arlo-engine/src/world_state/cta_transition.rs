@@ -61,8 +61,24 @@ pub fn apply_play_transition(
         let clock_inst = state.clock().to_instant();
         sink.record(create_envelope(seq, clock_inst, duel_event));
 
-        if matches!(duel.outcome().kind(), EngineDuelKind::RouteContest | EngineDuelKind::AerialDuel) {
-            let receiver_id = duel.attacker_ids().first().copied().unwrap_or(pass_phase.artrine.id());
+        let duel_kind = duel.outcome().kind();
+        let mult = crate::physical::models::anaerobic::calculate_duel_intensity_multiplier(duel_kind);
+        for attacker_id in duel.attacker_ids() {
+            state.apply_duel_anaerobic_cost(*attacker_id, 1.0, mult);
+        }
+        for defender_id in duel.defender_ids() {
+            state.apply_duel_anaerobic_cost(*defender_id, 1.0, mult);
+        }
+
+        if matches!(
+            duel.outcome().kind(),
+            EngineDuelKind::RouteContest | EngineDuelKind::AerialDuel
+        ) {
+            let receiver_id = duel
+                .attacker_ids()
+                .first()
+                .copied()
+                .unwrap_or(pass_phase.artrine.id());
             let reception_event = translate_reception_resolved(
                 receiver_id,
                 pass_phase.artrine.id(),
@@ -264,7 +280,10 @@ pub fn apply_play_transition(
         state.reset_drives();
     }
 
-    let was_goal_point = matches!(detailed_outcome.scoring_decision, ScoringDecision::GoalPoint { .. });
+    let was_goal_point = matches!(
+        detailed_outcome.scoring_decision,
+        ScoringDecision::GoalPoint { .. }
+    );
     let mut next_snapshot = transition_result.snapshot;
     if detailed_outcome.scoring_decision.is_scored() {
         let center_scrimmage = VectorPosition::from_components(
@@ -285,6 +304,11 @@ pub fn apply_play_transition(
             derive_and_apply_reorganization(state, next_scrimmage_x_mirim);
         play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
         play_ledger.record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
+    }
+
+    let dead_ball_seconds = play_ledger.total_dead_ball().value();
+    if dead_ball_seconds > 0.0 {
+        state.apply_dead_ball_recovery(dead_ball_seconds);
     }
 
     let period_ended = state
