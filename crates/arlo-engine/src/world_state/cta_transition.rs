@@ -8,15 +8,19 @@ use crate::match_decision::event_translation::{
 };
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::pacing::{calculate_player_pacing_multiplier, is_player_near_ball};
+use crate::physical::systems::positional_strain::calculate_transit_strain_multiplier;
 use crate::possession::{transition, TurnoverCategory};
 use crate::resolution::DuelKind as EngineDuelKind;
 use crate::time::DurationComponentKind;
+use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::period_resolution::resolve_period_end;
 use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
-use arlo_domain::ArtrineDecisionKind;
+use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_events::{CountdownReason, EventArtroPlacement, EventSink};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use uuid::Uuid;
@@ -52,16 +56,11 @@ pub fn apply_play_transition(
         sink.record(create_envelope(seq, clock_inst, dist_event));
     }
 
-    for duel in &execution_outcome.duels {
-        let duel_event = translate_duel_resolved(
-            duel.outcome(),
-            duel.attacker_ids().to_vec(),
-            duel.defender_ids().to_vec(),
-        );
-        let seq = state.next_sequence();
-        let clock_inst = state.clock().to_instant();
-        sink.record(create_envelope(seq, clock_inst, duel_event));
+    let mut play_duels = Vec::with_capacity(1 + execution_outcome.duels.len());
+    play_duels.push(pass_phase.pass_duel_outcome.clone());
+    play_duels.extend(execution_outcome.duels.iter().cloned());
 
+    for duel in &play_duels {
         let duel_kind = duel.outcome().kind();
         let mult = crate::physical::models::anaerobic::calculate_duel_intensity_multiplier(duel_kind);
         for attacker_id in duel.attacker_ids() {
@@ -78,6 +77,17 @@ pub fn apply_play_transition(
             let clock_inst = state.clock().to_instant();
             sink.record(create_envelope(seq, clock_inst, strain_ev));
         }
+    }
+
+    for duel in &execution_outcome.duels {
+        let duel_event = translate_duel_resolved(
+            duel.outcome(),
+            duel.attacker_ids().to_vec(),
+            duel.defender_ids().to_vec(),
+        );
+        let seq = state.next_sequence();
+        let clock_inst = state.clock().to_instant();
+        sink.record(create_envelope(seq, clock_inst, duel_event));
 
         if matches!(
             duel.outcome().kind(),
@@ -205,20 +215,72 @@ pub fn apply_play_transition(
         scoring_decision: execution_outcome.scoring_decision,
     };
 
+    let live_seconds = play_ledger.total_live().value().max(1.0);
+    let game_state_pressure = analyze_match_state(state);
+    let ball_pos = execution_outcome.end_position;
+
     let runner_id = execution_outcome
         .receiver_id
         .unwrap_or(pass_phase.artrine.id());
-    if execution_outcome.mirins_advanced > 0.0 {
-        let (energy, w_bal) = state.record_distance(runner_id, execution_outcome.mirins_advanced);
-        let strain_ev = translate_physical_strain_recorded(
-            runner_id,
-            energy,
-            w_bal,
-            execution_outcome.mirins_advanced,
+
+    let all_players: Vec<Player> = state
+        .home_lineup()
+        .players()
+        .into_iter()
+        .chain(state.away_lineup().players().into_iter())
+        .cloned()
+        .collect();
+
+    for p in &all_players {
+        let pid = p.id();
+        let p_fatigue = state.fatigue_for(&pid);
+        let is_home = state.home_offensive_position_index().contains_key(&pid);
+        let team_id = if is_home {
+            state.home_team_id()
+        } else {
+            state.away_team_id()
+        };
+        let p_pos = state
+            .position_index_for_team(team_id)
+            .get(&pid)
+            .copied()
+            .unwrap_or(DomainPosition::CenterOffense);
+
+        let is_near = state
+            .spatial_map()
+            .get_position(&pid)
+            .map_or(false, |pos| is_player_near_ball(pos, ball_pos, 15.0))
+            || pid == runner_id
+            || pid == pass_phase.passer.id();
+
+        let pacing_mult = calculate_player_pacing_multiplier(
+            p,
+            state.attribute_keys(),
+            is_near,
+            &game_state_pressure,
         );
-        let seq = state.next_sequence();
-        let clock_inst = state.clock().to_instant();
-        sink.record(create_envelope(seq, clock_inst, strain_ev));
+
+        let transit_mult = calculate_transit_strain_multiplier(p_pos);
+        let eff_speed = calculate_effective_player_speed(
+            p,
+            state.attribute_keys(),
+            &p_fatigue,
+        );
+
+        let base_transit_mirim = (eff_speed.value() * 0.40 / MIRIM_TO_METERS) * live_seconds;
+        let mut player_dist = base_transit_mirim * transit_mult * pacing_mult;
+
+        if pid == runner_id && execution_outcome.mirins_advanced > 0.0 {
+            player_dist += execution_outcome.mirins_advanced;
+        }
+
+        if player_dist > 0.0 {
+            let (energy, w_bal) = state.record_distance(pid, player_dist);
+            let strain_ev = translate_physical_strain_recorded(pid, energy, w_bal, player_dist);
+            let seq = state.next_sequence();
+            let clock_inst = state.clock().to_instant();
+            sink.record(create_envelope(seq, clock_inst, strain_ev));
+        }
     }
 
     let previous_down = state.possession().down() as u32;
