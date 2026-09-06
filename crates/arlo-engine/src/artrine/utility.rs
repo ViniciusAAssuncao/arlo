@@ -41,6 +41,7 @@ pub fn calculate_decision_utilities(
     pass_protection_net_advantage: f64,
     is_last_down: bool,
     territory_advance_mirim: f64,
+    best_available_target_weight: f64,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let mut results = Vec::with_capacity(available_kinds.len());
 
@@ -60,6 +61,7 @@ pub fn calculate_decision_utilities(
             pass_protection_net_advantage,
             is_last_down,
             territory_advance_mirim,
+            best_available_target_weight,
         );
         let total_utility = intrinsic_rating + context_util;
         results.push((kind, total_utility));

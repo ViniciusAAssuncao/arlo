@@ -41,6 +41,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     pass_protection_net_advantage: f64,
     is_last_down: bool,
     territory_advance_mirim: f64,
+    best_available_target_weight: f64,
     rng: &mut R,
 ) -> ArtrineDecisionResult {
     let available_kinds =
@@ -56,6 +57,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
         pass_protection_net_advantage,
         is_last_down,
         territory_advance_mirim,
+        best_available_target_weight,
     );
 
     if utilities.is_empty() {

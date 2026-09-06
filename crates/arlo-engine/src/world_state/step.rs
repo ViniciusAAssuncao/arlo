@@ -6,6 +6,7 @@ use crate::error::EngineResult;
 use crate::match_decision::event_translation::create_envelope;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::resolution::DuelContext;
 use crate::rng::RngStream;
 use crate::time::DurationLedger;
@@ -102,6 +103,27 @@ pub fn step_call_to_action(
             is_home_offense,
         );
 
+        let target_candidates: Vec<&Player> = offense_players
+            .iter()
+            .copied()
+            .filter(|p| p.id() != pass_phase.artrine.id())
+            .collect();
+
+        let best_available_target_weight = target_candidates
+            .iter()
+            .map(|p| {
+                calculate_player_target_weight(
+                    p,
+                    state.spatial_map(),
+                    &pitch,
+                    &offense_pos_index,
+                    &attribute_keys,
+                    is_home_offense,
+                    ReceptionRole::OpenPlayReceiver,
+                )
+            })
+            .fold(0.0_f64, f64::max);
+
         let seq_decision = state.next_sequence();
         let mut decision_rng = state
             .rng_provider()
@@ -116,6 +138,7 @@ pub fn step_call_to_action(
             pass_phase.pass_duel_outcome.outcome().net_advantage(),
             is_last_down,
             advanced_mirins,
+            best_available_target_weight,
             &mut decision_rng,
         );
 

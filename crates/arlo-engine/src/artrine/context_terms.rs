@@ -106,6 +106,18 @@ pub fn last_down_desperation_term(
     }
 }
 
+pub fn target_quality_term(
+    decision: ArtrineDecisionKind,
+    best_available_target_weight: f64,
+) -> f64 {
+    let quality_factor = ((best_available_target_weight - 10.0) / 5.0).clamp(-2.5, 2.5);
+    match decision {
+        ArtrineDecisionKind::ShortPass | ArtrineDecisionKind::LongLaunch => 2.0 * quality_factor,
+        ArtrineDecisionKind::Cross => 1.5 * quality_factor,
+        ArtrineDecisionKind::SelfCarry | ArtrineDecisionKind::SelfFinish => 0.0,
+    }
+}
+
 pub fn total_context_utility(
     decision: ArtrineDecisionKind,
     normalized_proximity: f64,
@@ -114,6 +126,7 @@ pub fn total_context_utility(
     pass_protection_net_advantage: f64,
     is_last_down: bool,
     territory_advance_mirim: f64,
+    best_available_target_weight: f64,
 ) -> f64 {
     range_term(decision, normalized_proximity)
         + drives_needed_term(decision, drives_in_current_series)
@@ -125,4 +138,5 @@ pub fn total_context_utility(
             territory_advance_mirim,
             drives_in_current_series,
         )
+        + target_quality_term(decision, best_available_target_weight)
 }
