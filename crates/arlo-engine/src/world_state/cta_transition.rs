@@ -7,7 +7,7 @@ use crate::match_decision::event_translation::{
 };
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::possession::transition;
+use crate::possession::{transition, TurnoverCategory};
 use crate::resolution::DuelKind as EngineDuelKind;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -104,20 +104,22 @@ pub fn apply_play_transition(
     let out_of_bounds = pass_failed || is_scored || is_missed;
     let arbitral_stoppage = is_scored;
 
-    let turnover = if execution_outcome.turnover.is_some() {
-        execution_outcome.turnover
-    } else if is_missed {
-        Some(defense_team_id)
+    let (_turnover_category, turnover, recovering_player_id) = if is_missed {
+        let category = TurnoverCategory::MissedShot;
+        (
+            Some(category),
+            Some(defense_team_id),
+            category.sanitize_recovering_player(None),
+        )
+    } else if let Some(turnover_team) = execution_outcome.turnover {
+        let category = TurnoverCategory::Dispossession;
+        (
+            Some(category),
+            Some(turnover_team),
+            category.sanitize_recovering_player(execution_outcome.recovering_player_id),
+        )
     } else {
-        None
-    };
-
-    let recovering_player_id = if execution_outcome.recovering_player_id.is_some() {
-        execution_outcome.recovering_player_id
-    } else if turnover.is_some() {
-        Some(pass_phase.goalguard.id())
-    } else {
-        None
+        (None, None, None)
     };
 
     let mut resolved_duels = vec![pass_phase.pass_duel_outcome];

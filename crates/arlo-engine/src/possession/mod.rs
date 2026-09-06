@@ -6,6 +6,7 @@ pub mod role;
 pub mod series_state;
 pub mod snapshot;
 pub mod transition;
+pub mod turnover_fsm;
 
 pub use ball_state::*;
 pub use clock_state::*;
@@ -15,3 +16,4 @@ pub use role::*;
 pub use series_state::*;
 pub use snapshot::*;
 pub use transition::*;
+pub use turnover_fsm::*;

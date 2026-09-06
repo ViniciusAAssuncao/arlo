@@ -209,66 +209,15 @@ where
     );
 
     if !raw_block_duel.attacker_won() {
-        let close_defenders: Vec<&Player> = defenders
-            .iter()
-            .copied()
-            .filter(|cand| {
-                get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
-                    .map(|p| {
-                        calculate_distance_mirim(receiver_pos_vec, p)
-                            <= PROXIMITY_CONTEST_RADIUS_MIRIM
-                    })
-                    .unwrap_or(false)
-            })
-            .collect();
-
-        let (sec_defenders, sec_lead) = if !close_defenders.is_empty() {
-            (close_defenders.as_slice(), close_defenders[0])
-        } else {
-            (&defenders[..1], defenders[0])
-        };
-
-        let sec_result = resolve_ball_security(
-            DuelKind::BallSecurityCarry,
-            receiver,
-            receiver_pos_domain,
-            sec_defenders,
-            defense_position_index,
-            attribute_keys,
-            defense_team_id,
-            context,
-            rng,
-        );
-
-        let sec_def_pos = get_drifted_defender_position(sec_lead, spatial_map, attribute_keys, rng)
-            .unwrap_or(receiver_pos_vec);
-        let sec_def_mult = compute_player_fatigue_multiplier(
-            sec_lead,
-            &fatigue_for(&sec_lead.id()),
-            attribute_keys,
-        );
-        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys, sec_def_mult);
-
-        let rec_mult = compute_player_fatigue_multiplier(
-            receiver,
-            &fatigue_for(&receiver.id()),
-            attribute_keys,
-        );
-        let rec_spd = calculate_player_speed(receiver, attribute_keys, rec_mult);
-        let sec_duration =
-            derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
-
         let mut duration_ledger = DurationLedger::new();
         duration_ledger
             .record_live(DurationComponentKind::RunAfterCatchEngagement, block_duration);
-        duration_ledger
-            .record_live(DurationComponentKind::BallSecurityEngagement, sec_duration);
 
         return RunAfterCatchOutcome {
             additional_mirins_advanced: 0.0,
-            duels: vec![block_duel, sec_result.duel_outcome],
-            turnover: sec_result.turnover_team_id,
-            recovering_player_id: sec_result.recovering_player_id,
+            duels: vec![block_duel],
+            turnover: None,
+            recovering_player_id: None,
             duration_ledger,
         };
     }
@@ -444,6 +393,13 @@ where
             attribute_keys,
         );
         let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys, sec_def_mult);
+
+        let rec_mult = compute_player_fatigue_multiplier(
+            receiver,
+            &fatigue_for(&receiver.id()),
+            attribute_keys,
+        );
+        let rec_spd = calculate_player_speed(receiver, attribute_keys, rec_mult);
         let sec_duration =
             derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
         duration_ledger

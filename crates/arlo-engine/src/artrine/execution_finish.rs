@@ -245,7 +245,7 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
 
     let (turnover, recovering_player_id) = match &scoring_decision {
         crate::match_decision::scoring::ScoringDecision::Missed { .. } => {
-            (Some(defense_team_id), Some(goalguard.id()))
+            (Some(defense_team_id), None)
         }
         _ => (None, None),
     };
