@@ -7,7 +7,7 @@ use crate::resolution::group_rating::{
 };
 use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::decision_vector::{calculate_player_speed, extract_attribute_value};
 use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
@@ -28,6 +28,7 @@ pub struct ReceptionOutcome {
     pub duel: AttributedDuelOutcome,
     pub is_aerial: bool,
     pub duration: Duration,
+    pub intercepted_by_defender: Option<Uuid>,
 }
 
 pub fn resolve_reception<F, R>(
@@ -155,6 +156,21 @@ where
 
     let caught = raw_duel.attacker_won();
 
+    let intercepted_by_defender = if !caught {
+        let def_hands = extract_attribute_value(lead_defender, attribute_keys, AttributeKey::HandsReception);
+        let def_ant = extract_attribute_value(lead_defender, attribute_keys, AttributeKey::Anticipation);
+        let att_hands = extract_attribute_value(receiver_player, attribute_keys, AttributeKey::HandsReception);
+        let hands_diff = def_hands - att_hands;
+        let threshold = -(2.5 - (hands_diff * 0.2 + def_ant * 0.1).clamp(-2.0, 3.0));
+        if raw_duel.net_advantage() <= threshold {
+            Some(lead_defender.id())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let rec_mult = compute_player_fatigue_multiplier(
         receiver_player,
         &fatigue_for(&receiver_player.id()),
@@ -214,5 +230,6 @@ where
         duel,
         is_aerial,
         duration,
+        intercepted_by_defender,
     }
 }

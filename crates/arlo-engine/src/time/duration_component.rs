@@ -15,4 +15,5 @@ pub enum DurationComponentKind {
     Reorganization,
     ReceptionEngagement,
     RunAfterCatchEngagement,
+    Huddle,
 }

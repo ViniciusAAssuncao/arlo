@@ -100,8 +100,12 @@ pub fn apply_play_transition(
         ScoringDecision::Missed { .. }
     );
     let pass_failed = !pass_phase.pass_completed;
+    let is_distribution_dropped = execution_outcome
+        .distribution_flight
+        .as_ref()
+        .map_or(false, |f| !f.caught && execution_outcome.turnover.is_none());
 
-    let out_of_bounds = pass_failed || is_scored || is_missed;
+    let out_of_bounds = pass_failed || is_scored || is_missed || is_distribution_dropped;
     let arbitral_stoppage = is_scored;
 
     let (_turnover_category, turnover, recovering_player_id, lost_by_player_id) = if is_missed {
@@ -119,7 +123,15 @@ pub fn apply_play_transition(
             lost_by,
         )
     } else if let Some(turnover_team) = execution_outcome.turnover {
-        let category = TurnoverCategory::Dispossession;
+        let category = if execution_outcome
+            .distribution_flight
+            .as_ref()
+            .map_or(false, |f| !f.caught)
+        {
+            TurnoverCategory::Interception
+        } else {
+            TurnoverCategory::Dispossession
+        };
         let lost_by = execution_outcome
             .receiver_id
             .or(Some(pass_phase.artrine.id()));
@@ -269,8 +281,10 @@ pub fn apply_play_transition(
     if transition_result.countdown_to_size_triggered {
         let next_scrimmage_x_mirim =
             next_snapshot.series_state().scrimmage_point().raw().0 / MIRIM_TO_METERS;
-        let reorg_duration = derive_and_apply_reorganization(state, next_scrimmage_x_mirim);
+        let (reorg_duration, huddle_duration) =
+            derive_and_apply_reorganization(state, next_scrimmage_x_mirim);
         play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
+        play_ledger.record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
     }
 
     let period_ended = state

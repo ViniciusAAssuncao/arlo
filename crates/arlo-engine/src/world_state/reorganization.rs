@@ -1,14 +1,15 @@
-
+use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::run_spatial_tick_loop;
 use crate::tactics::dynamic_anchor::compute_dynamic_anchors;
 use crate::world_state::match_state::MatchState;
+use arlo_domain::{AttributeKey, Position as DomainPosition};
 use arlo_math::units::Duration;
 
 pub fn derive_and_apply_reorganization(
     state: &mut MatchState,
     scrimmage_x_mirim: f64,
-) -> Duration {
+) -> (Duration, Duration) {
     let pitch = *state.pitch();
     let home_lineup = state.home_lineup().clone();
     let away_lineup = state.away_lineup().clone();
@@ -57,5 +58,34 @@ pub fn derive_and_apply_reorganization(
         state.record_distance(*player_id, dist_mirim);
     }
 
-    Duration::new(tick_result.elapsed_seconds())
+    let offense_lineup = if is_home_offense {
+        &home_lineup
+    } else {
+        &away_lineup
+    };
+
+    let offense_artrine = offense_lineup
+        .assignments()
+        .iter()
+        .map(|a| a.player())
+        .find(|p| {
+            p.positions()
+                .iter()
+                .any(|pos| pos.position() == DomainPosition::Artrine && pos.proficiency() > 0)
+        });
+
+    let (tac, lead) = if let Some(artrine) = offense_artrine {
+        let tac = extract_attribute_value(artrine, &attribute_keys, AttributeKey::TacticalKnowledge);
+        let lead = extract_attribute_value(artrine, &attribute_keys, AttributeKey::Leadership);
+        (tac, lead)
+    } else {
+        (10.0, 10.0)
+    };
+
+    let huddle_seconds = (28.0 - (tac * 0.55 + lead * 0.45)).clamp(8.0, 32.0);
+
+    (
+        Duration::new(tick_result.elapsed_seconds()),
+        Duration::new(huddle_seconds),
+    )
 }

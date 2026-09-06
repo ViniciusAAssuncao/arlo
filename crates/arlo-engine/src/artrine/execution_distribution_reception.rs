@@ -96,15 +96,21 @@ where
             reception_outcome.duration,
         );
 
+        let (turnover, recovering_player_id, end_position) = if let Some(interceptor_id) = reception_outcome.intercepted_by_defender {
+            (Some(defense_team_id), Some(interceptor_id), receiver_pos_vec)
+        } else {
+            (None, None, start_pos)
+        };
+
         return ArtrineExecutionOutcome {
             mirins_advanced: 0.0,
             drives_recorded: 0,
             drive_row_indices: Vec::new(),
-            turnover: None,
-            recovering_player_id: None,
+            turnover,
+            recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
             duration_ledger: ledger,
-            end_position: start_pos,
+            end_position,
             duels: vec![dist_duel, reception_outcome.duel],
             receiver_id: Some(receiver_id),
             distribution_flight,
