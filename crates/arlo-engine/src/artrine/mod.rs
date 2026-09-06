@@ -14,7 +14,9 @@ pub mod run_after_catch;
 pub mod utility;
 
 pub use context_terms::*;
-pub use decision_engine::*;
+pub use decision_engine::{
+    resolve_artrine_decision, resolve_artrine_decision_with_context, ArtrineDecisionResult,
+};
 pub use decision_profiles::*;
 pub use event_translation::*;
 pub use execution::{execute_artrine_decision, find_goalguard};
@@ -28,4 +30,7 @@ pub use execution_outcome::{ArtrineExecutionOutcome, DistributionFlightInfo};
 pub use execution_security::{resolve_ball_security, SecurityResolutionResult};
 pub use reception::{resolve_reception, ReceptionOutcome};
 pub use run_after_catch::{resolve_run_after_catch, RunAfterCatchOutcome};
-pub use utility::*;
+pub use utility::{
+    available_decision_kinds, calculate_decision_utilities,
+    calculate_decision_utilities_with_context,
+};

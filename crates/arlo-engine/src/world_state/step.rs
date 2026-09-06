@@ -1,7 +1,9 @@
+use crate::ai::cognitive::RiskProfile;
 use crate::ai::gravity::calculate_team_max_finishing_gravity;
 use crate::artrine::{
-    calculate_normalized_proximity, execute_artrine_decision, resolve_artrine_decision,
-    translate_artrine_decision_made, ArtrineExecutionOutcome,
+    calculate_normalized_proximity, execute_artrine_decision,
+    resolve_artrine_decision_with_context, translate_artrine_decision_made,
+    ArtrineExecutionOutcome,
 };
 use crate::error::EngineResult;
 use crate::match_decision::event_translation::create_envelope;
@@ -12,6 +14,7 @@ use crate::resolution::DuelContext;
 use crate::rng::RngStream;
 use crate::spatial::{calculate_artro_advance_pitch_control, find_next_artro_position};
 use crate::time::DurationLedger;
+use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::cta_transition::apply_play_transition;
 use crate::world_state::match_state::MatchState;
@@ -162,12 +165,15 @@ pub fn step_call_to_action(
             &pitch,
         );
 
+        let game_state_pressure = analyze_match_state(state);
+        let risk_profile = RiskProfile::from_player(pass_phase.artrine, &attribute_keys);
+
         let seq_decision = state.next_sequence();
         let mut decision_rng = state
             .rng_provider()
             .indexed_rng_for(RngStream::ArtrineDecision, seq_decision);
 
-        let decision_result = resolve_artrine_decision(
+        let decision_result = resolve_artrine_decision_with_context(
             pass_phase.artrine,
             &attribute_keys,
             normalized_proximity,
@@ -183,6 +189,8 @@ pub fn step_call_to_action(
             pitch_control_ahead,
             pitch.length_mirim(),
             offensive_gravity.multiplier(),
+            risk_profile,
+            game_state_pressure,
             &mut decision_rng,
         );
 
