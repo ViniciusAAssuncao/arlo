@@ -1,7 +1,7 @@
 use crate::resolution::calculate_player_duel_rating;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::resolver::resolve_duel;
-use crate::resolution::{DuelContext, DuelKind, DuelOutcome};
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE,
     FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
@@ -125,7 +125,7 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     territory_advance_mirim: f64,
     context: &DuelContext,
     rng: &mut R,
-) -> (ScoringDecision, DuelOutcome) {
+) -> (ScoringDecision, AttributedDuelOutcome) {
     let (attacker_profile, defender_profile) = get_duel_profiles(DuelKind::FinishingAttempt);
     let mut attacker_rating = calculate_player_duel_rating(
         finisher,
@@ -154,7 +154,7 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
 
     attacker_rating += distance_adjustment;
 
-    let outcome = resolve_duel(
+    let raw_outcome = resolve_duel(
         DuelKind::FinishingAttempt,
         attacker_rating,
         defender_rating,
@@ -165,7 +165,7 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         rng,
     );
 
-    let decision = if outcome.attacker_won() {
+    let decision = if raw_outcome.attacker_won() {
         match opportunity {
             ScoringOpportunity::GoalPoint => {
                 let pts = goal_point_points();
@@ -213,6 +213,12 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
             attempted_post,
         }
     };
+
+    let outcome = AttributedDuelOutcome::new(
+        raw_outcome,
+        vec![finisher.id()],
+        vec![goalguard.id()],
+    );
 
     (decision, outcome)
 }

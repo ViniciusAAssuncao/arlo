@@ -5,8 +5,7 @@ use crate::artrine::run_after_catch::resolve_run_after_catch;
 use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::outcome::DuelOutcome;
-use crate::resolution::{DuelContext, DuelKind};
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::calculate_player_speed;
 use crate::spatial::positioning_drift::get_drifted_defender_position;
 use crate::spatial::proximity::calculate_distance_mirim;
@@ -34,7 +33,7 @@ pub fn execute_post_throw_reception<F, R>(
     throw_advance: f64,
     flight_duration: Duration,
     dist_duration: Duration,
-    dist_duel: DuelOutcome,
+    dist_duel: AttributedDuelOutcome,
     attacking_positive_x: bool,
     defense_team_id: Uuid,
     context: &DuelContext,

@@ -7,10 +7,9 @@ use crate::resolution::group_rating::{
     calculate_anchored_side_rating_from_index, calculate_player_duel_rating,
     calculate_side_rating_from_index, identify_lead_player_from_index,
 };
-use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
-use crate::resolution::{DuelContext, DuelKind};
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::calculate_player_speed;
 use crate::spatial::positioning_drift::get_drifted_defender_position;
 use crate::spatial::proximity::calculate_distance_mirim;
@@ -27,7 +26,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq)]
 pub struct RunAfterCatchOutcome {
     pub additional_mirins_advanced: f64,
-    pub duels: Vec<DuelOutcome>,
+    pub duels: Vec<AttributedDuelOutcome>,
     pub turnover: Option<Uuid>,
     pub recovering_player_id: Option<Uuid>,
     pub duration_ledger: DurationLedger,
@@ -115,7 +114,7 @@ where
     )
     .unwrap_or(defenders[0]);
 
-    let block_duel = resolve_duel(
+    let raw_block_duel = resolve_duel(
         block_duel_kind,
         blocker_rating,
         defender_block_rating,
@@ -124,6 +123,18 @@ where
         attribute_keys,
         context,
         rng,
+    );
+
+    let block_attacker_ids = if !offense_helpers.is_empty() {
+        offense_helpers.iter().map(|p| p.id()).collect()
+    } else {
+        vec![receiver.id()]
+    };
+    let block_defender_ids = defenders.iter().map(|p| p.id()).collect();
+    let block_duel = AttributedDuelOutcome::new(
+        raw_block_duel,
+        block_attacker_ids,
+        block_defender_ids,
     );
 
     let blocker_pos = spatial_map
@@ -148,7 +159,7 @@ where
     let block_duration =
         derive_duel_duration(blocker_pos, blocker_spd, block_def_pos, block_def_spd);
 
-    if !block_duel.attacker_won() {
+    if !raw_block_duel.attacker_won() {
         let close_defenders: Vec<&Player> = defenders
             .iter()
             .copied()
@@ -213,7 +224,7 @@ where
         };
     }
 
-    let block_bonus = (block_duel.net_advantage() * 0.35).max(0.5);
+    let block_bonus = (raw_block_duel.net_advantage() * 0.35).max(0.5);
     let (rb_offense_profile, rb_defense_profile) = get_duel_profiles(DuelKind::RunBreakthrough);
 
     let attacker_rating = calculate_anchored_side_rating_from_index(
@@ -240,7 +251,7 @@ where
     )
     .unwrap_or(defenders[0]);
 
-    let rb_duel = resolve_duel(
+    let raw_rb_duel = resolve_duel(
         DuelKind::RunBreakthrough,
         attacker_rating,
         defender_rating,
@@ -249,6 +260,16 @@ where
         attribute_keys,
         context,
         rng,
+    );
+
+    let rb_attacker_ids = std::iter::once(receiver.id())
+        .chain(offense_helpers.iter().map(|p| p.id()))
+        .collect();
+    let rb_defender_ids = defenders.iter().map(|p| p.id()).collect();
+    let rb_duel = AttributedDuelOutcome::new(
+        raw_rb_duel,
+        rb_attacker_ids,
+        rb_defender_ids,
     );
 
     let rb_def_pos = get_drifted_defender_position(lead_defender, spatial_map, attribute_keys, rng)
@@ -274,9 +295,9 @@ where
         Duration::new(block_duration.value() + rb_duration.value()),
     );
 
-    if rb_duel.attacker_won() {
+    if raw_rb_duel.attacker_won() {
         let progression_strategy = AggregateProgressionStrategy::default();
-        let additional_mirins_advanced = progression_strategy.resolve_progression(&rb_duel, rng);
+        let additional_mirins_advanced = progression_strategy.resolve_progression(&raw_rb_duel, rng);
 
         RunAfterCatchOutcome {
             additional_mirins_advanced,

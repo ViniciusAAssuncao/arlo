@@ -12,7 +12,7 @@ use crate::resolution::group_rating::{
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
-use crate::resolution::{DuelContext, DuelKind};
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::ball_kinematics::{
     ball_flight_duration, calculate_cross_speed, calculate_pass_speed,
 };
@@ -80,7 +80,7 @@ where
     )
     .unwrap_or(defenders[0]);
 
-    let dist_duel = resolve_duel(
+    let raw_dist_duel = resolve_duel(
         duel_kind,
         attacker_rating,
         defender_rating,
@@ -89,6 +89,16 @@ where
         attribute_keys,
         context,
         rng,
+    );
+
+    let dist_attacker_ids: Vec<Uuid> = std::iter::once(artrine.id())
+        .chain(offense_helpers.iter().map(|p| p.id()))
+        .collect();
+    let dist_defender_ids: Vec<Uuid> = defenders.iter().map(|p| p.id()).collect();
+    let dist_duel = AttributedDuelOutcome::new(
+        raw_dist_duel,
+        dist_attacker_ids,
+        dist_defender_ids,
     );
 
     let artrine_fatigue_mult =
@@ -109,7 +119,7 @@ where
             None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
         };
 
-    if !dist_duel.attacker_won() {
+    if !dist_duel.outcome().attacker_won() {
         let mut ledger = DurationLedger::new();
         ledger.record_live(
             DurationComponentKind::DistributionEngagement,
@@ -192,7 +202,7 @@ where
     }
 
     let progression_strategy = AggregateProgressionStrategy::default();
-    let throw_advance = progression_strategy.resolve_progression(&dist_duel, rng);
+    let throw_advance = progression_strategy.resolve_progression(dist_duel.outcome(), rng);
 
     let ball_speed = match decision_kind {
         ArtrineDecisionKind::Cross => calculate_cross_speed(artrine, attribute_keys),

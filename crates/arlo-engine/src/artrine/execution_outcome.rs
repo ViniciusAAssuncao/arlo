@@ -1,5 +1,5 @@
 use crate::match_decision::scoring::ScoringDecision;
-use crate::resolution::DuelOutcome;
+use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationLedger;
 use arlo_math::units::Position as VectorPosition;
 use serde::{Deserialize, Serialize};
@@ -15,6 +15,6 @@ pub struct ArtrineExecutionOutcome {
     pub scoring_decision: ScoringDecision,
     pub duration_ledger: DurationLedger,
     pub end_position: VectorPosition,
-    pub duels: Vec<DuelOutcome>,
+    pub duels: Vec<AttributedDuelOutcome>,
     pub receiver_id: Option<Uuid>,
 }

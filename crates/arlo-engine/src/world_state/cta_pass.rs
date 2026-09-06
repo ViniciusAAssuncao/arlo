@@ -5,8 +5,8 @@ use crate::match_decision::event_translation::{
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::resolve_duel_for_participants;
+use crate::resolution::AttributedDuelOutcome;
 use crate::rng::RngStream;
 use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
 use crate::spatial::decision_vector::calculate_player_speed;
@@ -23,7 +23,7 @@ pub struct PassPhaseResult<'a> {
     pub artrine: &'a Player,
     pub pass_rusher: &'a Player,
     pub goalguard: &'a Player,
-    pub pass_duel_outcome: DuelOutcome,
+    pub pass_duel_outcome: AttributedDuelOutcome,
     pub pass_completed: bool,
     pub is_aerial: bool,
     pub reception_point: VectorPosition,
@@ -118,7 +118,7 @@ pub fn resolve_pass_phase<'a>(
     let pass_rushers = vec![
         (pass_rusher, DomainPosition::PassRusher),
     ];
-    let pass_duel_outcome = resolve_duel_for_participants(
+    let raw_pass_duel = resolve_duel_for_participants(
         DuelKind::PassProtection,
         passer,
         &pass_blockers,
@@ -129,14 +129,23 @@ pub fn resolve_pass_phase<'a>(
         &mut duel_rng,
     );
 
+    let attacker_ids = vec![passer.id(), artrine.id()];
+    let defender_ids = vec![pass_rusher.id()];
+
     let pass_duel_event = translate_duel_resolved(
-        &pass_duel_outcome,
-        vec![passer.id(), artrine.id()],
-        vec![pass_rusher.id()],
+        &raw_pass_duel,
+        attacker_ids.clone(),
+        defender_ids.clone(),
     );
     let seq = state.next_sequence();
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, pass_duel_event));
+
+    let pass_duel_outcome = AttributedDuelOutcome::new(
+        raw_pass_duel,
+        attacker_ids,
+        defender_ids,
+    );
 
     let passer_mult = state.player_fatigue_multiplier(passer);
     let pass_rusher_mult = state.player_fatigue_multiplier(pass_rusher);
@@ -149,7 +158,7 @@ pub fn resolve_pass_phase<'a>(
         pass_rusher_speed,
     );
 
-    let pass_completed = pass_duel_outcome.attacker_won();
+    let pass_completed = pass_duel_outcome.outcome().attacker_won();
     let is_aerial = false;
     let reception_point = artrine_pos;
     let pass_distance_mirim = calculate_distance_mirim(passer_pos, artrine_pos);

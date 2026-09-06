@@ -44,30 +44,22 @@ pub fn apply_play_transition(
     }
 
     for duel in &execution_outcome.duels {
-        let attacker_id = match duel.kind() {
-            EngineDuelKind::ShortDistribution
-            | EngineDuelKind::LongDistribution
-            | EngineDuelKind::CrossDistribution
-            | EngineDuelKind::ArtroBreakthrough => pass_phase.artrine.id(),
-            _ => execution_outcome
-                .receiver_id
-                .unwrap_or(pass_phase.artrine.id()),
-        };
         let duel_event = translate_duel_resolved(
-            duel,
-            vec![attacker_id],
-            vec![pass_phase.goalguard.id()],
+            duel.outcome(),
+            duel.attacker_ids().to_vec(),
+            duel.defender_ids().to_vec(),
         );
         let seq = state.next_sequence();
         let clock_inst = state.clock().to_instant();
         sink.record(create_envelope(seq, clock_inst, duel_event));
 
-        if matches!(duel.kind(), EngineDuelKind::RouteContest | EngineDuelKind::AerialDuel) {
+        if matches!(duel.outcome().kind(), EngineDuelKind::RouteContest | EngineDuelKind::AerialDuel) {
+            let receiver_id = duel.attacker_ids().first().copied().unwrap_or(pass_phase.artrine.id());
             let reception_event = translate_reception_resolved(
-                attacker_id,
+                receiver_id,
                 pass_phase.artrine.id(),
-                duel.attacker_won(),
-                duel.kind() == EngineDuelKind::AerialDuel,
+                duel.outcome().attacker_won(),
+                duel.outcome().kind() == EngineDuelKind::AerialDuel,
             );
             let seq = state.next_sequence();
             let clock_inst = state.clock().to_instant();

@@ -1,4 +1,5 @@
 pub mod aggregate_progression;
+pub mod attributed_outcome;
 pub mod context;
 pub mod duel_kind;
 pub mod duel_noise;
@@ -10,6 +11,7 @@ pub mod progression_strategy;
 pub mod resolver;
 
 pub use aggregate_progression::AggregateProgressionStrategy;
+pub use attributed_outcome::AttributedDuelOutcome;
 pub use context::DuelContext;
 pub use duel_kind::DuelKind;
 pub use duel_noise::{player_noise_distribution, sample_player_noise, SkewNormalParams};

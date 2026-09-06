@@ -113,7 +113,7 @@ pub fn step_call_to_action(
             normalized_proximity,
             drives_in_series,
             remaining_downs,
-            pass_phase.pass_duel_outcome.net_advantage(),
+            pass_phase.pass_duel_outcome.outcome().net_advantage(),
             is_last_down,
             advanced_mirins,
             &mut decision_rng,

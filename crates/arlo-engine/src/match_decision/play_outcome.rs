@@ -1,6 +1,6 @@
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::PlayOutcome as PossessionPlayOutcome;
-use crate::resolution::DuelOutcome;
+use crate::resolution::AttributedDuelOutcome;
 use arlo_math::units::Position;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -18,7 +18,7 @@ pub struct DetailedPlayOutcome {
     pub reception_point: Position,
     pub drives_recorded: u32,
     pub mirins_advanced: f64,
-    pub duels: Vec<DuelOutcome>,
+    pub duels: Vec<AttributedDuelOutcome>,
     pub turnover: Option<Uuid>,
     pub recovering_player_id: Option<Uuid>,
     pub out_of_bounds: bool,
@@ -41,4 +41,3 @@ impl DetailedPlayOutcome {
         }
     }
 }
-

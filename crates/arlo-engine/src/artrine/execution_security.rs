@@ -2,9 +2,8 @@ use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_player_duel_rating, calculate_side_rating_from_index, identify_lead_player_from_index,
 };
-use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::resolve_duel;
-use crate::resolution::{DuelContext, DuelKind};
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::{AttributeKey, Player, Position};
 use rand::Rng;
 use std::collections::HashMap;
@@ -14,7 +13,7 @@ use uuid::Uuid;
 pub struct SecurityResolutionResult {
     pub turnover_team_id: Option<Uuid>,
     pub recovering_player_id: Option<Uuid>,
-    pub duel_outcome: DuelOutcome,
+    pub duel_outcome: AttributedDuelOutcome,
 }
 
 pub fn resolve_ball_security<R: Rng + ?Sized>(
@@ -49,7 +48,7 @@ pub fn resolve_ball_security<R: Rng + ?Sized>(
     );
     let defender_primary = lead_defender.unwrap_or(defenders[0]);
 
-    let duel_outcome = resolve_duel(
+    let raw_outcome = resolve_duel(
         security_kind,
         attacker_rating,
         defender_rating,
@@ -60,7 +59,11 @@ pub fn resolve_ball_security<R: Rng + ?Sized>(
         rng,
     );
 
-    if duel_outcome.attacker_won() {
+    let attacker_ids = vec![ball_carrier.id()];
+    let defender_ids = defenders.iter().map(|p| p.id()).collect();
+    let duel_outcome = AttributedDuelOutcome::new(raw_outcome, attacker_ids, defender_ids);
+
+    if raw_outcome.attacker_won() {
         SecurityResolutionResult {
             turnover_team_id: None,
             recovering_player_id: None,

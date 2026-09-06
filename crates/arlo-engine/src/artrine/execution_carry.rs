@@ -13,7 +13,7 @@ use crate::resolution::group_rating::{
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
-use crate::resolution::{DuelContext, DuelKind};
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::calculate_player_speed;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
 use crate::spatial::proximity::calculate_distance_mirim;
@@ -71,7 +71,7 @@ where
     )
     .unwrap_or(defenders[0]);
 
-    let artro_duel = resolve_duel(
+    let raw_artro_duel = resolve_duel(
         DuelKind::ArtroBreakthrough,
         attacker_rating,
         defender_rating,
@@ -80,6 +80,16 @@ where
         attribute_keys,
         context,
         rng,
+    );
+
+    let artro_attacker_ids: Vec<Uuid> = std::iter::once(artrine.id())
+        .chain(offense_helpers.iter().map(|p| p.id()))
+        .collect();
+    let artro_defender_ids: Vec<Uuid> = defenders.iter().map(|p| p.id()).collect();
+    let artro_duel = AttributedDuelOutcome::new(
+        raw_artro_duel,
+        artro_attacker_ids,
+        artro_defender_ids,
     );
 
     let artrine_fatigue_mult =
@@ -100,7 +110,7 @@ where
             None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
         };
 
-    if !artro_duel.attacker_won() {
+    if !artro_duel.outcome().attacker_won() {
         let mut ledger = DurationLedger::new();
         ledger.record_live(
             DurationComponentKind::ArtroBreakthroughEngagement,
@@ -178,7 +188,7 @@ where
     }
 
     let progression_strategy = AggregateProgressionStrategy::default();
-    let raw_advance = progression_strategy.resolve_progression(&artro_duel, rng);
+    let raw_advance = progression_strategy.resolve_progression(artro_duel.outcome(), rng);
 
     let start_x_mirim = start_pos.raw().0 / MIRIM_TO_METERS;
     let end_x_mirim = if attacking_positive_x {
