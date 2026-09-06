@@ -329,7 +329,7 @@ impl MatchState {
             .unwrap_or_default()
     }
 
-    pub fn record_distance(&mut self, player_id: Uuid, mirim: f64) {
+    pub fn record_distance(&mut self, player_id: Uuid, mirim: f64) -> (f64, f64) {
         let player = self
             .home_lineup
             .players()
@@ -352,6 +352,7 @@ impl MatchState {
                 0,
             );
         }
+        (fatigue.energy(), fatigue.w_prime_balance())
     }
 
     pub fn apply_duel_anaerobic_cost(
@@ -359,7 +360,7 @@ impl MatchState {
         player_id: Uuid,
         duration_seconds: f64,
         intensity: f64,
-    ) {
+    ) -> (f64, f64) {
         let player = self
             .home_lineup
             .players()
@@ -391,12 +392,21 @@ impl MatchState {
             crate::physical::models::anaerobic::apply_anaerobic_cost_to_state(
                 fatigue, cost, max_w,
             );
+            (fatigue.energy(), fatigue.w_prime_balance())
+        } else {
+            let fatigue = self.fatigue_for(&player_id);
+            (fatigue.energy(), fatigue.w_prime_balance())
         }
     }
 
-    pub fn apply_dead_ball_recovery(&mut self, dead_ball_seconds: f64) {
+    pub fn apply_dead_ball_recovery(&mut self, dead_ball_seconds: f64) -> Vec<(Uuid, f64, f64)> {
         let home_players = self.home_lineup.players();
         let away_players = self.away_lineup.players();
+        let mut previous_balances = HashMap::new();
+        for p in home_players.iter().chain(away_players.iter()) {
+            previous_balances.insert(p.id(), self.fatigue_for(&p.id()).w_prime_balance());
+        }
+
         crate::physical::systems::recovery::apply_intra_match_recovery(
             &mut self.home_fatigue,
             &mut self.away_fatigue,
@@ -405,6 +415,16 @@ impl MatchState {
             &self.attribute_keys,
             dead_ball_seconds,
         );
+
+        let mut results = Vec::new();
+        for p in home_players.iter().chain(away_players.iter()) {
+            let pid = p.id();
+            let new_bal = self.fatigue_for(&pid).w_prime_balance();
+            let old_bal = previous_balances.get(&pid).copied().unwrap_or(1.0);
+            let recovery_amount = (new_bal - old_bal).max(0.0);
+            results.push((pid, recovery_amount, new_bal));
+        }
+        results
     }
 
     pub fn player_fatigue_multiplier(&self, player: &Player) -> f64 {

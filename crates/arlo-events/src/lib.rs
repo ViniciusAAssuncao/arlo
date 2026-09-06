@@ -1,6 +1,7 @@
 pub mod action;
 pub mod envelope;
 pub mod in_memory_sink;
+pub mod physical;
 pub mod possession;
 pub mod scoring;
 pub mod sink;
@@ -13,6 +14,7 @@ pub use action::{
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
 pub use in_memory_sink::InMemorySink;
+pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
     CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent, Turnover,
 };
@@ -41,6 +43,8 @@ pub enum MatchEvent {
     FieldPoint(FieldPointScored),
     FieldGoal(FieldGoalScored),
     ScoringAttemptMissed(ScoringAttemptMissed),
+    PhysicalStrainRecorded(PhysicalStrainRecorded),
+    RecoveryIntervalProcessed(RecoveryIntervalProcessed),
 }
 
 impl MatchEvent {
@@ -78,6 +82,13 @@ impl MatchEvent {
         matches!(self, Self::ScoringAttemptMissed(_))
     }
 
+    pub fn is_physical(&self) -> bool {
+        matches!(
+            self,
+            Self::PhysicalStrainRecorded(_) | Self::RecoveryIntervalProcessed(_)
+        )
+    }
+
     pub fn event_type_name(&self) -> &'static str {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
@@ -95,6 +106,8 @@ impl MatchEvent {
             Self::FieldPoint(_) => "FieldPoint",
             Self::FieldGoal(_) => "FieldGoal",
             Self::ScoringAttemptMissed(_) => "ScoringAttemptMissed",
+            Self::PhysicalStrainRecorded(_) => "PhysicalStrainRecorded",
+            Self::RecoveryIntervalProcessed(_) => "RecoveryIntervalProcessed",
         }
     }
 }
@@ -186,6 +199,27 @@ impl From<FieldGoalScored> for MatchEvent {
 impl From<ScoringAttemptMissed> for MatchEvent {
     fn from(ev: ScoringAttemptMissed) -> Self {
         Self::ScoringAttemptMissed(ev)
+    }
+}
+
+impl From<PhysicalStrainRecorded> for MatchEvent {
+    fn from(ev: PhysicalStrainRecorded) -> Self {
+        Self::PhysicalStrainRecorded(ev)
+    }
+}
+
+impl From<RecoveryIntervalProcessed> for MatchEvent {
+    fn from(ev: RecoveryIntervalProcessed) -> Self {
+        Self::RecoveryIntervalProcessed(ev)
+    }
+}
+
+impl From<PhysicalEvent> for MatchEvent {
+    fn from(ev: PhysicalEvent) -> Self {
+        match ev {
+            PhysicalEvent::PhysicalStrainRecorded(e) => Self::PhysicalStrainRecorded(e),
+            PhysicalEvent::RecoveryIntervalProcessed(e) => Self::RecoveryIntervalProcessed(e),
+        }
     }
 }
 

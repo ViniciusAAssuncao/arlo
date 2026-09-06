@@ -1,7 +1,8 @@
 use crate::aggregator::StatAggregator;
 use crate::player::{
     PlayerArtrineDecisionAggregator, PlayerDrivesAggregator, PlayerDuelAggregator,
-    PlayerReceivingAggregator, PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
+    PlayerPhysicalAggregator, PlayerReceivingAggregator, PlayerScoringAttemptsAggregator,
+    PlayerTouchesAggregator,
 };
 use crate::snapshot::{IntoSnapshot, PeriodicMatchSnapshot, PlayerMatchSnapshot};
 use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
@@ -28,6 +29,7 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerReceivingAggregator::new());
         registry.register_aggregator(PlayerTouchesAggregator::new());
         registry.register_aggregator(PlayerScoringAttemptsAggregator::new());
+        registry.register_aggregator(PlayerPhysicalAggregator::new());
         registry
     }
 
@@ -116,6 +118,9 @@ impl AggregatorRegistry {
         if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
+        if let Some(agg) = self.get::<PlayerPhysicalAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
         ids
     }
 
@@ -193,6 +198,14 @@ impl AggregatorRegistry {
             snap.artrine_goal_points_generated = ad.goal_points_generated;
             snap.artrine_field_points_generated = ad.field_points_generated;
             snap.artrine_field_goals_generated = ad.field_goals_generated;
+        }
+
+        if let Some(agg) = self.get::<PlayerPhysicalAggregator>() {
+            let p = agg.get_or_default(player_id);
+            snap.end_energy_level = p.end_energy_level;
+            snap.peak_anaerobic_depletion = p.peak_anaerobic_depletion;
+            snap.total_distance_covered = p.total_distance_covered;
+            snap.intra_match_recovery_amount = p.intra_match_recovery_amount;
         }
 
         snap

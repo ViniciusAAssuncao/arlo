@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayerMatchSnapshot {
     pub player_id: Uuid,
     pub total_touches: u32,
@@ -53,6 +53,10 @@ pub struct PlayerMatchSnapshot {
     pub artrine_goal_points_generated: u32,
     pub artrine_field_points_generated: u32,
     pub artrine_field_goals_generated: u32,
+    pub end_energy_level: f64,
+    pub peak_anaerobic_depletion: f64,
+    pub total_distance_covered: f64,
+    pub intra_match_recovery_amount: f64,
 }
 
 impl PlayerMatchSnapshot {
@@ -60,6 +64,67 @@ impl PlayerMatchSnapshot {
         Self {
             player_id,
             ..Default::default()
+        }
+    }
+}
+
+impl Default for PlayerMatchSnapshot {
+    fn default() -> Self {
+        Self {
+            player_id: Uuid::nil(),
+            total_touches: 0,
+            passes_attempted: 0,
+            passes_received: 0,
+            recoveries: 0,
+            turnovers_conceded: 0,
+            total_drives: 0,
+            central_drives: 0,
+            left_lateral_drives: 0,
+            right_lateral_drives: 0,
+            lateral_drives: 0,
+            max_drives_in_series: 0,
+            total_duels: 0,
+            total_duel_wins: 0,
+            total_duel_losses: 0,
+            duel_win_rate: 0.0,
+            attacker_duels: 0,
+            attacker_duel_wins: 0,
+            attacker_duel_losses: 0,
+            attacker_duel_win_rate: 0.0,
+            defender_duels: 0,
+            defender_duel_wins: 0,
+            defender_duel_losses: 0,
+            defender_duel_win_rate: 0.0,
+            targets: 0,
+            receptions: 0,
+            drops: 0,
+            catch_rate: 0.0,
+            drop_rate: 0.0,
+            receiving_mirins: 0.0,
+            run_after_catch_mirins: 0.0,
+            longest_reception_mirim: 0.0,
+            average_mirins_per_reception: 0.0,
+            scoring_attempts: 0,
+            scoring_conversions: 0,
+            scoring_misses: 0,
+            scoring_conversion_rate: 0.0,
+            goal_points_scored: 0,
+            field_points_scored: 0,
+            field_goals_scored: 0,
+            total_points_scored: 0,
+            artrine_decisions_total: 0,
+            artrine_decisions_successful: 0,
+            artrine_decisions_failed: 0,
+            artrine_success_rate: 0.0,
+            artrine_mirins_advanced: 0.0,
+            artrine_points_generated: 0,
+            artrine_goal_points_generated: 0,
+            artrine_field_points_generated: 0,
+            artrine_field_goals_generated: 0,
+            end_energy_level: 1.0,
+            peak_anaerobic_depletion: 0.0,
+            total_distance_covered: 0.0,
+            intra_match_recovery_amount: 0.0,
         }
     }
 }

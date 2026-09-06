@@ -5,8 +5,8 @@ use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
     DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent,
-    MatchEventEnvelope, OutOfBounds, PassCompleted, ReceptionResolved, ScoringAttemptMissed,
-    Turnover,
+    MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded, ReceptionResolved,
+    RecoveryIntervalProcessed, ScoringAttemptMissed, Turnover,
 };
 use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
@@ -222,6 +222,34 @@ pub fn translate_scoring_decision(decision: &ScoringDecision) -> Option<MatchEve
         ))),
         ScoringDecision::NoOpportunity => None,
     }
+}
+
+pub fn translate_physical_strain_recorded(
+    player_id: Uuid,
+    energy_remaining: f64,
+    w_prime_balance: f64,
+    distance_delta_mirim: f64,
+) -> PhysicalStrainRecorded {
+    PhysicalStrainRecorded::new(
+        player_id,
+        energy_remaining,
+        w_prime_balance,
+        distance_delta_mirim,
+    )
+}
+
+pub fn translate_recovery_interval_processed(
+    player_id: Uuid,
+    recovery_amount: f64,
+    duration_seconds: f64,
+    new_w_prime_balance: f64,
+) -> RecoveryIntervalProcessed {
+    RecoveryIntervalProcessed::new(
+        player_id,
+        recovery_amount,
+        duration_seconds,
+        new_w_prime_balance,
+    )
 }
 
 pub fn create_envelope(

@@ -2,8 +2,9 @@ use crate::artrine::ArtrineExecutionOutcome;
 use crate::match_decision::event_translation::{
     create_envelope, translate_countdown_started, translate_distribution_completed,
     translate_down_advanced, translate_drive_recorded, translate_duel_resolved,
-    translate_out_of_bounds, translate_reception_resolved, translate_scoring_decision,
-    translate_turnover,
+    translate_out_of_bounds, translate_physical_strain_recorded,
+    translate_reception_resolved, translate_recovery_interval_processed,
+    translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
@@ -64,10 +65,18 @@ pub fn apply_play_transition(
         let duel_kind = duel.outcome().kind();
         let mult = crate::physical::models::anaerobic::calculate_duel_intensity_multiplier(duel_kind);
         for attacker_id in duel.attacker_ids() {
-            state.apply_duel_anaerobic_cost(*attacker_id, 1.0, mult);
+            let (energy, w_bal) = state.apply_duel_anaerobic_cost(*attacker_id, 1.0, mult);
+            let strain_ev = translate_physical_strain_recorded(*attacker_id, energy, w_bal, 0.0);
+            let seq = state.next_sequence();
+            let clock_inst = state.clock().to_instant();
+            sink.record(create_envelope(seq, clock_inst, strain_ev));
         }
         for defender_id in duel.defender_ids() {
-            state.apply_duel_anaerobic_cost(*defender_id, 1.0, mult);
+            let (energy, w_bal) = state.apply_duel_anaerobic_cost(*defender_id, 1.0, mult);
+            let strain_ev = translate_physical_strain_recorded(*defender_id, energy, w_bal, 0.0);
+            let seq = state.next_sequence();
+            let clock_inst = state.clock().to_instant();
+            sink.record(create_envelope(seq, clock_inst, strain_ev));
         }
 
         if matches!(
@@ -200,7 +209,16 @@ pub fn apply_play_transition(
         .receiver_id
         .unwrap_or(pass_phase.artrine.id());
     if execution_outcome.mirins_advanced > 0.0 {
-        state.record_distance(runner_id, execution_outcome.mirins_advanced);
+        let (energy, w_bal) = state.record_distance(runner_id, execution_outcome.mirins_advanced);
+        let strain_ev = translate_physical_strain_recorded(
+            runner_id,
+            energy,
+            w_bal,
+            execution_outcome.mirins_advanced,
+        );
+        let seq = state.next_sequence();
+        let clock_inst = state.clock().to_instant();
+        sink.record(create_envelope(seq, clock_inst, strain_ev));
     }
 
     let previous_down = state.possession().down() as u32;
@@ -301,14 +319,27 @@ pub fn apply_play_transition(
         let next_scrimmage_x_mirim =
             next_snapshot.series_state().scrimmage_point().raw().0 / MIRIM_TO_METERS;
         let (reorg_duration, huddle_duration) =
-            derive_and_apply_reorganization(state, next_scrimmage_x_mirim);
+            derive_and_apply_reorganization(state, next_scrimmage_x_mirim, sink);
         play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
         play_ledger.record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
     }
 
     let dead_ball_seconds = play_ledger.total_dead_ball().value();
     if dead_ball_seconds > 0.0 {
-        state.apply_dead_ball_recovery(dead_ball_seconds);
+        let recoveries = state.apply_dead_ball_recovery(dead_ball_seconds);
+        for (pid, recovery_amount, new_w_bal) in recoveries {
+            if recovery_amount > 0.0 {
+                let rec_ev = translate_recovery_interval_processed(
+                    pid,
+                    recovery_amount,
+                    dead_ball_seconds,
+                    new_w_bal,
+                );
+                let seq = state.next_sequence();
+                let clock_inst = state.clock().to_instant();
+                sink.record(create_envelope(seq, clock_inst, rec_ev));
+            }
+        }
     }
 
     let period_ended = state
