@@ -1,3 +1,4 @@
+use crate::ai::gravity::calculate_team_max_finishing_gravity;
 use crate::artrine::{
     calculate_normalized_proximity, execute_artrine_decision, resolve_artrine_decision,
     translate_artrine_decision_made, ArtrineExecutionOutcome,
@@ -124,6 +125,15 @@ pub fn step_call_to_action(
             })
             .fold(0.0_f64, f64::max);
 
+        let offensive_gravity = calculate_team_max_finishing_gravity(
+            &target_candidates,
+            &offense_pos_index,
+            state.spatial_map(),
+            &pitch,
+            &attribute_keys,
+            is_home_offense,
+        );
+
         let next_artro_pos = find_next_artro_position(
             pass_phase.reception_point,
             &pitch,
@@ -172,6 +182,7 @@ pub fn step_call_to_action(
             next_artro_pos,
             pitch_control_ahead,
             pitch.length_mirim(),
+            offensive_gravity.multiplier(),
             &mut decision_rng,
         );
 

@@ -49,6 +49,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     next_artro_pos: VectorPosition,
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
+    offensive_gravity: f64,
     rng: &mut R,
 ) -> ArtrineDecisionResult {
     let available_kinds = available_decision_kinds(
@@ -73,6 +74,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
         next_artro_pos,
         pitch_control_ahead,
         pitch_length_mirim,
+        offensive_gravity,
     );
 
     if utilities.is_empty() {

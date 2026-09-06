@@ -48,6 +48,7 @@ pub fn calculate_decision_utilities(
     next_artro_pos: VectorPosition,
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
+    offensive_gravity: f64,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let down = (4u8).saturating_sub(remaining_downs).max(1);
     let remaining_advance_mirim = (10.0 - territory_advance_mirim).max(0.0);
@@ -66,5 +67,6 @@ pub fn calculate_decision_utilities(
         pitch_control_ahead,
         distance_to_next_artro_mirim,
         pitch_length_mirim,
+        offensive_gravity,
     )
 }

@@ -1,4 +1,4 @@
-use crate::ai::epv::EpvModel;
+use crate::ai::epv::DynamicEpvModel;
 use arlo_domain::{ArtrineDecisionKind, Pitch};
 use arlo_math::units::Position;
 
@@ -40,13 +40,19 @@ pub fn total_context_utility(
     _next_artro_pos: Position,
     _spatial_resistance: f64,
 ) -> f64 {
-    let down = if is_last_down { 4 } else { (4u8).saturating_sub(remaining_downs).max(1) };
+    let down = if is_last_down {
+        4
+    } else {
+        (4u8).saturating_sub(remaining_downs).max(1)
+    };
     let rem_adv = (10.0 - territory_advance_mirim).max(0.0);
-    let base_epv = EpvModel::calculate_epv(normalized_proximity, down, rem_adv, drives_in_current_series);
+    let epv_model = DynamicEpvModel::default();
+    let base_epv =
+        epv_model.calculate_epa(normalized_proximity, down, rem_adv, drives_in_current_series);
 
     match decision {
         ArtrineDecisionKind::SelfCarry => {
-            let next_epv = EpvModel::calculate_epv(
+            let next_epv = epv_model.calculate_epa(
                 (normalized_proximity + 0.05).min(1.0),
                 down,
                 (rem_adv - 5.0).max(0.0),
@@ -55,7 +61,7 @@ pub fn total_context_utility(
             (next_epv - base_epv) * 2.0
         }
         ArtrineDecisionKind::ShortPass => {
-            let next_epv = EpvModel::calculate_epv(
+            let next_epv = epv_model.calculate_epa(
                 (normalized_proximity + 0.06).min(1.0),
                 down,
                 (rem_adv - 6.0).max(0.0),
@@ -64,7 +70,7 @@ pub fn total_context_utility(
             (next_epv - base_epv) * 2.0
         }
         ArtrineDecisionKind::LongLaunch => {
-            let next_epv = EpvModel::calculate_epv(
+            let next_epv = epv_model.calculate_epa(
                 (normalized_proximity + 0.15).min(1.0),
                 down,
                 (rem_adv - 15.0).max(0.0),
@@ -73,7 +79,7 @@ pub fn total_context_utility(
             (next_epv - base_epv) * 2.0
         }
         ArtrineDecisionKind::Cross | ArtrineDecisionKind::SelfFinish => {
-            let v_score = EpvModel::score_value(drives_in_current_series);
+            let v_score = DynamicEpvModel::score_value(drives_in_current_series);
             normalized_proximity * v_score
         }
     }
