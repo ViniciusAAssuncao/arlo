@@ -2,6 +2,7 @@ use crate::artrine::execution_carry::execute_carry;
 use crate::artrine::execution_distribution::execute_distribution;
 use crate::artrine::execution_finish::{execute_cross_finish, execute_self_finish};
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
+use crate::error::{EngineError, EngineResult};
 use crate::fatigue::FatigueState;
 use crate::resolution::DuelContext;
 use crate::spatial::DynamicSpatialMap;
@@ -12,7 +13,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn find_goalguard<'a>(defenders: &[&'a Player]) -> &'a Player {
+pub fn find_goalguard<'a>(defenders: &[&'a Player]) -> EngineResult<&'a Player> {
     defenders
         .iter()
         .copied()
@@ -21,7 +22,7 @@ pub fn find_goalguard<'a>(defenders: &[&'a Player]) -> &'a Player {
                 .iter()
                 .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
         })
-        .unwrap_or_else(|| defenders[defenders.len() - 1])
+        .ok_or_else(|| EngineError::MissingRequiredPosition("Goalguard".to_string()))
 }
 
 pub fn execute_artrine_decision<F, R>(
@@ -44,7 +45,7 @@ pub fn execute_artrine_decision<F, R>(
     context: &DuelContext,
     fatigue_for: &F,
     rng: &mut R,
-) -> ArtrineExecutionOutcome
+) -> EngineResult<ArtrineExecutionOutcome>
 where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
@@ -55,9 +56,9 @@ where
         .filter(|p| p.id() != artrine.id())
         .collect();
 
-    let goalguard = find_goalguard(defense_lineup_players);
+    let goalguard = find_goalguard(defense_lineup_players)?;
 
-    match decision {
+    let outcome = match decision {
         ArtrineDecisionKind::SelfCarry => execute_carry(
             artrine,
             &offense_helpers,
@@ -172,5 +173,7 @@ where
             fatigue_for,
             rng,
         ),
-    }
+    };
+
+    Ok(outcome)
 }

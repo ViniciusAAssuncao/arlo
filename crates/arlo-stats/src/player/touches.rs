@@ -130,7 +130,7 @@ impl StatAggregator for PlayerTouchesAggregator {
             MatchEvent::PassCompleted(e) => {
                 self.record_pass_reception(e.receiver_id());
             }
-            MatchEvent::ReceptionResolved(e) => {
+            MatchEvent::DistributionCompleted(e) => {
                 if e.caught() {
                     self.record_pass_reception(e.receiver_id());
                 }

@@ -80,7 +80,7 @@ pub fn step_call_to_action(
         offense_team_id,
         defense_team_id,
         sink,
-    );
+    )?;
 
     let (chosen_decision, execution_outcome) = if pass_phase.pass_completed {
         let context = if is_home_offense {
@@ -166,7 +166,7 @@ pub fn step_call_to_action(
             &context,
             &fatigue_lookup,
             &mut execution_rng,
-        );
+        )?;
 
         (chosen_decision, execution_outcome)
     } else {

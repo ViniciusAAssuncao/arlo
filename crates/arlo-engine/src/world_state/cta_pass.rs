@@ -1,3 +1,4 @@
+use crate::error::{EngineError, EngineResult};
 use crate::match_decision::event_translation::{
     create_envelope, translate_call_to_action_started, translate_duel_resolved,
     translate_pass_completed,
@@ -36,12 +37,16 @@ pub struct PassPhaseResult<'a> {
 pub fn find_player_by_position<'a>(
     players: &[&'a Player],
     target: DomainPosition,
-) -> Option<&'a Player> {
-    players.iter().copied().find(|p| {
-        p.positions()
-            .iter()
-            .any(|pos| pos.position() == target && pos.proficiency() > 0)
-    })
+) -> EngineResult<&'a Player> {
+    players
+        .iter()
+        .copied()
+        .find(|p| {
+            p.positions()
+                .iter()
+                .any(|pos| pos.position() == target && pos.proficiency() > 0)
+        })
+        .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{target:?}")))
 }
 
 pub fn resolve_pass_phase<'a>(
@@ -52,21 +57,11 @@ pub fn resolve_pass_phase<'a>(
     offense_team_id: Uuid,
     defense_team_id: Uuid,
     sink: &mut impl EventSink,
-) -> PassPhaseResult<'a> {
-    let passer = find_player_by_position(offense_players, DomainPosition::Passer)
-        .unwrap_or(offense_players[0]);
-    let artrine = find_player_by_position(offense_players, DomainPosition::Artrine)
-        .unwrap_or_else(|| {
-            if offense_players.len() > 1 {
-                offense_players[1]
-            } else {
-                offense_players[0]
-            }
-        });
-    let pass_rusher = find_player_by_position(defense_players, DomainPosition::PassRusher)
-        .unwrap_or(defense_players[0]);
-    let goalguard = find_player_by_position(defense_players, DomainPosition::Goalguard)
-        .unwrap_or_else(|| defense_players[defense_players.len() - 1]);
+) -> EngineResult<PassPhaseResult<'a>> {
+    let passer = find_player_by_position(offense_players, DomainPosition::Passer)?;
+    let artrine = find_player_by_position(offense_players, DomainPosition::Artrine)?;
+    let pass_rusher = find_player_by_position(defense_players, DomainPosition::PassRusher)?;
+    let goalguard = find_player_by_position(defense_players, DomainPosition::Goalguard)?;
 
     let down_number = state.possession().down() as u32;
     let scrimmage_point = state.possession().scrimmage_point();
@@ -189,7 +184,7 @@ pub fn resolve_pass_phase<'a>(
         sink.record(create_envelope(seq, clock_inst, pass_event));
     }
 
-    PassPhaseResult {
+    Ok(PassPhaseResult {
         passer,
         artrine,
         pass_rusher,
@@ -202,5 +197,5 @@ pub fn resolve_pass_phase<'a>(
         scrimmage_point,
         scrimmage_x_mirim,
         duration_ledger,
-    }
+    })
 }
