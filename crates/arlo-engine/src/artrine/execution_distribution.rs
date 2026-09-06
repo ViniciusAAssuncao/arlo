@@ -1,9 +1,9 @@
 use crate::artrine::execution_distribution_reception::execute_post_throw_reception;
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution_security::resolve_ball_security;
-use crate::physical::FatigueState;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::FatigueState;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
@@ -13,27 +13,20 @@ use crate::resolution::group_rating::{
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel_with_fatigue;
-use crate::resolution::{ AttributedDuelOutcome, DuelContext, DuelKind };
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::ball_kinematics::{
-    ball_flight_duration,
-    calculate_cross_speed_with_state,
-    calculate_pass_speed_with_state,
+    ball_flight_duration, calculate_cross_speed_with_state, calculate_pass_speed_with_state,
 };
 use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
-use crate::spatial::positioning_drift::{ get_drifted_defender_position, nearest_drifted_opponent };
-use crate::spatial::proximity::{ calculate_distance_mirim, filter_active_duelists_swept };
+use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
+use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
 use crate::spatial::DynamicSpatialMap;
-use crate::time::{ DurationComponentKind, DurationLedger };
+use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
-use arlo_domain::sport_constants::{ MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM };
-use arlo_domain::{ ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition };
+use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{
-    Duration,
-    Length,
-    Position as VectorPosition,
-    Speed,
-    Velocity,
-    MIRIM_TO_METERS,
+    Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS,
 };
 use rand::Rng;
 use std::collections::HashMap;
@@ -54,10 +47,11 @@ pub fn execute_distribution<F, R>(
     defense_team_id: Uuid,
     context: &DuelContext,
     fatigue_for: &F,
-    rng: &mut R
-)
-    -> ArtrineExecutionOutcome
-    where F: Fn(&Uuid) -> FatigueState, R: Rng + ?Sized
+    rng: &mut R,
+) -> ArtrineExecutionOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
 {
     let duel_kind = match decision_kind {
         ArtrineDecisionKind::ShortPass => DuelKind::ShortDistribution,
@@ -74,14 +68,14 @@ pub fn execute_distribution<F, R>(
         offense_position_index,
         attribute_keys,
         &offense_profile,
-        fatigue_for
+        fatigue_for,
     );
     let defender_rating = calculate_side_rating_from_index_with_fatigue(
         defenders,
         defense_position_index,
         attribute_keys,
         &defense_profile,
-        fatigue_for
+        fatigue_for,
     );
 
     let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
@@ -94,8 +88,9 @@ pub fn execute_distribution<F, R>(
         fatigue_for,
         contest_radius,
         None,
-        rng
-    ).unwrap_or(defenders[0]);
+        rng,
+    )
+    .unwrap_or(defenders[0]);
 
     let artrine_state = fatigue_for(&artrine.id());
     let lead_def_state = fatigue_for(&lead_defender.id());
@@ -110,7 +105,7 @@ pub fn execute_distribution<F, R>(
         &lead_def_state,
         attribute_keys,
         context,
-        rng
+        rng,
     );
 
     let artrine_speed = calculate_effective_player_speed(artrine, attribute_keys, &artrine_state);
@@ -142,7 +137,7 @@ pub fn execute_distribution<F, R>(
         Velocity::zero(),
         &helper_candidates,
         contest_radius,
-        dist_duration
+        dist_duration,
     ) {
         if !dist_attacker_ids.contains(&id) {
             dist_attacker_ids.push(id);
@@ -167,7 +162,7 @@ pub fn execute_distribution<F, R>(
         Velocity::zero(),
         &defender_candidates,
         contest_radius,
-        dist_duration
+        dist_duration,
     ) {
         if !dist_defender_ids.contains(&id) {
             dist_defender_ids.push(id);
@@ -207,13 +202,13 @@ pub fn execute_distribution<F, R>(
                 let closest_def_speed = calculate_effective_player_speed(
                     closest_def,
                     attribute_keys,
-                    &closest_def_state
+                    &closest_def_state,
                 );
                 let sec_duration = derive_duel_duration(
                     start_pos,
                     artrine_speed,
                     closest_pos,
-                    closest_def_speed
+                    closest_def_speed,
                 );
                 ledger.record_live(DurationComponentKind::BallSecurityEngagement, sec_duration);
             }
@@ -227,7 +222,7 @@ pub fn execute_distribution<F, R>(
                 defense_team_id,
                 context,
                 fatigue_for,
-                rng
+                rng,
             );
             (
                 sec_result.turnover_team_id,
@@ -250,6 +245,7 @@ pub fn execute_distribution<F, R>(
             duels,
             receiver_id: None,
             distribution_flight: None,
+            kinematic_trajectories: HashMap::new(),
         };
     }
 
@@ -282,6 +278,6 @@ pub fn execute_distribution<F, R>(
         defense_team_id,
         context,
         fatigue_for,
-        rng
+        rng,
     )
 }

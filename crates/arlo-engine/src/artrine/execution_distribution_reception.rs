@@ -1,8 +1,8 @@
 use crate::artrine::execution_outcome::{ArtrineExecutionOutcome, DistributionFlightInfo};
 use crate::artrine::reception::resolve_reception;
 use crate::artrine::run_after_catch::resolve_run_after_catch;
-use crate::physical::FatigueState;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::physical::FatigueState;
 use crate::resolution::{AttributedDuelOutcome, DuelContext};
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
@@ -114,6 +114,7 @@ where
             duels: vec![dist_duel, reception_outcome.duel],
             receiver_id: Some(receiver_id),
             distribution_flight,
+            kinematic_trajectories: HashMap::new(),
         };
     }
 
@@ -197,5 +198,6 @@ where
         duels,
         receiver_id: Some(receiver_id),
         distribution_flight,
+        kinematic_trajectories: HashMap::new(),
     }
 }

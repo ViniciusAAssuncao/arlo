@@ -1,3 +1,10 @@
+use crate::physical::models::metabolic_power::{
+    calculate_metabolic_work_rate, calculate_player_body_mass,
+    calculate_player_critical_speed,
+};
+use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::PhysicalState;
+use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
@@ -9,7 +16,7 @@ use arlo_domain::sport_constants::{
     MAX_OPEN_PLAY_TICKS, SPATIAL_TICK_DURATION_SECONDS, TARGET_ARRIVAL_TOLERANCE_MIRIM,
 };
 use arlo_domain::{AttributeKey, Player};
-use arlo_math::units::{Duration, Position, Speed, Velocity};
+use arlo_math::units::{Duration, Position, Speed, Velocity, MIRIM_TO_METERS};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -18,6 +25,11 @@ use uuid::Uuid;
 pub struct SpatialTrajectory {
     player_id: Uuid,
     positions: Vec<Position>,
+    distance_meters: f64,
+    distance_mirim: f64,
+    supramaximal_time_seconds: f64,
+    metabolic_energy_joules: f64,
+    peak_speed_meters_per_sec: f64,
 }
 
 impl SpatialTrajectory {
@@ -25,7 +37,41 @@ impl SpatialTrajectory {
         Self {
             player_id,
             positions: vec![initial_position],
+            distance_meters: 0.0,
+            distance_mirim: 0.0,
+            supramaximal_time_seconds: 0.0,
+            metabolic_energy_joules: 0.0,
+            peak_speed_meters_per_sec: 0.0,
         }
+    }
+
+    pub fn record_step(
+        &mut self,
+        new_pos: Position,
+        velocity: Velocity,
+        critical_speed_m_s: f64,
+        mass_kg: f64,
+        dt: Duration,
+    ) {
+        let speed = velocity.magnitude().value();
+        let step_distance_m = speed * dt.value();
+        let step_distance_mirim = step_distance_m / MIRIM_TO_METERS;
+
+        self.distance_meters += step_distance_m;
+        self.distance_mirim += step_distance_mirim;
+
+        if speed > self.peak_speed_meters_per_sec {
+            self.peak_speed_meters_per_sec = speed;
+        }
+
+        if speed > critical_speed_m_s {
+            self.supramaximal_time_seconds += dt.value();
+        }
+
+        let metabolic_rate = calculate_metabolic_work_rate(speed, critical_speed_m_s, mass_kg, 1.0);
+        self.metabolic_energy_joules += metabolic_rate * dt.value();
+
+        self.positions.push(new_pos);
     }
 
     pub fn player_id(&self) -> Uuid {
@@ -36,8 +82,28 @@ impl SpatialTrajectory {
         &self.positions
     }
 
-    pub fn push(&mut self, position: Position) {
-        self.positions.push(position);
+    pub fn distance_meters(&self) -> f64 {
+        self.distance_meters
+    }
+
+    pub fn distance_mirim(&self) -> f64 {
+        self.distance_mirim
+    }
+
+    pub fn total_distance_mirim(&self) -> f64 {
+        self.distance_mirim
+    }
+
+    pub fn supramaximal_time_seconds(&self) -> f64 {
+        self.supramaximal_time_seconds
+    }
+
+    pub fn metabolic_energy_joules(&self) -> f64 {
+        self.metabolic_energy_joules
+    }
+
+    pub fn peak_speed_meters_per_sec(&self) -> f64 {
+        self.peak_speed_meters_per_sec
     }
 
     pub fn len(&self) -> usize {
@@ -64,13 +130,6 @@ impl SpatialTrajectory {
             .windows(2)
             .map(|w| (w[0], w[1]))
             .collect()
-    }
-
-    pub fn total_distance_mirim(&self) -> f64 {
-        self.segments()
-            .iter()
-            .map(|(a, b)| calculate_distance_mirim(*a, *b))
-            .sum()
     }
 }
 
@@ -123,15 +182,18 @@ pub fn run_spatial_tick_loop(
     let dt = Duration::new(SPATIAL_TICK_DURATION_SECONDS);
     let mut trajectories: HashMap<Uuid, SpatialTrajectory> = HashMap::with_capacity(movers.len());
 
-    struct MoverProps {
+    struct MoverKinematics {
         speed: Speed,
+        critical_speed_m_s: f64,
         agility: f64,
         acceleration: f64,
         balance: f64,
+        strength: f64,
+        mass_kg: f64,
         physical_radius: f64,
     }
 
-    let mut mover_props = HashMap::with_capacity(movers.len());
+    let mut mover_kinematics = HashMap::with_capacity(movers.len());
 
     for (player, target) in movers {
         let pid = player.id();
@@ -139,24 +201,31 @@ pub fn run_spatial_tick_loop(
         let initial_pos = spatial_map.get_position(&pid).unwrap_or_else(Position::zero);
         trajectories.insert(pid, SpatialTrajectory::new(pid, initial_pos));
 
-        let speed = crate::spatial::decision_vector::calculate_player_speed(player, attribute_keys, 1.0);
-        let agility = crate::spatial::decision_vector::extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
-        let acceleration = crate::spatial::decision_vector::extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-        let balance = crate::spatial::decision_vector::extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+        let state = PhysicalState::initial();
+        let speed = calculate_effective_player_speed(player, attribute_keys, &state);
+        let critical_speed_m_s = calculate_player_critical_speed(player, attribute_keys, 0).value();
+        let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
+        let acceleration = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
+        let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+        let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+        let mass_kg = calculate_player_body_mass(player, attribute_keys);
         let physical_radius = derive_player_physical_radius(player, attribute_keys);
 
-        mover_props.insert(pid, MoverProps {
+        mover_kinematics.insert(pid, MoverKinematics {
             speed,
+            critical_speed_m_s,
             agility,
             acceleration,
             balance,
+            strength,
+            mass_kg,
             physical_radius,
         });
     }
 
     let mut physical_radii = HashMap::with_capacity(spatial_map.positions().len());
     for (&id, _) in spatial_map.positions() {
-        let radius = if let Some(props) = mover_props.get(&id) {
+        let radius = if let Some(props) = mover_kinematics.get(&id) {
             props.physical_radius
         } else {
             0.55
@@ -192,7 +261,7 @@ pub fn run_spatial_tick_loop(
                     .unwrap_or_else(Velocity::zero);
 
                 let is_player_home = spatial_map.is_home_player(&pid);
-                let props = &mover_props[&pid];
+                let props = &mover_kinematics[&pid];
 
                 let vel = calculate_dynamic_boid_steering_velocity_with_id(
                     current_vel,
@@ -205,6 +274,8 @@ pub fn run_spatial_tick_loop(
                     props.agility,
                     props.acceleration,
                     props.balance,
+                    props.strength,
+                    props.mass_kg,
                     1.0,
                     props.physical_radius,
                     dt,
@@ -213,21 +284,17 @@ pub fn run_spatial_tick_loop(
                 let step_dist = vel.magnitude().value() * SPATIAL_TICK_DURATION_SECONDS;
                 let dist_meters = calculate_distance(current_pos, *target).value();
 
-                let next_pos = if dist_meters <= step_dist || dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM {
-                    *target
+                let (next_pos, step_vel) = if dist_meters <= step_dist || dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM {
+                    (*target, Velocity::zero())
                 } else {
-                    advance_position(current_pos, vel, dt)
+                    (advance_position(current_pos, vel, dt), vel)
                 };
 
                 spatial_map.set_position(pid, next_pos);
-                if dist_meters <= step_dist || dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM {
-                    spatial_map.set_velocity(pid, Velocity::zero());
-                } else {
-                    spatial_map.set_velocity(pid, vel);
-                }
+                spatial_map.set_velocity(pid, step_vel);
 
                 if let Some(traj) = trajectories.get_mut(&pid) {
-                    traj.push(next_pos);
+                    traj.record_step(next_pos, vel, props.critical_speed_m_s, props.mass_kg, dt);
                 }
             } else {
                 spatial_map.set_position(pid, *target);

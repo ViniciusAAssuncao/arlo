@@ -143,6 +143,9 @@ where
                 let mut combined_ledger = dist_outcome.duration_ledger;
                 combined_ledger.merge(finish_outcome.duration_ledger);
 
+                let mut combined_trajectories = dist_outcome.kinematic_trajectories;
+                combined_trajectories.extend(finish_outcome.kinematic_trajectories);
+
                 ArtrineExecutionOutcome {
                     mirins_advanced: dist_outcome.mirins_advanced,
                     drives_recorded: 0,
@@ -155,6 +158,7 @@ where
                     duels: combined_duels,
                     receiver_id: dist_outcome.receiver_id,
                     distribution_flight: dist_outcome.distribution_flight,
+                    kinematic_trajectories: combined_trajectories,
                 }
             }
         }

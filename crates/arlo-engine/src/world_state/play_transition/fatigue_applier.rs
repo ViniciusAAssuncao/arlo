@@ -1,17 +1,13 @@
-use crate::artrine::ArtrineExecutionOutcome;
 use crate::physical::models::anaerobic::calculate_duel_intensity_multiplier;
-use crate::physical::systems::pacing::{calculate_player_pacing_state, is_player_near_ball};
-use crate::physical::systems::positional_strain::calculate_transit_strain_multiplier;
 use crate::resolution::AttributedDuelOutcome;
-use crate::world_state::context_analyzer::analyze_match_state;
-use crate::world_state::cta_pass::PassPhaseResult;
+use crate::spatial::SpatialTrajectory;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::event_dispatcher::{
     emit_physical_strain, emit_recovery_processed,
 };
-use arlo_domain::{Player, Position as DomainPosition};
 use arlo_events::EventSink;
-use arlo_math::units::MIRIM_TO_METERS;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 pub fn apply_duel_strain(
     state: &mut MatchState,
@@ -32,70 +28,21 @@ pub fn apply_duel_strain(
     }
 }
 
-pub fn apply_transit_movement_strain(
+pub fn apply_kinematic_movement_strain(
     state: &mut MatchState,
     sink: &mut impl EventSink,
-    pass_phase: &PassPhaseResult<'_>,
-    execution_outcome: &ArtrineExecutionOutcome,
-    live_seconds: f64,
+    trajectories: &HashMap<Uuid, SpatialTrajectory>,
 ) {
-    let game_state_pressure = analyze_match_state(state);
-    let ball_pos = execution_outcome.end_position;
-    let runner_id = execution_outcome
-        .receiver_id
-        .unwrap_or(pass_phase.artrine.id());
-
-    let all_players: Vec<Player> = state
-        .home_lineup()
-        .players()
-        .into_iter()
-        .chain(state.away_lineup().players().into_iter())
-        .cloned()
-        .collect();
-
-    for p in &all_players {
-        let pid = p.id();
-        let p_fatigue = state.fatigue_for(&pid);
-        let is_home = state.home_offensive_position_index().contains_key(&pid);
-        let team_id = if is_home {
-            state.home_team_id()
-        } else {
-            state.away_team_id()
-        };
-        let p_pos = state
-            .position_index_for_team(team_id)
-            .get(&pid)
-            .copied()
-            .unwrap_or(DomainPosition::CenterOffense);
-
-        let is_near = state
-            .spatial_map()
-            .get_position(&pid)
-            .map_or(false, |pos| is_player_near_ball(pos, ball_pos, 15.0))
-            || pid == runner_id
-            || pid == pass_phase.passer.id();
-
-        let pacing_state = calculate_player_pacing_state(
-            p,
-            state.attribute_keys(),
-            is_near,
-            &game_state_pressure,
-            &p_fatigue,
-            0,
-        );
-
-        let transit_mult = calculate_transit_strain_multiplier(p_pos);
-        let cruise_speed_m_s = pacing_state.target_cruise_speed().value();
-        let base_transit_mirim = (cruise_speed_m_s * live_seconds) / MIRIM_TO_METERS;
-        let mut player_dist = base_transit_mirim * transit_mult;
-
-        if pid == runner_id && execution_outcome.mirins_advanced > 0.0 {
-            player_dist += execution_outcome.mirins_advanced;
+    for (pid, traj) in trajectories {
+        let dist_mirim = traj.total_distance_mirim();
+        if dist_mirim > 0.0 {
+            let (energy, w_bal) = state.record_distance(*pid, dist_mirim);
+            emit_physical_strain(state, sink, *pid, energy, w_bal, dist_mirim);
         }
-
-        if player_dist > 0.0 {
-            let (energy, w_bal) = state.record_distance(pid, player_dist);
-            emit_physical_strain(state, sink, pid, energy, w_bal, player_dist);
+        let supra_time = traj.supramaximal_time_seconds();
+        if supra_time > 0.0 {
+            let (energy, w_bal) = state.apply_duel_anaerobic_cost(*pid, supra_time, 1.0);
+            emit_physical_strain(state, sink, *pid, energy, w_bal, 0.0);
         }
     }
 }

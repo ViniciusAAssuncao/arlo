@@ -1,4 +1,9 @@
-use crate::spatial::decision_vector::{calculate_player_speed, extract_attribute_value};
+use crate::physical::models::metabolic_power::{
+    calculate_max_acceleration, estimate_body_mass,
+};
+use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::PhysicalState;
+use crate::spatial::decision_vector::extract_attribute_value;
 use crate::weighting::apply_saturation;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::{Duration, Position, Speed, Vector3, Velocity};
@@ -106,23 +111,26 @@ pub fn calculate_seek_force(
     current_pos: Position,
     current_velocity: Velocity,
     target_pos: Position,
-    max_speed: Speed,
+    desired_speed: Speed,
     arrival_radius_meters: f64,
+    mass_kg: f64,
+    dt: Duration,
 ) -> Vector3 {
     let delta = target_pos.raw() - current_pos.raw();
     let dist = delta.magnitude();
     if dist < 1e-6 {
-        return -current_velocity.raw();
+        return (-current_velocity.raw() * mass_kg) / dt.value().max(1e-4);
     }
 
-    let desired_speed = if dist < arrival_radius_meters && arrival_radius_meters > 1e-6 {
-        max_speed.value() * (dist / arrival_radius_meters)
+    let target_speed = if dist < arrival_radius_meters && arrival_radius_meters > 1e-6 {
+        desired_speed.value() * (dist / arrival_radius_meters)
     } else {
-        max_speed.value()
+        desired_speed.value()
     };
 
-    let desired_vel = (delta / dist) * desired_speed;
-    desired_vel - current_velocity.raw()
+    let target_velocity = (delta / dist) * target_speed;
+    let accel = (target_velocity - current_velocity.raw()) / dt.value().max(1e-4);
+    accel * mass_kg
 }
 
 pub fn calculate_separation_force(
@@ -263,6 +271,8 @@ pub fn calculate_dynamic_boid_steering_velocity(
     agility: f64,
     acceleration: f64,
     balance: f64,
+    strength: f64,
+    mass_kg: f64,
     fatigue_multiplier: f64,
     self_physical_radius: f64,
     dt: Duration,
@@ -278,6 +288,8 @@ pub fn calculate_dynamic_boid_steering_velocity(
         agility,
         acceleration,
         balance,
+        strength,
+        mass_kg,
         fatigue_multiplier,
         self_physical_radius,
         dt,
@@ -295,6 +307,8 @@ pub fn calculate_dynamic_boid_steering_velocity_with_id(
     agility: f64,
     acceleration: f64,
     balance: f64,
+    strength: f64,
+    mass_kg: f64,
     fatigue_multiplier: f64,
     self_physical_radius: f64,
     dt: Duration,
@@ -313,9 +327,11 @@ pub fn calculate_dynamic_boid_steering_velocity_with_id(
         target_pos,
         speed,
         arrival_radius,
+        mass_kg,
+        dt,
     );
 
-    let separation_force = calculate_dynamic_separation_force_with_id(
+    let raw_separation = calculate_dynamic_separation_force_with_id(
         current_pos,
         current_velocity,
         self_physical_radius,
@@ -331,36 +347,46 @@ pub fn calculate_dynamic_boid_steering_velocity_with_id(
         1.0
     };
 
-    let max_accel_mag = (2.5 + (acceleration.clamp(0.0, 20.0) * 0.25)) * fatigue_multiplier.clamp(0.5, 1.0);
-    let combined_force = seek_force + (separation_force * (1.5 * sep_scale));
-    let force_mag = combined_force.magnitude();
+    let max_accel = calculate_max_acceleration(
+        acceleration,
+        agility,
+        strength,
+        mass_kg,
+        fatigue_multiplier,
+    );
+    let max_muscular_force = mass_kg * max_accel;
 
-    let clamped_force = if force_mag > max_accel_mag && force_mag > 1e-6 {
-        (combined_force / force_mag) * max_accel_mag
+    let separation_force = raw_separation * (max_muscular_force * 0.45 * sep_scale);
+    let combined_force = seek_force + separation_force;
+    let force_magnitude = combined_force.magnitude();
+
+    let clamped_force = if force_magnitude > max_muscular_force && force_magnitude > 1e-6 {
+        (combined_force / force_magnitude) * max_muscular_force
     } else {
         combined_force
     };
 
-    let candidate_raw = current_velocity.raw() + (clamped_force * dt.value());
+    let applied_accel = clamped_force / mass_kg.max(1.0);
+    let candidate_raw = current_velocity.raw() + (applied_accel * dt.value());
     let candidate_speed = candidate_raw.magnitude();
 
     if candidate_speed < 1e-6 {
         return Velocity::zero();
     }
 
-    let max_spd = speed.value();
-    let limited_raw = if candidate_speed > max_spd {
-        (candidate_raw / candidate_speed) * max_spd
+    let effective_max_speed = speed.value();
+    let speed_capped_raw = if candidate_speed > effective_max_speed {
+        (candidate_raw / candidate_speed) * effective_max_speed
     } else {
         candidate_raw
     };
 
     if current_speed < 1e-6 {
-        return Velocity::from_raw(limited_raw);
+        return Velocity::from_raw(speed_capped_raw);
     }
 
     let current_dir = current_velocity.raw() / current_speed;
-    let candidate_dir = limited_raw / limited_raw.magnitude();
+    let candidate_dir = speed_capped_raw / speed_capped_raw.magnitude();
 
     let current_angle = current_dir.1.atan2(current_dir.0);
     let target_angle = candidate_dir.1.atan2(candidate_dir.0);
@@ -378,7 +404,7 @@ pub fn calculate_dynamic_boid_steering_velocity_with_id(
     let new_angle = current_angle + applied_diff;
 
     let final_dir = Position::from_components(new_angle.cos(), new_angle.sin(), 0.0).raw();
-    let final_raw = final_dir * limited_raw.magnitude();
+    let final_raw = final_dir * speed_capped_raw.magnitude();
     Velocity::from_raw(final_raw)
 }
 
@@ -405,6 +431,8 @@ pub fn calculate_boid_steering_velocity(
         agility,
         acceleration,
         10.0,
+        10.0,
+        78.0,
         1.0,
         0.55,
         dt,
@@ -419,7 +447,8 @@ pub fn derive_player_steered_velocity(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_multiplier: f64,
 ) -> Velocity {
-    let speed = calculate_player_speed(player, attribute_keys, fatigue_multiplier);
+    let state = PhysicalState::with_energy(fatigue_multiplier);
+    let speed = calculate_effective_player_speed(player, attribute_keys, &state);
     let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
     calculate_steered_velocity(current_velocity, current_pos, target_pos, speed, agility)
 }
@@ -434,10 +463,13 @@ pub fn derive_player_boid_steered_velocity(
     fatigue_multiplier: f64,
     dt: Duration,
 ) -> Velocity {
-    let speed = calculate_player_speed(player, attribute_keys, fatigue_multiplier);
+    let state = PhysicalState::with_energy(fatigue_multiplier);
+    let speed = calculate_effective_player_speed(player, attribute_keys, &state);
     let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
     let acceleration = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
     let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+    let mass = estimate_body_mass(player.height_m(), strength);
     let physical_radius = derive_player_physical_radius(player, attribute_keys);
 
     let neighbors: Vec<SpatialNeighbor> = neighbor_positions
@@ -454,6 +486,8 @@ pub fn derive_player_boid_steered_velocity(
         agility,
         acceleration,
         balance,
+        strength,
+        mass,
         fatigue_multiplier,
         physical_radius,
         dt,
@@ -470,10 +504,13 @@ pub fn derive_player_dynamic_boid_steered_velocity(
     fatigue_multiplier: f64,
     dt: Duration,
 ) -> Velocity {
-    let speed = calculate_player_speed(player, attribute_keys, fatigue_multiplier);
+    let state = PhysicalState::with_energy(fatigue_multiplier);
+    let speed = calculate_effective_player_speed(player, attribute_keys, &state);
     let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
     let acceleration = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
     let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+    let mass = estimate_body_mass(player.height_m(), strength);
     let physical_radius = derive_player_physical_radius(player, attribute_keys);
 
     calculate_dynamic_boid_steering_velocity(
@@ -485,6 +522,8 @@ pub fn derive_player_dynamic_boid_steered_velocity(
         agility,
         acceleration,
         balance,
+        strength,
+        mass,
         fatigue_multiplier,
         physical_radius,
         dt,

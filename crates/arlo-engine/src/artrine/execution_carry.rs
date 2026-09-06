@@ -1,8 +1,8 @@
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution_security::resolve_ball_security;
-use crate::physical::FatigueState;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::FatigueState;
 use crate::possession::drive::artrine_identity::TrueArtrine;
 use crate::possession::drive::validator::validate_continuous_trajectory;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
@@ -265,6 +265,7 @@ where
             duels,
             receiver_id: None,
             distribution_flight: None,
+            kinematic_trajectories: HashMap::new(),
         };
     }
 
@@ -293,8 +294,22 @@ where
         artrine_state.energy(),
     );
 
-    let tick_result =
-        run_spatial_tick_loop(spatial_map, &[(artrine, target_pos)], attribute_keys);
+    let mut movers = Vec::with_capacity(1 + offense_helpers.len() + defenders.len());
+    movers.push((artrine, target_pos));
+
+    for &helper in offense_helpers {
+        if let Some(pos) = spatial_map.get_position(&helper.id()) {
+            let offset_x = if attacking_positive_x { raw_advance * 0.7 * MIRIM_TO_METERS } else { -raw_advance * 0.7 * MIRIM_TO_METERS };
+            let helper_target = VectorPosition::from_components(pos.raw().0 + offset_x, pos.raw().1, 0.0);
+            movers.push((helper, helper_target));
+        }
+    }
+
+    for &defender in defenders {
+        movers.push((defender, target_pos));
+    }
+
+    let tick_result = run_spatial_tick_loop(spatial_map, &movers, attribute_keys);
 
     let end_position = spatial_map
         .get_position(&artrine.id())
@@ -371,5 +386,6 @@ where
         duels: vec![artro_duel],
         receiver_id: None,
         distribution_flight: None,
+        kinematic_trajectories: tick_result.trajectories().clone(),
     }
 }

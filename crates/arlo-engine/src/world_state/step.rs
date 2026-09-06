@@ -23,6 +23,7 @@ use crate::world_state::play_transition::apply_play_transition;
 use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
@@ -258,6 +259,7 @@ pub fn step_call_to_action(
                 duels: Vec::new(),
                 receiver_id: None,
                 distribution_flight: None,
+                kinematic_trajectories: HashMap::new(),
             },
         )
     };

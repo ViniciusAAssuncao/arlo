@@ -1,10 +1,10 @@
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
-use crate::physical::FatigueState;
 use crate::match_decision::finisher_selection::select_finisher_with_fatigue;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt_with_fatigue,
 };
 use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
@@ -279,5 +279,6 @@ where
         duels: vec![finish_duel],
         receiver_id: Some(finisher.id()),
         distribution_flight: None,
+        kinematic_trajectories: HashMap::new(),
     }
 }

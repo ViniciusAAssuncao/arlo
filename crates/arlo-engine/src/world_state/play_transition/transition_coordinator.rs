@@ -10,7 +10,7 @@ use crate::world_state::play_transition::event_dispatcher::{
     emit_turnover_event,
 };
 use crate::world_state::play_transition::fatigue_applier::{
-    apply_dead_ball_recovery, apply_duel_strain, apply_transit_movement_strain,
+    apply_dead_ball_recovery, apply_duel_strain, apply_kinematic_movement_strain,
 };
 use crate::world_state::play_transition::possession_resolver::{
     build_detailed_play_outcome, classify_play_outcome, determine_countdown_reason,
@@ -74,8 +74,7 @@ pub fn apply_play_transition(
         defense_team_id,
     );
 
-    let live_seconds = play_ledger.total_live().value().max(1.0);
-    apply_transit_movement_strain(state, sink, &pass_phase, &execution_outcome, live_seconds);
+    apply_kinematic_movement_strain(state, sink, &execution_outcome.kinematic_trajectories);
 
     let previous_down = state.possession().down() as u32;
     let transition_result = resolve_possession_transition(state, &detailed_outcome);

@@ -1,9 +1,8 @@
-use crate::match_decision::event_translation::{create_envelope, translate_physical_strain_recorded};
 use crate::spatial::decision_vector::extract_attribute_value;
-use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::run_spatial_tick_loop;
 use crate::tactics::dynamic_anchor::compute_dynamic_anchors;
 use crate::world_state::match_state::MatchState;
+use crate::world_state::play_transition::fatigue_applier::apply_kinematic_movement_strain;
 use arlo_domain::{AttributeKey, Position as DomainPosition};
 use arlo_events::EventSink;
 use arlo_math::units::Duration;
@@ -52,21 +51,7 @@ pub fn derive_and_apply_reorganization(
     let tick_result =
         run_spatial_tick_loop(state.spatial_map_mut(), &movers, &attribute_keys);
 
-    for (player_id, traj) in tick_result.trajectories() {
-        let dist_mirim: f64 = traj
-            .segments()
-            .iter()
-            .map(|(a, b)| calculate_distance_mirim(*a, *b))
-            .sum();
-        let reorg_dist = dist_mirim * 0.35;
-        if reorg_dist > 0.0 {
-            let (energy, w_bal) = state.record_distance(*player_id, reorg_dist);
-            let strain_ev = translate_physical_strain_recorded(*player_id, energy, w_bal, reorg_dist);
-            let seq = state.next_sequence();
-            let clock_inst = state.clock().to_instant();
-            sink.record(create_envelope(seq, clock_inst, strain_ev));
-        }
-    }
+    apply_kinematic_movement_strain(state, sink, tick_result.trajectories());
 
     let offense_lineup = if is_home_offense {
         &home_lineup
