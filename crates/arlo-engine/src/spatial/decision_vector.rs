@@ -5,10 +5,6 @@ use arlo_math::units::{Position, Speed, Velocity};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub const BASE_SPRINT_SPEED_METERS_PER_SEC: f64 = 4.0;
-pub const PACE_SPEED_SCALE: f64 = 0.25;
-pub const ACCELERATION_SPEED_SCALE: f64 = 0.10;
-
 pub fn extract_attribute_value(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,

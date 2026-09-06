@@ -15,8 +15,7 @@ pub use ball_kinematics::{
 };
 pub use decision_vector::{
     calculate_player_speed, derive_player_velocity_towards_target,
-    derive_velocity_towards_target, extract_attribute_value, ACCELERATION_SPEED_SCALE,
-    BASE_SPRINT_SPEED_METERS_PER_SEC, PACE_SPEED_SCALE,
+    derive_velocity_towards_target, extract_attribute_value,
 };
 pub use dynamic_map::DynamicSpatialMap;
 pub use influence::{

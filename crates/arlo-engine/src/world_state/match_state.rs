@@ -369,15 +369,19 @@ impl MatchState {
             .find(|p| p.id() == player_id);
 
         if let Some(p) = player {
-            let max_w = crate::physical::models::anaerobic::calculate_player_max_w_prime(
+            let max_w = crate::physical::models::metabolic_power::calculate_player_max_w_prime(
                 p,
                 &self.attribute_keys,
             );
-            let crit_speed = crate::physical::models::anaerobic::calculate_player_critical_speed(
+            let crit_speed = crate::physical::models::metabolic_power::calculate_player_critical_speed(
                 p,
                 &self.attribute_keys,
-            );
-            let cost = crate::physical::models::anaerobic::calculate_anaerobic_cost(
+                0,
+            )
+            .value();
+            let cost = crate::physical::models::anaerobic::calculate_player_anaerobic_cost(
+                p,
+                &self.attribute_keys,
                 duration_seconds,
                 crit_speed + 2.0,
                 crit_speed,

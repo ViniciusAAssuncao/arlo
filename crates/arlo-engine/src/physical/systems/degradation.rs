@@ -1,8 +1,8 @@
-use crate::physical::state::PhysicalState;
-use crate::spatial::decision_vector::{
-    extract_attribute_value, ACCELERATION_SPEED_SCALE, BASE_SPRINT_SPEED_METERS_PER_SEC,
-    PACE_SPEED_SCALE,
+use crate::physical::models::metabolic_power::{
+    calculate_player_critical_speed, calculate_player_max_sprint_speed,
 };
+use crate::physical::state::PhysicalState;
+use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::Speed;
 use std::collections::HashMap;
@@ -80,14 +80,11 @@ pub fn calculate_effective_player_speed(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     state: &PhysicalState,
 ) -> Speed {
-    let pace = extract_effective_attribute_value(player, attribute_keys, AttributeKey::Pace, state);
-    let accel = extract_effective_attribute_value(
-        player,
-        attribute_keys,
-        AttributeKey::Acceleration,
-        state,
-    );
-    let speed_val =
-        BASE_SPRINT_SPEED_METERS_PER_SEC + (pace * PACE_SPEED_SCALE) + (accel * ACCELERATION_SPEED_SCALE);
-    Speed::new(speed_val)
+    let max_speed = calculate_player_max_sprint_speed(player, attribute_keys).value();
+    let crit_speed = calculate_player_critical_speed(player, attribute_keys, 0).value();
+    let w_bal = state.w_prime_balance().clamp(0.0, 1.0);
+    let phys_mod = physical_attribute_modifier(state);
+    let speed_ceiling = crit_speed + (max_speed - crit_speed).max(0.0) * w_bal;
+    let final_speed = speed_ceiling * phys_mod;
+    Speed::new(final_speed.max(1.0))
 }

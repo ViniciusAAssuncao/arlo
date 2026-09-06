@@ -1,44 +1,41 @@
-use crate::physical::state::PhysicalState;
-use crate::resolution::DuelKind;
-use crate::spatial::decision_vector::{
-    calculate_player_speed, extract_attribute_value, BASE_SPRINT_SPEED_METERS_PER_SEC,
+use crate::physical::models::metabolic_power::{
+    calculate_critical_speed as calc_crit_speed,
+    calculate_max_w_prime as calc_max_w_prime,
+    calculate_metabolic_work_rate,
+    calculate_player_body_mass,
+    calculate_player_critical_speed as calc_player_crit_speed,
+    calculate_player_max_w_prime as calc_player_max_w_prime,
+    estimate_body_mass,
 };
+use crate::physical::state::PhysicalState;
+use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::resolution::DuelKind;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::Speed;
 use std::collections::HashMap;
 use uuid::Uuid;
 
 pub fn calculate_max_w_prime(acceleration: f64, pace: f64, strength: f64) -> f64 {
-    let accel = acceleration.clamp(0.0, 20.0);
-    let p = pace.clamp(0.0, 20.0);
-    let s = strength.clamp(0.0, 20.0);
-    400.0 + (accel * 35.0) + (p * 25.0) + (s * 20.0)
+    let mass = estimate_body_mass(1.82, strength);
+    calc_max_w_prime(strength, (acceleration + pace * 0.3) / 1.3, mass)
 }
 
 pub fn calculate_player_max_w_prime(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let accel = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-    let pace = extract_attribute_value(player, attribute_keys, AttributeKey::Pace);
-    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
-    calculate_max_w_prime(accel, pace, strength)
+    calc_player_max_w_prime(player, attribute_keys)
 }
 
 pub fn calculate_critical_speed(stamina: f64, natural_fitness: f64) -> f64 {
-    let st = stamina.clamp(0.0, 20.0);
-    let nf = natural_fitness.clamp(0.0, 20.0);
-    BASE_SPRINT_SPEED_METERS_PER_SEC * 0.60 + (st * 0.08) + (nf * 0.06)
+    calc_crit_speed(stamina, natural_fitness, 10.0, 25.0)
 }
 
 pub fn calculate_player_critical_speed(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
-    let natural_fitness =
-        extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
-    calculate_critical_speed(stamina, natural_fitness)
+    calc_player_crit_speed(player, attribute_keys, 0).value()
 }
 
 pub fn calculate_duel_intensity_multiplier(duel_kind: DuelKind) -> f64 {
@@ -63,14 +60,23 @@ pub fn calculate_anaerobic_cost(
     intensity_multiplier: f64,
 ) -> f64 {
     let duration = duration_seconds.max(0.0);
-    let speed_delta = (speed_meters_per_sec - critical_speed).max(0.0);
-    let movement_cost = duration * speed_delta * 4.0;
-    let duel_cost = if intensity_multiplier > 1.0 {
-        duration * (intensity_multiplier - 1.0) * 6.0
-    } else {
-        0.0
-    };
-    (movement_cost + duel_cost) * intensity_multiplier.max(1.0)
+    let mass = 78.0;
+    let rate = calculate_metabolic_work_rate(speed_meters_per_sec, critical_speed, mass, intensity_multiplier);
+    rate * duration
+}
+
+pub fn calculate_player_anaerobic_cost(
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    duration_seconds: f64,
+    speed_meters_per_sec: f64,
+    critical_speed: f64,
+    intensity_multiplier: f64,
+) -> f64 {
+    let duration = duration_seconds.max(0.0);
+    let mass = calculate_player_body_mass(player, attribute_keys);
+    let rate = calculate_metabolic_work_rate(speed_meters_per_sec, critical_speed, mass, intensity_multiplier);
+    rate * duration
 }
 
 pub fn apply_anaerobic_cost_to_state(
@@ -93,10 +99,5 @@ pub fn calculate_player_effective_speed(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     physical_state: &PhysicalState,
 ) -> Speed {
-    let max_speed = calculate_player_speed(player, attribute_keys, physical_state.energy());
-    let critical_speed = calculate_player_critical_speed(player, attribute_keys);
-    let w_balance = physical_state.w_prime_balance().clamp(0.0, 1.0);
-    let effective_speed_val =
-        critical_speed + (max_speed.value() - critical_speed).max(0.0) * w_balance;
-    Speed::new(effective_speed_val.min(max_speed.value()))
+    calculate_effective_player_speed(player, attribute_keys, physical_state)
 }

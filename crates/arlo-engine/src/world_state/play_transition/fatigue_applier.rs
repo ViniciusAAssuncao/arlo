@@ -1,7 +1,6 @@
 use crate::artrine::ArtrineExecutionOutcome;
 use crate::physical::models::anaerobic::calculate_duel_intensity_multiplier;
-use crate::physical::systems::degradation::extract_effective_attribute_value;
-use crate::physical::systems::pacing::{calculate_player_pacing_multiplier, is_player_near_ball};
+use crate::physical::systems::pacing::{calculate_player_pacing_state, is_player_near_ball};
 use crate::physical::systems::positional_strain::calculate_transit_strain_multiplier;
 use crate::resolution::AttributedDuelOutcome;
 use crate::world_state::context_analyzer::analyze_match_state;
@@ -10,7 +9,7 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::event_dispatcher::{
     emit_physical_strain, emit_recovery_processed,
 };
-use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
+use arlo_domain::{Player, Position as DomainPosition};
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
 
@@ -76,31 +75,19 @@ pub fn apply_transit_movement_strain(
             || pid == runner_id
             || pid == pass_phase.passer.id();
 
-        let pacing_mult = calculate_player_pacing_multiplier(
+        let pacing_state = calculate_player_pacing_state(
             p,
             state.attribute_keys(),
             is_near,
             &game_state_pressure,
+            &p_fatigue,
+            0,
         );
 
         let transit_mult = calculate_transit_strain_multiplier(p_pos);
-        let pace_val = extract_effective_attribute_value(
-            p,
-            state.attribute_keys(),
-            AttributeKey::Pace,
-            &p_fatigue,
-        );
-        let accel_val = extract_effective_attribute_value(
-            p,
-            state.attribute_keys(),
-            AttributeKey::Acceleration,
-            &p_fatigue,
-        );
-        let athletic_factor = 0.94 + (pace_val * 0.003) + (accel_val * 0.002);
-
-        let base_cruising_speed_m_s = 0.96;
-        let base_transit_mirim = (base_cruising_speed_m_s * athletic_factor / MIRIM_TO_METERS) * live_seconds;
-        let mut player_dist = base_transit_mirim * transit_mult * pacing_mult;
+        let cruise_speed_m_s = pacing_state.target_cruise_speed().value();
+        let base_transit_mirim = (cruise_speed_m_s * live_seconds) / MIRIM_TO_METERS;
+        let mut player_dist = base_transit_mirim * transit_mult;
 
         if pid == runner_id && execution_outcome.mirins_advanced > 0.0 {
             player_dist += execution_outcome.mirins_advanced;
