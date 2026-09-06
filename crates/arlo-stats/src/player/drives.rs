@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::snapshot::{IntoSnapshot, PlayerDriveSnapshot};
 use arlo_domain::pitch::ArtroPlacement;
 use arlo_events::MatchEvent;
 use serde::{Deserialize, Serialize};
@@ -62,6 +63,22 @@ impl PlayerDriveStats {
     }
 }
 
+impl IntoSnapshot for PlayerDriveStats {
+    type Snapshot = PlayerDriveSnapshot;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        PlayerDriveSnapshot {
+            player_id: self.player_id,
+            total_drives: self.total_drives,
+            central_drives: self.central_drives,
+            left_lateral_drives: self.left_lateral_drives,
+            right_lateral_drives: self.right_lateral_drives,
+            lateral_drives: self.lateral_drives(),
+            max_drives_in_series: self.max_drives_in_series,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PlayerDrivesAggregator {
     stats: HashMap<Uuid, PlayerDriveStats>,
@@ -113,6 +130,17 @@ impl PlayerDrivesAggregator {
         }
 
         *stats.drives_by_row.entry(artro_row_index).or_insert(0) += 1;
+    }
+}
+
+impl IntoSnapshot for PlayerDrivesAggregator {
+    type Snapshot = HashMap<Uuid, PlayerDriveSnapshot>;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        self.stats
+            .iter()
+            .map(|(&id, stats)| (id, stats.into_snapshot()))
+            .collect()
     }
 }
 

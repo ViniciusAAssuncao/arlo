@@ -26,12 +26,12 @@ impl ActionUtilityEvaluator for CrossUtilityEvaluator {
             1.5
         };
 
-        let p_goal = (0.30
+        let raw_p = (0.30
             + 0.40 * ctx.normalized_proximity
             + 0.15 * target_qual
             + 0.10 * skill_mult)
-            .clamp(0.10, 0.90)
             * (0.60 + 0.40 * ctx.offensive_gravity.min(2.0));
+        let p_goal = ctx.bound_probability(raw_p);
 
         let v_opp = ctx.epv_model.opponent_epa(ctx.normalized_proximity);
 

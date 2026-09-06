@@ -1,0 +1,85 @@
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlayerArtrineDecisionSnapshot {
+    pub player_id: Uuid,
+    pub total_decisions: u32,
+    pub total_successful_decisions: u32,
+    pub total_failed_decisions: u32,
+    pub total_mirins_advanced: f64,
+    pub total_points_generated: u32,
+    pub goal_points_generated: u32,
+    pub field_points_generated: u32,
+    pub field_goals_generated: u32,
+    pub success_rate: f64,
+    pub average_mirins_per_decision: f64,
+    pub average_points_per_decision: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerDriveSnapshot {
+    pub player_id: Uuid,
+    pub total_drives: u32,
+    pub central_drives: u32,
+    pub left_lateral_drives: u32,
+    pub right_lateral_drives: u32,
+    pub lateral_drives: u32,
+    pub max_drives_in_series: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlayerDuelSnapshot {
+    pub player_id: Uuid,
+    pub total_duels: u32,
+    pub total_wins: u32,
+    pub total_losses: u32,
+    pub win_rate: f64,
+    pub attacker_duels: u32,
+    pub attacker_wins: u32,
+    pub attacker_losses: u32,
+    pub attacker_win_rate: f64,
+    pub defender_duels: u32,
+    pub defender_wins: u32,
+    pub defender_losses: u32,
+    pub defender_win_rate: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlayerReceivingSnapshot {
+    pub player_id: Uuid,
+    pub targets: u32,
+    pub receptions: u32,
+    pub drops: u32,
+    pub catch_rate: f64,
+    pub drop_rate: f64,
+    pub run_after_catch_mirins: f64,
+    pub longest_reception_mirim: f64,
+    pub receiving_mirins: f64,
+    pub average_mirins_per_reception: f64,
+    pub average_rac_per_reception: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerScoringAttemptSnapshot {
+    pub player_id: Uuid,
+    pub attempts: u32,
+    pub converted: u32,
+    pub missed: u32,
+    pub goal_points_scored: u32,
+    pub field_points_scored: u32,
+    pub field_goals_scored: u32,
+    pub total_points_scored: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerTouchSnapshot {
+    pub player_id: Uuid,
+    pub passes_attempted: u32,
+    pub passes_received: u32,
+    pub drives_recorded: u32,
+    pub recoveries: u32,
+    pub scoring_attempts: u32,
+    pub total_touches: u32,
+    pub turnovers_conceded: u32,
+}

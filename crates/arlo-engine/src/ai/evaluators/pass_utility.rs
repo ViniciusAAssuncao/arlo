@@ -49,12 +49,15 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
         let v_fail = ctx.risk_profile.transform_value(delta_fail);
         let v_to = ctx.risk_profile.transform_value(delta_to);
 
-        let p_succ = (0.50
+        let (min_p, _max_p) = ctx.probability_bounds();
+        let p_succ = ctx.bound_probability(
+            0.50
             + 0.04 * ctx.pass_protection_net_advantage
             + 0.20 * target_qual
-            + 0.10 * skill_mult)
-            .clamp(0.15, 0.95);
-        let p_to = (((1.0 - p_succ) * 0.20) / ctx.game_state_pressure.turnover_aversion_scale()).clamp(0.01, 0.35);
+            + 0.10 * skill_mult
+        );
+        let p_to = (((1.0 - p_succ) * 0.20) / ctx.game_state_pressure.turnover_aversion_scale())
+            .clamp(min_p, (1.0 - p_succ).max(min_p));
         let p_fail = (1.0 - p_succ - p_to).max(0.0);
 
         let w_succ = ctx.risk_profile.weight_probability(p_succ);
@@ -123,12 +126,15 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
         let v_fail = ctx.risk_profile.transform_value(delta_fail);
         let v_to = ctx.risk_profile.transform_value(delta_to);
 
-        let p_succ = (0.35
+        let (min_p, _max_p) = ctx.probability_bounds();
+        let p_succ = ctx.bound_probability(
+            0.35
             + 0.03 * ctx.pass_protection_net_advantage
             + 0.25 * target_qual
-            + 0.10 * skill_mult)
-            .clamp(0.10, 0.85);
-        let p_to = (((1.0 - p_succ) * 0.35) / ctx.game_state_pressure.turnover_aversion_scale()).clamp(0.02, 0.50);
+            + 0.10 * skill_mult
+        );
+        let p_to = (((1.0 - p_succ) * 0.35) / ctx.game_state_pressure.turnover_aversion_scale())
+            .clamp(min_p, (1.0 - p_succ).max(min_p));
         let p_fail = (1.0 - p_succ - p_to).max(0.0);
 
         let w_succ = ctx.risk_profile.weight_probability(p_succ);

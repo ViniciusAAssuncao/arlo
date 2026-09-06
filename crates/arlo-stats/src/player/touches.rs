@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::snapshot::{IntoSnapshot, PlayerTouchSnapshot};
 use arlo_events::MatchEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -60,6 +61,23 @@ impl PlayerTouchStats {
 
     pub fn turnovers_conceded(&self) -> u32 {
         self.turnovers_conceded
+    }
+}
+
+impl IntoSnapshot for PlayerTouchStats {
+    type Snapshot = PlayerTouchSnapshot;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        PlayerTouchSnapshot {
+            player_id: self.player_id,
+            passes_attempted: self.passes_attempted,
+            passes_received: self.passes_received,
+            drives_recorded: self.drives_recorded,
+            recoveries: self.recoveries,
+            scoring_attempts: self.scoring_attempts,
+            total_touches: self.total_touches,
+            turnovers_conceded: self.turnovers_conceded,
+        }
     }
 }
 
@@ -129,6 +147,17 @@ impl PlayerTouchesAggregator {
     pub fn record_turnover_conceded(&mut self, player_id: Uuid) {
         let stats = self.get_mut_or_create(player_id);
         stats.turnovers_conceded += 1;
+    }
+}
+
+impl IntoSnapshot for PlayerTouchesAggregator {
+    type Snapshot = HashMap<Uuid, PlayerTouchSnapshot>;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        self.stats
+            .iter()
+            .map(|(&id, stats)| (id, stats.into_snapshot()))
+            .collect()
     }
 }
 

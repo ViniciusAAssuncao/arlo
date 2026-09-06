@@ -1,7 +1,9 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::epv::DynamicEpvModel;
+use crate::resolution::duel_noise::player_noise_distribution;
 use crate::resolution::duel_profiles::DuelProfile;
 use crate::resolution::group_rating::calculate_player_duel_rating;
+use crate::spatial::decision_vector::extract_attribute_value;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{AttributeKey, Player, Position};
 use std::collections::HashMap;
@@ -29,11 +31,11 @@ pub struct DecisionEvaluationContext<'a> {
 
 impl<'a> DecisionEvaluationContext<'a> {
     pub fn target_quality(&self) -> f64 {
-        ((self.best_available_target_weight - 8.0) / 10.0).clamp(-0.5, 1.0)
+        (self.best_available_target_weight - 8.0) / 10.0
     }
 
     pub fn pitch_control(&self) -> f64 {
-        self.pitch_control_ahead.clamp(0.05, 0.95)
+        self.pitch_control_ahead.max(0.0).min(1.0)
     }
 
     pub fn artrine_rating(&self, profile: &DuelProfile) -> f64 {
@@ -46,6 +48,25 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn skill_multiplier(&self, intrinsic_rating: f64) -> f64 {
-        (intrinsic_rating / 10.0).clamp(0.5, 1.5)
+        intrinsic_rating / 10.0
+    }
+
+    pub fn consistency(&self) -> f64 {
+        extract_attribute_value(self.artrine, self.attribute_keys, AttributeKey::Consistency)
+    }
+
+    pub fn probability_bounds(&self) -> (f64, f64) {
+        let consistency = self.consistency();
+        let noise_params = player_noise_distribution(self.artrine, self.attribute_keys);
+        let scale = noise_params.scale();
+        let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
+        let floor = (0.001 + 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.0001, 0.15);
+        let ceiling = (0.999 - 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.85, 0.9999);
+        (floor, ceiling)
+    }
+
+    pub fn bound_probability(&self, raw_p: f64) -> f64 {
+        let (floor, ceiling) = self.probability_bounds();
+        raw_p.clamp(floor, ceiling)
     }
 }

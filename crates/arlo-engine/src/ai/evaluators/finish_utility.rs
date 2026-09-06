@@ -25,7 +25,8 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
             1.5
         };
 
-        let p_goal = (0.25 + 0.50 * ctx.normalized_proximity + 0.15 * skill_mult).clamp(0.05, 0.90);
+        let raw_p = 0.25 + 0.50 * ctx.normalized_proximity + 0.15 * skill_mult;
+        let p_goal = ctx.bound_probability(raw_p);
         let v_opp = ctx.epv_model.opponent_epa(ctx.normalized_proximity);
 
         let delta_succ = value - ctx.current_epv;

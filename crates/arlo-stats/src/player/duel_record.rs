@@ -1,6 +1,7 @@
 use crate::aggregator::StatAggregator;
-use arlo_events::{ DuelKind, MatchEvent };
-use serde::{ Deserialize, Serialize };
+use crate::snapshot::{IntoSnapshot, PlayerDuelSnapshot};
+use arlo_events::{DuelKind, MatchEvent};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -21,7 +22,11 @@ impl DuelKindStats {
     }
 
     pub fn win_rate(&self) -> f64 {
-        if self.total == 0 { 0.0 } else { (self.wins as f64) / (self.total as f64) }
+        if self.total == 0 {
+            0.0
+        } else {
+            (self.wins as f64) / (self.total as f64)
+        }
     }
 
     pub fn attacker_total(&self) -> u32 {
@@ -156,6 +161,28 @@ impl PlayerDuelStats {
     }
 }
 
+impl IntoSnapshot for PlayerDuelStats {
+    type Snapshot = PlayerDuelSnapshot;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        PlayerDuelSnapshot {
+            player_id: self.player_id,
+            total_duels: self.total_duels,
+            total_wins: self.total_wins,
+            total_losses: self.total_losses,
+            win_rate: self.win_rate(),
+            attacker_duels: self.attacker_duels,
+            attacker_wins: self.attacker_wins,
+            attacker_losses: self.attacker_losses,
+            attacker_win_rate: self.attacker_win_rate(),
+            defender_duels: self.defender_duels,
+            defender_wins: self.defender_wins,
+            defender_losses: self.defender_losses,
+            defender_win_rate: self.defender_win_rate(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PlayerDuelAggregator {
     stats: HashMap<Uuid, PlayerDuelStats>,
@@ -233,6 +260,17 @@ impl PlayerDuelAggregator {
             kind_stats.losses += 1;
             kind_stats.as_defender_losses += 1;
         }
+    }
+}
+
+impl IntoSnapshot for PlayerDuelAggregator {
+    type Snapshot = HashMap<Uuid, PlayerDuelSnapshot>;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        self.stats
+            .iter()
+            .map(|(&id, stats)| (id, stats.into_snapshot()))
+            .collect()
     }
 }
 

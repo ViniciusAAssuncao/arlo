@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::snapshot::{IntoSnapshot, PlayerArtrineDecisionSnapshot};
 use arlo_domain::ArtrineDecisionKind;
 use arlo_events::MatchEvent;
 use serde::{Deserialize, Serialize};
@@ -167,6 +168,27 @@ impl PlayerArtrineDecisionStats {
     }
 }
 
+impl IntoSnapshot for PlayerArtrineDecisionStats {
+    type Snapshot = PlayerArtrineDecisionSnapshot;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        PlayerArtrineDecisionSnapshot {
+            player_id: self.player_id,
+            total_decisions: self.total_decisions,
+            total_successful_decisions: self.total_successful_decisions,
+            total_failed_decisions: self.total_failed_decisions,
+            total_mirins_advanced: self.total_mirins_advanced,
+            total_points_generated: self.total_points_generated,
+            goal_points_generated: self.goal_points_generated,
+            field_points_generated: self.field_points_generated,
+            field_goals_generated: self.field_goals_generated,
+            success_rate: self.success_rate(),
+            average_mirins_per_decision: self.average_mirins_per_decision(),
+            average_points_per_decision: self.average_points_per_decision(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct PendingDecisionPlay {
     artrine_id: Uuid,
@@ -227,6 +249,17 @@ impl PlayerArtrineDecisionAggregator {
                 kind_stats.failed += 1;
             }
         }
+    }
+}
+
+impl IntoSnapshot for PlayerArtrineDecisionAggregator {
+    type Snapshot = HashMap<Uuid, PlayerArtrineDecisionSnapshot>;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        self.stats
+            .iter()
+            .map(|(&id, stats)| (id, stats.into_snapshot()))
+            .collect()
     }
 }
 

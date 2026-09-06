@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::snapshot::{IntoSnapshot, PlayerScoringAttemptSnapshot};
 use arlo_events::{MatchEvent, ScoringPost};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -10,6 +11,10 @@ pub struct PlayerScoringAttemptStats {
     pub attempts: u32,
     pub converted: u32,
     pub missed: u32,
+    pub goal_points_scored: u32,
+    pub field_points_scored: u32,
+    pub field_goals_scored: u32,
+    pub total_points_scored: u32,
     pub by_post: HashMap<ScoringPost, (u32, u32)>,
 }
 
@@ -20,6 +25,10 @@ impl PlayerScoringAttemptStats {
             attempts: 0,
             converted: 0,
             missed: 0,
+            goal_points_scored: 0,
+            field_points_scored: 0,
+            field_goals_scored: 0,
+            total_points_scored: 0,
             by_post: HashMap::new(),
         }
     }
@@ -38,6 +47,22 @@ impl PlayerScoringAttemptStats {
 
     pub fn missed(&self) -> u32 {
         self.missed
+    }
+
+    pub fn goal_points_scored(&self) -> u32 {
+        self.goal_points_scored
+    }
+
+    pub fn field_points_scored(&self) -> u32 {
+        self.field_points_scored
+    }
+
+    pub fn field_goals_scored(&self) -> u32 {
+        self.field_goals_scored
+    }
+
+    pub fn total_points_scored(&self) -> u32 {
+        self.total_points_scored
     }
 
     pub fn by_post(&self) -> &HashMap<ScoringPost, (u32, u32)> {
@@ -78,6 +103,23 @@ impl PlayerScoringAttemptStats {
             0.0
         } else {
             (self.converted_for_post(post) as f64) / (att as f64)
+        }
+    }
+}
+
+impl IntoSnapshot for PlayerScoringAttemptStats {
+    type Snapshot = PlayerScoringAttemptSnapshot;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        PlayerScoringAttemptSnapshot {
+            player_id: self.player_id,
+            attempts: self.attempts,
+            converted: self.converted,
+            missed: self.missed,
+            goal_points_scored: self.goal_points_scored,
+            field_points_scored: self.field_points_scored,
+            field_goals_scored: self.field_goals_scored,
+            total_points_scored: self.total_points_scored,
         }
     }
 }
@@ -135,17 +177,49 @@ impl PlayerScoringAttemptsAggregator {
     }
 }
 
+impl IntoSnapshot for PlayerScoringAttemptsAggregator {
+    type Snapshot = HashMap<Uuid, PlayerScoringAttemptSnapshot>;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        self.stats
+            .iter()
+            .map(|(&id, stats)| (id, stats.into_snapshot()))
+            .collect()
+    }
+}
+
 impl StatAggregator for PlayerScoringAttemptsAggregator {
     fn handle_event(&mut self, event: &MatchEvent) {
         match event {
             MatchEvent::GoalPoint(e) => {
-                self.record_conversion(e.scorer_id(), e.post());
+                let stats = self.get_mut_or_create(e.scorer_id());
+                stats.attempts += 1;
+                stats.converted += 1;
+                stats.goal_points_scored += 1;
+                stats.total_points_scored += e.points();
+                let entry = stats.by_post.entry(e.post()).or_insert((0, 0));
+                entry.0 += 1;
+                entry.1 += 1;
             }
             MatchEvent::FieldPoint(e) => {
-                self.record_conversion(e.scorer_id(), e.post());
+                let stats = self.get_mut_or_create(e.scorer_id());
+                stats.attempts += 1;
+                stats.converted += 1;
+                stats.field_points_scored += 1;
+                stats.total_points_scored += e.points();
+                let entry = stats.by_post.entry(e.post()).or_insert((0, 0));
+                entry.0 += 1;
+                entry.1 += 1;
             }
             MatchEvent::FieldGoal(e) => {
-                self.record_conversion(e.scorer_id(), e.post());
+                let stats = self.get_mut_or_create(e.scorer_id());
+                stats.attempts += 1;
+                stats.converted += 1;
+                stats.field_goals_scored += 1;
+                stats.total_points_scored += e.points();
+                let entry = stats.by_post.entry(e.post()).or_insert((0, 0));
+                entry.0 += 1;
+                entry.1 += 1;
             }
             MatchEvent::ScoringAttemptMissed(e) => {
                 self.record_miss(e.scorer_id(), e.attempted_post());

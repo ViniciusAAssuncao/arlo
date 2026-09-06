@@ -13,9 +13,9 @@ pub fn calculate_normalized_proximity(
     }
     let x = artrine_pos.raw().0;
     if attacking_positive_x {
-        (x / total_len).clamp(0.0, 1.0)
+        (x / total_len).max(0.0).min(1.0)
     } else {
-        ((total_len - x) / total_len).clamp(0.0, 1.0)
+        ((total_len - x) / total_len).max(0.0).min(1.0)
     }
 }
 

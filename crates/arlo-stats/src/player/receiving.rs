@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::snapshot::{IntoSnapshot, PlayerReceivingSnapshot};
 use arlo_events::{DuelKind, MatchEvent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -93,6 +94,26 @@ impl PlayerReceivingStats {
     }
 }
 
+impl IntoSnapshot for PlayerReceivingStats {
+    type Snapshot = PlayerReceivingSnapshot;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        PlayerReceivingSnapshot {
+            player_id: self.player_id,
+            targets: self.targets,
+            receptions: self.receptions,
+            drops: self.drops,
+            catch_rate: self.catch_rate(),
+            drop_rate: self.drop_rate(),
+            run_after_catch_mirins: self.run_after_catch_mirins,
+            longest_reception_mirim: self.longest_reception_mirim,
+            receiving_mirins: self.receiving_mirins,
+            average_mirins_per_reception: self.average_mirins_per_reception(),
+            average_rac_per_reception: self.average_rac_per_reception(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct PendingReception {
     receiver_id: Uuid,
@@ -164,6 +185,17 @@ impl PlayerReceivingAggregator {
 
     fn finalize_pending(&mut self) {
         self.current_reception = None;
+    }
+}
+
+impl IntoSnapshot for PlayerReceivingAggregator {
+    type Snapshot = HashMap<Uuid, PlayerReceivingSnapshot>;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        self.stats
+            .iter()
+            .map(|(&id, stats)| (id, stats.into_snapshot()))
+            .collect()
     }
 }
 

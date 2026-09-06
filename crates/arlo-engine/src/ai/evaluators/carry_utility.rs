@@ -57,8 +57,10 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
         let v_fail = ctx.risk_profile.transform_value(delta_fail);
         let v_to = ctx.risk_profile.transform_value(delta_to);
 
-        let p_succ = (pc * 0.75 + 0.15 * skill_mult).clamp(0.10, 0.95);
-        let p_to = ((1.0 - pc) * 0.15 / ctx.game_state_pressure.turnover_aversion_scale()).clamp(0.01, 0.30);
+        let (min_p, _max_p) = ctx.probability_bounds();
+        let p_succ = ctx.bound_probability(pc * 0.75 + 0.15 * skill_mult);
+        let p_to = ((1.0 - pc) * 0.15 / ctx.game_state_pressure.turnover_aversion_scale())
+            .clamp(min_p, (1.0 - p_succ).max(min_p));
         let p_fail = (1.0 - p_succ - p_to).max(0.0);
 
         let w_succ = ctx.risk_profile.weight_probability(p_succ);

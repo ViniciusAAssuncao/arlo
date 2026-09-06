@@ -1,5 +1,12 @@
 use crate::aggregator::StatAggregator;
-use arlo_events::{MatchEvent, MatchEventEnvelope};
+use crate::player::{
+    PlayerArtrineDecisionAggregator, PlayerDrivesAggregator, PlayerDuelAggregator,
+    PlayerReceivingAggregator, PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
+};
+use crate::snapshot::{IntoSnapshot, PeriodicMatchSnapshot, PlayerMatchSnapshot};
+use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
+use std::collections::{HashMap, HashSet};
+use uuid::Uuid;
 
 #[derive(Default)]
 pub struct AggregatorRegistry {
@@ -15,12 +22,12 @@ impl AggregatorRegistry {
 
     pub fn with_default_aggregators() -> Self {
         let mut registry = Self::new();
-        registry.register_aggregator(crate::player::PlayerArtrineDecisionAggregator::new());
-        registry.register_aggregator(crate::player::PlayerDrivesAggregator::new());
-        registry.register_aggregator(crate::player::PlayerDuelAggregator::new());
-        registry.register_aggregator(crate::player::PlayerReceivingAggregator::new());
-        registry.register_aggregator(crate::player::PlayerTouchesAggregator::new());
-        registry.register_aggregator(crate::player::PlayerScoringAttemptsAggregator::new());
+        registry.register_aggregator(PlayerArtrineDecisionAggregator::new());
+        registry.register_aggregator(PlayerDrivesAggregator::new());
+        registry.register_aggregator(PlayerDuelAggregator::new());
+        registry.register_aggregator(PlayerReceivingAggregator::new());
+        registry.register_aggregator(PlayerTouchesAggregator::new());
+        registry.register_aggregator(PlayerScoringAttemptsAggregator::new());
         registry
     }
 
@@ -87,5 +94,142 @@ impl AggregatorRegistry {
 
     pub fn is_empty(&self) -> bool {
         self.aggregators.is_empty()
+    }
+
+    pub fn all_player_ids(&self) -> HashSet<Uuid> {
+        let mut ids = HashSet::new();
+        if let Some(agg) = self.get::<PlayerTouchesAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerDuelAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerDrivesAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerReceivingAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerScoringAttemptsAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        ids
+    }
+
+    pub fn create_player_snapshot(&self, player_id: &Uuid) -> PlayerMatchSnapshot {
+        let mut snap = PlayerMatchSnapshot::new(*player_id);
+
+        if let Some(agg) = self.get::<PlayerTouchesAggregator>() {
+            let t = agg.get_or_default(player_id);
+            snap.total_touches = t.total_touches;
+            snap.passes_attempted = t.passes_attempted;
+            snap.passes_received = t.passes_received;
+            snap.recoveries = t.recoveries;
+            snap.turnovers_conceded = t.turnovers_conceded;
+        }
+
+        if let Some(agg) = self.get::<PlayerDrivesAggregator>() {
+            let d = agg.get_or_default(player_id);
+            snap.total_drives = d.total_drives;
+            snap.central_drives = d.central_drives;
+            snap.left_lateral_drives = d.left_lateral_drives;
+            snap.right_lateral_drives = d.right_lateral_drives;
+            snap.lateral_drives = d.lateral_drives();
+            snap.max_drives_in_series = d.max_drives_in_series;
+        }
+
+        if let Some(agg) = self.get::<PlayerDuelAggregator>() {
+            let du = agg.get_or_default(player_id);
+            snap.total_duels = du.total_duels;
+            snap.total_duel_wins = du.total_wins;
+            snap.total_duel_losses = du.total_losses;
+            snap.duel_win_rate = du.win_rate();
+            snap.attacker_duels = du.attacker_duels;
+            snap.attacker_duel_wins = du.attacker_wins;
+            snap.attacker_duel_losses = du.attacker_losses;
+            snap.attacker_duel_win_rate = du.attacker_win_rate();
+            snap.defender_duels = du.defender_duels;
+            snap.defender_duel_wins = du.defender_wins;
+            snap.defender_duel_losses = du.defender_losses;
+            snap.defender_duel_win_rate = du.defender_win_rate();
+        }
+
+        if let Some(agg) = self.get::<PlayerReceivingAggregator>() {
+            let r = agg.get_or_default(player_id);
+            snap.targets = r.targets;
+            snap.receptions = r.receptions;
+            snap.drops = r.drops;
+            snap.catch_rate = r.catch_rate();
+            snap.drop_rate = r.drop_rate();
+            snap.receiving_mirins = r.receiving_mirins;
+            snap.run_after_catch_mirins = r.run_after_catch_mirins;
+            snap.longest_reception_mirim = r.longest_reception_mirim;
+            snap.average_mirins_per_reception = r.average_mirins_per_reception();
+        }
+
+        if let Some(agg) = self.get::<PlayerScoringAttemptsAggregator>() {
+            let sc = agg.get_or_default(player_id);
+            snap.scoring_attempts = sc.attempts;
+            snap.scoring_conversions = sc.converted;
+            snap.scoring_misses = sc.missed;
+            snap.scoring_conversion_rate = sc.conversion_rate();
+            snap.goal_points_scored = sc.goal_points_scored;
+            snap.field_points_scored = sc.field_points_scored;
+            snap.field_goals_scored = sc.field_goals_scored;
+            snap.total_points_scored = sc.total_points_scored;
+        }
+
+        if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {
+            let ad = agg.get_or_default(player_id);
+            snap.artrine_decisions_total = ad.total_decisions;
+            snap.artrine_decisions_successful = ad.total_successful_decisions;
+            snap.artrine_decisions_failed = ad.total_failed_decisions;
+            snap.artrine_success_rate = ad.success_rate();
+            snap.artrine_mirins_advanced = ad.total_mirins_advanced;
+            snap.artrine_points_generated = ad.total_points_generated;
+            snap.artrine_goal_points_generated = ad.goal_points_generated;
+            snap.artrine_field_points_generated = ad.field_points_generated;
+            snap.artrine_field_goals_generated = ad.field_goals_generated;
+        }
+
+        snap
+    }
+
+    pub fn create_all_player_snapshots(&self) -> HashMap<Uuid, PlayerMatchSnapshot> {
+        let ids = self.all_player_ids();
+        ids.into_iter()
+            .map(|id| (id, self.create_player_snapshot(&id)))
+            .collect()
+    }
+
+    pub fn player_snapshots_vec(&self) -> Vec<PlayerMatchSnapshot> {
+        let mut ids: Vec<Uuid> = self.all_player_ids().into_iter().collect();
+        ids.sort();
+        ids.into_iter()
+            .map(|id| self.create_player_snapshot(&id))
+            .collect()
+    }
+
+    pub fn capture_periodic_snapshot(
+        &self,
+        sequence_number: u64,
+        clock: MatchClockInstant,
+    ) -> PeriodicMatchSnapshot {
+        PeriodicMatchSnapshot::new(
+            sequence_number,
+            clock,
+            self.player_snapshots_vec(),
+        )
+    }
+}
+
+impl IntoSnapshot for AggregatorRegistry {
+    type Snapshot = Vec<PlayerMatchSnapshot>;
+
+    fn into_snapshot(&self) -> Self::Snapshot {
+        self.player_snapshots_vec()
     }
 }
