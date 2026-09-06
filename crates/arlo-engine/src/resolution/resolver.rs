@@ -1,10 +1,10 @@
 use crate::resolution::context::DuelContext;
-use crate::resolution::duel_kind::DuelKind;
+use crate::resolution::duel_kind::{logistic_slope_for, DuelKind};
 use crate::resolution::duel_noise::sample_player_noise;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{calculate_side_rating, calculate_side_rating_from_index};
 use crate::resolution::outcome::DuelOutcome;
-use arlo_domain::sport_constants::{CONTRAST_LOGISTIC_SLOPE, HOME_FIELD_ADVANTAGE_LOGIT};
+use arlo_domain::sport_constants::HOME_FIELD_ADVANTAGE_LOGIT;
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_math::stats::contrast::bradley_terry_with_offset;
 use rand::Rng;
@@ -34,11 +34,12 @@ pub fn resolve_duel<R: Rng + ?Sized>(
 
     let noisy_attacker = attacker_rating + noise_a;
     let noisy_defender = defender_rating + noise_b;
+    let slope = logistic_slope_for(kind);
 
     let win_prob = bradley_terry_with_offset(
         noisy_attacker,
         noisy_defender,
-        CONTRAST_LOGISTIC_SLOPE,
+        slope,
         hfa_logit,
     );
 

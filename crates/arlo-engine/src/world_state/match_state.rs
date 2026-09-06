@@ -52,8 +52,10 @@ pub struct MatchState {
     away_team_id: Uuid,
     home_lineup: Lineup,
     away_lineup: Lineup,
-    home_position_index: HashMap<Uuid, DomainPosition>,
-    away_position_index: HashMap<Uuid, DomainPosition>,
+    home_offensive_position_index: HashMap<Uuid, DomainPosition>,
+    home_defensive_position_index: HashMap<Uuid, DomainPosition>,
+    away_offensive_position_index: HashMap<Uuid, DomainPosition>,
+    away_defensive_position_index: HashMap<Uuid, DomainPosition>,
     pitch: Pitch,
     attribute_keys: HashMap<Uuid, AttributeKey>,
     format_rules: MatchFormatRules,
@@ -92,16 +94,20 @@ impl MatchState {
         let rng_provider = RngProvider::new(seed);
         let clock = MatchClock::new(&format_rules);
         let real_time = RealTimeAccumulator::new();
-        let home_position_index = home_lineup.position_index();
-        let away_position_index = away_lineup.position_index();
+        let home_offensive_position_index = home_lineup.offensive_position_index();
+        let home_defensive_position_index = home_lineup.defensive_position_index();
+        let away_offensive_position_index = away_lineup.offensive_position_index();
+        let away_defensive_position_index = away_lineup.defensive_position_index();
 
         Ok(Self {
             home_team_id,
             away_team_id,
             home_lineup,
             away_lineup,
-            home_position_index,
-            away_position_index,
+            home_offensive_position_index,
+            home_defensive_position_index,
+            away_offensive_position_index,
+            away_defensive_position_index,
             pitch,
             attribute_keys,
             format_rules,
@@ -136,19 +142,51 @@ impl MatchState {
         &self.away_lineup
     }
 
+    pub fn home_offensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        &self.home_offensive_position_index
+    }
+
+    pub fn home_defensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        &self.home_defensive_position_index
+    }
+
+    pub fn away_offensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        &self.away_offensive_position_index
+    }
+
+    pub fn away_defensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        &self.away_defensive_position_index
+    }
+
     pub fn home_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
-        &self.home_position_index
+        self.position_index_for_team(self.home_team_id)
     }
 
     pub fn away_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
-        &self.away_position_index
+        self.position_index_for_team(self.away_team_id)
+    }
+
+    pub fn offensive_position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+        if team_id == self.home_team_id {
+            &self.home_offensive_position_index
+        } else {
+            &self.away_offensive_position_index
+        }
+    }
+
+    pub fn defensive_position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+        if team_id == self.home_team_id {
+            &self.home_defensive_position_index
+        } else {
+            &self.away_defensive_position_index
+        }
     }
 
     pub fn position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
-        if team_id == self.home_team_id {
-            &self.home_position_index
+        if self.possession.role().is_offense(team_id) {
+            self.offensive_position_index_for_team(team_id)
         } else {
-            &self.away_position_index
+            self.defensive_position_index_for_team(team_id)
         }
     }
 
@@ -292,7 +330,7 @@ impl MatchState {
     }
 
     pub fn record_distance(&mut self, player_id: Uuid, mirim: f64) {
-        if self.home_position_index.contains_key(&player_id) {
+        if self.home_offensive_position_index.contains_key(&player_id) {
             self.home_fatigue
                 .entry(player_id)
                 .or_default()

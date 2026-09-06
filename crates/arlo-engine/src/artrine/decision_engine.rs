@@ -1,5 +1,6 @@
 use crate::artrine::utility::{available_decision_kinds, calculate_decision_utilities};
-use arlo_domain::sport_constants::ARTRINE_DECISION_LOGIT_STEEPNESS;
+use crate::spatial::decision_vector::extract_attribute_value;
+use arlo_domain::sport_constants::decision_steepness_for;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::stats::categorical::sample_categorical;
 use arlo_math::stats::contrast::softmax_weights;
@@ -68,7 +69,9 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     }
 
     let raw_utilities: Vec<f64> = utilities.iter().map(|(_, u)| *u).collect();
-    let weights = softmax_weights(&raw_utilities, ARTRINE_DECISION_LOGIT_STEEPNESS);
+    let decisions_val = extract_attribute_value(artrine, attribute_keys, AttributeKey::Decisions);
+    let steepness = decision_steepness_for(decisions_val);
+    let weights = softmax_weights(&raw_utilities, steepness);
     let total_weight: f64 = weights.iter().sum();
 
     let selected_index = sample_categorical(&weights, rng).unwrap_or(0);

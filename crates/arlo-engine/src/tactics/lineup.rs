@@ -119,11 +119,22 @@ impl Lineup {
         self.assignments.iter().map(|a| a.player()).collect()
     }
 
-    pub fn position_index(&self) -> HashMap<Uuid, Position> {
+    pub fn offensive_position_index(&self) -> HashMap<Uuid, Position> {
         self.assignments
             .iter()
-            .map(|a| (a.player().id(), a.slot().position()))
+            .map(|a| (a.player().id(), a.slot().offensive_position()))
             .collect()
+    }
+
+    pub fn defensive_position_index(&self) -> HashMap<Uuid, Position> {
+        self.assignments
+            .iter()
+            .map(|a| (a.player().id(), a.slot().defensive_position()))
+            .collect()
+    }
+
+    pub fn position_index(&self) -> HashMap<Uuid, Position> {
+        self.offensive_position_index()
     }
 
     pub fn get_slot_for_player(&self, player_id: &Uuid) -> Option<&FormationSlot> {

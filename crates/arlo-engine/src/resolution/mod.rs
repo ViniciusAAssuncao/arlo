@@ -13,7 +13,7 @@ pub mod resolver;
 pub use aggregate_progression::AggregateProgressionStrategy;
 pub use attributed_outcome::AttributedDuelOutcome;
 pub use context::DuelContext;
-pub use duel_kind::DuelKind;
+pub use duel_kind::{logistic_slope_for, DuelKind};
 pub use duel_noise::{player_noise_distribution, sample_player_noise, SkewNormalParams};
 pub use duel_profiles::{get_duel_profiles, DuelProfile};
 pub use duel_timing::{derive_duel_duration, nearest_opponent, time_to_close};
