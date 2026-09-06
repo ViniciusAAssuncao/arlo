@@ -1,4 +1,5 @@
 pub mod attribute_definition_row;
+pub mod attribute_key_code;
 pub mod competition_row;
 pub mod continent_row;
 pub mod country_row;
@@ -20,6 +21,7 @@ pub mod title_row;
 pub mod venue_row;
 
 pub use attribute_definition_row::AttributeDefinitionRow;
+pub use attribute_key_code::{attribute_key_to_code, parse_attribute_key};
 pub use competition_row::CompetitionRow;
 pub use continent_row::ContinentRow;
 pub use country_row::CountryRow;

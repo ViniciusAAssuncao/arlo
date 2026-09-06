@@ -1,4 +1,6 @@
+pub mod artrine_decision;
 pub mod attribute_definition;
+pub mod attribute_key;
 pub mod captaincy_role;
 pub mod competition;
 pub mod continent;
@@ -8,6 +10,7 @@ pub mod invariant_violation;
 pub mod league;
 pub mod manager;
 pub mod manager_attribute_value;
+pub mod match_format_rules;
 pub mod person;
 pub mod pitch;
 pub mod player;
@@ -24,7 +27,9 @@ pub mod title;
 pub mod validation;
 pub mod venue;
 
+pub use artrine_decision::ArtrineDecisionKind;
 pub use attribute_definition::{AttributeCategory, AttributeDefinition, AttributeTarget};
+pub use attribute_key::AttributeKey;
 pub use captaincy_role::CaptaincyRole;
 pub use competition::{Competition, CompetitionKind};
 pub use continent::Continent;
@@ -34,7 +39,14 @@ pub use invariant_violation::InvariantViolation;
 pub use league::League;
 pub use manager::Manager;
 pub use manager_attribute_value::ManagerAttributeValue;
+pub use match_format_rules::MatchFormatRules;
 pub use person::Person;
+pub use pitch::{
+    artro_rows_for_pitch, project_formation, project_formation_mirrored,
+    project_formation_with_direction, project_ratio, project_ratio_mirrored, project_slot,
+    project_slot_mirrored, project_slot_with_direction, Artro, ArtroPlacement, ArtroRow,
+    FirstZone, Pitch, PitchCoordinates, ProjectionDirection, SecondZone,
+};
 pub use player::{Player, PlayerBuilder};
 pub use player_attribute_value::PlayerAttributeValue;
 pub use player_position::PlayerPosition;

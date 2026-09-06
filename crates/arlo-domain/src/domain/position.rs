@@ -34,6 +34,32 @@ pub enum Position {
 }
 
 impl Position {
+    pub fn all() -> [Position; 21] {
+        [
+            Position::CenterOffense,
+            Position::WingOffense,
+            Position::Midcenter,
+            Position::TightWing,
+            Position::CenterTight,
+            Position::Corridor,
+            Position::Artrine,
+            Position::Passer,
+            Position::PassRusher,
+            Position::WideEnd,
+            Position::RunningEnd,
+            Position::Lineback,
+            Position::Fullback,
+            Position::Centerback,
+            Position::DefensiveEnd,
+            Position::Rougieback,
+            Position::DefensiveBlocker,
+            Position::WideBlocker,
+            Position::OutsideZonerback,
+            Position::MiddleZonerback,
+            Position::Goalguard,
+        ]
+    }
+
     pub fn line(&self) -> PositionLine {
         match self {
             Position::CenterOffense
