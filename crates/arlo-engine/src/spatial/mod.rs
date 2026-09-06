@@ -2,6 +2,7 @@ pub mod ball_kinematics;
 pub mod decision_vector;
 pub mod dynamic_map;
 pub mod influence;
+pub mod interception;
 pub mod kinematics;
 pub mod positioning_drift;
 pub mod proximity;
@@ -22,6 +23,10 @@ pub use influence::{
     calculate_spatial_resistance_between, defender_projected_mean, defender_variance,
     find_next_artro_position,
 };
+pub use interception::{
+    calculate_defender_tti, filter_kinematic_active_duelists,
+    identify_kinematic_lead_defender, identify_kinematic_lead_defender_with_drift,
+};
 pub use kinematics::{advance_position, calculate_displacement};
 pub use positioning_drift::{
     anchor_drift_radius_mirim, apply_positioning_drift, get_drifted_defender_position,
@@ -30,8 +35,9 @@ pub use positioning_drift::{
 pub use proximity::{
     active_duelists, calculate_distance, calculate_distance_mirim,
     calculate_time_to_direct_intercept, calculate_time_to_moving_intercept,
-    filter_active_duelists, filter_active_duelists_by_id, is_in_contest_range,
-    is_within_collision_radius, is_within_proximity_mirim,
+    filter_active_duelists, filter_active_duelists_by_id,
+    filter_active_duelists_by_id_swept, filter_active_duelists_swept,
+    is_in_contest_range, is_within_collision_radius, is_within_proximity_mirim,
 };
 pub use steering::{
     calculate_steered_velocity, derive_player_steered_velocity, max_turn_radians_per_tick,

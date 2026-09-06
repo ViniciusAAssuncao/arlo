@@ -8,7 +8,6 @@ use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating_from_index, calculate_side_rating_from_index,
-    identify_lead_player_from_index,
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
@@ -17,14 +16,15 @@ use crate::spatial::ball_kinematics::{
     ball_flight_duration, calculate_cross_speed, calculate_pass_speed,
 };
 use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
-use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists};
+use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
-use arlo_math::units::{Duration, Position as VectorPosition, Speed};
+use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -72,11 +72,18 @@ where
         attribute_keys,
         &defense_profile,
     );
-    let lead_defender = identify_lead_player_from_index(
+
+    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
+    let lead_defender = identify_kinematic_lead_defender_with_drift(
+        start_pos,
+        Velocity::zero(),
         defenders,
-        defense_position_index,
+        spatial_map,
         attribute_keys,
-        &defense_profile,
+        fatigue_for,
+        contest_radius,
+        None,
+        rng,
     )
     .unwrap_or(defenders[0]);
 
@@ -96,6 +103,19 @@ where
     let artrine_speed =
         calculate_player_speed(artrine, attribute_keys, artrine_fatigue_mult);
 
+    let (dist_duration, nearest_def_opt) =
+        match nearest_drifted_opponent(start_pos, defenders, spatial_map, attribute_keys, rng) {
+            Some((d, pos)) => {
+                let d_mult = compute_player_fatigue_multiplier(d, &fatigue_for(&d.id()), attribute_keys);
+                let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
+                (
+                    derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
+                    Some((d, pos)),
+                )
+            }
+            None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
+        };
+
     let helper_candidates: Vec<(&Player, VectorPosition, Speed)> = offense_helpers
         .iter()
         .map(|&p| {
@@ -107,7 +127,13 @@ where
         .collect();
 
     let mut dist_attacker_ids = vec![artrine.id()];
-    for id in filter_active_duelists(start_pos, artrine_speed, &helper_candidates) {
+    for id in filter_active_duelists_swept(
+        start_pos,
+        Velocity::zero(),
+        &helper_candidates,
+        contest_radius,
+        dist_duration,
+    ) {
         if !dist_attacker_ids.contains(&id) {
             dist_attacker_ids.push(id);
         }
@@ -126,7 +152,13 @@ where
         .collect();
 
     let mut dist_defender_ids = vec![lead_defender.id()];
-    for id in filter_active_duelists(start_pos, artrine_speed, &defender_candidates) {
+    for id in filter_active_duelists_swept(
+        start_pos,
+        Velocity::zero(),
+        &defender_candidates,
+        contest_radius,
+        dist_duration,
+    ) {
         if !dist_defender_ids.contains(&id) {
             dist_defender_ids.push(id);
         }
@@ -137,19 +169,6 @@ where
         dist_attacker_ids,
         dist_defender_ids,
     );
-
-    let (dist_duration, nearest_def_opt) =
-        match nearest_drifted_opponent(start_pos, defenders, spatial_map, attribute_keys, rng) {
-            Some((d, pos)) => {
-                let d_mult = compute_player_fatigue_multiplier(d, &fatigue_for(&d.id()), attribute_keys);
-                let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
-                (
-                    derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
-                    Some((d, pos)),
-                )
-            }
-            None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
-        };
 
     if !dist_duel.outcome().attacker_won() {
         let mut ledger = DurationLedger::new();

@@ -1,5 +1,7 @@
+use crate::spatial::decision_vector::derive_velocity_towards_target;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::Player;
+use arlo_math::units::collision::compute_swept_sphere_intersection;
 use arlo_math::units::{Duration, Length, Position, Speed, Velocity, MIRIM_TO_METERS};
 use uuid::Uuid;
 
@@ -98,15 +100,83 @@ pub fn is_within_collision_radius(
     dist < collision_radius
 }
 
+pub fn filter_active_duelists_swept(
+    epicenter: Position,
+    primary_vel: Velocity,
+    candidates: &[(&Player, Position, Speed)],
+    radius: Length,
+    max_duration: Duration,
+) -> Vec<Uuid> {
+    candidates
+        .iter()
+        .filter(|(_, pos, speed)| {
+            let candidate_vel = derive_velocity_towards_target(*pos, epicenter, *speed);
+            if let Some(t) = compute_swept_sphere_intersection(
+                epicenter,
+                primary_vel,
+                *pos,
+                candidate_vel,
+                radius,
+            ) {
+                t.value() <= max_duration.value()
+            } else {
+                false
+            }
+        })
+        .map(|(player, _, _)| player.id())
+        .collect()
+}
+
+pub fn filter_active_duelists_by_id_swept(
+    epicenter: Position,
+    primary_vel: Velocity,
+    candidates: &[(Uuid, Position, Speed)],
+    radius: Length,
+    max_duration: Duration,
+) -> Vec<Uuid> {
+    candidates
+        .iter()
+        .filter(|(_, pos, speed)| {
+            let candidate_vel = derive_velocity_towards_target(*pos, epicenter, *speed);
+            if let Some(t) = compute_swept_sphere_intersection(
+                epicenter,
+                primary_vel,
+                *pos,
+                candidate_vel,
+                radius,
+            ) {
+                t.value() <= max_duration.value()
+            } else {
+                false
+            }
+        })
+        .map(|(id, _, _)| *id)
+        .collect()
+}
+
 pub fn filter_active_duelists(
     epicenter: Position,
     primary_speed: Speed,
     candidates: &[(&Player, Position, Speed)],
 ) -> Vec<Uuid> {
+    let radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
+    let max_duration = Duration::new(MINIMUM_ENGAGEMENT_SECONDS);
+    let primary_vel = Velocity::zero();
     candidates
         .iter()
         .filter(|(_, pos, speed)| {
-            is_within_collision_radius(epicenter, primary_speed, *pos, *speed)
+            let candidate_vel = derive_velocity_towards_target(*pos, epicenter, *speed);
+            if let Some(t) = compute_swept_sphere_intersection(
+                epicenter,
+                primary_vel,
+                *pos,
+                candidate_vel,
+                radius,
+            ) {
+                t.value() <= max_duration.value()
+            } else {
+                is_within_collision_radius(epicenter, primary_speed, *pos, *speed)
+            }
         })
         .map(|(player, _, _)| player.id())
         .collect()
@@ -117,10 +187,24 @@ pub fn filter_active_duelists_by_id(
     primary_speed: Speed,
     candidates: &[(Uuid, Position, Speed)],
 ) -> Vec<Uuid> {
+    let radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
+    let max_duration = Duration::new(MINIMUM_ENGAGEMENT_SECONDS);
+    let primary_vel = Velocity::zero();
     candidates
         .iter()
         .filter(|(_, pos, speed)| {
-            is_within_collision_radius(epicenter, primary_speed, *pos, *speed)
+            let candidate_vel = derive_velocity_towards_target(*pos, epicenter, *speed);
+            if let Some(t) = compute_swept_sphere_intersection(
+                epicenter,
+                primary_vel,
+                *pos,
+                candidate_vel,
+                radius,
+            ) {
+                t.value() <= max_duration.value()
+            } else {
+                is_within_collision_radius(epicenter, primary_speed, *pos, *speed)
+            }
         })
         .map(|(id, _, _)| *id)
         .collect()

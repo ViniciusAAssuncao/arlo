@@ -3,20 +3,19 @@ use crate::match_decision::target_selection::{select_target, ReceptionRole};
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating,
-    calculate_side_rating_from_index,
-    identify_lead_player_from_index,
+    calculate_player_duel_rating, calculate_side_rating_from_index,
 };
 use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
-use crate::spatial::proximity::calculate_distance_mirim;
+use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
-use arlo_math::units::{Duration, Position as VectorPosition};
+use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -129,11 +128,17 @@ where
         &defense_profile,
     );
 
-    let lead_defender = identify_lead_player_from_index(
+    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
+    let lead_defender = identify_kinematic_lead_defender_with_drift(
+        receiver_pos_vec,
+        Velocity::zero(),
         active_defenders,
-        defense_position_index,
+        spatial_map,
         attribute_keys,
-        &defense_profile,
+        fatigue_for,
+        contest_radius,
+        None,
+        rng,
     )
     .unwrap_or(defenders[0]);
 
@@ -149,12 +154,6 @@ where
     );
 
     let caught = raw_duel.attacker_won();
-
-    let duel = AttributedDuelOutcome::new(
-        raw_duel,
-        vec![receiver_id],
-        active_defenders.iter().map(|p| p.id()).collect(),
-    );
 
     let rec_mult = compute_player_fatigue_multiplier(
         receiver_player,
@@ -176,6 +175,37 @@ where
         }
         None => Duration::new(MINIMUM_ENGAGEMENT_SECONDS),
     };
+
+    let defender_candidates: Vec<(&Player, VectorPosition, Speed)> = active_defenders
+        .iter()
+        .map(|&p| {
+            let pos = get_drifted_defender_position(p, spatial_map, attribute_keys, rng)
+                .or_else(|| spatial_map.get_position(&p.id()))
+                .unwrap_or(receiver_pos_vec);
+            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
+            let spd = calculate_player_speed(p, attribute_keys, mult);
+            (p, pos, spd)
+        })
+        .collect();
+
+    let mut active_defender_ids = vec![lead_defender.id()];
+    for id in filter_active_duelists_swept(
+        receiver_pos_vec,
+        Velocity::zero(),
+        &defender_candidates,
+        contest_radius,
+        duration,
+    ) {
+        if !active_defender_ids.contains(&id) {
+            active_defender_ids.push(id);
+        }
+    }
+
+    let duel = AttributedDuelOutcome::new(
+        raw_duel,
+        vec![receiver_id],
+        active_defender_ids,
+    );
 
     ReceptionOutcome {
         receiver: receiver_id,

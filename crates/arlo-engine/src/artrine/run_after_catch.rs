@@ -11,14 +11,15 @@ use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::get_drifted_defender_position;
-use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists};
+use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
-use arlo_math::units::{Duration, Position as VectorPosition, Speed};
+use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -106,11 +107,17 @@ where
         &block_defense_profile,
     );
 
-    let lead_block_defender = identify_lead_player_from_index(
+    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
+    let lead_block_defender = identify_kinematic_lead_defender_with_drift(
+        receiver_pos_vec,
+        Velocity::zero(),
         defenders,
-        defense_position_index,
+        spatial_map,
         attribute_keys,
-        &block_defense_profile,
+        fatigue_for,
+        contest_radius,
+        None,
+        rng,
     )
     .unwrap_or(defenders[0]);
 
@@ -158,7 +165,13 @@ where
         .collect();
 
     let mut block_attacker_ids = vec![lead_blocker.id()];
-    for id in filter_active_duelists(blocker_pos, blocker_spd, &block_helper_candidates) {
+    for id in filter_active_duelists_swept(
+        blocker_pos,
+        Velocity::zero(),
+        &block_helper_candidates,
+        contest_radius,
+        block_duration,
+    ) {
         if !block_attacker_ids.contains(&id) {
             block_attacker_ids.push(id);
         }
@@ -177,7 +190,13 @@ where
         .collect();
 
     let mut block_defender_ids = vec![lead_block_defender.id()];
-    for id in filter_active_duelists(blocker_pos, blocker_spd, &block_defender_candidates) {
+    for id in filter_active_duelists_swept(
+        blocker_pos,
+        Velocity::zero(),
+        &block_defender_candidates,
+        contest_radius,
+        block_duration,
+    ) {
         if !block_defender_ids.contains(&id) {
             block_defender_ids.push(id);
         }
@@ -206,7 +225,7 @@ where
         let (sec_defenders, sec_lead) = if !close_defenders.is_empty() {
             (close_defenders.as_slice(), close_defenders[0])
         } else {
-            (defenders, defenders[0])
+            (&defenders[..1], defenders[0])
         };
 
         let sec_result = resolve_ball_security(
@@ -273,11 +292,16 @@ where
         &rb_defense_profile,
     );
 
-    let lead_defender = identify_lead_player_from_index(
+    let lead_defender = identify_kinematic_lead_defender_with_drift(
+        receiver_pos_vec,
+        Velocity::zero(),
         defenders,
-        defense_position_index,
+        spatial_map,
         attribute_keys,
-        &rb_defense_profile,
+        fatigue_for,
+        contest_radius,
+        None,
+        rng,
     )
     .unwrap_or(defenders[0]);
 
@@ -320,7 +344,13 @@ where
         .collect();
 
     let mut rb_attacker_ids = vec![receiver.id()];
-    for id in filter_active_duelists(receiver_pos_vec, rec_spd, &rb_helper_candidates) {
+    for id in filter_active_duelists_swept(
+        receiver_pos_vec,
+        Velocity::zero(),
+        &rb_helper_candidates,
+        contest_radius,
+        rb_duration,
+    ) {
         if !rb_attacker_ids.contains(&id) {
             rb_attacker_ids.push(id);
         }
@@ -339,7 +369,13 @@ where
         .collect();
 
     let mut rb_defender_ids = vec![lead_defender.id()];
-    for id in filter_active_duelists(receiver_pos_vec, rec_spd, &rb_defender_candidates) {
+    for id in filter_active_duelists_swept(
+        receiver_pos_vec,
+        Velocity::zero(),
+        &rb_defender_candidates,
+        contest_radius,
+        rb_duration,
+    ) {
         if !rb_defender_ids.contains(&id) {
             rb_defender_ids.push(id);
         }
@@ -385,7 +421,7 @@ where
         let (sec_defenders, sec_lead) = if !close_defenders.is_empty() {
             (close_defenders.as_slice(), close_defenders[0])
         } else {
-            (defenders, defenders[0])
+            (&defenders[..1], defenders[0])
         };
 
         let sec_result = resolve_ball_security(
