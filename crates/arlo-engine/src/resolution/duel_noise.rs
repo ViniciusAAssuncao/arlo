@@ -1,4 +1,5 @@
-use crate::spatial::decision_vector::extract_attribute_value;
+use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::PhysicalState;
 use arlo_domain::sport_constants::{ATTRIBUTE_SATURATION_THRESHOLD, BASE_NOISE_SCALE};
 use arlo_domain::{AttributeKey, Player};
 use rand::Rng;
@@ -47,14 +48,40 @@ impl SkewNormalParams {
 pub fn player_noise_distribution(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    physical_state: &PhysicalState,
 ) -> SkewNormalParams {
-    let consistency = extract_attribute_value(player, attribute_keys, AttributeKey::Consistency);
-    let technique = extract_attribute_value(player, attribute_keys, AttributeKey::Technique);
-    let flair = extract_attribute_value(player, attribute_keys, AttributeKey::Flair);
-    let composure = extract_attribute_value(player, attribute_keys, AttributeKey::Composure);
+    let consistency = extract_effective_attribute_value(
+        player,
+        attribute_keys,
+        AttributeKey::Consistency,
+        physical_state,
+    );
+    let technique = extract_effective_attribute_value(
+        player,
+        attribute_keys,
+        AttributeKey::Technique,
+        physical_state,
+    );
+    let flair = extract_effective_attribute_value(
+        player,
+        attribute_keys,
+        AttributeKey::Flair,
+        physical_state,
+    );
+    let composure = extract_effective_attribute_value(
+        player,
+        attribute_keys,
+        AttributeKey::Composure,
+        physical_state,
+    );
+
+    let fatigue_noise_scale = 1.0
+        + (1.0 - physical_state.energy()) * 0.60
+        + (1.0 - physical_state.w_prime_balance()) * 0.40;
 
     let scale = BASE_NOISE_SCALE
-        * (1.0 + (20.0 - consistency).max(0.0) / ATTRIBUTE_SATURATION_THRESHOLD);
+        * (1.0 + (20.0 - consistency).max(0.0) / ATTRIBUTE_SATURATION_THRESHOLD)
+        * fatigue_noise_scale;
     let shape = ((technique + flair) / 2.0 - composure) / ATTRIBUTE_SATURATION_THRESHOLD;
     let location = 0.0;
 
@@ -64,8 +91,9 @@ pub fn player_noise_distribution(
 pub fn sample_player_noise<R: Rng + ?Sized>(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    physical_state: &PhysicalState,
     rng: &mut R,
 ) -> f64 {
-    let params = player_noise_distribution(player, attribute_keys);
+    let params = player_noise_distribution(player, attribute_keys, physical_state);
     params.sample(rng)
 }

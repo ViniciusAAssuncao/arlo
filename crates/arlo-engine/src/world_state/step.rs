@@ -1,5 +1,5 @@
 use crate::ai::cognitive::RiskProfile;
-use crate::ai::gravity::calculate_team_max_finishing_gravity;
+use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue;
 use crate::artrine::{
     calculate_normalized_proximity, execute_artrine_decision,
     resolve_artrine_decision_with_context, translate_artrine_decision_made,
@@ -9,7 +9,9 @@ use crate::error::EngineResult;
 use crate::match_decision::event_translation::create_envelope;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
+use crate::match_decision::target_selection::{
+    calculate_player_target_weight_with_state, ReceptionRole,
+};
 use crate::resolution::DuelContext;
 use crate::rng::RngStream;
 use crate::spatial::{calculate_artro_advance_pitch_control, find_next_artro_position};
@@ -113,36 +115,6 @@ pub fn step_call_to_action(
             .filter(|p| p.id() != pass_phase.artrine.id())
             .collect();
 
-        let best_available_target_weight = target_candidates
-            .iter()
-            .map(|p| {
-                calculate_player_target_weight(
-                    p,
-                    state.spatial_map(),
-                    &pitch,
-                    &offense_pos_index,
-                    &attribute_keys,
-                    is_home_offense,
-                    ReceptionRole::OpenPlayReceiver,
-                )
-            })
-            .fold(0.0_f64, f64::max);
-
-        let offensive_gravity = calculate_team_max_finishing_gravity(
-            &target_candidates,
-            &offense_pos_index,
-            state.spatial_map(),
-            &pitch,
-            &attribute_keys,
-            is_home_offense,
-        );
-
-        let next_artro_pos = find_next_artro_position(
-            pass_phase.reception_point,
-            &pitch,
-            is_home_offense,
-        );
-
         let home_fatigue = state.home_fatigue().clone();
         let away_fatigue = state.away_fatigue().clone();
         let fatigue_lookup = move |id: &Uuid| {
@@ -152,6 +124,41 @@ pub fn step_call_to_action(
                 .copied()
                 .unwrap_or_default()
         };
+
+        let artrine_fatigue = fatigue_lookup(&pass_phase.artrine.id());
+
+        let best_available_target_weight = target_candidates
+            .iter()
+            .map(|p| {
+                let p_state = fatigue_lookup(&p.id());
+                calculate_player_target_weight_with_state(
+                    p,
+                    state.spatial_map(),
+                    &pitch,
+                    &offense_pos_index,
+                    &attribute_keys,
+                    is_home_offense,
+                    ReceptionRole::OpenPlayReceiver,
+                    &p_state,
+                )
+            })
+            .fold(0.0_f64, f64::max);
+
+        let offensive_gravity = calculate_team_max_finishing_gravity_with_fatigue(
+            &target_candidates,
+            &offense_pos_index,
+            state.spatial_map(),
+            &pitch,
+            &attribute_keys,
+            is_home_offense,
+            &fatigue_lookup,
+        );
+
+        let next_artro_pos = find_next_artro_position(
+            pass_phase.reception_point,
+            &pitch,
+            is_home_offense,
+        );
 
         let pitch_control_ahead = calculate_artro_advance_pitch_control(
             pass_phase.artrine,
@@ -166,7 +173,7 @@ pub fn step_call_to_action(
         );
 
         let game_state_pressure = analyze_match_state(state);
-        let risk_profile = RiskProfile::from_player(pass_phase.artrine, &attribute_keys);
+        let risk_profile = RiskProfile::from_player(pass_phase.artrine, &attribute_keys, &artrine_fatigue);
 
         let seq_decision = state.next_sequence();
         let mut decision_rng = state
@@ -191,6 +198,7 @@ pub fn step_call_to_action(
             offensive_gravity.multiplier(),
             risk_profile,
             game_state_pressure,
+            &artrine_fatigue,
             &mut decision_rng,
         );
 
@@ -211,16 +219,6 @@ pub fn step_call_to_action(
             .rng_provider()
             .indexed_rng_for(RngStream::DuelResolution, seq_execution);
 
-        let home_fatigue_exec = state.home_fatigue().clone();
-        let away_fatigue_exec = state.away_fatigue().clone();
-        let fatigue_lookup_exec = move |id: &Uuid| {
-            home_fatigue_exec
-                .get(id)
-                .or_else(|| away_fatigue_exec.get(id))
-                .copied()
-                .unwrap_or_default()
-        };
-
         let execution_outcome = execute_artrine_decision(
             chosen_decision,
             pass_phase.artrine,
@@ -240,7 +238,7 @@ pub fn step_call_to_action(
             is_last_down,
             is_bonus_phase,
             &context,
-            &fatigue_lookup_exec,
+            &fatigue_lookup,
             &mut execution_rng,
         )?;
 

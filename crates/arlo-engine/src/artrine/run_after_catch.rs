@@ -1,16 +1,17 @@
 use crate::artrine::execution_security::resolve_ball_security;
-use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
+use crate::physical::FatigueState;
+use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_anchored_side_rating_from_index, calculate_player_duel_rating,
-    calculate_side_rating_from_index, identify_lead_player_from_index,
+    calculate_anchored_side_rating_from_index_with_fatigue,
+    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
+    identify_lead_player_from_index,
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
-use crate::resolution::resolver::resolve_duel;
+use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::decision_vector::calculate_player_speed;
 use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::get_drifted_defender_position;
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
@@ -85,26 +86,30 @@ where
     };
 
     let blocker_rating = if !offense_helpers.is_empty() {
-        calculate_side_rating_from_index(
+        calculate_side_rating_from_index_with_fatigue(
             offense_helpers,
             offense_position_index,
             attribute_keys,
             &block_offense_profile,
+            fatigue_for,
         )
     } else {
-        calculate_player_duel_rating(
+        let receiver_state = fatigue_for(&receiver.id());
+        calculate_player_duel_rating_with_state(
             receiver,
             receiver_pos_domain,
             attribute_keys,
             &block_offense_profile,
+            &receiver_state,
         )
     };
 
-    let defender_block_rating = calculate_side_rating_from_index(
+    let defender_block_rating = calculate_side_rating_from_index_with_fatigue(
         defenders,
         defense_position_index,
         attribute_keys,
         &block_defense_profile,
+        fatigue_for,
     );
 
     let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
@@ -121,12 +126,17 @@ where
     )
     .unwrap_or(defenders[0]);
 
-    let raw_block_duel = resolve_duel(
+    let lead_blocker_state = fatigue_for(&lead_blocker.id());
+    let lead_block_def_state = fatigue_for(&lead_block_defender.id());
+
+    let raw_block_duel = resolve_duel_with_fatigue(
         block_duel_kind,
         blocker_rating,
         defender_block_rating,
         lead_blocker,
         lead_block_defender,
+        &lead_blocker_state,
+        &lead_block_def_state,
         attribute_keys,
         context,
         rng,
@@ -135,22 +145,12 @@ where
     let blocker_pos = spatial_map
         .get_position(&lead_blocker.id())
         .unwrap_or(receiver_pos_vec);
-    let blocker_mult = compute_player_fatigue_multiplier(
-        lead_blocker,
-        &fatigue_for(&lead_blocker.id()),
-        attribute_keys,
-    );
-    let blocker_spd = calculate_player_speed(lead_blocker, attribute_keys, blocker_mult);
+    let blocker_spd = calculate_effective_player_speed(lead_blocker, attribute_keys, &lead_blocker_state);
 
     let block_def_pos = get_drifted_defender_position(lead_block_defender, spatial_map, attribute_keys, rng)
         .unwrap_or(receiver_pos_vec);
-    let block_def_mult = compute_player_fatigue_multiplier(
-        lead_block_defender,
-        &fatigue_for(&lead_block_defender.id()),
-        attribute_keys,
-    );
     let block_def_spd =
-        calculate_player_speed(lead_block_defender, attribute_keys, block_def_mult);
+        calculate_effective_player_speed(lead_block_defender, attribute_keys, &lead_block_def_state);
     let block_duration =
         derive_duel_duration(blocker_pos, blocker_spd, block_def_pos, block_def_spd);
 
@@ -158,8 +158,8 @@ where
         .iter()
         .map(|&p| {
             let pos = spatial_map.get_position(&p.id()).unwrap_or(blocker_pos);
-            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
-            let spd = calculate_player_speed(p, attribute_keys, mult);
+            let st = fatigue_for(&p.id());
+            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
             (p, pos, spd)
         })
         .collect();
@@ -183,8 +183,8 @@ where
             let pos = get_drifted_defender_position(p, spatial_map, attribute_keys, rng)
                 .or_else(|| spatial_map.get_position(&p.id()))
                 .unwrap_or(blocker_pos);
-            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
-            let spd = calculate_player_speed(p, attribute_keys, mult);
+            let st = fatigue_for(&p.id());
+            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
             (p, pos, spd)
         })
         .collect();
@@ -225,20 +225,22 @@ where
     let block_bonus = (raw_block_duel.net_advantage() * 0.35).max(0.5);
     let (rb_offense_profile, rb_defense_profile) = get_duel_profiles(DuelKind::RunBreakthrough);
 
-    let attacker_rating = calculate_anchored_side_rating_from_index(
+    let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
         receiver,
         receiver_pos_domain,
         offense_helpers,
         offense_position_index,
         attribute_keys,
         &rb_offense_profile,
+        fatigue_for,
     ) + block_bonus;
 
-    let defender_rating = calculate_side_rating_from_index(
+    let defender_rating = calculate_side_rating_from_index_with_fatigue(
         defenders,
         defense_position_index,
         attribute_keys,
         &rb_defense_profile,
+        fatigue_for,
     );
 
     let lead_defender = identify_kinematic_lead_defender_with_drift(
@@ -254,12 +256,17 @@ where
     )
     .unwrap_or(defenders[0]);
 
-    let raw_rb_duel = resolve_duel(
+    let receiver_state = fatigue_for(&receiver.id());
+    let lead_def_state = fatigue_for(&lead_defender.id());
+
+    let raw_rb_duel = resolve_duel_with_fatigue(
         DuelKind::RunBreakthrough,
         attacker_rating,
         defender_rating,
         receiver,
         lead_defender,
+        &receiver_state,
+        &lead_def_state,
         attribute_keys,
         context,
         rng,
@@ -267,27 +274,17 @@ where
 
     let rb_def_pos = get_drifted_defender_position(lead_defender, spatial_map, attribute_keys, rng)
         .unwrap_or(receiver_pos_vec);
-    let rb_def_mult = compute_player_fatigue_multiplier(
-        lead_defender,
-        &fatigue_for(&lead_defender.id()),
-        attribute_keys,
-    );
-    let rb_def_spd = calculate_player_speed(lead_defender, attribute_keys, rb_def_mult);
+    let rb_def_spd = calculate_effective_player_speed(lead_defender, attribute_keys, &lead_def_state);
 
-    let rec_mult = compute_player_fatigue_multiplier(
-        receiver,
-        &fatigue_for(&receiver.id()),
-        attribute_keys,
-    );
-    let rec_spd = calculate_player_speed(receiver, attribute_keys, rec_mult);
+    let rec_spd = calculate_effective_player_speed(receiver, attribute_keys, &receiver_state);
     let rb_duration = derive_duel_duration(receiver_pos_vec, rec_spd, rb_def_pos, rb_def_spd);
 
     let rb_helper_candidates: Vec<(&Player, VectorPosition, Speed)> = offense_helpers
         .iter()
         .map(|&p| {
             let pos = spatial_map.get_position(&p.id()).unwrap_or(receiver_pos_vec);
-            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
-            let spd = calculate_player_speed(p, attribute_keys, mult);
+            let st = fatigue_for(&p.id());
+            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
             (p, pos, spd)
         })
         .collect();
@@ -311,8 +308,8 @@ where
             let pos = get_drifted_defender_position(p, spatial_map, attribute_keys, rng)
                 .or_else(|| spatial_map.get_position(&p.id()))
                 .unwrap_or(receiver_pos_vec);
-            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
-            let spd = calculate_player_speed(p, attribute_keys, mult);
+            let st = fatigue_for(&p.id());
+            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
             (p, pos, spd)
         })
         .collect();
@@ -382,24 +379,16 @@ where
             attribute_keys,
             defense_team_id,
             context,
+            fatigue_for,
             rng,
         );
 
+        let sec_lead_state = fatigue_for(&sec_lead.id());
         let sec_def_pos = get_drifted_defender_position(sec_lead, spatial_map, attribute_keys, rng)
             .unwrap_or(receiver_pos_vec);
-        let sec_def_mult = compute_player_fatigue_multiplier(
-            sec_lead,
-            &fatigue_for(&sec_lead.id()),
-            attribute_keys,
-        );
-        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys, sec_def_mult);
+        let sec_def_spd = calculate_effective_player_speed(sec_lead, attribute_keys, &sec_lead_state);
 
-        let rec_mult = compute_player_fatigue_multiplier(
-            receiver,
-            &fatigue_for(&receiver.id()),
-            attribute_keys,
-        );
-        let rec_spd = calculate_player_speed(receiver, attribute_keys, rec_mult);
+        let rec_spd = calculate_effective_player_speed(receiver, attribute_keys, &receiver_state);
         let sec_duration =
             derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
         duration_ledger

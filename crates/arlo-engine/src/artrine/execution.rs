@@ -3,7 +3,7 @@ use crate::artrine::execution_distribution::execute_distribution;
 use crate::artrine::execution_finish::{execute_cross_finish, execute_self_finish};
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::error::{EngineError, EngineResult};
-use crate::fatigue::FatigueState;
+use crate::physical::FatigueState;
 use crate::resolution::DuelContext;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;

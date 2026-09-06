@@ -1,6 +1,8 @@
 use crate::match_decision::target_selection::{
-    calculate_player_target_weight, player_base_reception_weight, select_target, ReceptionRole,
+    calculate_player_target_weight, player_base_reception_weight, select_target_with_fatigue,
+    ReceptionRole,
 };
+use crate::physical::PhysicalState;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::{AttributeKey, Pitch, Player, Position};
 use rand::Rng;
@@ -33,6 +35,33 @@ pub fn calculate_player_finishing_weight(
     )
 }
 
+pub fn select_finisher_with_fatigue<F, R>(
+    candidates: &[&Player],
+    spatial_map: &DynamicSpatialMap,
+    pitch: &Pitch,
+    position_index: &HashMap<Uuid, Position>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attacking_positive_x: bool,
+    fatigue_for: &F,
+    rng: &mut R,
+) -> Option<Uuid>
+where
+    F: Fn(&Uuid) -> PhysicalState,
+    R: Rng + ?Sized,
+{
+    select_target_with_fatigue(
+        candidates,
+        spatial_map,
+        pitch,
+        position_index,
+        attribute_keys,
+        attacking_positive_x,
+        ReceptionRole::Finisher,
+        fatigue_for,
+        rng,
+    )
+}
+
 pub fn select_finisher<R: Rng + ?Sized>(
     candidates: &[&Player],
     spatial_map: &DynamicSpatialMap,
@@ -42,14 +71,14 @@ pub fn select_finisher<R: Rng + ?Sized>(
     attacking_positive_x: bool,
     rng: &mut R,
 ) -> Option<Uuid> {
-    select_target(
+    select_finisher_with_fatigue(
         candidates,
         spatial_map,
         pitch,
         position_index,
         attribute_keys,
         attacking_positive_x,
-        ReceptionRole::Finisher,
+        &|_| PhysicalState::initial(),
         rng,
     )
 }

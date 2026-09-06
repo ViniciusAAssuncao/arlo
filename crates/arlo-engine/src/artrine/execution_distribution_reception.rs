@@ -1,7 +1,7 @@
 use crate::artrine::execution_outcome::{ArtrineExecutionOutcome, DistributionFlightInfo};
 use crate::artrine::reception::resolve_reception;
 use crate::artrine::run_after_catch::resolve_run_after_catch;
-use crate::fatigue::FatigueState;
+use crate::physical::FatigueState;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::{AttributedDuelOutcome, DuelContext};
 use crate::spatial::DynamicSpatialMap;

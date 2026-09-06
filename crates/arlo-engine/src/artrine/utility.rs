@@ -1,6 +1,7 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::markov_decision::MarkovDecisionEvaluator;
 use crate::match_decision::scoring::{evaluate_scoring_opportunity, ScoringOpportunity};
+use crate::physical::PhysicalState;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
@@ -51,8 +52,9 @@ pub fn calculate_decision_utilities(
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    artrine_physical_state: &PhysicalState,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
-    let risk_profile = RiskProfile::from_player(artrine, attribute_keys);
+    let risk_profile = RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
     let game_state_pressure = GameStatePressure::default();
 
     calculate_decision_utilities_with_context(
@@ -73,6 +75,7 @@ pub fn calculate_decision_utilities(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
+        artrine_physical_state,
     )
 }
 
@@ -94,6 +97,7 @@ pub fn calculate_decision_utilities_with_context(
     offensive_gravity: f64,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
+    artrine_physical_state: &PhysicalState,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let down = (4u8).saturating_sub(remaining_downs).max(1);
     let remaining_advance_mirim = (10.0 - territory_advance_mirim).max(0.0);
@@ -115,5 +119,6 @@ pub fn calculate_decision_utilities_with_context(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
+        artrine_physical_state,
     )
 }

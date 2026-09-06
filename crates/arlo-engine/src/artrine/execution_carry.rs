@@ -1,21 +1,21 @@
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution_security::resolve_ball_security;
-use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
+use crate::physical::FatigueState;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::possession::drive::artrine_identity::TrueArtrine;
 use crate::possession::drive::validator::validate_continuous_trajectory;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_anchored_side_rating_from_index, calculate_side_rating_from_index,
+    calculate_anchored_side_rating_from_index_with_fatigue,
+    calculate_side_rating_from_index_with_fatigue,
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
-use crate::resolution::resolver::resolve_duel;
+use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::decision_vector::{
-    calculate_player_speed, derive_velocity_towards_target,
-};
+use crate::spatial::decision_vector::derive_velocity_towards_target;
 use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
@@ -53,25 +53,25 @@ where
     R: Rng + ?Sized,
 {
     let (offense_profile, defense_profile) = get_duel_profiles(DuelKind::ArtroBreakthrough);
-    let attacker_rating = calculate_anchored_side_rating_from_index(
+    let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
         artrine,
         DomainPosition::Artrine,
         offense_helpers,
         offense_position_index,
         attribute_keys,
         &offense_profile,
+        fatigue_for,
     );
-    let defender_rating = calculate_side_rating_from_index(
+    let defender_rating = calculate_side_rating_from_index_with_fatigue(
         defenders,
         defense_position_index,
         attribute_keys,
         &defense_profile,
+        fatigue_for,
     );
 
-    let artrine_fatigue_mult =
-        compute_player_fatigue_multiplier(artrine, &fatigue_for(&artrine.id()), attribute_keys);
-    let artrine_speed =
-        calculate_player_speed(artrine, attribute_keys, artrine_fatigue_mult);
+    let artrine_state = fatigue_for(&artrine.id());
+    let artrine_speed = calculate_effective_player_speed(artrine, attribute_keys, &artrine_state);
 
     let pitch_width_m = pitch.width().value();
     let center_y_m = pitch_width_m / 2.0;
@@ -113,12 +113,14 @@ where
     )
     .unwrap_or(defenders[0]);
 
-    let raw_artro_duel = resolve_duel(
+    let raw_artro_duel = resolve_duel_with_fatigue(
         DuelKind::ArtroBreakthrough,
         attacker_rating,
         defender_rating,
         artrine,
         lead_defender,
+        &artrine_state,
+        &fatigue_for(&lead_defender.id()),
         attribute_keys,
         context,
         rng,
@@ -127,8 +129,8 @@ where
     let (artro_duration, nearest_def_opt) =
         match nearest_drifted_opponent(start_pos, defenders, spatial_map, attribute_keys, rng) {
             Some((d, pos)) => {
-                let d_mult = compute_player_fatigue_multiplier(d, &fatigue_for(&d.id()), attribute_keys);
-                let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
+                let d_state = fatigue_for(&d.id());
+                let d_spd = calculate_effective_player_speed(d, attribute_keys, &d_state);
                 (
                     derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
                     Some((d, pos)),
@@ -141,8 +143,8 @@ where
         .iter()
         .map(|&p| {
             let pos = spatial_map.get_position(&p.id()).unwrap_or(start_pos);
-            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
-            let spd = calculate_player_speed(p, attribute_keys, mult);
+            let st = fatigue_for(&p.id());
+            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
             (p, pos, spd)
         })
         .collect();
@@ -166,8 +168,8 @@ where
             let pos = get_drifted_defender_position(p, spatial_map, attribute_keys, rng)
                 .or_else(|| spatial_map.get_position(&p.id()))
                 .unwrap_or(start_pos);
-            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
-            let spd = calculate_player_speed(p, attribute_keys, mult);
+            let st = fatigue_for(&p.id());
+            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
             (p, pos, spd)
         })
         .collect();
@@ -216,13 +218,9 @@ where
 
         let (turnover, recovering_player_id, duels) = if !close_defenders.is_empty() {
             if let Some((closest_def, closest_pos)) = closest_def_info {
-                let closest_def_mult = compute_player_fatigue_multiplier(
-                    closest_def,
-                    &fatigue_for(&closest_def.id()),
-                    attribute_keys,
-                );
+                let closest_def_state = fatigue_for(&closest_def.id());
                 let closest_def_speed =
-                    calculate_player_speed(closest_def, attribute_keys, closest_def_mult);
+                    calculate_effective_player_speed(closest_def, attribute_keys, &closest_def_state);
                 let sec_duration = derive_duel_duration(
                     start_pos,
                     artrine_speed,
@@ -243,6 +241,7 @@ where
                 attribute_keys,
                 defense_team_id,
                 context,
+                fatigue_for,
                 rng,
             );
             (
@@ -291,7 +290,7 @@ where
         target_pos,
         artro_duel.outcome().net_advantage(),
         attribute_keys,
-        artrine_fatigue_mult,
+        artrine_state.energy(),
     );
 
     let tick_result =

@@ -2,7 +2,6 @@ pub mod ai;
 pub mod artrine;
 pub mod current_ability;
 pub mod error;
-pub mod injuries;
 pub mod match_decision;
 pub mod physical;
 pub mod possession;

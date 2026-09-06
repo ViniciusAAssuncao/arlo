@@ -1,5 +1,5 @@
 use crate::error::EngineResult;
-use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
+use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
 use crate::possession::PossessionSnapshot;
 use crate::rng::{MatchSeed, RngProvider};
 use crate::spatial::DynamicSpatialMap;

@@ -1,3 +1,5 @@
+use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::PhysicalState;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::{Position, Speed, Velocity};
 use std::collections::HashMap;
@@ -35,13 +37,8 @@ pub fn calculate_player_speed(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_multiplier: f64,
 ) -> Speed {
-    let pace = extract_attribute_value(player, attribute_keys, AttributeKey::Pace);
-    let accel = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-    let speed_val = (BASE_SPRINT_SPEED_METERS_PER_SEC
-        + (pace * PACE_SPEED_SCALE)
-        + (accel * ACCELERATION_SPEED_SCALE))
-        * fatigue_multiplier;
-    Speed::new(speed_val)
+    let state = PhysicalState::with_energy(fatigue_multiplier);
+    calculate_effective_player_speed(player, attribute_keys, &state)
 }
 
 pub fn derive_velocity_towards_target(

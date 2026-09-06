@@ -1,6 +1,7 @@
-use crate::resolution::calculate_player_duel_rating;
+use crate::physical::PhysicalState;
+use crate::resolution::calculate_player_duel_rating_with_state;
 use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::resolver::resolve_duel;
+use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE,
@@ -133,7 +134,7 @@ pub fn field_goal_points(post: ScoringPost) -> u32 {
     }
 }
 
-pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
+pub fn resolve_scoring_attempt_with_fatigue<R: Rng + ?Sized>(
     finisher: &Player,
     goalguard: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -142,21 +143,25 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     opportunity: ScoringOpportunity,
     drives_completed: u32,
     territory_advance_mirim: f64,
+    finisher_state: &PhysicalState,
+    goalguard_state: &PhysicalState,
     context: &DuelContext,
     rng: &mut R,
 ) -> (ScoringDecision, AttributedDuelOutcome) {
     let (attacker_profile, defender_profile) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let mut attacker_rating = calculate_player_duel_rating(
+    let mut attacker_rating = calculate_player_duel_rating_with_state(
         finisher,
         Position::CenterOffense,
         attribute_keys,
         &attacker_profile,
+        finisher_state,
     );
-    let defender_rating = calculate_player_duel_rating(
+    let defender_rating = calculate_player_duel_rating_with_state(
         goalguard,
         Position::Goalguard,
         attribute_keys,
         &defender_profile,
+        goalguard_state,
     );
 
     let distance_adjustment = match opportunity {
@@ -173,12 +178,14 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
 
     attacker_rating += distance_adjustment;
 
-    let raw_outcome = resolve_duel(
+    let raw_outcome = resolve_duel_with_fatigue(
         DuelKind::FinishingAttempt,
         attacker_rating,
         defender_rating,
         finisher,
         goalguard,
+        finisher_state,
+        goalguard_state,
         attribute_keys,
         context,
         rng,
@@ -240,4 +247,32 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     );
 
     (decision, outcome)
+}
+
+pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
+    finisher: &Player,
+    goalguard: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    team_id: Uuid,
+    artrine_id: Uuid,
+    opportunity: ScoringOpportunity,
+    drives_completed: u32,
+    territory_advance_mirim: f64,
+    context: &DuelContext,
+    rng: &mut R,
+) -> (ScoringDecision, AttributedDuelOutcome) {
+    resolve_scoring_attempt_with_fatigue(
+        finisher,
+        goalguard,
+        attribute_keys,
+        team_id,
+        artrine_id,
+        opportunity,
+        drives_completed,
+        territory_advance_mirim,
+        &PhysicalState::initial(),
+        &PhysicalState::initial(),
+        context,
+        rng,
+    )
 }

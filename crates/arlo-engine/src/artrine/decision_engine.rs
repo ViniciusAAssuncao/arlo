@@ -2,7 +2,8 @@ use crate::ai::cognitive::RiskProfile;
 use crate::artrine::utility::{
     available_decision_kinds, calculate_decision_utilities_with_context,
 };
-use crate::spatial::decision_vector::extract_attribute_value;
+use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::PhysicalState;
 use crate::world_state::GameStatePressure;
 use arlo_domain::sport_constants::decision_steepness_for;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
@@ -54,9 +55,10 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    artrine_physical_state: &PhysicalState,
     rng: &mut R,
 ) -> ArtrineDecisionResult {
-    let risk_profile = RiskProfile::from_player(artrine, attribute_keys);
+    let risk_profile = RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
     let game_state_pressure = GameStatePressure::default();
 
     resolve_artrine_decision_with_context(
@@ -77,6 +79,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
+        artrine_physical_state,
         rng,
     )
 }
@@ -99,6 +102,7 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
     offensive_gravity: f64,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
+    artrine_physical_state: &PhysicalState,
     rng: &mut R,
 ) -> ArtrineDecisionResult {
     let available_kinds = available_decision_kinds(
@@ -126,6 +130,7 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
+        artrine_physical_state,
     );
 
     if utilities.is_empty() {
@@ -136,7 +141,12 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
     }
 
     let raw_utilities: Vec<f64> = utilities.iter().map(|(_, u)| *u).collect();
-    let decisions_val = extract_attribute_value(artrine, attribute_keys, AttributeKey::Decisions);
+    let decisions_val = extract_effective_attribute_value(
+        artrine,
+        attribute_keys,
+        AttributeKey::Decisions,
+        artrine_physical_state,
+    );
     let steepness = decision_steepness_for(decisions_val);
     let weights = softmax_weights(&raw_utilities, steepness);
     let total_weight: f64 = weights.iter().sum();

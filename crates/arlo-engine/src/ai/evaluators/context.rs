@@ -1,9 +1,10 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::epv::DynamicEpvModel;
+use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::PhysicalState;
 use crate::resolution::duel_noise::player_noise_distribution;
 use crate::resolution::duel_profiles::DuelProfile;
-use crate::resolution::group_rating::calculate_player_duel_rating;
-use crate::spatial::decision_vector::extract_attribute_value;
+use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{AttributeKey, Player, Position};
 use std::collections::HashMap;
@@ -12,6 +13,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct DecisionEvaluationContext<'a> {
     pub artrine: &'a Player,
+    pub artrine_physical_state: PhysicalState,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
     pub epv_model: DynamicEpvModel,
     pub current_epv: f64,
@@ -39,11 +41,12 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn artrine_rating(&self, profile: &DuelProfile) -> f64 {
-        calculate_player_duel_rating(
+        calculate_player_duel_rating_with_state(
             self.artrine,
             Position::Artrine,
             self.attribute_keys,
             profile,
+            &self.artrine_physical_state,
         )
     }
 
@@ -52,16 +55,24 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn consistency(&self) -> f64 {
-        extract_attribute_value(self.artrine, self.attribute_keys, AttributeKey::Consistency)
+        extract_effective_attribute_value(
+            self.artrine,
+            self.attribute_keys,
+            AttributeKey::Consistency,
+            &self.artrine_physical_state,
+        )
     }
 
     pub fn probability_bounds(&self) -> (f64, f64) {
         let consistency = self.consistency();
-        let noise_params = player_noise_distribution(self.artrine, self.attribute_keys);
+        let noise_params =
+            player_noise_distribution(self.artrine, self.attribute_keys, &self.artrine_physical_state);
         let scale = noise_params.scale();
         let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
-        let floor = (0.001 + 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.0001, 0.15);
-        let ceiling = (0.999 - 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.85, 0.9999);
+        let floor =
+            (0.001 + 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.0001, 0.15);
+        let ceiling =
+            (0.999 - 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.85, 0.9999);
         (floor, ceiling)
     }
 

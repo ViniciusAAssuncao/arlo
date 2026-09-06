@@ -1,17 +1,17 @@
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
-use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
-use crate::match_decision::finisher_selection::select_finisher;
+use crate::physical::FatigueState;
+use crate::match_decision::finisher_selection::select_finisher_with_fatigue;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, resolve_scoring_attempt,
+    evaluate_scoring_opportunity, resolve_scoring_attempt_with_fatigue,
 };
+use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::group_rating::calculate_player_duel_rating;
+use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::resolution::{DuelContext, DuelKind};
 use crate::spatial::ball_kinematics::{
-    ball_flight_duration, calculate_cross_speed, calculate_shot_speed,
+    ball_flight_duration, calculate_cross_speed_with_state, calculate_shot_speed_with_state,
 };
-use crate::spatial::decision_vector::calculate_player_speed;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
@@ -47,13 +47,11 @@ where
     let finisher_pos = spatial_map.get_position(&artrine.id()).unwrap_or(start_pos);
     let goalguard_pos = spatial_map.get_position(&goalguard.id()).unwrap_or(start_pos);
 
-    let finisher_mult =
-        compute_player_fatigue_multiplier(artrine, &fatigue_for(&artrine.id()), attribute_keys);
-    let goalguard_mult =
-        compute_player_fatigue_multiplier(goalguard, &fatigue_for(&goalguard.id()), attribute_keys);
+    let finisher_state = fatigue_for(&artrine.id());
+    let goalguard_state = fatigue_for(&goalguard.id());
 
-    let finisher_speed = calculate_player_speed(artrine, attribute_keys, finisher_mult);
-    let goalguard_speed = calculate_player_speed(goalguard, attribute_keys, goalguard_mult);
+    let finisher_speed = calculate_effective_player_speed(artrine, attribute_keys, &finisher_state);
+    let goalguard_speed = calculate_effective_player_speed(goalguard, attribute_keys, &goalguard_state);
     let finishing_duration = derive_duel_duration(
         finisher_pos,
         finisher_speed,
@@ -61,7 +59,7 @@ where
         goalguard_speed,
     );
 
-    let shot_speed = calculate_shot_speed(artrine, attribute_keys);
+    let shot_speed = calculate_shot_speed_with_state(artrine, attribute_keys, &finisher_state);
     let finisher_x_mirim = finisher_pos.raw().0 / MIRIM_TO_METERS;
     let dist_to_goal_mirim = if attacking_positive_x {
         (pitch.length_mirim() - finisher_x_mirim).max(0.0)
@@ -94,6 +92,7 @@ where
         start_pos,
         ledger,
         context,
+        fatigue_for,
         rng,
     )
 }
@@ -128,13 +127,14 @@ where
         .filter(|p| p.id() != artrine.id())
         .collect();
 
-    let chosen_finisher_id = select_finisher(
+    let chosen_finisher_id = select_finisher_with_fatigue(
         &eligible_teammates,
         spatial_map,
         pitch,
         offense_position_index,
         attribute_keys,
         attacking_positive_x,
+        fatigue_for,
         rng,
     );
 
@@ -142,21 +142,20 @@ where
         .and_then(|fid| eligible_teammates.iter().copied().find(|p| p.id() == fid))
         .unwrap_or(artrine);
 
+    let artrine_state = fatigue_for(&artrine.id());
+    let finisher_state = fatigue_for(&finisher.id());
+    let goalguard_state = fatigue_for(&goalguard.id());
+
     let artrine_pos = spatial_map.get_position(&artrine.id()).unwrap_or(start_pos);
     let finisher_pos = spatial_map.get_position(&finisher.id()).unwrap_or(start_pos);
     let cross_dist_mirim = calculate_distance_mirim(artrine_pos, finisher_pos);
-    let cross_speed = calculate_cross_speed(artrine, attribute_keys);
+    let cross_speed = calculate_cross_speed_with_state(artrine, attribute_keys, &artrine_state);
     let cross_flight = ball_flight_duration(cross_dist_mirim, cross_speed);
 
     let goalguard_pos = spatial_map.get_position(&goalguard.id()).unwrap_or(start_pos);
 
-    let finisher_mult =
-        compute_player_fatigue_multiplier(finisher, &fatigue_for(&finisher.id()), attribute_keys);
-    let goalguard_mult =
-        compute_player_fatigue_multiplier(goalguard, &fatigue_for(&goalguard.id()), attribute_keys);
-
-    let finisher_speed = calculate_player_speed(finisher, attribute_keys, finisher_mult);
-    let goalguard_speed = calculate_player_speed(goalguard, attribute_keys, goalguard_mult);
+    let finisher_speed = calculate_effective_player_speed(finisher, attribute_keys, &finisher_state);
+    let goalguard_speed = calculate_effective_player_speed(goalguard, attribute_keys, &goalguard_state);
     let finishing_duration = derive_duel_duration(
         finisher_pos,
         finisher_speed,
@@ -164,7 +163,7 @@ where
         goalguard_speed,
     );
 
-    let shot_speed = calculate_shot_speed(finisher, attribute_keys);
+    let shot_speed = calculate_shot_speed_with_state(finisher, attribute_keys, &finisher_state);
     let finisher_x_mirim = finisher_pos.raw().0 / MIRIM_TO_METERS;
     let dist_to_goal_mirim = if attacking_positive_x {
         (pitch.length_mirim() - finisher_x_mirim).max(0.0)
@@ -201,11 +200,12 @@ where
         start_pos,
         ledger,
         context,
+        fatigue_for,
         rng,
     )
 }
 
-pub fn execute_finishing_with_player<R: Rng + ?Sized>(
+pub fn execute_finishing_with_player<F, R>(
     finisher: &Player,
     artrine: &Player,
     goalguard: &Player,
@@ -219,14 +219,23 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
     start_pos: VectorPosition,
     duration_ledger: DurationLedger,
     context: &DuelContext,
+    fatigue_for: &F,
     rng: &mut R,
-) -> ArtrineExecutionOutcome {
+) -> ArtrineExecutionOutcome
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
+    let finisher_state = fatigue_for(&finisher.id());
+    let goalguard_state = fatigue_for(&goalguard.id());
+
     let (attacker_profile, _) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let finisher_rating = calculate_player_duel_rating(
+    let finisher_rating = calculate_player_duel_rating_with_state(
         finisher,
         DomainPosition::CenterOffense,
         attribute_keys,
         &attacker_profile,
+        &finisher_state,
     );
 
     let opportunity = evaluate_scoring_opportunity(
@@ -236,7 +245,7 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
         finisher_rating,
     );
 
-    let (scoring_decision, finish_duel) = resolve_scoring_attempt(
+    let (scoring_decision, finish_duel) = resolve_scoring_attempt_with_fatigue(
         finisher,
         goalguard,
         attribute_keys,
@@ -245,6 +254,8 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
         opportunity,
         drives_in_series,
         accumulated_advance_mirim,
+        &finisher_state,
+        &goalguard_state,
         context,
         rng,
     );

@@ -3,14 +3,14 @@ use crate::match_decision::event_translation::{
     create_envelope, translate_call_to_action_started, translate_duel_resolved,
     translate_pass_completed,
 };
+use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::resolver::resolve_duel_for_participants;
+use crate::resolution::resolver::resolve_duel_for_participants_with_fatigue;
 use crate::resolution::AttributedDuelOutcome;
 use crate::rng::RngStream;
-use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
-use crate::spatial::decision_vector::calculate_player_speed;
+use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed_with_state};
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::match_state::MatchState;
@@ -113,7 +113,18 @@ pub fn resolve_pass_phase<'a>(
     let pass_rushers = vec![
         (pass_rusher, DomainPosition::PassRusher),
     ];
-    let raw_pass_duel = resolve_duel_for_participants(
+
+    let home_fatigue = state.home_fatigue().clone();
+    let away_fatigue = state.away_fatigue().clone();
+    let fatigue_lookup = move |id: &Uuid| {
+        home_fatigue
+            .get(id)
+            .or_else(|| away_fatigue.get(id))
+            .copied()
+            .unwrap_or_default()
+    };
+
+    let raw_pass_duel = resolve_duel_for_participants_with_fatigue(
         DuelKind::PassProtection,
         passer,
         &pass_blockers,
@@ -121,6 +132,7 @@ pub fn resolve_pass_phase<'a>(
         &pass_rushers,
         state.attribute_keys(),
         &context,
+        &fatigue_lookup,
         &mut duel_rng,
     );
 
@@ -142,10 +154,10 @@ pub fn resolve_pass_phase<'a>(
         defender_ids,
     );
 
-    let passer_mult = state.player_fatigue_multiplier(passer);
-    let pass_rusher_mult = state.player_fatigue_multiplier(pass_rusher);
-    let passer_speed = calculate_player_speed(passer, state.attribute_keys(), passer_mult);
-    let pass_rusher_speed = calculate_player_speed(pass_rusher, state.attribute_keys(), pass_rusher_mult);
+    let passer_state = state.fatigue_for(&passer.id());
+    let pass_rusher_state = state.fatigue_for(&pass_rusher.id());
+    let passer_speed = calculate_effective_player_speed(passer, state.attribute_keys(), &passer_state);
+    let pass_rusher_speed = calculate_effective_player_speed(pass_rusher, state.attribute_keys(), &pass_rusher_state);
     let pass_protection_duration = derive_duel_duration(
         passer_pos,
         passer_speed,
@@ -165,7 +177,7 @@ pub fn resolve_pass_phase<'a>(
     );
 
     if pass_completed {
-        let pass_speed = calculate_pass_speed(passer, state.attribute_keys());
+        let pass_speed = calculate_pass_speed_with_state(passer, state.attribute_keys(), &passer_state);
         let flight_duration = ball_flight_duration(pass_distance_mirim, pass_speed);
         duration_ledger.record_live(
             DurationComponentKind::InitialHandoffFlight,

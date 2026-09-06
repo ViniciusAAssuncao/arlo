@@ -1,13 +1,14 @@
-use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
-use crate::match_decision::target_selection::{select_target, ReceptionRole};
+use crate::physical::FatigueState;
+use crate::match_decision::target_selection::{select_target_with_fatigue, ReceptionRole};
+use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating, calculate_side_rating_from_index,
+    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
 };
-use crate::resolution::resolver::resolve_duel;
+use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::decision_vector::{calculate_player_speed, extract_attribute_value};
+use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
@@ -50,7 +51,7 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let receiver_id = select_target(
+    let receiver_id = select_target_with_fatigue(
         candidates,
         spatial_map,
         pitch,
@@ -58,6 +59,7 @@ where
         attribute_keys,
         attacking_positive_x,
         ReceptionRole::OpenPlayReceiver,
+        fatigue_for,
         rng,
     )
     .unwrap_or_else(|| passer_or_artrine.id());
@@ -92,11 +94,14 @@ where
                 .unwrap_or(DomainPosition::CenterOffense)
         });
 
-    let attacker_rating = calculate_player_duel_rating(
+    let receiver_state = fatigue_for(&receiver_id);
+
+    let attacker_rating = calculate_player_duel_rating_with_state(
         receiver_player,
         receiver_pos_domain,
         attribute_keys,
         &offense_profile,
+        &receiver_state,
     );
 
     let receiver_pos_vec = spatial_map
@@ -122,11 +127,12 @@ where
         defenders
     };
 
-    let defender_rating = calculate_side_rating_from_index(
+    let defender_rating = calculate_side_rating_from_index_with_fatigue(
         active_defenders,
         defense_position_index,
         attribute_keys,
         &defense_profile,
+        fatigue_for,
     );
 
     let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
@@ -143,12 +149,16 @@ where
     )
     .unwrap_or(defenders[0]);
 
-    let raw_duel = resolve_duel(
+    let lead_def_state = fatigue_for(&lead_defender.id());
+
+    let raw_duel = resolve_duel_with_fatigue(
         duel_kind,
         attacker_rating,
         defender_rating,
         receiver_player,
         lead_defender,
+        &receiver_state,
+        &lead_def_state,
         attribute_keys,
         context,
         rng,
@@ -171,22 +181,13 @@ where
         None
     };
 
-    let rec_mult = compute_player_fatigue_multiplier(
-        receiver_player,
-        &fatigue_for(&receiver_player.id()),
-        attribute_keys,
-    );
-    let receiver_speed = calculate_player_speed(receiver_player, attribute_keys, rec_mult);
+    let receiver_speed = calculate_effective_player_speed(receiver_player, attribute_keys, &receiver_state);
     let duration = match
         nearest_drifted_opponent(receiver_pos_vec, defenders, spatial_map, attribute_keys, rng)
     {
         Some((d, pos)) => {
-            let d_mult = compute_player_fatigue_multiplier(
-                d,
-                &fatigue_for(&d.id()),
-                attribute_keys,
-            );
-            let d_spd = calculate_player_speed(d, attribute_keys, d_mult);
+            let d_state = fatigue_for(&d.id());
+            let d_spd = calculate_effective_player_speed(d, attribute_keys, &d_state);
             derive_duel_duration(receiver_pos_vec, receiver_speed, pos, d_spd)
         }
         None => Duration::new(MINIMUM_ENGAGEMENT_SECONDS),
@@ -198,8 +199,8 @@ where
             let pos = get_drifted_defender_position(p, spatial_map, attribute_keys, rng)
                 .or_else(|| spatial_map.get_position(&p.id()))
                 .unwrap_or(receiver_pos_vec);
-            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
-            let spd = calculate_player_speed(p, attribute_keys, mult);
+            let st = fatigue_for(&p.id());
+            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
             (p, pos, spd)
         })
         .collect();

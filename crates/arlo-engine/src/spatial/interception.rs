@@ -1,4 +1,4 @@
-use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
+use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
 use crate::spatial::decision_vector::{
     calculate_player_speed, derive_velocity_towards_target, extract_attribute_value,
 };
