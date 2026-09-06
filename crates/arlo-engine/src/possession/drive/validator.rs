@@ -49,6 +49,25 @@ pub fn validate_drive(
     DriveValidationResult::new(DriveValidationStatus::Valid)
 }
 
+pub fn validate_continuous_trajectory(
+    _artrine: TrueArtrine,
+    segments: &[(Position, Position)],
+    artro: &Artro,
+    is_aerial_reception: bool,
+) -> DriveValidationResult {
+    if is_aerial_reception {
+        return DriveValidationResult::new(DriveValidationStatus::AerialReceptionExcluded);
+    }
+
+    for &(start_pos, end_pos) in segments {
+        if segment_intersects_artro(start_pos, end_pos, artro) {
+            return DriveValidationResult::new(DriveValidationStatus::Valid);
+        }
+    }
+
+    DriveValidationResult::new(DriveValidationStatus::NotIntersected)
+}
+
 pub fn validate_carrier_drive(
     carrier: ArtrineCarrier,
     start_pos: Position,
@@ -66,6 +85,22 @@ pub fn validate_carrier_drive(
     }
 }
 
+pub fn validate_carrier_continuous_trajectory(
+    carrier: ArtrineCarrier,
+    segments: &[(Position, Position)],
+    artro: &Artro,
+    is_aerial_reception: bool,
+) -> DriveValidationResult {
+    match carrier {
+        ArtrineCarrier::True(true_artrine) => {
+            validate_continuous_trajectory(true_artrine, segments, artro, is_aerial_reception)
+        }
+        ArtrineCarrier::False(_) => {
+            DriveValidationResult::new(DriveValidationStatus::InvalidIdentity)
+        }
+    }
+}
+
 pub fn is_drive_valid(
     artrine: TrueArtrine,
     start_pos: Position,
@@ -74,4 +109,13 @@ pub fn is_drive_valid(
     is_aerial_reception: bool,
 ) -> bool {
     validate_drive(artrine, start_pos, end_pos, artro, is_aerial_reception).is_valid()
+}
+
+pub fn is_trajectory_drive_valid(
+    artrine: TrueArtrine,
+    segments: &[(Position, Position)],
+    artro: &Artro,
+    is_aerial_reception: bool,
+) -> bool {
+    validate_continuous_trajectory(artrine, segments, artro, is_aerial_reception).is_valid()
 }

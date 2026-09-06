@@ -19,11 +19,12 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
 
         let adv_mirim = (4.0 + 4.0 * pc) * skill_mult;
         let crosses_artro = adv_mirim >= ctx.distance_to_next_artro_mirim.max(0.5);
-        let new_drives = if crosses_artro {
-            ctx.drives_in_series + 1
+        let artros_crossed = if crosses_artro {
+            1 + ((adv_mirim - ctx.distance_to_next_artro_mirim).max(0.0) / 3.0).floor() as u32
         } else {
-            ctx.drives_in_series
+            0
         };
+        let new_drives = ctx.drives_in_series + artros_crossed;
 
         let (new_down, new_rem) = if adv_mirim >= ctx.remaining_advance_mirim {
             (1, 10.0)

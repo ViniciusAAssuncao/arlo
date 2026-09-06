@@ -3,7 +3,7 @@ use crate::artrine::execution_security::resolve_ball_security;
 use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::drive::artrine_identity::TrueArtrine;
-use crate::possession::drive::validator::validate_drive;
+use crate::possession::drive::validator::validate_continuous_trajectory;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
@@ -13,7 +13,9 @@ use crate::resolution::group_rating::{
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::decision_vector::{calculate_player_speed, derive_velocity_towards_target};
+use crate::spatial::decision_vector::{
+    calculate_player_speed, derive_velocity_towards_target,
+};
 use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
@@ -21,7 +23,9 @@ use crate::spatial::run_spatial_tick_loop;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
-use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
+use arlo_domain::sport_constants::{
+    DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM, MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM,
+};
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, MIRIM_TO_METERS};
 use rand::Rng;
@@ -69,6 +73,20 @@ where
     let artrine_speed =
         calculate_player_speed(artrine, attribute_keys, artrine_fatigue_mult);
 
+    let pitch_width_m = pitch.width().value();
+    let center_y_m = pitch_width_m / 2.0;
+    let left_y_m = center_y_m - DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM * MIRIM_TO_METERS;
+    let right_y_m = center_y_m + DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM * MIRIM_TO_METERS;
+
+    let target_channel_y_m = [left_y_m, center_y_m, right_y_m]
+        .into_iter()
+        .min_by(|&a, &b| {
+            let da = (a - start_pos.raw().1).abs();
+            let db = (b - start_pos.raw().1).abs();
+            da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .unwrap_or(center_y_m);
+
     let forward_x_mirim = if attacking_positive_x {
         (start_pos.raw().0 / MIRIM_TO_METERS + 10.0).min(pitch.length_mirim())
     } else {
@@ -76,7 +94,7 @@ where
     };
     let target_carry_pos = VectorPosition::from_components(
         forward_x_mirim * MIRIM_TO_METERS,
-        start_pos.raw().1,
+        target_channel_y_m,
         0.0,
     );
     let carrier_vel = derive_velocity_towards_target(start_pos, target_carry_pos, artrine_speed);
@@ -263,18 +281,26 @@ where
 
     let target_pos = VectorPosition::from_components(
         end_x_mirim * MIRIM_TO_METERS,
-        start_pos.raw().1,
+        target_channel_y_m,
         0.0,
     );
 
     spatial_map.set_position(artrine.id(), start_pos);
+    spatial_map.apply_breakthrough_momentum(
+        artrine,
+        target_pos,
+        artro_duel.outcome().net_advantage(),
+        attribute_keys,
+        artrine_fatigue_mult,
+    );
+
     let tick_result =
         run_spatial_tick_loop(spatial_map, &[(artrine, target_pos)], attribute_keys);
 
     let end_position = spatial_map
         .get_position(&artrine.id())
         .unwrap_or(target_pos);
-    let mirins_advanced = (end_x_mirim - start_x_mirim).abs();
+    let mirins_advanced = (end_position.raw().0 - start_pos.raw().0).abs() / MIRIM_TO_METERS;
 
     let all_rows = artro_rows_for_pitch(pitch);
     let true_artrine = TrueArtrine::new(artrine.id());
@@ -293,30 +319,33 @@ where
         segments
     };
 
-    let artro_search_margin = 3.0 * MIRIM_TO_METERS;
-    for (seg_start, seg_end) in segments_to_test {
-        let (s_min_x, s_max_x) = if seg_start.raw().0 < seg_end.raw().0 {
-            (seg_start.raw().0, seg_end.raw().0)
-        } else {
-            (seg_end.raw().0, seg_start.raw().0)
-        };
+    let (min_x, max_x) = if start_pos.raw().0 < end_position.raw().0 {
+        (start_pos.raw().0, end_position.raw().0)
+    } else {
+        (end_position.raw().0, start_pos.raw().0)
+    };
 
-        for row in &all_rows {
-            if drive_row_indices.contains(&row.row_index()) {
-                continue;
-            }
-            let rx = row.x().value();
-            if rx < s_min_x - artro_search_margin || rx > s_max_x + artro_search_margin {
-                continue;
-            }
-            for artro in row.artros() {
-                let drive_result = validate_drive(true_artrine, seg_start, seg_end, artro, false);
-                if drive_result.is_valid() {
+    let artro_search_margin = 1.5 * MIRIM_TO_METERS;
+    for row in &all_rows {
+        let rx = row.x().value();
+        if rx < min_x - artro_search_margin || rx > max_x + artro_search_margin {
+            continue;
+        }
+        for artro in row.artros() {
+            let drive_result = validate_continuous_trajectory(true_artrine, &segments_to_test, artro, false);
+            if drive_result.is_valid() {
+                if !drive_row_indices.contains(&row.row_index()) {
                     drive_row_indices.push(row.row_index());
-                    break;
                 }
+                break;
             }
         }
+    }
+
+    if attacking_positive_x {
+        drive_row_indices.sort();
+    } else {
+        drive_row_indices.sort_by(|a, b| b.cmp(a));
     }
 
     let drives_recorded = drive_row_indices.len() as u32;
