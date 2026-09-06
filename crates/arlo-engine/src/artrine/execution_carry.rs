@@ -19,8 +19,7 @@ use crate::spatial::decision_vector::derive_velocity_towards_target;
 use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
-use crate::spatial::run_spatial_tick_loop;
-use crate::spatial::DynamicSpatialMap;
+use crate::spatial::{run_spatial_tick_loop_with_context, DynamicSpatialMap, MovementContext};
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
 use arlo_domain::sport_constants::{
@@ -309,7 +308,13 @@ where
         movers.push((defender, target_pos));
     }
 
-    let tick_result = run_spatial_tick_loop(spatial_map, &movers, attribute_keys);
+    let tick_result = run_spatial_tick_loop_with_context(
+        spatial_map,
+        &movers,
+        attribute_keys,
+        MovementContext::LivePlay,
+        fatigue_for,
+    );
 
     let end_position = spatial_map
         .get_position(&artrine.id())

@@ -4,6 +4,7 @@ use crate::physical::models::metabolic_power::{
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::PhysicalState;
 use crate::spatial::decision_vector::extract_attribute_value;
+use crate::spatial::tick_loop::MovementContext;
 use crate::weighting::apply_saturation;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::{Duration, Position, Speed, Vector3, Velocity};
@@ -156,6 +157,38 @@ pub fn calculate_separation_force(
     total_repulsion
 }
 
+pub fn calculate_dead_ball_separation_force_with_id(
+    current_pos: Position,
+    _current_velocity: Velocity,
+    self_physical_radius: f64,
+    self_id: Uuid,
+    neighbors: &[SpatialNeighbor],
+) -> Vector3 {
+    let mut total_repulsion = Vector3::zero();
+    let p0 = current_pos.raw();
+
+    for neighbor in neighbors {
+        if neighbor.id == self_id && !self_id.is_nil() {
+            continue;
+        }
+        let pn = neighbor.position.raw();
+        let diff = p0 - pn;
+        let dist = diff.magnitude();
+
+        if dist > 1e-4 {
+            let combined_radius = self_physical_radius + neighbor.physical_radius;
+            let sep_radius = combined_radius * 1.50;
+            if dist < sep_radius {
+                let normalized_dist = dist / sep_radius;
+                let weight = (1.0 - normalized_dist) / dist;
+                total_repulsion = total_repulsion + (diff * weight);
+            }
+        }
+    }
+
+    total_repulsion
+}
+
 pub fn calculate_dynamic_separation_force(
     current_pos: Position,
     current_velocity: Velocity,
@@ -277,7 +310,7 @@ pub fn calculate_dynamic_boid_steering_velocity(
     self_physical_radius: f64,
     dt: Duration,
 ) -> Velocity {
-    calculate_dynamic_boid_steering_velocity_with_id(
+    calculate_dynamic_boid_steering_velocity_with_context(
         current_velocity,
         current_pos,
         target_pos,
@@ -292,6 +325,7 @@ pub fn calculate_dynamic_boid_steering_velocity(
         mass_kg,
         fatigue_multiplier,
         self_physical_radius,
+        MovementContext::LivePlay,
         dt,
     )
 }
@@ -313,6 +347,44 @@ pub fn calculate_dynamic_boid_steering_velocity_with_id(
     self_physical_radius: f64,
     dt: Duration,
 ) -> Velocity {
+    calculate_dynamic_boid_steering_velocity_with_context(
+        current_velocity,
+        current_pos,
+        target_pos,
+        self_id,
+        self_is_home,
+        neighbors,
+        speed,
+        agility,
+        acceleration,
+        balance,
+        strength,
+        mass_kg,
+        fatigue_multiplier,
+        self_physical_radius,
+        MovementContext::LivePlay,
+        dt,
+    )
+}
+
+pub fn calculate_dynamic_boid_steering_velocity_with_context(
+    current_velocity: Velocity,
+    current_pos: Position,
+    target_pos: Position,
+    self_id: Uuid,
+    self_is_home: bool,
+    neighbors: &[SpatialNeighbor],
+    speed: Speed,
+    agility: f64,
+    acceleration: f64,
+    balance: f64,
+    strength: f64,
+    mass_kg: f64,
+    fatigue_multiplier: f64,
+    self_physical_radius: f64,
+    context: MovementContext,
+    dt: Duration,
+) -> Velocity {
     let current_speed = current_velocity.magnitude().value();
     let arrival_radius = derive_arrival_slowing_radius(
         current_speed.max(speed.value()),
@@ -331,14 +403,23 @@ pub fn calculate_dynamic_boid_steering_velocity_with_id(
         dt,
     );
 
-    let raw_separation = calculate_dynamic_separation_force_with_id(
-        current_pos,
-        current_velocity,
-        self_physical_radius,
-        self_id,
-        self_is_home,
-        neighbors,
-    );
+    let raw_separation = match context {
+        MovementContext::DeadBall => calculate_dead_ball_separation_force_with_id(
+            current_pos,
+            current_velocity,
+            self_physical_radius,
+            self_id,
+            neighbors,
+        ),
+        MovementContext::LivePlay => calculate_dynamic_separation_force_with_id(
+            current_pos,
+            current_velocity,
+            self_physical_radius,
+            self_id,
+            self_is_home,
+            neighbors,
+        ),
+    };
 
     let dist_to_target = (target_pos.raw() - current_pos.raw()).magnitude();
     let sep_scale = if arrival_radius > 1e-4 {
@@ -347,16 +428,27 @@ pub fn calculate_dynamic_boid_steering_velocity_with_id(
         1.0
     };
 
-    let max_accel = calculate_max_acceleration(
+    let raw_accel = calculate_max_acceleration(
         acceleration,
         agility,
         strength,
         mass_kg,
         fatigue_multiplier,
     );
+
+    let max_accel = match context {
+        MovementContext::DeadBall => (raw_accel * 0.55).clamp(1.0, 3.5),
+        MovementContext::LivePlay => raw_accel,
+    };
+
     let max_muscular_force = mass_kg * max_accel;
 
-    let separation_force = raw_separation * (max_muscular_force * 0.45 * sep_scale);
+    let separation_factor = match context {
+        MovementContext::DeadBall => 0.25,
+        MovementContext::LivePlay => 0.45,
+    };
+
+    let separation_force = raw_separation * (max_muscular_force * separation_factor * sep_scale);
     let combined_force = seek_force + separation_force;
     let force_magnitude = combined_force.magnitude();
 
@@ -399,7 +491,12 @@ pub fn calculate_dynamic_boid_steering_velocity_with_id(
         diff += 2.0 * PI;
     }
 
-    let max_turn = max_turn_radians_per_tick(agility);
+    let base_turn = max_turn_radians_per_tick(agility);
+    let max_turn = match context {
+        MovementContext::DeadBall => (base_turn * 0.85).max(0.18),
+        MovementContext::LivePlay => base_turn,
+    };
+
     let applied_diff = diff.clamp(-max_turn, max_turn);
     let new_angle = current_angle + applied_diff;
 
