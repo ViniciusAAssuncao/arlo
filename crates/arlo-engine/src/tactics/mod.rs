@@ -1,11 +1,25 @@
+pub mod dynamic_anchor;
 pub mod fit_calculator;
 pub mod lineup;
+pub mod position_profile_cache;
+pub mod position_similarity;
+pub mod scrimmage_translation;
 pub mod spatial_anchor;
 
+pub use dynamic_anchor::{
+    calculate_player_dynamic_attractor, compute_dynamic_anchors,
+    translate_dynamic_formation_to_scrimmage, DynamicAnchorManager,
+};
 pub use fit_calculator::{
     calculate_average_fit, calculate_fit, calculate_fit_for_position, calculate_lineup_fit,
-    PositionalFit, SlotFitCalculator, ADJACENT_LINE_PENALTY_FACTOR, DISTANT_LINE_PENALTY_FACTOR,
-    GOALGUARD_MISMATCH_FACTOR, SAME_LINE_PENALTY_FACTOR,
+    PositionalFit, SlotFitCalculator,
 };
 pub use lineup::{Lineup, LineupAssignment, LineupBuilder};
+pub use position_profile_cache::{
+    get_position_profile, get_position_profiles, get_position_similarity, get_similarity_map,
+};
+pub use position_similarity::{
+    calculate_position_similarity, calculate_profile_similarity, position_similarity,
+};
+pub use scrimmage_translation::translate_formation_to_scrimmage;
 pub use spatial_anchor::SpatialAnchorMap;
