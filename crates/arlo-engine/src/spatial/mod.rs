@@ -22,8 +22,10 @@ pub use positioning_drift::{
     nearest_drifted_opponent,
 };
 pub use proximity::{
-    calculate_distance, calculate_distance_mirim, calculate_time_to_direct_intercept,
-    calculate_time_to_moving_intercept, is_in_contest_range, is_within_proximity_mirim,
+    active_duelists, calculate_distance, calculate_distance_mirim,
+    calculate_time_to_direct_intercept, calculate_time_to_moving_intercept,
+    filter_active_duelists, filter_active_duelists_by_id, is_in_contest_range,
+    is_within_collision_radius, is_within_proximity_mirim,
 };
 pub use steering::{
     calculate_steered_velocity, derive_player_steered_velocity, max_turn_radians_per_tick,

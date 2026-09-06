@@ -18,13 +18,13 @@ use crate::spatial::ball_kinematics::{
 };
 use crate::spatial::decision_vector::calculate_player_speed;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
-use crate::spatial::proximity::calculate_distance_mirim;
+use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists};
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
-use arlo_math::units::{Duration, Position as VectorPosition};
+use arlo_math::units::{Duration, Position as VectorPosition, Speed};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -91,20 +91,52 @@ where
         rng,
     );
 
-    let dist_attacker_ids: Vec<Uuid> = std::iter::once(artrine.id())
-        .chain(offense_helpers.iter().map(|p| p.id()))
+    let artrine_fatigue_mult =
+        compute_player_fatigue_multiplier(artrine, &fatigue_for(&artrine.id()), attribute_keys);
+    let artrine_speed =
+        calculate_player_speed(artrine, attribute_keys, artrine_fatigue_mult);
+
+    let helper_candidates: Vec<(&Player, VectorPosition, Speed)> = offense_helpers
+        .iter()
+        .map(|&p| {
+            let pos = spatial_map.get_position(&p.id()).unwrap_or(start_pos);
+            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
+            let spd = calculate_player_speed(p, attribute_keys, mult);
+            (p, pos, spd)
+        })
         .collect();
-    let dist_defender_ids: Vec<Uuid> = defenders.iter().map(|p| p.id()).collect();
+
+    let mut dist_attacker_ids = vec![artrine.id()];
+    for id in filter_active_duelists(start_pos, artrine_speed, &helper_candidates) {
+        if !dist_attacker_ids.contains(&id) {
+            dist_attacker_ids.push(id);
+        }
+    }
+
+    let defender_candidates: Vec<(&Player, VectorPosition, Speed)> = defenders
+        .iter()
+        .map(|&p| {
+            let pos = get_drifted_defender_position(p, spatial_map, attribute_keys, rng)
+                .or_else(|| spatial_map.get_position(&p.id()))
+                .unwrap_or(start_pos);
+            let mult = compute_player_fatigue_multiplier(p, &fatigue_for(&p.id()), attribute_keys);
+            let spd = calculate_player_speed(p, attribute_keys, mult);
+            (p, pos, spd)
+        })
+        .collect();
+
+    let mut dist_defender_ids = vec![lead_defender.id()];
+    for id in filter_active_duelists(start_pos, artrine_speed, &defender_candidates) {
+        if !dist_defender_ids.contains(&id) {
+            dist_defender_ids.push(id);
+        }
+    }
+
     let dist_duel = AttributedDuelOutcome::new(
         raw_dist_duel,
         dist_attacker_ids,
         dist_defender_ids,
     );
-
-    let artrine_fatigue_mult =
-        compute_player_fatigue_multiplier(artrine, &fatigue_for(&artrine.id()), attribute_keys);
-    let artrine_speed =
-        calculate_player_speed(artrine, attribute_keys, artrine_fatigue_mult);
 
     let (dist_duration, nearest_def_opt) =
         match nearest_drifted_opponent(start_pos, defenders, spatial_map, attribute_keys, rng) {

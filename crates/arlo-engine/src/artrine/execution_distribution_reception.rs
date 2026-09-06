@@ -1,18 +1,12 @@
 use crate::artrine::execution_outcome::{ArtrineExecutionOutcome, DistributionFlightInfo};
-use crate::artrine::execution_security::resolve_ball_security;
 use crate::artrine::reception::resolve_reception;
 use crate::artrine::run_after_catch::resolve_run_after_catch;
-use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
+use crate::fatigue::FatigueState;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::decision_vector::calculate_player_speed;
-use crate::spatial::positioning_drift::get_drifted_defender_position;
-use crate::spatial::proximity::calculate_distance_mirim;
+use crate::resolution::{AttributedDuelOutcome, DuelContext};
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
-use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
@@ -88,55 +82,6 @@ where
             caught: false,
         });
 
-        let close_defenders: Vec<&Player> = defenders
-            .iter()
-            .copied()
-            .filter(|cand| {
-                get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
-                    .map(|p| {
-                        calculate_distance_mirim(receiver_pos_vec, p)
-                            <= PROXIMITY_CONTEST_RADIUS_MIRIM
-                    })
-                    .unwrap_or(false)
-            })
-            .collect();
-
-        let (sec_defenders, sec_lead) = if !close_defenders.is_empty() {
-            (close_defenders.as_slice(), close_defenders[0])
-        } else {
-            (defenders, defenders[0])
-        };
-
-        let sec_result = resolve_ball_security(
-            DuelKind::BallSecurityDistribution,
-            &receiver_player,
-            receiver_pos_domain,
-            sec_defenders,
-            defense_position_index,
-            attribute_keys,
-            defense_team_id,
-            context,
-            rng,
-        );
-
-        let sec_def_pos = get_drifted_defender_position(sec_lead, spatial_map, attribute_keys, rng)
-            .unwrap_or(receiver_pos_vec);
-        let sec_def_mult = compute_player_fatigue_multiplier(
-            sec_lead,
-            &fatigue_for(&sec_lead.id()),
-            attribute_keys,
-        );
-        let sec_def_spd = calculate_player_speed(sec_lead, attribute_keys, sec_def_mult);
-
-        let rec_mult = compute_player_fatigue_multiplier(
-            &receiver_player,
-            &fatigue_for(&receiver_player.id()),
-            attribute_keys,
-        );
-        let rec_spd = calculate_player_speed(&receiver_player, attribute_keys, rec_mult);
-        let sec_duration =
-            derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
-
         let mut ledger = DurationLedger::new();
         ledger.record_live(
             DurationComponentKind::DistributionEngagement,
@@ -150,21 +95,17 @@ where
             DurationComponentKind::ReceptionEngagement,
             reception_outcome.duration,
         );
-        ledger.record_live(
-            DurationComponentKind::BallSecurityEngagement,
-            sec_duration,
-        );
 
         return ArtrineExecutionOutcome {
             mirins_advanced: 0.0,
             drives_recorded: 0,
             drive_row_indices: Vec::new(),
-            turnover: sec_result.turnover_team_id,
-            recovering_player_id: sec_result.recovering_player_id,
+            turnover: None,
+            recovering_player_id: None,
             scoring_decision: ScoringDecision::NoOpportunity,
             duration_ledger: ledger,
             end_position: start_pos,
-            duels: vec![dist_duel, reception_outcome.duel, sec_result.duel_outcome],
+            duels: vec![dist_duel, reception_outcome.duel],
             receiver_id: Some(receiver_id),
             distribution_flight,
         };
