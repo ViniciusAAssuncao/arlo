@@ -10,6 +10,7 @@ use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::MatchState;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
+use arlo_domain::PitchZone;
 use arlo_events::{CountdownReason, EventArtroPlacement, EventSink};
 use arlo_math::units::Position as VectorPosition;
 use uuid::Uuid;
@@ -186,8 +187,23 @@ pub fn emit_physical_strain(
     energy: f64,
     w_bal: f64,
     distance_delta_mirim: f64,
+    high_intensity_distance_mirim: f64,
+    low_intensity_distance_mirim: f64,
+    metabolic_energy_joules: f64,
+    zone: PitchZone,
+    peak_speed_meters_per_sec: f64,
 ) {
-    let strain_ev = translate_physical_strain_recorded(player_id, energy, w_bal, distance_delta_mirim);
+    let strain_ev = translate_physical_strain_recorded(
+        player_id,
+        energy,
+        w_bal,
+        distance_delta_mirim,
+        high_intensity_distance_mirim,
+        low_intensity_distance_mirim,
+        metabolic_energy_joules,
+        zone,
+        peak_speed_meters_per_sec,
+    );
     let seq = state.next_sequence();
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, strain_ev));

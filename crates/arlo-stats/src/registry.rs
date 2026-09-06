@@ -205,7 +205,15 @@ impl AggregatorRegistry {
             snap.end_energy_level = p.end_energy_level;
             snap.peak_anaerobic_depletion = p.peak_anaerobic_depletion;
             snap.total_distance_covered = p.total_distance_covered;
+            snap.high_intensity_distance = p.high_intensity_distance;
+            snap.low_intensity_distance = p.low_intensity_distance;
+            snap.metabolic_energy_joules = p.metabolic_energy_joules;
+            snap.peak_speed_meters_per_sec = p.peak_speed_meters_per_sec;
             snap.intra_match_recovery_amount = p.intra_match_recovery_amount;
+            snap.distance_first_zone = p.distance_first_zone;
+            snap.distance_second_zone = p.distance_second_zone;
+            snap.distance_corridors = p.distance_corridors;
+            snap.distance_central = p.distance_central;
         }
 
         snap

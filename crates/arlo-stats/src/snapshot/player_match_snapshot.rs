@@ -56,7 +56,15 @@ pub struct PlayerMatchSnapshot {
     pub end_energy_level: f64,
     pub peak_anaerobic_depletion: f64,
     pub total_distance_covered: f64,
+    pub high_intensity_distance: f64,
+    pub low_intensity_distance: f64,
+    pub metabolic_energy_joules: f64,
+    pub peak_speed_meters_per_sec: f64,
     pub intra_match_recovery_amount: f64,
+    pub distance_first_zone: f64,
+    pub distance_second_zone: f64,
+    pub distance_corridors: f64,
+    pub distance_central: f64,
 }
 
 impl PlayerMatchSnapshot {
@@ -124,7 +132,15 @@ impl Default for PlayerMatchSnapshot {
             end_energy_level: 1.0,
             peak_anaerobic_depletion: 0.0,
             total_distance_covered: 0.0,
+            high_intensity_distance: 0.0,
+            low_intensity_distance: 0.0,
+            metabolic_energy_joules: 0.0,
+            peak_speed_meters_per_sec: 0.0,
             intra_match_recovery_amount: 0.0,
+            distance_first_zone: 0.0,
+            distance_second_zone: 0.0,
+            distance_corridors: 0.0,
+            distance_central: 0.0,
         }
     }
 }

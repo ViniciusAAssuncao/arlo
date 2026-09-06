@@ -1,3 +1,4 @@
+use arlo_domain::PitchZone;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -7,6 +8,11 @@ pub struct PhysicalStrainRecorded {
     energy_remaining: f64,
     w_prime_balance: f64,
     distance_delta_mirim: f64,
+    high_intensity_distance_mirim: f64,
+    low_intensity_distance_mirim: f64,
+    metabolic_energy_joules: f64,
+    zone: PitchZone,
+    peak_speed_meters_per_sec: f64,
 }
 
 impl PhysicalStrainRecorded {
@@ -15,12 +21,22 @@ impl PhysicalStrainRecorded {
         energy_remaining: f64,
         w_prime_balance: f64,
         distance_delta_mirim: f64,
+        high_intensity_distance_mirim: f64,
+        low_intensity_distance_mirim: f64,
+        metabolic_energy_joules: f64,
+        zone: PitchZone,
+        peak_speed_meters_per_sec: f64,
     ) -> Self {
         Self {
             player_id,
             energy_remaining,
             w_prime_balance,
             distance_delta_mirim,
+            high_intensity_distance_mirim,
+            low_intensity_distance_mirim,
+            metabolic_energy_joules,
+            zone,
+            peak_speed_meters_per_sec,
         }
     }
 
@@ -38,6 +54,26 @@ impl PhysicalStrainRecorded {
 
     pub fn distance_delta_mirim(&self) -> f64 {
         self.distance_delta_mirim
+    }
+
+    pub fn high_intensity_distance_mirim(&self) -> f64 {
+        self.high_intensity_distance_mirim
+    }
+
+    pub fn low_intensity_distance_mirim(&self) -> f64 {
+        self.low_intensity_distance_mirim
+    }
+
+    pub fn metabolic_energy_joules(&self) -> f64 {
+        self.metabolic_energy_joules
+    }
+
+    pub fn zone(&self) -> PitchZone {
+        self.zone
+    }
+
+    pub fn peak_speed_meters_per_sec(&self) -> f64 {
+        self.peak_speed_meters_per_sec
     }
 }
 

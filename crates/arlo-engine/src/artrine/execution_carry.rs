@@ -313,6 +313,7 @@ where
         &movers,
         attribute_keys,
         MovementContext::LivePlay,
+        pitch,
         fatigue_for,
     );
 

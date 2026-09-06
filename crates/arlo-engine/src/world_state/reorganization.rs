@@ -64,6 +64,7 @@ pub fn derive_and_apply_reorganization(
         &movers,
         &attribute_keys,
         MovementContext::DeadBall,
+        &pitch,
         &fatigue_lookup,
     );
 

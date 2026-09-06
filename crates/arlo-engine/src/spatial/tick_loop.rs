@@ -14,10 +14,11 @@ use crate::spatial::steering::{
     calculate_dynamic_boid_steering_velocity_with_context, derive_player_physical_radius,
     SpatialNeighbor,
 };
+use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
     MAX_OPEN_PLAY_TICKS, SPATIAL_TICK_DURATION_SECONDS, TARGET_ARRIVAL_TOLERANCE_MIRIM,
 };
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::{AttributeKey, PitchZone, Player};
 use arlo_math::units::{Duration, Position, Speed, Velocity, MIRIM_TO_METERS};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -36,9 +37,12 @@ pub struct SpatialTrajectory {
     positions: Vec<Position>,
     distance_meters: f64,
     distance_mirim: f64,
+    high_intensity_distance_mirim: f64,
+    low_intensity_distance_mirim: f64,
     supramaximal_time_seconds: f64,
     metabolic_energy_joules: f64,
     peak_speed_meters_per_sec: f64,
+    zone_distances: HashMap<PitchZone, f64>,
 }
 
 impl SpatialTrajectory {
@@ -48,9 +52,12 @@ impl SpatialTrajectory {
             positions: vec![initial_position],
             distance_meters: 0.0,
             distance_mirim: 0.0,
+            high_intensity_distance_mirim: 0.0,
+            low_intensity_distance_mirim: 0.0,
             supramaximal_time_seconds: 0.0,
             metabolic_energy_joules: 0.0,
             peak_speed_meters_per_sec: 0.0,
+            zone_distances: HashMap::new(),
         }
     }
 
@@ -60,6 +67,7 @@ impl SpatialTrajectory {
         velocity: Velocity,
         critical_speed_m_s: f64,
         mass_kg: f64,
+        zone: PitchZone,
         dt: Duration,
     ) {
         let speed = velocity.magnitude().value();
@@ -75,7 +83,12 @@ impl SpatialTrajectory {
 
         if speed > critical_speed_m_s {
             self.supramaximal_time_seconds += dt.value();
+            self.high_intensity_distance_mirim += step_distance_mirim;
+        } else {
+            self.low_intensity_distance_mirim += step_distance_mirim;
         }
+
+        *self.zone_distances.entry(zone).or_insert(0.0) += step_distance_mirim;
 
         let metabolic_rate = calculate_metabolic_work_rate(speed, critical_speed_m_s, mass_kg, 1.0);
         self.metabolic_energy_joules += metabolic_rate * dt.value();
@@ -103,6 +116,14 @@ impl SpatialTrajectory {
         self.distance_mirim
     }
 
+    pub fn high_intensity_distance_mirim(&self) -> f64 {
+        self.high_intensity_distance_mirim
+    }
+
+    pub fn low_intensity_distance_mirim(&self) -> f64 {
+        self.low_intensity_distance_mirim
+    }
+
     pub fn supramaximal_time_seconds(&self) -> f64 {
         self.supramaximal_time_seconds
     }
@@ -113,6 +134,22 @@ impl SpatialTrajectory {
 
     pub fn peak_speed_meters_per_sec(&self) -> f64 {
         self.peak_speed_meters_per_sec
+    }
+
+    pub fn zone_distances(&self) -> &HashMap<PitchZone, f64> {
+        &self.zone_distances
+    }
+
+    pub fn distance_in_zone(&self, zone: PitchZone) -> f64 {
+        self.zone_distances.get(&zone).copied().unwrap_or(0.0)
+    }
+
+    pub fn primary_zone(&self) -> PitchZone {
+        self.zone_distances
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(&zone, _)| zone)
+            .unwrap_or(PitchZone::Central)
     }
 
     pub fn len(&self) -> usize {
@@ -183,12 +220,14 @@ pub fn run_spatial_tick_loop(
     spatial_map: &mut DynamicSpatialMap,
     movers: &[(&Player, Position)],
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    pitch: &Pitch,
 ) -> TickSimulationResult {
     run_spatial_tick_loop_with_context(
         spatial_map,
         movers,
         attribute_keys,
         MovementContext::LivePlay,
+        pitch,
         &|_| PhysicalState::initial(),
     )
 }
@@ -197,6 +236,7 @@ pub fn run_spatial_tick_loop_with_fatigue<F>(
     spatial_map: &mut DynamicSpatialMap,
     movers: &[(&Player, Position)],
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    pitch: &Pitch,
     fatigue_for: &F,
 ) -> TickSimulationResult
 where
@@ -207,6 +247,7 @@ where
         movers,
         attribute_keys,
         MovementContext::LivePlay,
+        pitch,
         fatigue_for,
     )
 }
@@ -216,6 +257,7 @@ pub fn run_spatial_tick_loop_with_context<F>(
     movers: &[(&Player, Position)],
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     movement_context: MovementContext,
+    pitch: &Pitch,
     fatigue_for: &F,
 ) -> TickSimulationResult
 where
@@ -359,7 +401,8 @@ where
                 spatial_map.set_velocity(pid, step_vel);
 
                 if let Some(traj) = trajectories.get_mut(&pid) {
-                    traj.record_step(next_pos, vel, props.critical_speed_m_s, props.mass_kg, dt);
+                    let zone = pitch.zone_at_position(next_pos);
+                    traj.record_step(next_pos, vel, props.critical_speed_m_s, props.mass_kg, zone, dt);
                 }
             } else {
                 spatial_map.set_position(pid, *target);

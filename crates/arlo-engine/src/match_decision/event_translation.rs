@@ -5,8 +5,8 @@ use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
     DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent,
-    MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded, ReceptionResolved,
-    RecoveryIntervalProcessed, ScoringAttemptMissed, Turnover,
+    MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded, PitchZone,
+    ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed, Turnover,
 };
 use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
@@ -229,12 +229,22 @@ pub fn translate_physical_strain_recorded(
     energy_remaining: f64,
     w_prime_balance: f64,
     distance_delta_mirim: f64,
+    high_intensity_distance_mirim: f64,
+    low_intensity_distance_mirim: f64,
+    metabolic_energy_joules: f64,
+    zone: PitchZone,
+    peak_speed_meters_per_sec: f64,
 ) -> PhysicalStrainRecorded {
     PhysicalStrainRecorded::new(
         player_id,
         energy_remaining,
         w_prime_balance,
         distance_delta_mirim,
+        high_intensity_distance_mirim,
+        low_intensity_distance_mirim,
+        metabolic_energy_joules,
+        zone,
+        peak_speed_meters_per_sec,
     )
 }
 

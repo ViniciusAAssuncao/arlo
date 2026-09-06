@@ -12,6 +12,7 @@ pub use action::{
     ReceptionResolved,
 };
 pub use arlo_domain::pitch::ArtroPlacement;
+pub use arlo_domain::PitchZone;
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
 pub use in_memory_sink::InMemorySink;
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
