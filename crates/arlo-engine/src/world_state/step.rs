@@ -36,6 +36,7 @@ fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
         duels: Vec::new(),
         turnover: None,
         recovering_player_id: None,
+        lost_by_player_id: None,
         out_of_bounds: false,
         arbitral_stoppage: true,
         last_valid_possession_point: scrimmage,

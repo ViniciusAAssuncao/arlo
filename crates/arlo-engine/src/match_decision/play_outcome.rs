@@ -21,6 +21,7 @@ pub struct DetailedPlayOutcome {
     pub duels: Vec<AttributedDuelOutcome>,
     pub turnover: Option<Uuid>,
     pub recovering_player_id: Option<Uuid>,
+    pub lost_by_player_id: Option<Uuid>,
     pub out_of_bounds: bool,
     pub arbitral_stoppage: bool,
     pub last_valid_possession_point: Position,

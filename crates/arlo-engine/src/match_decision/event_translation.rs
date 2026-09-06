@@ -121,6 +121,7 @@ pub fn translate_turnover(
     previous_offense: Uuid,
     new_offense: Uuid,
     recovering_player: Option<Uuid>,
+    lost_by_player: Option<Uuid>,
     in_live_play: bool,
     point: Position,
 ) -> Turnover {
@@ -128,6 +129,7 @@ pub fn translate_turnover(
         previous_offense,
         new_offense,
         recovering_player,
+        lost_by_player,
         in_live_play,
         point.raw().0,
         point.raw().1,

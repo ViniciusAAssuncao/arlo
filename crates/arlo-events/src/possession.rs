@@ -3,112 +3,71 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CountdownReason {
-    OutOfBoundsAfterTurnover,
     OutOfBoundsPlayEnd,
+    OutOfBoundsAfterTurnover,
     TurnoverOnDowns,
-    RefereeStoppage,
     AfterScore,
-    PeriodStart,
+    ArbitralStoppage,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Turnover {
-    previous_offense_team_id: Uuid,
-    new_offense_team_id: Uuid,
-    recovering_player_id: Option<Uuid>,
-    in_live_play: bool,
-    x_mirim: f64,
-    y_mirim: f64,
+pub struct CallToActionStarted {
+    offense_team_id: Uuid,
+    defense_team_id: Uuid,
+    passer_id: Uuid,
+    artrine_id: Uuid,
+    down_number: u32,
+    scrimmage_x_mirim: f64,
+    target_advance_mirim: f64,
 }
 
-impl Turnover {
+impl CallToActionStarted {
     pub fn new(
-        previous_offense_team_id: Uuid,
-        new_offense_team_id: Uuid,
-        recovering_player_id: Option<Uuid>,
-        in_live_play: bool,
-        x_mirim: f64,
-        y_mirim: f64,
+        offense_team_id: Uuid,
+        defense_team_id: Uuid,
+        passer_id: Uuid,
+        artrine_id: Uuid,
+        down_number: u32,
+        scrimmage_x_mirim: f64,
+        target_advance_mirim: f64,
     ) -> Self {
         Self {
-            previous_offense_team_id,
-            new_offense_team_id,
-            recovering_player_id,
-            in_live_play,
-            x_mirim,
-            y_mirim,
+            offense_team_id,
+            defense_team_id,
+            passer_id,
+            artrine_id,
+            down_number,
+            scrimmage_x_mirim,
+            target_advance_mirim,
         }
     }
 
-    pub fn previous_offense_team_id(&self) -> Uuid {
-        self.previous_offense_team_id
+    pub fn offense_team_id(&self) -> Uuid {
+        self.offense_team_id
     }
 
-    pub fn new_offense_team_id(&self) -> Uuid {
-        self.new_offense_team_id
+    pub fn defense_team_id(&self) -> Uuid {
+        self.defense_team_id
     }
 
-    pub fn recovering_player_id(&self) -> Option<Uuid> {
-        self.recovering_player_id
+    pub fn passer_id(&self) -> Uuid {
+        self.passer_id
     }
 
-    pub fn in_live_play(&self) -> bool {
-        self.in_live_play
+    pub fn artrine_id(&self) -> Uuid {
+        self.artrine_id
     }
 
-    pub fn x_mirim(&self) -> f64 {
-        self.x_mirim
+    pub fn down_number(&self) -> u32 {
+        self.down_number
     }
 
-    pub fn y_mirim(&self) -> f64 {
-        self.y_mirim
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OutOfBounds {
-    last_possession_team_id: Uuid,
-    last_player_id: Option<Uuid>,
-    out_x_mirim: f64,
-    out_y_mirim: f64,
-    was_immediate_loss: bool,
-}
-
-impl OutOfBounds {
-    pub fn new(
-        last_possession_team_id: Uuid,
-        last_player_id: Option<Uuid>,
-        out_x_mirim: f64,
-        out_y_mirim: f64,
-        was_immediate_loss: bool,
-    ) -> Self {
-        Self {
-            last_possession_team_id,
-            last_player_id,
-            out_x_mirim,
-            out_y_mirim,
-            was_immediate_loss,
-        }
+    pub fn scrimmage_x_mirim(&self) -> f64 {
+        self.scrimmage_x_mirim
     }
 
-    pub fn last_possession_team_id(&self) -> Uuid {
-        self.last_possession_team_id
-    }
-
-    pub fn last_player_id(&self) -> Option<Uuid> {
-        self.last_player_id
-    }
-
-    pub fn out_x_mirim(&self) -> f64 {
-        self.out_x_mirim
-    }
-
-    pub fn out_y_mirim(&self) -> f64 {
-        self.out_y_mirim
-    }
-
-    pub fn was_immediate_loss(&self) -> bool {
-        self.was_immediate_loss
+    pub fn target_advance_mirim(&self) -> f64 {
+        self.target_advance_mirim
     }
 }
 
@@ -196,33 +155,153 @@ impl DownAdvanced {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OutOfBounds {
+    last_possession_team: Uuid,
+    last_player: Option<Uuid>,
+    out_point_x: f64,
+    out_point_y: f64,
+    was_immediate_loss: bool,
+}
+
+impl OutOfBounds {
+    pub fn new(
+        last_possession_team: Uuid,
+        last_player: Option<Uuid>,
+        out_point_x: f64,
+        out_point_y: f64,
+        was_immediate_loss: bool,
+    ) -> Self {
+        Self {
+            last_possession_team,
+            last_player,
+            out_point_x,
+            out_point_y,
+            was_immediate_loss,
+        }
+    }
+
+    pub fn last_possession_team(&self) -> Uuid {
+        self.last_possession_team
+    }
+
+    pub fn last_player(&self) -> Option<Uuid> {
+        self.last_player
+    }
+
+    pub fn out_point_x(&self) -> f64 {
+        self.out_point_x
+    }
+
+    pub fn out_point_y(&self) -> f64 {
+        self.out_point_y
+    }
+
+    pub fn was_immediate_loss(&self) -> bool {
+        self.was_immediate_loss
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Turnover {
+    previous_offense: Uuid,
+    new_offense: Uuid,
+    recovering_player: Option<Uuid>,
+    lost_by_player_id: Option<Uuid>,
+    in_live_play: bool,
+    point_x: f64,
+    point_y: f64,
+}
+
+impl Turnover {
+    pub fn new(
+        previous_offense: Uuid,
+        new_offense: Uuid,
+        recovering_player: Option<Uuid>,
+        lost_by_player_id: Option<Uuid>,
+        in_live_play: bool,
+        point_x: f64,
+        point_y: f64,
+    ) -> Self {
+        Self {
+            previous_offense,
+            new_offense,
+            recovering_player,
+            lost_by_player_id,
+            in_live_play,
+            point_x,
+            point_y,
+        }
+    }
+
+    pub fn previous_offense(&self) -> Uuid {
+        self.previous_offense
+    }
+
+    pub fn previous_offense_team_id(&self) -> Uuid {
+        self.previous_offense
+    }
+
+    pub fn new_offense(&self) -> Uuid {
+        self.new_offense
+    }
+
+    pub fn new_offense_team_id(&self) -> Uuid {
+        self.new_offense
+    }
+
+    pub fn recovering_player(&self) -> Option<Uuid> {
+        self.recovering_player
+    }
+
+    pub fn recovering_player_id(&self) -> Option<Uuid> {
+        self.recovering_player
+    }
+
+    pub fn lost_by_player_id(&self) -> Option<Uuid> {
+        self.lost_by_player_id
+    }
+
+    pub fn in_live_play(&self) -> bool {
+        self.in_live_play
+    }
+
+    pub fn point_x(&self) -> f64 {
+        self.point_x
+    }
+
+    pub fn point_y(&self) -> f64 {
+        self.point_y
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PossessionEvent {
-    Turnover(Turnover),
-    OutOfBounds(OutOfBounds),
     CountdownToSizeStarted(CountdownToSizeStarted),
     DownAdvanced(DownAdvanced),
-}
-
-impl From<Turnover> for PossessionEvent {
-    fn from(ev: Turnover) -> Self {
-        Self::Turnover(ev)
-    }
-}
-
-impl From<OutOfBounds> for PossessionEvent {
-    fn from(ev: OutOfBounds) -> Self {
-        Self::OutOfBounds(ev)
-    }
+    OutOfBounds(OutOfBounds),
+    Turnover(Turnover),
 }
 
 impl From<CountdownToSizeStarted> for PossessionEvent {
-    fn from(ev: CountdownToSizeStarted) -> Self {
-        Self::CountdownToSizeStarted(ev)
+    fn from(event: CountdownToSizeStarted) -> Self {
+        Self::CountdownToSizeStarted(event)
     }
 }
 
 impl From<DownAdvanced> for PossessionEvent {
-    fn from(ev: DownAdvanced) -> Self {
-        Self::DownAdvanced(ev)
+    fn from(event: DownAdvanced) -> Self {
+        Self::DownAdvanced(event)
+    }
+}
+
+impl From<OutOfBounds> for PossessionEvent {
+    fn from(event: OutOfBounds) -> Self {
+        Self::OutOfBounds(event)
+    }
+}
+
+impl From<Turnover> for PossessionEvent {
+    fn from(event: Turnover) -> Self {
+        Self::Turnover(event)
     }
 }

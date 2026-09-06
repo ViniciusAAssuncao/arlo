@@ -13,6 +13,7 @@ pub struct PlayerTouchStats {
     pub recoveries: u32,
     pub scoring_attempts: u32,
     pub total_touches: u32,
+    pub turnovers_conceded: u32,
 }
 
 impl PlayerTouchStats {
@@ -25,6 +26,7 @@ impl PlayerTouchStats {
             recoveries: 0,
             scoring_attempts: 0,
             total_touches: 0,
+            turnovers_conceded: 0,
         }
     }
 
@@ -54,6 +56,10 @@ impl PlayerTouchStats {
 
     pub fn total_touches(&self) -> u32 {
         self.total_touches
+    }
+
+    pub fn turnovers_conceded(&self) -> u32 {
+        self.turnovers_conceded
     }
 }
 
@@ -119,6 +125,11 @@ impl PlayerTouchesAggregator {
         stats.scoring_attempts += 1;
         stats.total_touches += 1;
     }
+
+    pub fn record_turnover_conceded(&mut self, player_id: Uuid) {
+        let stats = self.get_mut_or_create(player_id);
+        stats.turnovers_conceded += 1;
+    }
 }
 
 impl StatAggregator for PlayerTouchesAggregator {
@@ -141,6 +152,9 @@ impl StatAggregator for PlayerTouchesAggregator {
             MatchEvent::Turnover(e) => {
                 if let Some(pid) = e.recovering_player_id() {
                     self.record_recovery(pid);
+                }
+                if let Some(pid) = e.lost_by_player_id() {
+                    self.record_turnover_conceded(pid);
                 }
             }
             MatchEvent::GoalPoint(e) => {

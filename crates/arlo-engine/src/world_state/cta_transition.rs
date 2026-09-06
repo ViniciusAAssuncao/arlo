@@ -104,22 +104,33 @@ pub fn apply_play_transition(
     let out_of_bounds = pass_failed || is_scored || is_missed;
     let arbitral_stoppage = is_scored;
 
-    let (_turnover_category, turnover, recovering_player_id) = if is_missed {
+    let (_turnover_category, turnover, recovering_player_id, lost_by_player_id) = if is_missed {
         let category = TurnoverCategory::MissedShot;
+        let lost_by = match &execution_outcome.scoring_decision {
+            ScoringDecision::Missed { scorer_id, .. } => Some(*scorer_id),
+            _ => execution_outcome
+                .receiver_id
+                .or(Some(pass_phase.artrine.id())),
+        };
         (
             Some(category),
             Some(defense_team_id),
             category.sanitize_recovering_player(None),
+            lost_by,
         )
     } else if let Some(turnover_team) = execution_outcome.turnover {
         let category = TurnoverCategory::Dispossession;
+        let lost_by = execution_outcome
+            .receiver_id
+            .or(Some(pass_phase.artrine.id()));
         (
             Some(category),
             Some(turnover_team),
             category.sanitize_recovering_player(execution_outcome.recovering_player_id),
+            lost_by,
         )
     } else {
-        (None, None, None)
+        (None, None, None, None)
     };
 
     let mut resolved_duels = vec![pass_phase.pass_duel_outcome];
@@ -149,6 +160,7 @@ pub fn apply_play_transition(
         duels: resolved_duels,
         turnover,
         recovering_player_id,
+        lost_by_player_id,
         out_of_bounds,
         arbitral_stoppage,
         last_valid_possession_point: execution_outcome.end_position,
@@ -172,6 +184,7 @@ pub fn apply_play_transition(
             offense_team_id,
             new_offense,
             detailed_outcome.recovering_player_id,
+            detailed_outcome.lost_by_player_id,
             !out_of_bounds,
             execution_outcome.end_position,
         );

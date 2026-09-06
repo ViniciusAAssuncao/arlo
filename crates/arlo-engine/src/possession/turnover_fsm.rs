@@ -29,6 +29,7 @@ pub struct TurnoverResolution {
     category: TurnoverCategory,
     new_offense_team_id: Uuid,
     recovering_player_id: Option<Uuid>,
+    lost_by_player_id: Option<Uuid>,
 }
 
 impl TurnoverResolution {
@@ -36,12 +37,14 @@ impl TurnoverResolution {
         category: TurnoverCategory,
         new_offense_team_id: Uuid,
         recovering_player_id: Option<Uuid>,
+        lost_by_player_id: Option<Uuid>,
     ) -> Self {
         let recovering_player_id = category.sanitize_recovering_player(recovering_player_id);
         Self {
             category,
             new_offense_team_id,
             recovering_player_id,
+            lost_by_player_id,
         }
     }
 
@@ -55,5 +58,9 @@ impl TurnoverResolution {
 
     pub fn recovering_player_id(&self) -> Option<Uuid> {
         self.recovering_player_id
+    }
+
+    pub fn lost_by_player_id(&self) -> Option<Uuid> {
+        self.lost_by_player_id
     }
 }
