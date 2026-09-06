@@ -2,10 +2,12 @@ use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::fatigue::{compute_player_fatigue_multiplier, FatigueState};
 use crate::match_decision::finisher_selection::select_finisher;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringOpportunity,
+    evaluate_scoring_opportunity, resolve_scoring_attempt,
 };
+use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::DuelContext;
+use crate::resolution::group_rating::calculate_player_duel_rating;
+use crate::resolution::{DuelContext, DuelKind};
 use crate::spatial::ball_kinematics::{
     ball_flight_duration, calculate_cross_speed, calculate_shot_speed,
 };
@@ -14,12 +16,7 @@ use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
-use arlo_domain::sport_constants::{
-    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
-    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST,
-};
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
-use arlo_events::ScoringPost;
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
@@ -36,6 +33,7 @@ pub fn execute_self_finish<F, R>(
     drives_in_series: u32,
     accumulated_advance_mirim: f64,
     is_last_down: bool,
+    is_bonus_phase: bool,
     attacking_positive_x: bool,
     start_pos: VectorPosition,
     context: &DuelContext,
@@ -92,6 +90,7 @@ where
         drives_in_series,
         accumulated_advance_mirim,
         is_last_down,
+        is_bonus_phase,
         start_pos,
         ledger,
         context,
@@ -112,6 +111,7 @@ pub fn execute_cross_finish<F, R>(
     drives_in_series: u32,
     accumulated_advance_mirim: f64,
     is_last_down: bool,
+    is_bonus_phase: bool,
     attacking_positive_x: bool,
     start_pos: VectorPosition,
     context: &DuelContext,
@@ -197,6 +197,7 @@ where
         drives_in_series,
         accumulated_advance_mirim,
         is_last_down,
+        is_bonus_phase,
         start_pos,
         ledger,
         context,
@@ -213,22 +214,27 @@ pub fn execute_finishing_with_player<R: Rng + ?Sized>(
     defense_team_id: Uuid,
     drives_in_series: u32,
     accumulated_advance_mirim: f64,
-    is_last_down: bool,
+    _is_last_down: bool,
+    is_bonus_phase: bool,
     start_pos: VectorPosition,
     duration_ledger: DurationLedger,
     context: &DuelContext,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome {
-    let mut opportunity =
-        evaluate_scoring_opportunity(drives_in_series, accumulated_advance_mirim);
+    let (attacker_profile, _) = get_duel_profiles(DuelKind::FinishingAttempt);
+    let finisher_rating = calculate_player_duel_rating(
+        finisher,
+        DomainPosition::CenterOffense,
+        attribute_keys,
+        &attacker_profile,
+    );
 
-    if opportunity == ScoringOpportunity::None && is_last_down {
-        if accumulated_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST {
-            opportunity = ScoringOpportunity::FieldGoal(ScoringPost::Goalpost);
-        } else if accumulated_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST {
-            opportunity = ScoringOpportunity::FieldGoal(ScoringPost::Fieldpost);
-        }
-    }
+    let opportunity = evaluate_scoring_opportunity(
+        is_bonus_phase,
+        drives_in_series,
+        accumulated_advance_mirim,
+        finisher_rating,
+    );
 
     let (scoring_decision, finish_duel) = resolve_scoring_attempt(
         finisher,

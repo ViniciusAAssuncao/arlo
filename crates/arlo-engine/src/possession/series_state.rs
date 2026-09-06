@@ -9,6 +9,7 @@ pub struct SeriesState {
     down: u8,
     advanced_mirins: f64,
     scrimmage_point: Position,
+    pub is_bonus_phase: bool,
 }
 
 impl SeriesState {
@@ -17,6 +18,21 @@ impl SeriesState {
             down,
             advanced_mirins,
             scrimmage_point,
+            is_bonus_phase: false,
+        }
+    }
+
+    pub fn with_bonus_phase(
+        down: u8,
+        advanced_mirins: f64,
+        scrimmage_point: Position,
+        is_bonus_phase: bool,
+    ) -> Self {
+        Self {
+            down,
+            advanced_mirins,
+            scrimmage_point,
+            is_bonus_phase,
         }
     }
 
@@ -25,6 +41,7 @@ impl SeriesState {
             down: 1,
             advanced_mirins: 0.0,
             scrimmage_point,
+            is_bonus_phase: false,
         }
     }
 
@@ -42,6 +59,14 @@ impl SeriesState {
 
     pub fn line_of_scrimmage(&self) -> Position {
         self.scrimmage_point
+    }
+
+    pub fn is_bonus_phase(&self) -> bool {
+        self.is_bonus_phase
+    }
+
+    pub fn set_bonus_phase(&mut self, is_bonus_phase: bool) {
+        self.is_bonus_phase = is_bonus_phase;
     }
 
     pub fn set_scrimmage_point(&mut self, new_scrimmage: Position) {
@@ -77,6 +102,7 @@ impl SeriesState {
         self.down = 1;
         self.advanced_mirins = 0.0;
         self.scrimmage_point = new_scrimmage;
+        self.is_bonus_phase = false;
     }
 
     pub fn remaining_mirins_to_target(&self) -> f64 {

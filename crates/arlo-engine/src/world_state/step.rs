@@ -90,6 +90,7 @@ pub fn step_call_to_action(
 
         let pitch = *state.pitch();
         let attribute_keys = state.attribute_keys().clone();
+        let is_bonus_phase = state.possession().is_bonus_phase();
         let drives_in_series = state.drives_in_current_series();
         let remaining_downs = state.possession().series_state().remaining_downs();
         let is_last_down = state.possession().series_state().is_last_down();
@@ -163,6 +164,7 @@ pub fn step_call_to_action(
             remaining_downs,
             pass_phase.pass_duel_outcome.outcome().net_advantage(),
             is_last_down,
+            is_bonus_phase,
             advanced_mirins,
             best_available_target_weight,
             pass_phase.reception_point,
@@ -216,6 +218,7 @@ pub fn step_call_to_action(
             drives_in_series,
             advanced_mirins,
             is_last_down,
+            is_bonus_phase,
             &context,
             &fatigue_lookup_exec,
             &mut execution_rng,

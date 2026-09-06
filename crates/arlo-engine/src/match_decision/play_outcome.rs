@@ -38,6 +38,7 @@ impl DetailedPlayOutcome {
             last_valid_possession_point: self.last_valid_possession_point,
             possession_control_seconds: self.possession_control_seconds,
             score_occurred: self.scoring_decision.is_scored(),
+            is_goal_point: matches!(self.scoring_decision, ScoringDecision::GoalPoint { .. }),
         }
     }
 }

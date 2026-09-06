@@ -239,6 +239,7 @@ pub fn apply_play_transition(
         state.reset_drives();
     }
 
+    let was_goal_point = matches!(detailed_outcome.scoring_decision, ScoringDecision::GoalPoint { .. });
     let mut next_snapshot = transition_result.snapshot;
     if detailed_outcome.scoring_decision.is_scored() {
         let center_scrimmage = VectorPosition::from_components(
@@ -247,6 +248,9 @@ pub fn apply_play_transition(
             0.0,
         );
         next_snapshot.series_state_mut().reset(center_scrimmage);
+        if was_goal_point {
+            next_snapshot.series_state_mut().is_bonus_phase = true;
+        }
     }
 
     if transition_result.countdown_to_size_triggered {

@@ -86,11 +86,30 @@ pub fn can_attempt_field_goal(territory_advance_mirim: f64) -> bool {
     territory_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST
 }
 
+pub fn determine_field_goal_post(
+    finisher_rating: f64,
+    territory_advance_mirim: f64,
+) -> ScoringPost {
+    let normalized_rating = (finisher_rating / 20.0).clamp(0.0, 1.0);
+    let normalized_distance = (territory_advance_mirim / 10.0).clamp(0.0, 1.0);
+    let score = normalized_rating * 0.6 + normalized_distance * 0.4;
+    if score >= 0.5 {
+        ScoringPost::Goalpost
+    } else {
+        ScoringPost::Fieldpost
+    }
+}
+
 pub fn evaluate_scoring_opportunity(
+    is_bonus_phase: bool,
     drives_in_series: u32,
     territory_advance_mirim: f64,
+    finisher_rating: f64,
 ) -> ScoringOpportunity {
-    if can_attempt_goal_point(drives_in_series) {
+    if is_bonus_phase {
+        let post = determine_field_goal_post(finisher_rating, territory_advance_mirim);
+        ScoringOpportunity::FieldGoal(post)
+    } else if can_attempt_goal_point(drives_in_series) {
         ScoringOpportunity::GoalPoint
     } else if can_attempt_field_point(drives_in_series, territory_advance_mirim) {
         ScoringOpportunity::FieldPoint

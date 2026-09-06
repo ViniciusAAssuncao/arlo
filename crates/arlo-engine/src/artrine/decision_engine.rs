@@ -42,6 +42,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     remaining_downs: u8,
     pass_protection_net_advantage: f64,
     is_last_down: bool,
+    is_bonus_phase: bool,
     territory_advance_mirim: f64,
     best_available_target_weight: f64,
     artrine_pos: VectorPosition,
@@ -50,8 +51,12 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     pitch_length_mirim: f64,
     rng: &mut R,
 ) -> ArtrineDecisionResult {
-    let available_kinds =
-        available_decision_kinds(drives_in_current_series, territory_advance_mirim, is_last_down);
+    let available_kinds = available_decision_kinds(
+        drives_in_current_series,
+        territory_advance_mirim,
+        is_last_down,
+        is_bonus_phase,
+    );
 
     let utilities = calculate_decision_utilities(
         artrine,

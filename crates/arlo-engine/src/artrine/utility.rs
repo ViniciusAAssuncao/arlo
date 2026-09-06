@@ -1,7 +1,6 @@
 use crate::ai::markov_decision::MarkovDecisionEvaluator;
 use crate::match_decision::scoring::{evaluate_scoring_opportunity, ScoringOpportunity};
 use crate::spatial::proximity::calculate_distance_mirim;
-use arlo_domain::sport_constants::FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
 use std::collections::HashMap;
@@ -10,7 +9,8 @@ use uuid::Uuid;
 pub fn available_decision_kinds(
     drives_in_current_series: u32,
     accumulated_advance_mirim: f64,
-    is_last_down: bool,
+    _is_last_down: bool,
+    is_bonus_phase: bool,
 ) -> Vec<ArtrineDecisionKind> {
     let mut kinds = vec![
         ArtrineDecisionKind::SelfCarry,
@@ -18,12 +18,14 @@ pub fn available_decision_kinds(
         ArtrineDecisionKind::LongLaunch,
     ];
 
-    let opportunity =
-        evaluate_scoring_opportunity(drives_in_current_series, accumulated_advance_mirim);
-    let field_goal_reachable = is_last_down
-        && accumulated_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST;
+    let opportunity = evaluate_scoring_opportunity(
+        is_bonus_phase,
+        drives_in_current_series,
+        accumulated_advance_mirim,
+        10.0,
+    );
 
-    if opportunity != ScoringOpportunity::None || field_goal_reachable {
+    if opportunity != ScoringOpportunity::None {
         kinds.push(ArtrineDecisionKind::Cross);
         kinds.push(ArtrineDecisionKind::SelfFinish);
     }
