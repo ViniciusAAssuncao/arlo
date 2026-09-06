@@ -4,6 +4,7 @@ use crate::match_decision::scoring::{evaluate_scoring_opportunity, ScoringOpport
 use crate::resolution::group_rating::calculate_player_duel_rating;
 use arlo_domain::sport_constants::FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position};
+use arlo_math::units::Position as VectorPosition;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -42,6 +43,9 @@ pub fn calculate_decision_utilities(
     is_last_down: bool,
     territory_advance_mirim: f64,
     best_available_target_weight: f64,
+    artrine_pos: VectorPosition,
+    next_artro_pos: VectorPosition,
+    spatial_resistance: f64,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let mut results = Vec::with_capacity(available_kinds.len());
 
@@ -62,6 +66,9 @@ pub fn calculate_decision_utilities(
             is_last_down,
             territory_advance_mirim,
             best_available_target_weight,
+            artrine_pos,
+            next_artro_pos,
+            spatial_resistance,
         );
         let total_utility = intrinsic_rating + context_util;
         results.push((kind, total_utility));

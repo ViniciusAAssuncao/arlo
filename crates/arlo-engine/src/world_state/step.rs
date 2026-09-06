@@ -9,6 +9,7 @@ use crate::match_decision::scoring::ScoringDecision;
 use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::resolution::DuelContext;
 use crate::rng::RngStream;
+use crate::spatial::{calculate_spatial_resistance_between, find_next_artro_position};
 use crate::time::DurationLedger;
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::cta_transition::apply_play_transition;
@@ -121,6 +122,20 @@ pub fn step_call_to_action(
             })
             .fold(0.0_f64, f64::max);
 
+        let next_artro_pos = find_next_artro_position(
+            pass_phase.reception_point,
+            &pitch,
+            is_home_offense,
+        );
+
+        let spatial_resistance = calculate_spatial_resistance_between(
+            pass_phase.reception_point,
+            next_artro_pos,
+            &defense_players,
+            state.spatial_map(),
+            &attribute_keys,
+        );
+
         let seq_decision = state.next_sequence();
         let mut decision_rng = state
             .rng_provider()
@@ -136,6 +151,9 @@ pub fn step_call_to_action(
             is_last_down,
             advanced_mirins,
             best_available_target_weight,
+            pass_phase.reception_point,
+            next_artro_pos,
+            spatial_resistance,
             &mut decision_rng,
         );
 

@@ -1,6 +1,7 @@
 pub mod ball_kinematics;
 pub mod decision_vector;
 pub mod dynamic_map;
+pub mod influence;
 pub mod kinematics;
 pub mod positioning_drift;
 pub mod proximity;
@@ -16,6 +17,11 @@ pub use decision_vector::{
     BASE_SPRINT_SPEED_METERS_PER_SEC, PACE_SPEED_SCALE,
 };
 pub use dynamic_map::DynamicSpatialMap;
+pub use influence::{
+    calculate_point_resistance, calculate_spatial_resistance,
+    calculate_spatial_resistance_between, defender_projected_mean, defender_variance,
+    find_next_artro_position,
+};
 pub use kinematics::{advance_position, calculate_displacement};
 pub use positioning_drift::{
     anchor_drift_radius_mirim, apply_positioning_drift, get_drifted_defender_position,

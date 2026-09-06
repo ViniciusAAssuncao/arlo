@@ -4,6 +4,7 @@ use arlo_domain::sport_constants::decision_steepness_for;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::stats::categorical::sample_categorical;
 use arlo_math::stats::contrast::softmax_weights;
+use arlo_math::units::Position as VectorPosition;
 use arlo_math::Probability;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -43,6 +44,9 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     is_last_down: bool,
     territory_advance_mirim: f64,
     best_available_target_weight: f64,
+    artrine_pos: VectorPosition,
+    next_artro_pos: VectorPosition,
+    spatial_resistance: f64,
     rng: &mut R,
 ) -> ArtrineDecisionResult {
     let available_kinds =
@@ -59,6 +63,9 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
         is_last_down,
         territory_advance_mirim,
         best_available_target_weight,
+        artrine_pos,
+        next_artro_pos,
+        spatial_resistance,
     );
 
     if utilities.is_empty() {
