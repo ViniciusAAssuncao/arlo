@@ -13,12 +13,41 @@ impl AggregatorRegistry {
         }
     }
 
+    pub fn with_default_aggregators() -> Self {
+        let mut registry = Self::new();
+        registry.register_aggregator(crate::player::PlayerArtrineDecisionAggregator::new());
+        registry.register_aggregator(crate::player::PlayerDrivesAggregator::new());
+        registry.register_aggregator(crate::player::PlayerDuelAggregator::new());
+        registry.register_aggregator(crate::player::PlayerReceivingAggregator::new());
+        registry.register_aggregator(crate::player::PlayerTouchesAggregator::new());
+        registry.register_aggregator(crate::player::PlayerScoringAttemptsAggregator::new());
+        registry
+    }
+
     pub fn register(&mut self, aggregator: Box<dyn StatAggregator>) {
         self.aggregators.push(aggregator);
     }
 
     pub fn register_aggregator<T: StatAggregator + 'static>(&mut self, aggregator: T) {
         self.aggregators.push(Box::new(aggregator));
+    }
+
+    pub fn get<T: StatAggregator + 'static>(&self) -> Option<&T> {
+        for agg in &self.aggregators {
+            if let Some(downcasted) = agg.as_any().downcast_ref::<T>() {
+                return Some(downcasted);
+            }
+        }
+        None
+    }
+
+    pub fn get_mut<T: StatAggregator + 'static>(&mut self) -> Option<&mut T> {
+        for agg in &mut self.aggregators {
+            if let Some(downcasted) = agg.as_any_mut().downcast_mut::<T>() {
+                return Some(downcasted);
+            }
+        }
+        None
     }
 
     pub fn handle_envelope(&mut self, envelope: &MatchEventEnvelope) {

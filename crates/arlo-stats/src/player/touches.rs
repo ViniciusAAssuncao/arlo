@@ -152,6 +152,9 @@ impl StatAggregator for PlayerTouchesAggregator {
             MatchEvent::FieldGoal(e) => {
                 self.record_scoring_attempt(e.scorer_id());
             }
+            MatchEvent::ScoringAttemptMissed(e) => {
+                self.record_scoring_attempt(e.scorer_id());
+            }
             _ => {}
         }
     }

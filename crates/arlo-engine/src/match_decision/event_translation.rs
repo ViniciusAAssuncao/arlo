@@ -5,7 +5,8 @@ use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
     DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent,
-    MatchEventEnvelope, OutOfBounds, PassCompleted, ReceptionResolved, Turnover,
+    MatchEventEnvelope, OutOfBounds, PassCompleted, ReceptionResolved, ScoringAttemptMissed,
+    Turnover,
 };
 use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
@@ -208,7 +209,16 @@ pub fn translate_scoring_decision(decision: &ScoringDecision) -> Option<MatchEve
         } => Some(MatchEvent::FieldGoal(FieldGoalScored::new(
             *team_id, *scorer_id, *post,
         ))),
-        ScoringDecision::Missed { .. } | ScoringDecision::NoOpportunity => None,
+        ScoringDecision::Missed {
+            team_id,
+            scorer_id,
+            attempted_post,
+        } => Some(MatchEvent::ScoringAttemptMissed(ScoringAttemptMissed::new(
+            *team_id,
+            *scorer_id,
+            *attempted_post,
+        ))),
+        ScoringDecision::NoOpportunity => None,
     }
 }
 

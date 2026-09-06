@@ -16,7 +16,10 @@ pub use in_memory_sink::InMemorySink;
 pub use possession::{
     CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent, Turnover,
 };
-pub use scoring::{FieldGoalScored, FieldPointScored, GoalPointScored, ScoringEvent, ScoringPost};
+pub use scoring::{
+    FieldGoalScored, FieldPointScored, GoalPointScored, ScoringAttemptMissed, ScoringEvent,
+    ScoringPost,
+};
 pub use sink::EventSink;
 
 use serde::{Deserialize, Serialize};
@@ -37,6 +40,7 @@ pub enum MatchEvent {
     GoalPoint(GoalPointScored),
     FieldPoint(FieldPointScored),
     FieldGoal(FieldGoalScored),
+    ScoringAttemptMissed(ScoringAttemptMissed),
 }
 
 impl MatchEvent {
@@ -70,6 +74,10 @@ impl MatchEvent {
         )
     }
 
+    pub fn is_missed_attempt(&self) -> bool {
+        matches!(self, Self::ScoringAttemptMissed(_))
+    }
+
     pub fn event_type_name(&self) -> &'static str {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
@@ -86,6 +94,7 @@ impl MatchEvent {
             Self::GoalPoint(_) => "GoalPoint",
             Self::FieldPoint(_) => "FieldPoint",
             Self::FieldGoal(_) => "FieldGoal",
+            Self::ScoringAttemptMissed(_) => "ScoringAttemptMissed",
         }
     }
 }
@@ -174,6 +183,12 @@ impl From<FieldGoalScored> for MatchEvent {
     }
 }
 
+impl From<ScoringAttemptMissed> for MatchEvent {
+    fn from(ev: ScoringAttemptMissed) -> Self {
+        Self::ScoringAttemptMissed(ev)
+    }
+}
+
 impl From<ActionEvent> for MatchEvent {
     fn from(ev: ActionEvent) -> Self {
         match ev {
@@ -205,6 +220,7 @@ impl From<ScoringEvent> for MatchEvent {
             ScoringEvent::GoalPoint(e) => Self::GoalPoint(e),
             ScoringEvent::FieldPoint(e) => Self::FieldPoint(e),
             ScoringEvent::FieldGoal(e) => Self::FieldGoal(e),
+            ScoringEvent::AttemptMissed(e) => Self::ScoringAttemptMissed(e),
         }
     }
 }
