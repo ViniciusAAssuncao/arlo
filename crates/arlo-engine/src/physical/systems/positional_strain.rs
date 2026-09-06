@@ -104,8 +104,8 @@ pub fn calculate_positional_strain(profile: &PositionWeightProfile) -> Positiona
     let mobility_ratio = mobility_weight / total_weight;
     let static_ratio = static_weight / total_weight;
 
-    let transit_strain_multiplier = (0.55 + 1.50 * mobility_ratio).clamp(0.50, 2.00);
-    let duel_strain_multiplier = (0.55 + 1.50 * static_ratio).clamp(0.50, 2.00);
+    let transit_strain_multiplier = (0.75 + 0.60 * mobility_ratio).clamp(0.70, 1.35);
+    let duel_strain_multiplier = (0.75 + 0.60 * static_ratio).clamp(0.70, 1.35);
 
     PositionalStrainProfile::new(
         transit_strain_multiplier,

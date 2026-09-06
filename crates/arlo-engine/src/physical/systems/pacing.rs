@@ -69,7 +69,7 @@ pub fn calculate_pacing_state(
     let base_effort = if is_near_ball {
         1.0
     } else {
-        0.50 + 0.50 * norm_wr
+        0.70 + 0.30 * norm_wr
     };
 
     let is_conserving = !is_near_ball && norm_wr < 0.75;
@@ -85,7 +85,7 @@ pub fn calculate_pacing_state(
         (1.0, false)
     };
 
-    let pacing_multiplier = (base_effort * urgency_multiplier).clamp(0.35, 2.80);
+    let pacing_multiplier = (base_effort * urgency_multiplier).clamp(0.50, 1.80);
 
     PacingState::new(pacing_multiplier, is_conserving, is_overridden)
 }

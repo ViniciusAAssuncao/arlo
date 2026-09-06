@@ -8,7 +8,7 @@ use crate::match_decision::event_translation::{
 };
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::systems::pacing::{calculate_player_pacing_multiplier, is_player_near_ball};
 use crate::physical::systems::positional_strain::calculate_transit_strain_multiplier;
 use crate::possession::{transition, TurnoverCategory};
@@ -20,7 +20,7 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::period_resolution::resolve_period_end;
 use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
-use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
 use arlo_events::{CountdownReason, EventArtroPlacement, EventSink};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use uuid::Uuid;
@@ -261,13 +261,22 @@ pub fn apply_play_transition(
         );
 
         let transit_mult = calculate_transit_strain_multiplier(p_pos);
-        let eff_speed = calculate_effective_player_speed(
+        let pace_val = extract_effective_attribute_value(
             p,
             state.attribute_keys(),
+            AttributeKey::Pace,
             &p_fatigue,
         );
+        let accel_val = extract_effective_attribute_value(
+            p,
+            state.attribute_keys(),
+            AttributeKey::Acceleration,
+            &p_fatigue,
+        );
+        let athletic_factor = 0.94 + (pace_val * 0.003) + (accel_val * 0.002);
 
-        let base_transit_mirim = (eff_speed.value() * 0.10 / MIRIM_TO_METERS) * live_seconds;
+        let base_cruising_speed_m_s = 0.96;
+        let base_transit_mirim = (base_cruising_speed_m_s * athletic_factor / MIRIM_TO_METERS) * live_seconds;
         let mut player_dist = base_transit_mirim * transit_mult * pacing_mult;
 
         if pid == runner_id && execution_outcome.mirins_advanced > 0.0 {

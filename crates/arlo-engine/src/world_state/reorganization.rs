@@ -58,9 +58,10 @@ pub fn derive_and_apply_reorganization(
             .iter()
             .map(|(a, b)| calculate_distance_mirim(*a, *b))
             .sum();
-        if dist_mirim > 0.0 {
-            let (energy, w_bal) = state.record_distance(*player_id, dist_mirim);
-            let strain_ev = translate_physical_strain_recorded(*player_id, energy, w_bal, dist_mirim);
+        let reorg_dist = dist_mirim * 0.35;
+        if reorg_dist > 0.0 {
+            let (energy, w_bal) = state.record_distance(*player_id, reorg_dist);
+            let strain_ev = translate_physical_strain_recorded(*player_id, energy, w_bal, reorg_dist);
             let seq = state.next_sequence();
             let clock_inst = state.clock().to_instant();
             sink.record(create_envelope(seq, clock_inst, strain_ev));
