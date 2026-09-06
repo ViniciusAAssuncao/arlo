@@ -1,13 +1,100 @@
 use crate::spatial::decision_vector::{calculate_player_speed, extract_attribute_value};
 use crate::weighting::apply_saturation;
 use arlo_domain::{AttributeKey, Player};
-use arlo_math::units::{Duration, Position, Speed, Vector3, Velocity, MIRIM_TO_METERS};
+use arlo_math::units::{Duration, Position, Speed, Vector3, Velocity};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use uuid::Uuid;
 
-pub const DEFAULT_SEPARATION_RADIUS_METERS: f64 = 2.5 * MIRIM_TO_METERS;
-pub const DEFAULT_ARRIVAL_SLOWING_RADIUS_METERS: f64 = 2.0 * MIRIM_TO_METERS;
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SpatialNeighbor {
+    pub id: Uuid,
+    pub position: Position,
+    pub velocity: Velocity,
+    pub is_teammate: bool,
+    pub physical_radius: f64,
+}
+
+impl SpatialNeighbor {
+    pub fn new(
+        id: Uuid,
+        position: Position,
+        velocity: Velocity,
+        is_teammate: bool,
+        physical_radius: f64,
+    ) -> Self {
+        Self {
+            id,
+            position,
+            velocity,
+            is_teammate,
+            physical_radius,
+        }
+    }
+
+    pub fn from_position(position: Position) -> Self {
+        Self {
+            id: Uuid::nil(),
+            position,
+            velocity: Velocity::zero(),
+            is_teammate: false,
+            physical_radius: 0.55,
+        }
+    }
+}
+
+pub fn derive_braking_deceleration(agility: f64, balance: f64, fatigue_multiplier: f64) -> f64 {
+    let ag = agility.clamp(0.0, 20.0);
+    let bal = balance.clamp(0.0, 20.0);
+    let base_decel = 3.2 + (ag * 0.18) + (bal * 0.14);
+    (base_decel * fatigue_multiplier.clamp(0.5, 1.0)).clamp(1.5, 12.0)
+}
+
+pub fn derive_arrival_slowing_radius(
+    current_speed: f64,
+    agility: f64,
+    balance: f64,
+    fatigue_multiplier: f64,
+) -> f64 {
+    let decel = derive_braking_deceleration(agility, balance, fatigue_multiplier);
+    let speed = current_speed.max(0.0);
+    let stopping_dist = (speed * speed) / (2.0 * decel);
+    stopping_dist.max(0.35)
+}
+
+pub fn derive_player_arrival_radius(
+    player: &Player,
+    current_speed: f64,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    fatigue_multiplier: f64,
+) -> f64 {
+    let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
+    let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+    derive_arrival_slowing_radius(current_speed, agility, balance, fatigue_multiplier)
+}
+
+pub fn derive_player_physical_radius(
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+) -> f64 {
+    let height = player.height_m().clamp(1.4, 2.3);
+    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength).clamp(0.0, 20.0);
+    height * (0.22 + 0.008 * strength)
+}
+
+pub fn derive_dynamic_separation_radius(
+    self_physical_radius: f64,
+    neighbor_physical_radius: f64,
+    is_teammate: bool,
+    approach_speed: f64,
+) -> f64 {
+    let combined_radius = self_physical_radius + neighbor_physical_radius;
+    let relational_factor = if is_teammate { 1.35 } else { 2.40 };
+    let base_separation = combined_radius * relational_factor;
+    let velocity_expansion = 1.0 + (approach_speed.max(0.0) * 0.15);
+    base_separation * velocity_expansion
+}
 
 pub fn max_turn_radians_per_tick(agility: f64) -> f64 {
     let clamped_agility = agility.clamp(0.0, 20.0);
@@ -61,6 +148,48 @@ pub fn calculate_separation_force(
     total_repulsion
 }
 
+pub fn calculate_dynamic_separation_force(
+    current_pos: Position,
+    current_velocity: Velocity,
+    self_physical_radius: f64,
+    neighbors: &[SpatialNeighbor],
+) -> Vector3 {
+    let mut total_repulsion = Vector3::zero();
+    let p0 = current_pos.raw();
+    let v0 = current_velocity.raw();
+    let v0_mag = v0.magnitude();
+
+    for neighbor in neighbors {
+        let pn = neighbor.position.raw();
+        let diff = p0 - pn;
+        let dist = diff.magnitude();
+
+        if dist > 1e-4 {
+            let dir_to_neighbor = (pn - p0) / dist;
+            let approach_speed = if v0_mag > 1e-6 {
+                (v0.0 * dir_to_neighbor.0 + v0.1 * dir_to_neighbor.1 + v0.2 * dir_to_neighbor.2).max(0.0)
+            } else {
+                0.0
+            };
+
+            let sep_radius = derive_dynamic_separation_radius(
+                self_physical_radius,
+                neighbor.physical_radius,
+                neighbor.is_teammate,
+                approach_speed,
+            );
+
+            if dist < sep_radius {
+                let normalized_dist = dist / sep_radius;
+                let weight = (1.0 - normalized_dist) / dist;
+                total_repulsion = total_repulsion + (diff * weight);
+            }
+        }
+    }
+
+    total_repulsion
+}
+
 pub fn calculate_steered_velocity(
     current_velocity: Velocity,
     current_pos: Position,
@@ -103,31 +232,43 @@ pub fn calculate_steered_velocity(
     Velocity::from_raw(raw_vel)
 }
 
-pub fn calculate_boid_steering_velocity(
+pub fn calculate_dynamic_boid_steering_velocity(
     current_velocity: Velocity,
     current_pos: Position,
     target_pos: Position,
-    neighbor_positions: &[Position],
+    neighbors: &[SpatialNeighbor],
     speed: Speed,
     agility: f64,
     acceleration: f64,
+    balance: f64,
+    fatigue_multiplier: f64,
+    self_physical_radius: f64,
     dt: Duration,
 ) -> Velocity {
+    let current_speed = current_velocity.magnitude().value();
+    let arrival_radius = derive_arrival_slowing_radius(
+        current_speed.max(speed.value()),
+        agility,
+        balance,
+        fatigue_multiplier,
+    );
+
     let seek_force = calculate_seek_force(
         current_pos,
         current_velocity,
         target_pos,
         speed,
-        DEFAULT_ARRIVAL_SLOWING_RADIUS_METERS,
+        arrival_radius,
     );
 
-    let separation_force = calculate_separation_force(
+    let separation_force = calculate_dynamic_separation_force(
         current_pos,
-        neighbor_positions,
-        DEFAULT_SEPARATION_RADIUS_METERS,
+        current_velocity,
+        self_physical_radius,
+        neighbors,
     );
 
-    let max_accel_mag = 2.5 + (acceleration.clamp(0.0, 20.0) * 0.25);
+    let max_accel_mag = (2.5 + (acceleration.clamp(0.0, 20.0) * 0.25)) * fatigue_multiplier.clamp(0.5, 1.0);
     let combined_force = seek_force + (separation_force * 3.0);
     let force_mag = combined_force.magnitude();
 
@@ -151,7 +292,6 @@ pub fn calculate_boid_steering_velocity(
         candidate_raw
     };
 
-    let current_speed = current_velocity.magnitude().value();
     if current_speed < 1e-6 {
         return Velocity::from_raw(limited_raw);
     }
@@ -177,6 +317,35 @@ pub fn calculate_boid_steering_velocity(
     let final_dir = Position::from_components(new_angle.cos(), new_angle.sin(), 0.0).raw();
     let final_raw = final_dir * limited_raw.magnitude();
     Velocity::from_raw(final_raw)
+}
+
+pub fn calculate_boid_steering_velocity(
+    current_velocity: Velocity,
+    current_pos: Position,
+    target_pos: Position,
+    neighbor_positions: &[Position],
+    speed: Speed,
+    agility: f64,
+    acceleration: f64,
+    dt: Duration,
+) -> Velocity {
+    let neighbors: Vec<SpatialNeighbor> = neighbor_positions
+        .iter()
+        .map(|&pos| SpatialNeighbor::from_position(pos))
+        .collect();
+    calculate_dynamic_boid_steering_velocity(
+        current_velocity,
+        current_pos,
+        target_pos,
+        &neighbors,
+        speed,
+        agility,
+        acceleration,
+        10.0,
+        1.0,
+        0.55,
+        dt,
+    )
 }
 
 pub fn derive_player_steered_velocity(
@@ -205,14 +374,56 @@ pub fn derive_player_boid_steered_velocity(
     let speed = calculate_player_speed(player, attribute_keys, fatigue_multiplier);
     let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
     let acceleration = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-    calculate_boid_steering_velocity(
+    let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+    let physical_radius = derive_player_physical_radius(player, attribute_keys);
+
+    let neighbors: Vec<SpatialNeighbor> = neighbor_positions
+        .iter()
+        .map(|&pos| SpatialNeighbor::from_position(pos))
+        .collect();
+
+    calculate_dynamic_boid_steering_velocity(
         current_velocity,
         current_pos,
         target_pos,
-        neighbor_positions,
+        &neighbors,
         speed,
         agility,
         acceleration,
+        balance,
+        fatigue_multiplier,
+        physical_radius,
+        dt,
+    )
+}
+
+pub fn derive_player_dynamic_boid_steered_velocity(
+    current_velocity: Velocity,
+    current_pos: Position,
+    target_pos: Position,
+    neighbors: &[SpatialNeighbor],
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    fatigue_multiplier: f64,
+    dt: Duration,
+) -> Velocity {
+    let speed = calculate_player_speed(player, attribute_keys, fatigue_multiplier);
+    let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
+    let acceleration = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
+    let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+    let physical_radius = derive_player_physical_radius(player, attribute_keys);
+
+    calculate_dynamic_boid_steering_velocity(
+        current_velocity,
+        current_pos,
+        target_pos,
+        neighbors,
+        speed,
+        agility,
+        acceleration,
+        balance,
+        fatigue_multiplier,
+        physical_radius,
         dt,
     )
 }

@@ -1,7 +1,9 @@
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
-use crate::spatial::steering::derive_player_boid_steered_velocity;
+use crate::spatial::steering::{
+    derive_player_dynamic_boid_steered_velocity, derive_player_physical_radius, SpatialNeighbor,
+};
 use arlo_domain::sport_constants::{
     MAX_OPEN_PLAY_TICKS, SPATIAL_TICK_DURATION_SECONDS, TARGET_ARRIVAL_TOLERANCE_MIRIM,
 };
@@ -127,15 +129,30 @@ pub fn run_spatial_tick_loop(
         trajectories.insert(pid, SpatialTrajectory::new(pid, initial_pos));
     }
 
+    let mover_players: HashMap<Uuid, &Player> = movers
+        .iter()
+        .map(|(p, _)| (p.id(), *p))
+        .collect();
+
     let mut ticks_executed = 0;
 
     while ticks_executed < MAX_OPEN_PLAY_TICKS {
         let mut all_arrived = true;
 
-        let neighbor_snapshot: Vec<(Uuid, Position)> = spatial_map
+        let neighbor_snapshot: Vec<SpatialNeighbor> = spatial_map
             .positions()
             .iter()
-            .map(|(&id, &pos)| (id, pos))
+            .map(|(&id, &pos)| {
+                let vel = spatial_map
+                    .get_velocity(&id)
+                    .unwrap_or_else(Velocity::zero);
+                let is_home = spatial_map.is_home_player(&id);
+                let physical_radius = mover_players
+                    .get(&id)
+                    .map(|p| derive_player_physical_radius(p, attribute_keys))
+                    .unwrap_or(0.55);
+                SpatialNeighbor::new(id, pos, vel, is_home, physical_radius)
+            })
             .collect();
 
         for (player, target) in movers {
@@ -149,17 +166,23 @@ pub fn run_spatial_tick_loop(
                     .get_velocity(&pid)
                     .unwrap_or_else(Velocity::zero);
 
-                let other_positions: Vec<Position> = neighbor_snapshot
+                let is_player_home = spatial_map.is_home_player(&pid);
+
+                let other_neighbors: Vec<SpatialNeighbor> = neighbor_snapshot
                     .iter()
-                    .filter(|(id, _)| *id != pid)
-                    .map(|(_, pos)| *pos)
+                    .filter(|n| n.id != pid)
+                    .map(|n| {
+                        let mut neighbor = *n;
+                        neighbor.is_teammate = n.is_teammate == is_player_home;
+                        neighbor
+                    })
                     .collect();
 
-                let vel = derive_player_boid_steered_velocity(
+                let vel = derive_player_dynamic_boid_steered_velocity(
                     current_vel,
                     current_pos,
                     *target,
-                    &other_positions,
+                    &other_neighbors,
                     player,
                     attribute_keys,
                     1.0,
