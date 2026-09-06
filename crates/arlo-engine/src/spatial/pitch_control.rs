@@ -61,7 +61,7 @@ where
 {
     let att_sites = build_team_voronoi_sites(attackers, spatial_map, attribute_keys, fatigue_for, 0);
     let def_sites = build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
-    compute_team_control_fraction(&att_sites, &def_sites, region, 10, 10)
+    compute_team_control_fraction(&att_sites, &def_sites, region, 5, 5)
 }
 
 pub fn calculate_artro_advance_pitch_control<F>(

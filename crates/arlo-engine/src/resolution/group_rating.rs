@@ -1,6 +1,7 @@
 use crate::resolution::duel_profiles::DuelProfile;
+use crate::spatial::decision_vector::extract_attribute_value;
 use crate::tactics::calculate_fit_for_position;
-use crate::weighting::{apply_saturation, calculate_weighted_average};
+use crate::weighting::apply_saturation;
 use arlo_domain::sport_constants::{
     ATTRIBUTE_SATURATION_THRESHOLD, GROUP_AGGREGATION_SATURATION_MULTIPLIER,
     GROUP_AGGREGATION_SATURATION_THRESHOLD, GROUP_SATURATION_MULTIPLIER,
@@ -16,17 +17,22 @@ pub fn calculate_player_duel_rating(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     profile: &DuelProfile,
 ) -> f64 {
-    let mut items = Vec::new();
-    for attr in player.attributes() {
-        if let Some(key) = attribute_keys.get(&attr.attribute_definition_id()) {
-            if let Some(w) = profile.weights().iter().find(|item| item.key == *key) {
-                if w.weight > 0.0 {
-                    items.push((attr.value() as f64, w.weight));
-                }
-            }
+    let mut total_weight = 0.0;
+    let mut accumulated = 0.0;
+
+    for w in profile.weights() {
+        if w.weight > 0.0 {
+            let val = extract_attribute_value(player, attribute_keys, w.key);
+            accumulated += val * w.weight;
+            total_weight += w.weight;
         }
     }
-    let raw = calculate_weighted_average(&items).unwrap_or(0.0);
+
+    let raw = if total_weight > 0.0 {
+        accumulated / total_weight
+    } else {
+        0.0
+    };
     let fit = calculate_fit_for_position(player, functional_position);
     raw * fit.efficiency_multiplier()
 }

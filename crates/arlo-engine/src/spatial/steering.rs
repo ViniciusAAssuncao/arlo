@@ -154,12 +154,33 @@ pub fn calculate_dynamic_separation_force(
     self_physical_radius: f64,
     neighbors: &[SpatialNeighbor],
 ) -> Vector3 {
+    calculate_dynamic_separation_force_with_id(
+        current_pos,
+        current_velocity,
+        self_physical_radius,
+        Uuid::nil(),
+        true,
+        neighbors,
+    )
+}
+
+pub fn calculate_dynamic_separation_force_with_id(
+    current_pos: Position,
+    current_velocity: Velocity,
+    self_physical_radius: f64,
+    self_id: Uuid,
+    self_is_home: bool,
+    neighbors: &[SpatialNeighbor],
+) -> Vector3 {
     let mut total_repulsion = Vector3::zero();
     let p0 = current_pos.raw();
     let v0 = current_velocity.raw();
     let v0_mag = v0.magnitude();
 
     for neighbor in neighbors {
+        if neighbor.id == self_id && !self_id.is_nil() {
+            continue;
+        }
         let pn = neighbor.position.raw();
         let diff = p0 - pn;
         let dist = diff.magnitude();
@@ -172,10 +193,11 @@ pub fn calculate_dynamic_separation_force(
                 0.0
             };
 
+            let is_teammate = neighbor.is_teammate == self_is_home;
             let sep_radius = derive_dynamic_separation_radius(
                 self_physical_radius,
                 neighbor.physical_radius,
-                neighbor.is_teammate,
+                is_teammate,
                 approach_speed,
             );
 
@@ -245,6 +267,38 @@ pub fn calculate_dynamic_boid_steering_velocity(
     self_physical_radius: f64,
     dt: Duration,
 ) -> Velocity {
+    calculate_dynamic_boid_steering_velocity_with_id(
+        current_velocity,
+        current_pos,
+        target_pos,
+        Uuid::nil(),
+        true,
+        neighbors,
+        speed,
+        agility,
+        acceleration,
+        balance,
+        fatigue_multiplier,
+        self_physical_radius,
+        dt,
+    )
+}
+
+pub fn calculate_dynamic_boid_steering_velocity_with_id(
+    current_velocity: Velocity,
+    current_pos: Position,
+    target_pos: Position,
+    self_id: Uuid,
+    self_is_home: bool,
+    neighbors: &[SpatialNeighbor],
+    speed: Speed,
+    agility: f64,
+    acceleration: f64,
+    balance: f64,
+    fatigue_multiplier: f64,
+    self_physical_radius: f64,
+    dt: Duration,
+) -> Velocity {
     let current_speed = current_velocity.magnitude().value();
     let arrival_radius = derive_arrival_slowing_radius(
         current_speed.max(speed.value()),
@@ -261,15 +315,24 @@ pub fn calculate_dynamic_boid_steering_velocity(
         arrival_radius,
     );
 
-    let separation_force = calculate_dynamic_separation_force(
+    let separation_force = calculate_dynamic_separation_force_with_id(
         current_pos,
         current_velocity,
         self_physical_radius,
+        self_id,
+        self_is_home,
         neighbors,
     );
 
+    let dist_to_target = (target_pos.raw() - current_pos.raw()).magnitude();
+    let sep_scale = if arrival_radius > 1e-4 {
+        (dist_to_target / arrival_radius).clamp(0.0, 1.0)
+    } else {
+        1.0
+    };
+
     let max_accel_mag = (2.5 + (acceleration.clamp(0.0, 20.0) * 0.25)) * fatigue_multiplier.clamp(0.5, 1.0);
-    let combined_force = seek_force + (separation_force * 3.0);
+    let combined_force = seek_force + (separation_force * (1.5 * sep_scale));
     let force_mag = combined_force.magnitude();
 
     let clamped_force = if force_mag > max_accel_mag && force_mag > 1e-6 {

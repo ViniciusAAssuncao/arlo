@@ -293,9 +293,20 @@ where
         segments
     };
 
+    let artro_search_margin = 3.0 * MIRIM_TO_METERS;
     for (seg_start, seg_end) in segments_to_test {
+        let (s_min_x, s_max_x) = if seg_start.raw().0 < seg_end.raw().0 {
+            (seg_start.raw().0, seg_end.raw().0)
+        } else {
+            (seg_end.raw().0, seg_start.raw().0)
+        };
+
         for row in &all_rows {
             if drive_row_indices.contains(&row.row_index()) {
+                continue;
+            }
+            let rx = row.x().value();
+            if rx < s_min_x - artro_search_margin || rx > s_max_x + artro_search_margin {
                 continue;
             }
             for artro in row.artros() {

@@ -2,7 +2,8 @@ use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
 use crate::spatial::steering::{
-    calculate_dynamic_boid_steering_velocity, derive_player_physical_radius, SpatialNeighbor,
+    calculate_dynamic_boid_steering_velocity_with_id, derive_player_physical_radius,
+    SpatialNeighbor,
 };
 use arlo_domain::sport_constants::{
     MAX_OPEN_PLAY_TICKS, SPATIAL_TICK_DURATION_SECONDS, TARGET_ARRIVAL_TOLERANCE_MIRIM,
@@ -164,22 +165,20 @@ pub fn run_spatial_tick_loop(
     }
 
     let mut ticks_executed = 0;
+    let mut neighbor_snapshot = Vec::with_capacity(spatial_map.positions().len());
 
     while ticks_executed < MAX_OPEN_PLAY_TICKS {
         let mut all_arrived = true;
 
-        let neighbor_snapshot: Vec<SpatialNeighbor> = spatial_map
-            .positions()
-            .iter()
-            .map(|(&id, &pos)| {
-                let vel = spatial_map
-                    .get_velocity(&id)
-                    .unwrap_or_else(Velocity::zero);
-                let is_home = spatial_map.is_home_player(&id);
-                let physical_radius = *physical_radii.get(&id).unwrap_or(&0.55);
-                SpatialNeighbor::new(id, pos, vel, is_home, physical_radius)
-            })
-            .collect();
+        neighbor_snapshot.clear();
+        for (&id, &pos) in spatial_map.positions() {
+            let vel = spatial_map
+                .get_velocity(&id)
+                .unwrap_or_else(Velocity::zero);
+            let is_home = spatial_map.is_home_player(&id);
+            let physical_radius = *physical_radii.get(&id).unwrap_or(&0.55);
+            neighbor_snapshot.push(SpatialNeighbor::new(id, pos, vel, is_home, physical_radius));
+        }
 
         for (player, target) in movers {
             let pid = player.id();
@@ -193,24 +192,15 @@ pub fn run_spatial_tick_loop(
                     .unwrap_or_else(Velocity::zero);
 
                 let is_player_home = spatial_map.is_home_player(&pid);
+                let props = &mover_props[&pid];
 
-                let other_neighbors: Vec<SpatialNeighbor> = neighbor_snapshot
-                    .iter()
-                    .filter(|n| n.id != pid)
-                    .map(|n| {
-                        let mut neighbor = *n;
-                        neighbor.is_teammate = n.is_teammate == is_player_home;
-                        neighbor
-                    })
-                    .collect();
-
-                let props = mover_props.get(&pid).unwrap();
-
-                let vel = calculate_dynamic_boid_steering_velocity(
+                let vel = calculate_dynamic_boid_steering_velocity_with_id(
                     current_vel,
                     current_pos,
                     *target,
-                    &other_neighbors,
+                    pid,
+                    is_player_home,
+                    &neighbor_snapshot,
                     props.speed,
                     props.agility,
                     props.acceleration,
@@ -223,14 +213,14 @@ pub fn run_spatial_tick_loop(
                 let step_dist = vel.magnitude().value() * SPATIAL_TICK_DURATION_SECONDS;
                 let dist_meters = calculate_distance(current_pos, *target).value();
 
-                let next_pos = if dist_meters <= step_dist {
+                let next_pos = if dist_meters <= step_dist || dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM {
                     *target
                 } else {
                     advance_position(current_pos, vel, dt)
                 };
 
                 spatial_map.set_position(pid, next_pos);
-                if dist_meters <= step_dist {
+                if dist_meters <= step_dist || dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM {
                     spatial_map.set_velocity(pid, Velocity::zero());
                 } else {
                     spatial_map.set_velocity(pid, vel);

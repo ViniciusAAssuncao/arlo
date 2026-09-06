@@ -12,9 +12,19 @@ pub fn extract_attribute_value(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     target: AttributeKey,
 ) -> f64 {
-    for attr in player.attributes() {
-        if attribute_keys.get(&attr.attribute_definition_id()) == Some(&target) {
-            return attr.value() as f64;
+    let target_id = attribute_keys.iter().find_map(|(id, &key)| {
+        if key == target {
+            Some(*id)
+        } else {
+            None
+        }
+    });
+
+    if let Some(target_id) = target_id {
+        for attr in player.attributes() {
+            if attr.attribute_definition_id() == target_id {
+                return attr.value() as f64;
+            }
         }
     }
     10.0
