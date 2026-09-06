@@ -1,30 +1,33 @@
 use crate::match_decision::target_selection::{
-    calculate_player_target_weight, player_base_reception_weight, position_reception_bias,
-    select_target, ReceptionRole,
+    calculate_player_target_weight, player_base_reception_weight, select_target, ReceptionRole,
 };
 use crate::spatial::DynamicSpatialMap;
-use arlo_domain::{Pitch, Player, Position};
+use arlo_domain::{AttributeKey, Pitch, Player, Position};
 use rand::Rng;
+use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn position_finishing_bias(position: Position) -> f64 {
-    position_reception_bias(position, ReceptionRole::Finisher)
-}
-
-pub fn player_base_finishing_weight(player: &Player) -> f64 {
-    player_base_reception_weight(player, ReceptionRole::Finisher)
+pub fn player_base_finishing_weight(
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+) -> f64 {
+    player_base_reception_weight(player, attribute_keys, ReceptionRole::Finisher)
 }
 
 pub fn calculate_player_finishing_weight(
     player: &Player,
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
+    position_index: &HashMap<Uuid, Position>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
 ) -> f64 {
     calculate_player_target_weight(
         player,
         spatial_map,
         pitch,
+        position_index,
+        attribute_keys,
         attacking_positive_x,
         ReceptionRole::Finisher,
     )
@@ -34,6 +37,8 @@ pub fn select_finisher<R: Rng + ?Sized>(
     candidates: &[&Player],
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
+    position_index: &HashMap<Uuid, Position>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     rng: &mut R,
 ) -> Option<Uuid> {
@@ -41,6 +46,8 @@ pub fn select_finisher<R: Rng + ?Sized>(
         candidates,
         spatial_map,
         pitch,
+        position_index,
+        attribute_keys,
         attacking_positive_x,
         ReceptionRole::Finisher,
         rng,

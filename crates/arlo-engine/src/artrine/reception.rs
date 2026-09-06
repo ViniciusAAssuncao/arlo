@@ -54,6 +54,8 @@ where
         candidates,
         spatial_map,
         pitch,
+        position_index,
+        attribute_keys,
         attacking_positive_x,
         ReceptionRole::OpenPlayReceiver,
         rng,

@@ -225,10 +225,7 @@ pub fn apply_play_transition(
         sink.record(create_envelope(seq, clock_inst, countdown_event));
     }
 
-    if detailed_outcome.scoring_decision.is_scored()
-        || is_possession_change
-        || transition_result.snapshot.down() == 1
-    {
+    if detailed_outcome.scoring_decision.is_scored() || is_possession_change {
         state.reset_drives();
     }
 

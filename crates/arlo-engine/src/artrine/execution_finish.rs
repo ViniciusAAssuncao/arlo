@@ -18,7 +18,7 @@ use arlo_domain::sport_constants::{
     FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
     FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST,
 };
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
 use arlo_events::ScoringPost;
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
@@ -102,6 +102,7 @@ where
 pub fn execute_cross_finish<F, R>(
     artrine: &Player,
     teammates: &[&Player],
+    offense_position_index: &HashMap<Uuid, DomainPosition>,
     goalguard: &Player,
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
@@ -131,6 +132,8 @@ where
         &eligible_teammates,
         spatial_map,
         pitch,
+        offense_position_index,
+        attribute_keys,
         attacking_positive_x,
         rng,
     );

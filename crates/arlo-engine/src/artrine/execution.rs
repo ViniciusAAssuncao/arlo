@@ -117,6 +117,7 @@ where
                 let finish_outcome = execute_cross_finish(
                     artrine,
                     offense_lineup_players,
+                    offense_position_index,
                     goalguard,
                     spatial_map,
                     pitch,
