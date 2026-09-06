@@ -199,6 +199,74 @@ impl PassCompleted {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DistributionCompleted {
+    receiver_id: Uuid,
+    passer_id: Uuid,
+    decision_kind: ArtrineDecisionKind,
+    is_aerial: bool,
+    reception_x_mirim: f64,
+    reception_y_mirim: f64,
+    distance_mirim: f64,
+    caught: bool,
+}
+
+impl DistributionCompleted {
+    pub fn new(
+        receiver_id: Uuid,
+        passer_id: Uuid,
+        decision_kind: ArtrineDecisionKind,
+        is_aerial: bool,
+        reception_x_mirim: f64,
+        reception_y_mirim: f64,
+        distance_mirim: f64,
+        caught: bool,
+    ) -> Self {
+        Self {
+            receiver_id,
+            passer_id,
+            decision_kind,
+            is_aerial,
+            reception_x_mirim,
+            reception_y_mirim,
+            distance_mirim,
+            caught,
+        }
+    }
+
+    pub fn receiver_id(&self) -> Uuid {
+        self.receiver_id
+    }
+
+    pub fn passer_id(&self) -> Uuid {
+        self.passer_id
+    }
+
+    pub fn decision_kind(&self) -> ArtrineDecisionKind {
+        self.decision_kind
+    }
+
+    pub fn is_aerial(&self) -> bool {
+        self.is_aerial
+    }
+
+    pub fn reception_x_mirim(&self) -> f64 {
+        self.reception_x_mirim
+    }
+
+    pub fn reception_y_mirim(&self) -> f64 {
+        self.reception_y_mirim
+    }
+
+    pub fn distance_mirim(&self) -> f64 {
+        self.distance_mirim
+    }
+
+    pub fn caught(&self) -> bool {
+        self.caught
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArtrineDecisionMade {
     artrine_id: Uuid,
     decision_kind: ArtrineDecisionKind,
@@ -375,6 +443,7 @@ impl DuelResolved {
 pub enum ActionEvent {
     CallToActionStarted(CallToActionStarted),
     PassCompleted(PassCompleted),
+    DistributionCompleted(DistributionCompleted),
     ReceptionResolved(ReceptionResolved),
     ArtrineDecisionMade(ArtrineDecisionMade),
     DriveRecorded(DriveRecorded),
@@ -390,6 +459,12 @@ impl From<CallToActionStarted> for ActionEvent {
 impl From<PassCompleted> for ActionEvent {
     fn from(ev: PassCompleted) -> Self {
         Self::PassCompleted(ev)
+    }
+}
+
+impl From<DistributionCompleted> for ActionEvent {
+    fn from(ev: DistributionCompleted) -> Self {
+        Self::DistributionCompleted(ev)
     }
 }
 

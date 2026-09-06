@@ -1,4 +1,4 @@
-use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
+use crate::artrine::execution_outcome::{ArtrineExecutionOutcome, DistributionFlightInfo};
 use crate::artrine::execution_security::resolve_ball_security;
 use crate::artrine::reception::resolve_reception;
 use crate::artrine::run_after_catch::resolve_run_after_catch;
@@ -73,10 +73,20 @@ where
                 .unwrap_or(DomainPosition::CenterOffense)
         });
 
+    let receiver_pos_vec = spatial_map
+        .get_position(&receiver_id)
+        .unwrap_or(start_pos);
+
     if !reception_outcome.caught {
-        let receiver_pos_vec = spatial_map
-            .get_position(&receiver_id)
-            .unwrap_or(start_pos);
+        let distribution_flight = Some(DistributionFlightInfo {
+            receiver_id,
+            passer_id: artrine.id(),
+            decision_kind,
+            is_aerial: reception_outcome.is_aerial,
+            reception_point: receiver_pos_vec,
+            distance_mirim: throw_advance,
+            caught: false,
+        });
 
         let close_defenders: Vec<&Player> = defenders
             .iter()
@@ -156,6 +166,7 @@ where
             end_position: start_pos,
             duels: vec![dist_duel, reception_outcome.duel, sec_result.duel_outcome],
             receiver_id: Some(receiver_id),
+            distribution_flight,
         };
     }
 
@@ -199,6 +210,16 @@ where
         0.0,
     );
 
+    let distribution_flight = Some(DistributionFlightInfo {
+        receiver_id,
+        passer_id: artrine.id(),
+        decision_kind,
+        is_aerial: reception_outcome.is_aerial,
+        reception_point: receiver_pos_vec,
+        distance_mirim: throw_advance,
+        caught: true,
+    });
+
     let mut duels = vec![dist_duel, reception_outcome.duel];
     duels.extend(rac_outcome.duels);
 
@@ -228,5 +249,6 @@ where
         end_position,
         duels,
         receiver_id: Some(receiver_id),
+        distribution_flight,
     }
 }

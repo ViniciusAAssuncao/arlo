@@ -6,8 +6,9 @@ pub mod scoring;
 pub mod sink;
 
 pub use action::{
-    ActionEvent, ArtrineDecisionMade, CallToActionStarted, DriveRecorded, DriveRegistered,
-    DuelKind, DuelResolved, EventArtroPlacement, PassCompleted, ReceptionResolved,
+    ActionEvent, ArtrineDecisionMade, CallToActionStarted, DistributionCompleted, DriveRecorded,
+    DriveRegistered, DuelKind, DuelResolved, EventArtroPlacement, PassCompleted,
+    ReceptionResolved,
 };
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
@@ -24,6 +25,7 @@ use serde::{Deserialize, Serialize};
 pub enum MatchEvent {
     CallToActionStarted(CallToActionStarted),
     PassCompleted(PassCompleted),
+    DistributionCompleted(DistributionCompleted),
     ReceptionResolved(ReceptionResolved),
     ArtrineDecisionMade(ArtrineDecisionMade),
     DriveRecorded(DriveRecorded),
@@ -43,6 +45,7 @@ impl MatchEvent {
             self,
             Self::CallToActionStarted(_)
                 | Self::PassCompleted(_)
+                | Self::DistributionCompleted(_)
                 | Self::ReceptionResolved(_)
                 | Self::ArtrineDecisionMade(_)
                 | Self::DriveRecorded(_)
@@ -71,6 +74,7 @@ impl MatchEvent {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
             Self::PassCompleted(_) => "PassCompleted",
+            Self::DistributionCompleted(_) => "DistributionCompleted",
             Self::ReceptionResolved(_) => "ReceptionResolved",
             Self::ArtrineDecisionMade(_) => "ArtrineDecisionMade",
             Self::DriveRecorded(_) => "DriveRecorded",
@@ -95,6 +99,12 @@ impl From<CallToActionStarted> for MatchEvent {
 impl From<PassCompleted> for MatchEvent {
     fn from(ev: PassCompleted) -> Self {
         Self::PassCompleted(ev)
+    }
+}
+
+impl From<DistributionCompleted> for MatchEvent {
+    fn from(ev: DistributionCompleted) -> Self {
+        Self::DistributionCompleted(ev)
     }
 }
 
@@ -169,6 +179,7 @@ impl From<ActionEvent> for MatchEvent {
         match ev {
             ActionEvent::CallToActionStarted(e) => Self::CallToActionStarted(e),
             ActionEvent::PassCompleted(e) => Self::PassCompleted(e),
+            ActionEvent::DistributionCompleted(e) => Self::DistributionCompleted(e),
             ActionEvent::ReceptionResolved(e) => Self::ReceptionResolved(e),
             ActionEvent::ArtrineDecisionMade(e) => Self::ArtrineDecisionMade(e),
             ActionEvent::DriveRecorded(e) => Self::DriveRecorded(e),

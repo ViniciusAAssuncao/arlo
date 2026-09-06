@@ -184,6 +184,7 @@ where
             end_position: start_pos,
             duels,
             receiver_id: None,
+            distribution_flight: None,
         };
     }
 
@@ -267,5 +268,6 @@ where
         end_position,
         duels: vec![artro_duel],
         receiver_id: None,
+        distribution_flight: None,
     }
 }

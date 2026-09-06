@@ -1,12 +1,13 @@
+use crate::artrine::DistributionFlightInfo;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::{DuelKind as EngineDuelKind, DuelOutcome};
 use arlo_events::{
-    CallToActionStarted, CountdownReason, CountdownToSizeStarted, DownAdvanced, DriveRecorded,
-    DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement, FieldGoalScored,
-    FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent, MatchEventEnvelope,
-    OutOfBounds, PassCompleted, ReceptionResolved, Turnover,
+    CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
+    DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
+    FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent,
+    MatchEventEnvelope, OutOfBounds, PassCompleted, ReceptionResolved, Turnover,
 };
-use arlo_math::units::Position;
+use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
 
 pub fn translate_duel_kind(kind: EngineDuelKind) -> PublicDuelKind {
@@ -85,6 +86,23 @@ pub fn translate_pass_completed(
         reception_point.raw().0,
         reception_point.raw().1,
         distance_mirim,
+    )
+}
+
+pub fn translate_distribution_completed(
+    info: &DistributionFlightInfo,
+) -> DistributionCompleted {
+    let rx_mirim = info.reception_point.raw().0 / MIRIM_TO_METERS;
+    let ry_mirim = info.reception_point.raw().1 / MIRIM_TO_METERS;
+    DistributionCompleted::new(
+        info.receiver_id,
+        info.passer_id,
+        info.decision_kind,
+        info.is_aerial,
+        rx_mirim,
+        ry_mirim,
+        info.distance_mirim,
+        info.caught,
     )
 }
 

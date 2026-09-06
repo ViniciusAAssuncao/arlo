@@ -151,6 +151,7 @@ where
                     end_position: dist_outcome.end_position,
                     duels: combined_duels,
                     receiver_id: dist_outcome.receiver_id,
+                    distribution_flight: dist_outcome.distribution_flight,
                 }
             }
         }

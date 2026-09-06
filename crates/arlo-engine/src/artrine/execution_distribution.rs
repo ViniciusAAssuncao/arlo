@@ -198,6 +198,7 @@ where
             end_position: start_pos,
             duels,
             receiver_id: None,
+            distribution_flight: None,
         };
     }
 

@@ -182,12 +182,16 @@ impl StatAggregator for PlayerReceivingAggregator {
                     stats.longest_reception_mirim = e.distance_mirim();
                 }
             }
-            MatchEvent::ReceptionResolved(e) => {
+            MatchEvent::DistributionCompleted(e) => {
                 self.finalize_pending();
                 let stats = self.get_mut_or_create(e.receiver_id());
                 stats.targets += 1;
                 if e.caught() {
                     stats.receptions += 1;
+                    stats.receiving_mirins += e.distance_mirim();
+                    if e.distance_mirim() > stats.longest_reception_mirim {
+                        stats.longest_reception_mirim = e.distance_mirim();
+                    }
                     self.current_reception = Some(PendingReception {
                         receiver_id: e.receiver_id(),
                         had_rac_duel: false,
@@ -197,6 +201,9 @@ impl StatAggregator for PlayerReceivingAggregator {
                     stats.drops += 1;
                     self.current_reception = None;
                 }
+            }
+            MatchEvent::ReceptionResolved(_) => {
+                self.finalize_pending();
             }
             MatchEvent::DuelResolved(e) => {
                 if let Some(pending) = &mut self.current_reception {
@@ -210,13 +217,9 @@ impl StatAggregator for PlayerReceivingAggregator {
             }
             MatchEvent::DownAdvanced(e) => {
                 if let Some(pending) = self.current_reception.take() {
-                    let mirins = e.mirins_advanced_this_down();
-                    let stats = self.get_mut_or_create(pending.receiver_id);
-                    stats.receiving_mirins += mirins;
-                    if mirins > stats.longest_reception_mirim {
-                        stats.longest_reception_mirim = mirins;
-                    }
                     if pending.had_rac_duel && pending.rac_duel_won {
+                        let mirins = e.mirins_advanced_this_down();
+                        let stats = self.get_mut_or_create(pending.receiver_id);
                         let rac = mirins.max(0.0);
                         stats.run_after_catch_mirins += rac;
                     }
