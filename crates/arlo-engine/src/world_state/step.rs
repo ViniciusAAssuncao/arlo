@@ -9,7 +9,7 @@ use crate::match_decision::scoring::ScoringDecision;
 use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::resolution::DuelContext;
 use crate::rng::RngStream;
-use crate::spatial::{calculate_spatial_resistance_between, find_next_artro_position};
+use crate::spatial::{calculate_artro_advance_pitch_control, find_next_artro_position};
 use crate::time::DurationLedger;
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::cta_transition::apply_play_transition;
@@ -128,12 +128,26 @@ pub fn step_call_to_action(
             is_home_offense,
         );
 
-        let spatial_resistance = calculate_spatial_resistance_between(
-            pass_phase.reception_point,
-            next_artro_pos,
+        let home_fatigue = state.home_fatigue().clone();
+        let away_fatigue = state.away_fatigue().clone();
+        let fatigue_lookup = move |id: &Uuid| {
+            home_fatigue
+                .get(id)
+                .or_else(|| away_fatigue.get(id))
+                .copied()
+                .unwrap_or_default()
+        };
+
+        let pitch_control_ahead = calculate_artro_advance_pitch_control(
+            pass_phase.artrine,
+            &target_candidates,
             &defense_players,
             state.spatial_map(),
             &attribute_keys,
+            &fatigue_lookup,
+            pass_phase.reception_point,
+            next_artro_pos,
+            &pitch,
         );
 
         let seq_decision = state.next_sequence();
@@ -153,7 +167,8 @@ pub fn step_call_to_action(
             best_available_target_weight,
             pass_phase.reception_point,
             next_artro_pos,
-            spatial_resistance,
+            pitch_control_ahead,
+            pitch.length_mirim(),
             &mut decision_rng,
         );
 
@@ -174,12 +189,12 @@ pub fn step_call_to_action(
             .rng_provider()
             .indexed_rng_for(RngStream::DuelResolution, seq_execution);
 
-        let home_fatigue = state.home_fatigue().clone();
-        let away_fatigue = state.away_fatigue().clone();
-        let fatigue_lookup = move |id: &Uuid| {
-            home_fatigue
+        let home_fatigue_exec = state.home_fatigue().clone();
+        let away_fatigue_exec = state.away_fatigue().clone();
+        let fatigue_lookup_exec = move |id: &Uuid| {
+            home_fatigue_exec
                 .get(id)
-                .or_else(|| away_fatigue.get(id))
+                .or_else(|| away_fatigue_exec.get(id))
                 .copied()
                 .unwrap_or_default()
         };
@@ -202,7 +217,7 @@ pub fn step_call_to_action(
             advanced_mirins,
             is_last_down,
             &context,
-            &fatigue_lookup,
+            &fatigue_lookup_exec,
             &mut execution_rng,
         )?;
 

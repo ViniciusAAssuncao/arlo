@@ -4,6 +4,7 @@ pub mod dynamic_map;
 pub mod influence;
 pub mod interception;
 pub mod kinematics;
+pub mod pitch_control;
 pub mod positioning_drift;
 pub mod proximity;
 pub mod steering;
@@ -28,6 +29,11 @@ pub use interception::{
     identify_kinematic_lead_defender, identify_kinematic_lead_defender_with_drift,
 };
 pub use kinematics::{advance_position, calculate_displacement};
+pub use pitch_control::{
+    build_player_voronoi_site, build_team_voronoi_sites,
+    calculate_artro_advance_pitch_control, calculate_kinematic_pitch_control,
+    calculate_point_pitch_control_players,
+};
 pub use positioning_drift::{
     anchor_drift_radius_mirim, apply_positioning_drift, get_drifted_defender_position,
     nearest_drifted_opponent,

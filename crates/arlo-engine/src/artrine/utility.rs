@@ -1,9 +1,8 @@
-use crate::artrine::context_terms::total_context_utility;
-use crate::artrine::decision_profiles::get_artrine_decision_profile;
+use crate::ai::markov_decision::MarkovDecisionEvaluator;
 use crate::match_decision::scoring::{evaluate_scoring_opportunity, ScoringOpportunity};
-use crate::resolution::group_rating::calculate_player_duel_rating;
+use crate::spatial::proximity::calculate_distance_mirim;
 use arlo_domain::sport_constants::FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -45,34 +44,25 @@ pub fn calculate_decision_utilities(
     best_available_target_weight: f64,
     artrine_pos: VectorPosition,
     next_artro_pos: VectorPosition,
-    spatial_resistance: f64,
+    pitch_control_ahead: f64,
+    pitch_length_mirim: f64,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
-    let mut results = Vec::with_capacity(available_kinds.len());
+    let down = (4u8).saturating_sub(remaining_downs).max(1);
+    let remaining_advance_mirim = (10.0 - territory_advance_mirim).max(0.0);
+    let distance_to_next_artro_mirim = calculate_distance_mirim(artrine_pos, next_artro_pos);
 
-    for &kind in available_kinds {
-        let profile = get_artrine_decision_profile(kind);
-        let intrinsic_rating = calculate_player_duel_rating(
-            artrine,
-            Position::Artrine,
-            attribute_keys,
-            &profile,
-        );
-        let context_util = total_context_utility(
-            kind,
-            normalized_proximity,
-            drives_in_current_series,
-            remaining_downs,
-            pass_protection_net_advantage,
-            is_last_down,
-            territory_advance_mirim,
-            best_available_target_weight,
-            artrine_pos,
-            next_artro_pos,
-            spatial_resistance,
-        );
-        let total_utility = intrinsic_rating + context_util;
-        results.push((kind, total_utility));
-    }
-
-    results
+    MarkovDecisionEvaluator::evaluate_action_utilities(
+        artrine,
+        attribute_keys,
+        available_kinds,
+        normalized_proximity,
+        drives_in_current_series,
+        if is_last_down { 4 } else { down },
+        remaining_advance_mirim,
+        pass_protection_net_advantage,
+        best_available_target_weight,
+        pitch_control_ahead,
+        distance_to_next_artro_mirim,
+        pitch_length_mirim,
+    )
 }
