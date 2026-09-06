@@ -2,13 +2,13 @@ use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
 use crate::spatial::steering::{
-    derive_player_dynamic_boid_steered_velocity, derive_player_physical_radius, SpatialNeighbor,
+    calculate_dynamic_boid_steering_velocity, derive_player_physical_radius, SpatialNeighbor,
 };
 use arlo_domain::sport_constants::{
     MAX_OPEN_PLAY_TICKS, SPATIAL_TICK_DURATION_SECONDS, TARGET_ARRIVAL_TOLERANCE_MIRIM,
 };
 use arlo_domain::{AttributeKey, Player};
-use arlo_math::units::{Duration, Position, Velocity};
+use arlo_math::units::{Duration, Position, Speed, Velocity};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -122,17 +122,46 @@ pub fn run_spatial_tick_loop(
     let dt = Duration::new(SPATIAL_TICK_DURATION_SECONDS);
     let mut trajectories: HashMap<Uuid, SpatialTrajectory> = HashMap::with_capacity(movers.len());
 
+    struct MoverProps {
+        speed: Speed,
+        agility: f64,
+        acceleration: f64,
+        balance: f64,
+        physical_radius: f64,
+    }
+
+    let mut mover_props = HashMap::with_capacity(movers.len());
+
     for (player, target) in movers {
         let pid = player.id();
         spatial_map.set_target(pid, *target);
         let initial_pos = spatial_map.get_position(&pid).unwrap_or_else(Position::zero);
         trajectories.insert(pid, SpatialTrajectory::new(pid, initial_pos));
+
+        let speed = crate::spatial::decision_vector::calculate_player_speed(player, attribute_keys, 1.0);
+        let agility = crate::spatial::decision_vector::extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
+        let acceleration = crate::spatial::decision_vector::extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
+        let balance = crate::spatial::decision_vector::extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+        let physical_radius = derive_player_physical_radius(player, attribute_keys);
+
+        mover_props.insert(pid, MoverProps {
+            speed,
+            agility,
+            acceleration,
+            balance,
+            physical_radius,
+        });
     }
 
-    let mover_players: HashMap<Uuid, &Player> = movers
-        .iter()
-        .map(|(p, _)| (p.id(), *p))
-        .collect();
+    let mut physical_radii = HashMap::with_capacity(spatial_map.positions().len());
+    for (&id, _) in spatial_map.positions() {
+        let radius = if let Some(props) = mover_props.get(&id) {
+            props.physical_radius
+        } else {
+            0.55
+        };
+        physical_radii.insert(id, radius);
+    }
 
     let mut ticks_executed = 0;
 
@@ -147,10 +176,7 @@ pub fn run_spatial_tick_loop(
                     .get_velocity(&id)
                     .unwrap_or_else(Velocity::zero);
                 let is_home = spatial_map.is_home_player(&id);
-                let physical_radius = mover_players
-                    .get(&id)
-                    .map(|p| derive_player_physical_radius(p, attribute_keys))
-                    .unwrap_or(0.55);
+                let physical_radius = *physical_radii.get(&id).unwrap_or(&0.55);
                 SpatialNeighbor::new(id, pos, vel, is_home, physical_radius)
             })
             .collect();
@@ -178,14 +204,19 @@ pub fn run_spatial_tick_loop(
                     })
                     .collect();
 
-                let vel = derive_player_dynamic_boid_steered_velocity(
+                let props = mover_props.get(&pid).unwrap();
+
+                let vel = calculate_dynamic_boid_steering_velocity(
                     current_vel,
                     current_pos,
                     *target,
                     &other_neighbors,
-                    player,
-                    attribute_keys,
+                    props.speed,
+                    props.agility,
+                    props.acceleration,
+                    props.balance,
                     1.0,
+                    props.physical_radius,
                     dt,
                 );
 

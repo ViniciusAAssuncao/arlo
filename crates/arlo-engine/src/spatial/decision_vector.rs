@@ -13,10 +13,8 @@ pub fn extract_attribute_value(
     target: AttributeKey,
 ) -> f64 {
     for attr in player.attributes() {
-        if let Some(key) = attribute_keys.get(&attr.attribute_definition_id()) {
-            if *key == target {
-                return attr.value() as f64;
-            }
+        if attribute_keys.get(&attr.attribute_definition_id()) == Some(&target) {
+            return attr.value() as f64;
         }
     }
     10.0
