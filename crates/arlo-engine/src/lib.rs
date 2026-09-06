@@ -2,9 +2,9 @@ pub mod ai;
 pub mod artrine;
 pub mod current_ability;
 pub mod error;
-pub mod fatigue;
 pub mod injuries;
 pub mod match_decision;
+pub mod physical;
 pub mod possession;
 pub mod resolution;
 pub mod rng;
@@ -15,6 +15,6 @@ pub mod weighting;
 pub mod world_state;
 
 pub use error::{EngineError, EngineResult};
-pub use fatigue::*;
+pub use physical::*;
 pub use rng::{derive_sub_seed, derive_sub_seed_indexed, MatchSeed, RngProvider, RngStream};
 pub use time::*;
