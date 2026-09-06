@@ -1,3 +1,4 @@
+pub mod dynamic_anchor;
 pub mod fit_calculator;
 pub mod lineup;
 pub mod position_profile_cache;
@@ -5,6 +6,10 @@ pub mod position_similarity;
 pub mod scrimmage_translation;
 pub mod spatial_anchor;
 
+pub use dynamic_anchor::{
+    calculate_player_dynamic_attractor, compute_dynamic_anchors,
+    translate_dynamic_formation_to_scrimmage, DynamicAnchorManager,
+};
 pub use fit_calculator::{
     calculate_average_fit, calculate_fit, calculate_fit_for_position, calculate_lineup_fit,
     PositionalFit, SlotFitCalculator,

@@ -1,6 +1,7 @@
+
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::run_spatial_tick_loop;
-use crate::tactics::scrimmage_translation::translate_formation_to_scrimmage;
+use crate::tactics::dynamic_anchor::compute_dynamic_anchors;
 use crate::world_state::match_state::MatchState;
 use arlo_math::units::Duration;
 
@@ -13,10 +14,24 @@ pub fn derive_and_apply_reorganization(
     let away_lineup = state.away_lineup().clone();
     let attribute_keys = state.attribute_keys().clone();
 
-    let home_targets =
-        translate_formation_to_scrimmage(&pitch, &home_lineup, scrimmage_x_mirim, true);
-    let away_targets =
-        translate_formation_to_scrimmage(&pitch, &away_lineup, scrimmage_x_mirim, false);
+    let is_home_offense = state.possession().role().is_offense(state.home_team_id());
+
+    let home_targets = compute_dynamic_anchors(
+        &pitch,
+        &home_lineup,
+        scrimmage_x_mirim,
+        is_home_offense,
+        true,
+        &attribute_keys,
+    );
+    let away_targets = compute_dynamic_anchors(
+        &pitch,
+        &away_lineup,
+        scrimmage_x_mirim,
+        !is_home_offense,
+        false,
+        &attribute_keys,
+    );
 
     let mut movers = Vec::with_capacity(home_lineup.len() + away_lineup.len());
     for assignment in home_lineup.assignments() {

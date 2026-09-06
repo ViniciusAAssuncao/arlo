@@ -1,7 +1,7 @@
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
-use crate::spatial::steering::derive_player_steered_velocity;
+use crate::spatial::steering::derive_player_boid_steered_velocity;
 use arlo_domain::sport_constants::{
     MAX_OPEN_PLAY_TICKS, SPATIAL_TICK_DURATION_SECONDS, TARGET_ARRIVAL_TOLERANCE_MIRIM,
 };
@@ -132,6 +132,12 @@ pub fn run_spatial_tick_loop(
     while ticks_executed < MAX_OPEN_PLAY_TICKS {
         let mut all_arrived = true;
 
+        let neighbor_snapshot: Vec<(Uuid, Position)> = spatial_map
+            .positions()
+            .iter()
+            .map(|(&id, &pos)| (id, pos))
+            .collect();
+
         for (player, target) in movers {
             let pid = player.id();
             let current_pos = spatial_map.get_position(&pid).unwrap_or_else(Position::zero);
@@ -142,14 +148,24 @@ pub fn run_spatial_tick_loop(
                 let current_vel = spatial_map
                     .get_velocity(&pid)
                     .unwrap_or_else(Velocity::zero);
-                let vel = derive_player_steered_velocity(
+
+                let other_positions: Vec<Position> = neighbor_snapshot
+                    .iter()
+                    .filter(|(id, _)| *id != pid)
+                    .map(|(_, pos)| *pos)
+                    .collect();
+
+                let vel = derive_player_boid_steered_velocity(
                     current_vel,
                     current_pos,
                     *target,
+                    &other_positions,
                     player,
                     attribute_keys,
                     1.0,
+                    dt,
                 );
+
                 let step_dist = vel.magnitude().value() * SPATIAL_TICK_DURATION_SECONDS;
                 let dist_meters = calculate_distance(current_pos, *target).value();
 

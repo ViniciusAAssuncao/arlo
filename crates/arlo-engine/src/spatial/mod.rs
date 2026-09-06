@@ -46,7 +46,10 @@ pub use proximity::{
     is_in_contest_range, is_within_collision_radius, is_within_proximity_mirim,
 };
 pub use steering::{
-    calculate_steered_velocity, derive_player_steered_velocity, max_turn_radians_per_tick,
+    calculate_boid_steering_velocity, calculate_seek_force, calculate_separation_force,
+    calculate_steered_velocity, derive_player_boid_steered_velocity,
+    derive_player_steered_velocity, max_turn_radians_per_tick,
+    DEFAULT_ARRIVAL_SLOWING_RADIUS_METERS, DEFAULT_SEPARATION_RADIUS_METERS,
 };
 pub use tick_loop::{
     run_spatial_tick_loop, SpatialTrajectory, TickSimulationResult,
