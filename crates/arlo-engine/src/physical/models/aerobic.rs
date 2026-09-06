@@ -45,7 +45,7 @@ pub fn calculate_aerobic_energy_decay(
 ) -> f64 {
     let capacity = calculate_aerobic_capacity(stamina, natural_fitness, age_years);
     let distance_ratio = distance_mirim.max(0.0) / capacity.max(1.0);
-    let decay = 1.0 / (1.0 + (distance_ratio.powf(1.6) * 1.5));
+    let decay = 1.0 / (1.0 + (distance_ratio.powf(2.4) * 2.2));
     decay.clamp(0.0, 1.0)
 }
 

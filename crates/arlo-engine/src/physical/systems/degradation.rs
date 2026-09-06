@@ -29,8 +29,9 @@ pub fn is_cognitive_or_technical_attribute(key: AttributeKey) -> bool {
 pub fn physical_attribute_modifier(state: &PhysicalState) -> f64 {
     let energy = state.energy().clamp(0.0, 1.0);
     let w_bal = state.w_prime_balance().clamp(0.0, 1.0);
-    let mod_val = energy * (0.80 + 0.20 * w_bal);
-    mod_val.clamp(0.20, 1.0)
+    let combined = energy * (0.85 + 0.15 * w_bal);
+    let mod_val = 0.70 + 0.30 * combined.powf(0.8);
+    mod_val.clamp(0.40, 1.0)
 }
 
 pub fn cognitive_technical_modifier(state: &PhysicalState, concentration: f64) -> f64 {
@@ -40,12 +41,12 @@ pub fn cognitive_technical_modifier(state: &PhysicalState, concentration: f64) -
 
     if current_energy >= critical_threshold {
         let buffer = (current_energy - critical_threshold) / (1.0 - critical_threshold).max(1e-5);
-        (0.96 + 0.04 * buffer).clamp(0.96, 1.0)
+        (0.94 + 0.06 * buffer).clamp(0.94, 1.0)
     } else {
         let deficit = (critical_threshold - current_energy) / critical_threshold.max(1e-5);
-        let k = 3.5 + (1.0 - norm_conc) * 2.5;
+        let k = 2.0 + (1.0 - norm_conc) * 1.5;
         let decay = (-k * deficit).exp();
-        (0.30 + 0.66 * decay).clamp(0.20, 0.96)
+        (0.60 + 0.34 * decay).clamp(0.50, 0.94)
     }
 }
 

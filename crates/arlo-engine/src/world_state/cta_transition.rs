@@ -267,7 +267,7 @@ pub fn apply_play_transition(
             &p_fatigue,
         );
 
-        let base_transit_mirim = (eff_speed.value() * 0.40 / MIRIM_TO_METERS) * live_seconds;
+        let base_transit_mirim = (eff_speed.value() * 0.10 / MIRIM_TO_METERS) * live_seconds;
         let mut player_dist = base_transit_mirim * transit_mult * pacing_mult;
 
         if pid == runner_id && execution_outcome.mirins_advanced > 0.0 {

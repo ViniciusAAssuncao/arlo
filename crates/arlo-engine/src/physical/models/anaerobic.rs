@@ -64,9 +64,9 @@ pub fn calculate_anaerobic_cost(
 ) -> f64 {
     let duration = duration_seconds.max(0.0);
     let speed_delta = (speed_meters_per_sec - critical_speed).max(0.0);
-    let movement_cost = duration * speed_delta * 12.0;
+    let movement_cost = duration * speed_delta * 4.0;
     let duel_cost = if intensity_multiplier > 1.0 {
-        duration * (intensity_multiplier - 1.0) * 15.0
+        duration * (intensity_multiplier - 1.0) * 6.0
     } else {
         0.0
     };
