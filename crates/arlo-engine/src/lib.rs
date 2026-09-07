@@ -5,6 +5,7 @@ pub mod error;
 pub mod match_decision;
 pub mod physical;
 pub mod possession;
+pub mod psychology;
 pub mod resolution;
 pub mod rng;
 pub mod spatial;
@@ -14,6 +15,6 @@ pub mod weighting;
 pub mod world_state;
 
 pub use error::{EngineError, EngineResult};
-pub use physical::*;
+pub use psychology::*;
 pub use rng::{derive_sub_seed, derive_sub_seed_indexed, MatchSeed, RngProvider, RngStream};
 pub use time::*;
