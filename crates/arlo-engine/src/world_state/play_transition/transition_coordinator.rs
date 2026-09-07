@@ -1,5 +1,6 @@
 use crate::artrine::ArtrineExecutionOutcome;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
+use crate::match_decision::scoring::ScoringDecision;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -20,7 +21,7 @@ use crate::world_state::play_transition::scoring_handler::{
     apply_match_score, post_transition_score_reset,
 };
 use crate::world_state::reorganization::derive_and_apply_reorganization;
-use arlo_domain::ArtrineDecisionKind;
+use arlo_domain::{ArtrineDecisionKind, Position as DomainPosition};
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
 use uuid::Uuid;
@@ -75,6 +76,55 @@ pub fn apply_play_transition(
     );
 
     apply_kinematic_movement_strain(state, sink, &execution_outcome.kinematic_trajectories);
+
+    let offense_lineup = if offense_team_id == state.home_team_id() {
+        state.home_lineup().clone()
+    } else {
+        state.away_lineup().clone()
+    };
+    let defense_lineup = if defense_team_id == state.home_team_id() {
+        state.home_lineup().clone()
+    } else {
+        state.away_lineup().clone()
+    };
+
+    let offense_players = offense_lineup.players();
+    let defense_players = defense_lineup.players();
+
+    for duel in &play_duels {
+        state.impulse_bus_mut().publish_attributed_duel(
+            duel,
+            &offense_players,
+            &defense_players,
+        );
+    }
+
+    if execution_outcome.scoring_decision.is_scored()
+        || matches!(execution_outcome.scoring_decision, ScoringDecision::Missed { .. })
+    {
+        let goalguard = defense_players
+            .iter()
+            .copied()
+            .find(|p| {
+                p.positions()
+                    .iter()
+                    .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
+            })
+            .unwrap_or(defense_players[0]);
+
+        let finisher_id = execution_outcome
+            .receiver_id
+            .unwrap_or(pass_phase.artrine.id());
+
+        state.impulse_bus_mut().publish_scoring_decision(
+            &execution_outcome.scoring_decision,
+            finisher_id,
+            goalguard.id(),
+            0.5,
+            &offense_players,
+            &defense_players,
+        );
+    }
 
     let previous_down = state.possession().down() as u32;
     let transition_result = resolve_possession_transition(state, &detailed_outcome);

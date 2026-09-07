@@ -1,10 +1,10 @@
 use crate::error::EngineResult;
 use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
 use crate::possession::PossessionSnapshot;
+use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::psychology::systems::event_bus::ImpulseEventBus;
 use crate::psychology::systems::events::{apply_impulse_event_at, ImpulseEvent, ImpulseShift};
-use crate::psychology::state::ImpulseState;
 use crate::rng::{MatchSeed, RngProvider};
 use crate::spatial::DynamicSpatialMap;
 use crate::tactics::Lineup;
@@ -412,7 +412,27 @@ impl MatchState {
         let events = self.impulse_bus.drain_events();
         let mut shifts = Vec::with_capacity(events.len());
         for dispatched in events {
-            if let Some(shift) =
+            if dispatched.target_id == self.home_team_id {
+                let home_player_ids: Vec<Uuid> =
+                    self.home_lineup.players().iter().map(|p| p.id()).collect();
+                for pid in home_player_ids {
+                    if let Some(shift) =
+                        self.apply_impulse_event(pid, &dispatched.event, timestamp_seconds)
+                    {
+                        shifts.push((pid, shift));
+                    }
+                }
+            } else if dispatched.target_id == self.away_team_id {
+                let away_player_ids: Vec<Uuid> =
+                    self.away_lineup.players().iter().map(|p| p.id()).collect();
+                for pid in away_player_ids {
+                    if let Some(shift) =
+                        self.apply_impulse_event(pid, &dispatched.event, timestamp_seconds)
+                    {
+                        shifts.push((pid, shift));
+                    }
+                }
+            } else if let Some(shift) =
                 self.apply_impulse_event(dispatched.target_id, &dispatched.event, timestamp_seconds)
             {
                 shifts.push((dispatched.target_id, shift));
