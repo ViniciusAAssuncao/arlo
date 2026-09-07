@@ -2,10 +2,12 @@ use crate::ai::cognitive::RiskProfile;
 use crate::artrine::utility::{
     available_decision_kinds, calculate_decision_utilities_with_context,
 };
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::extract_effective_attribute_value_with_impulse;
 use crate::physical::PhysicalState;
+use crate::psychology::state::ImpulseState;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::world_state::GameStatePressure;
-use arlo_domain::sport_constants::decision_steepness_for;
+use arlo_domain::sport_constants::decision_steepness_with_impulse;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::stats::categorical::sample_categorical;
 use arlo_math::stats::contrast::softmax_weights;
@@ -58,10 +60,59 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     artrine_physical_state: &PhysicalState,
     rng: &mut R,
 ) -> ArtrineDecisionResult {
-    let risk_profile = RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
+    let baseline = calculate_player_impulse_baseline(artrine, attribute_keys);
+    let impulse_state = ImpulseState::from_baseline(baseline);
+    resolve_artrine_decision_with_impulse(
+        artrine,
+        attribute_keys,
+        normalized_proximity,
+        drives_in_current_series,
+        remaining_downs,
+        pass_protection_net_advantage,
+        is_last_down,
+        is_bonus_phase,
+        territory_advance_mirim,
+        best_available_target_weight,
+        artrine_pos,
+        next_artro_pos,
+        pitch_control_ahead,
+        pitch_length_mirim,
+        offensive_gravity,
+        artrine_physical_state,
+        &impulse_state,
+        rng,
+    )
+}
+
+pub fn resolve_artrine_decision_with_impulse<R: Rng + ?Sized>(
+    artrine: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    normalized_proximity: f64,
+    drives_in_current_series: u32,
+    remaining_downs: u8,
+    pass_protection_net_advantage: f64,
+    is_last_down: bool,
+    is_bonus_phase: bool,
+    territory_advance_mirim: f64,
+    best_available_target_weight: f64,
+    artrine_pos: VectorPosition,
+    next_artro_pos: VectorPosition,
+    pitch_control_ahead: f64,
+    pitch_length_mirim: f64,
+    offensive_gravity: f64,
+    artrine_physical_state: &PhysicalState,
+    artrine_impulse_state: &ImpulseState,
+    rng: &mut R,
+) -> ArtrineDecisionResult {
+    let risk_profile = RiskProfile::from_player_with_impulse(
+        artrine,
+        attribute_keys,
+        artrine_physical_state,
+        artrine_impulse_state,
+    );
     let game_state_pressure = GameStatePressure::default();
 
-    resolve_artrine_decision_with_context(
+    resolve_artrine_decision_with_context_and_impulse(
         artrine,
         attribute_keys,
         normalized_proximity,
@@ -80,6 +131,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
         risk_profile,
         game_state_pressure,
         artrine_physical_state,
+        artrine_impulse_state,
         rng,
     )
 }
@@ -103,6 +155,54 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
     artrine_physical_state: &PhysicalState,
+    rng: &mut R,
+) -> ArtrineDecisionResult {
+    let baseline = calculate_player_impulse_baseline(artrine, attribute_keys);
+    let impulse_state = ImpulseState::from_baseline(baseline);
+    resolve_artrine_decision_with_context_and_impulse(
+        artrine,
+        attribute_keys,
+        normalized_proximity,
+        drives_in_current_series,
+        remaining_downs,
+        pass_protection_net_advantage,
+        is_last_down,
+        is_bonus_phase,
+        territory_advance_mirim,
+        best_available_target_weight,
+        artrine_pos,
+        next_artro_pos,
+        pitch_control_ahead,
+        pitch_length_mirim,
+        offensive_gravity,
+        risk_profile,
+        game_state_pressure,
+        artrine_physical_state,
+        &impulse_state,
+        rng,
+    )
+}
+
+pub fn resolve_artrine_decision_with_context_and_impulse<R: Rng + ?Sized>(
+    artrine: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    normalized_proximity: f64,
+    drives_in_current_series: u32,
+    remaining_downs: u8,
+    pass_protection_net_advantage: f64,
+    is_last_down: bool,
+    is_bonus_phase: bool,
+    territory_advance_mirim: f64,
+    best_available_target_weight: f64,
+    artrine_pos: VectorPosition,
+    next_artro_pos: VectorPosition,
+    pitch_control_ahead: f64,
+    pitch_length_mirim: f64,
+    offensive_gravity: f64,
+    risk_profile: RiskProfile,
+    game_state_pressure: GameStatePressure,
+    artrine_physical_state: &PhysicalState,
+    artrine_impulse_state: &ImpulseState,
     rng: &mut R,
 ) -> ArtrineDecisionResult {
     let available_kinds = available_decision_kinds(
@@ -146,13 +246,14 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
     }
 
     let raw_utilities: Vec<f64> = utilities.iter().map(|(_, u)| *u).collect();
-    let decisions_val = extract_effective_attribute_value(
+    let decisions_val = extract_effective_attribute_value_with_impulse(
         artrine,
         attribute_keys,
         AttributeKey::Decisions,
         artrine_physical_state,
+        artrine_impulse_state,
     );
-    let steepness = decision_steepness_for(decisions_val);
+    let steepness = decision_steepness_with_impulse(decisions_val, artrine_impulse_state.value());
     let weights = softmax_weights(&raw_utilities, steepness);
     let total_weight: f64 = weights.iter().sum();
 

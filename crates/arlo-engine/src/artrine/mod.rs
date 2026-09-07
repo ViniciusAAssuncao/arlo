@@ -15,7 +15,9 @@ pub mod utility;
 
 pub use context_terms::*;
 pub use decision_engine::{
-    resolve_artrine_decision, resolve_artrine_decision_with_context, ArtrineDecisionResult,
+    resolve_artrine_decision, resolve_artrine_decision_with_context,
+    resolve_artrine_decision_with_context_and_impulse, resolve_artrine_decision_with_impulse,
+    ArtrineDecisionResult,
 };
 pub use decision_profiles::*;
 pub use event_translation::*;

@@ -2,7 +2,7 @@ use crate::ai::cognitive::RiskProfile;
 use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue;
 use crate::artrine::{
     calculate_normalized_proximity, execute_artrine_decision,
-    resolve_artrine_decision_with_context, translate_artrine_decision_made,
+    resolve_artrine_decision_with_context_and_impulse, translate_artrine_decision_made,
     ArtrineExecutionOutcome,
 };
 use crate::error::EngineResult;
@@ -73,8 +73,12 @@ pub fn step_call_to_action(
         (state.away_lineup().clone(), state.home_lineup().clone())
     };
 
-    let offense_pos_index = state.offensive_position_index_for_team(offense_team_id).clone();
-    let defense_pos_index = state.defensive_position_index_for_team(defense_team_id).clone();
+    let offense_pos_index = state
+        .offensive_position_index_for_team(offense_team_id)
+        .clone();
+    let defense_pos_index = state
+        .defensive_position_index_for_team(defense_team_id)
+        .clone();
 
     let offense_players: Vec<&Player> = offense_lineup.players();
     let defense_players: Vec<&Player> = defense_lineup.players();
@@ -127,6 +131,7 @@ pub fn step_call_to_action(
         };
 
         let artrine_fatigue = fatigue_lookup(&pass_phase.artrine.id());
+        let artrine_impulse = state.impulse_for(&pass_phase.artrine.id());
 
         let best_available_target_weight = target_candidates
             .iter()
@@ -174,14 +179,19 @@ pub fn step_call_to_action(
         );
 
         let game_state_pressure = analyze_match_state(state);
-        let risk_profile = RiskProfile::from_player(pass_phase.artrine, &attribute_keys, &artrine_fatigue);
+        let risk_profile = RiskProfile::from_player_with_impulse(
+            pass_phase.artrine,
+            &attribute_keys,
+            &artrine_fatigue,
+            &artrine_impulse,
+        );
 
         let seq_decision = state.next_sequence();
         let mut decision_rng = state
             .rng_provider()
             .indexed_rng_for(RngStream::ArtrineDecision, seq_decision);
 
-        let decision_result = resolve_artrine_decision_with_context(
+        let decision_result = resolve_artrine_decision_with_context_and_impulse(
             pass_phase.artrine,
             &attribute_keys,
             normalized_proximity,
@@ -200,6 +210,7 @@ pub fn step_call_to_action(
             risk_profile,
             game_state_pressure,
             &artrine_fatigue,
+            &artrine_impulse,
             &mut decision_rng,
         );
 

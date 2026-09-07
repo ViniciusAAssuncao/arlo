@@ -1,7 +1,9 @@
 use crate::physical::systems::degradation::{
-    calculate_physical_exhaustion, extract_effective_attribute_value,
+    calculate_physical_exhaustion, extract_effective_attribute_value_with_impulse,
 };
 use crate::physical::PhysicalState;
+use crate::psychology::state::ImpulseState;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -53,34 +55,39 @@ impl RiskProfile {
         }
     }
 
-    pub fn from_player(
+    pub fn from_player_with_impulse(
         player: &Player,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
         physical_state: &PhysicalState,
+        impulse_state: &ImpulseState,
     ) -> Self {
-        let flair = extract_effective_attribute_value(
+        let flair = extract_effective_attribute_value_with_impulse(
             player,
             attribute_keys,
             AttributeKey::Flair,
             physical_state,
+            impulse_state,
         );
-        let bravery = extract_effective_attribute_value(
+        let bravery = extract_effective_attribute_value_with_impulse(
             player,
             attribute_keys,
             AttributeKey::Bravery,
             physical_state,
+            impulse_state,
         );
-        let vision = extract_effective_attribute_value(
+        let vision = extract_effective_attribute_value_with_impulse(
             player,
             attribute_keys,
             AttributeKey::Vision,
             physical_state,
+            impulse_state,
         );
-        let decisions = extract_effective_attribute_value(
+        let decisions = extract_effective_attribute_value_with_impulse(
             player,
             attribute_keys,
             AttributeKey::Decisions,
             physical_state,
+            impulse_state,
         );
 
         let norm_flair = (flair.clamp(0.0, 20.0)) / 10.0;
@@ -96,12 +103,24 @@ impl RiskProfile {
             + 0.20 * norm_vision
             + 0.15 * norm_decisions;
 
-        let tolerance_index = (base_tolerance * (1.0 - 0.40 * physical_exhaustion)).clamp(0.40, 2.50);
+        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+        let impulse_delta = impulse_state.accumulator() - baseline;
+        let norm_impulse_delta = impulse_delta / 50.0;
+
+        let tolerance_impulse_shift =
+            0.15 * (2.0 / (1.0 + (-2.5 * norm_impulse_delta).exp()) - 1.0);
+        let lambda_impulse_shift =
+            -0.20 * (2.0 / (1.0 + (-2.5 * norm_impulse_delta).exp()) - 1.0);
+
+        let tolerance_index = ((base_tolerance + tolerance_impulse_shift)
+            * (1.0 - 0.40 * physical_exhaustion))
+            .clamp(0.40, 2.50);
 
         let loss_aversion_lambda = (2.25
             - 0.45 * (norm_bravery - 1.0)
             - 0.35 * (norm_flair - 1.0)
             + 0.20 * (1.0 - norm_decisions)
+            + lambda_impulse_shift
             + 0.60 * physical_exhaustion)
             .clamp(1.10, 4.50);
 
@@ -124,11 +143,38 @@ impl RiskProfile {
         }
     }
 
+    pub fn from_player(
+        player: &Player,
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        physical_state: &PhysicalState,
+    ) -> Self {
+        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+        Self::from_player_with_impulse(
+            player,
+            attribute_keys,
+            physical_state,
+            &ImpulseState::from_baseline(baseline),
+        )
+    }
+
     pub fn from_player_unfatigued(
         player: &Player,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) -> Self {
         Self::from_player(player, attribute_keys, &PhysicalState::initial())
+    }
+
+    pub fn from_player_unfatigued_with_impulse(
+        player: &Player,
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        impulse_state: &ImpulseState,
+    ) -> Self {
+        Self::from_player_with_impulse(
+            player,
+            attribute_keys,
+            &PhysicalState::initial(),
+            impulse_state,
+        )
     }
 
     pub fn tolerance_index(&self) -> f64 {
