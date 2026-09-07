@@ -5,6 +5,7 @@ pub mod in_possession;
 pub mod mentality_defaults;
 pub mod mentality_defaults_constants;
 pub mod out_of_possession;
+pub mod player;
 pub mod team_instructions;
 pub mod transition;
 
@@ -15,5 +16,6 @@ pub use in_possession::InPossessionInstructions;
 pub use mentality_defaults::*;
 pub use mentality_defaults_constants::*;
 pub use out_of_possession::OutOfPossessionInstructions;
+pub use player::*;
 pub use team_instructions::TeamInstructions;
 pub use transition::TransitionInstructions;

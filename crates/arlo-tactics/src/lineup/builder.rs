@@ -1,4 +1,5 @@
 use crate::error::{TacticsError, TacticsResult};
+use crate::instructions::player::PlayerInstructions;
 use crate::lineup::slot_assignment::SlotAssignment;
 use crate::lineup::tactical_lineup::TacticalLineup;
 use crate::lineup::validation::validate_tactical_lineup;
@@ -14,6 +15,7 @@ pub struct TacticalLineupBuilder {
     name: String,
     assignments: HashMap<usize, Uuid>,
     roles: HashMap<Uuid, SlotRole>,
+    instructions: HashMap<Uuid, PlayerInstructions>,
 }
 
 impl TacticalLineupBuilder {
@@ -25,6 +27,7 @@ impl TacticalLineupBuilder {
             name: name.into(),
             assignments: HashMap::new(),
             roles: HashMap::new(),
+            instructions: HashMap::new(),
         }
     }
 
@@ -43,6 +46,11 @@ impl TacticalLineupBuilder {
         self
     }
 
+    pub fn instruct(mut self, player_id: Uuid, instructions: PlayerInstructions) -> Self {
+        self.instructions.insert(player_id, instructions);
+        self
+    }
+
     pub fn build(self, roster: &[Player]) -> TacticsResult<TacticalLineup> {
         let formation = self.formation.ok_or_else(|| {
             TacticsError::InvalidLineup("Formation is required to build a lineup".to_string())
@@ -56,11 +64,17 @@ impl TacticalLineupBuilder {
                     .get(&player_id)
                     .copied()
                     .unwrap_or(SlotRole::Standard);
+                let instructions = self
+                    .instructions
+                    .get(&player_id)
+                    .copied()
+                    .unwrap_or_default();
                 assignments.push(SlotAssignment::new(
                     idx,
                     slot.position(),
                     player_id,
                     role,
+                    instructions,
                 ));
             }
         }

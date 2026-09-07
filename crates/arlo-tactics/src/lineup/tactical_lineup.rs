@@ -3,7 +3,7 @@ use crate::lineup::slot_assignment::SlotAssignment;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TacticalLineup {
     id: Uuid,
     team_id: Uuid,

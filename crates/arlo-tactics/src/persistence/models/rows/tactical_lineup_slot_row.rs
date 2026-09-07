@@ -1,4 +1,5 @@
 use crate::error::TacticsResult;
+use crate::instructions::player::PlayerInstructions;
 use crate::lineup::SlotAssignment;
 use crate::persistence::models::slot_role_code::parse_slot_role;
 use arlo_domain::Position;
@@ -23,6 +24,7 @@ impl TacticalLineupSlotRow {
             position,
             player_id,
             slot_role,
+            PlayerInstructions::default(),
         ))
     }
 }
