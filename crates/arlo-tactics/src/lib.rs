@@ -15,7 +15,7 @@ pub use instructions::{
     InPossessionPlayerInstructions, InvolvementPriority, MarkingAssignment, Mentality,
     OutOfPossessionInstructions, OutOfPossessionPlayerInstructions, PlayerInstructions,
     PlayerInstructionsBuilder, PositioningBias, PressingIntensity, ReleaseTempo, Structure,
-    TeamInstructions, TeamInstructionsBuilder, Tempo, TransitionInstructions,
+    TeamInstructions, TeamInstructionsBuilder, TeamTacticalProfile, Tempo, TransitionInstructions,
     TransitionPlayerInstructions, TransitionUrgency, Width,
 };
 pub use lineup::{
@@ -35,6 +35,7 @@ pub use persistence::models::{
     PlayCallSituationalParameterRow, PlayerInstructionKey, SituationalParameterKey,
     TacticalInstructionValueRow, TacticalLineupRow, TacticalLineupSlotInstructionRow,
     TacticalLineupSlotRow, TacticalPhase, TeamTacticalProfileRow,
+    TeamTacticalProfileSituationalParameterRow,
 };
 pub use persistence::repositories::{play_call, tactical_lineup, team_instructions};
 pub use playcall::*;

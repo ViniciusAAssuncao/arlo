@@ -8,6 +8,7 @@ pub mod tactical_lineup_row;
 pub mod tactical_lineup_slot_instruction_row;
 pub mod tactical_lineup_slot_row;
 pub mod team_tactical_profile_row;
+pub mod team_tactical_profile_situational_parameter_row;
 
 pub use play_call_decision_emphasis_row::{
     build_decision_emphasis, PlayCallDecisionEmphasisRow,
@@ -26,3 +27,4 @@ pub use tactical_lineup_slot_instruction_row::{
 };
 pub use tactical_lineup_slot_row::TacticalLineupSlotRow;
 pub use team_tactical_profile_row::TeamTacticalProfileRow;
+pub use team_tactical_profile_situational_parameter_row::TeamTacticalProfileSituationalParameterRow;

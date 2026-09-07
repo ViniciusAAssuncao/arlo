@@ -1,13 +1,16 @@
 use crate::error::{TacticsError, TacticsResult};
-use crate::instructions::TeamInstructions;
+use crate::instructions::{TeamInstructions, TeamTacticalProfile};
 use crate::persistence::models::instruction_key_code::{
     instruction_key_to_code, InstructionKey,
 };
 use crate::persistence::models::rows::{
-    TacticalInstructionValueRow, TeamTacticalProfileRow,
+    situational_profile_to_pairs, TacticalInstructionValueRow, TeamTacticalProfileRow,
+    TeamTacticalProfileSituationalParameterRow,
 };
+use crate::persistence::models::situational_parameter_key_code::situational_parameter_key_to_code;
 use crate::persistence::models::tactical_phase::TacticalPhase;
 use crate::persistence::models::tactical_phase_code::tactical_phase_to_code;
+use crate::playcall::situational::SituationalProfile;
 use arlo_db::repositories::fetch::{fetch_all_by_param, fetch_optional_by_param};
 use sqlx::SqlitePool;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -16,7 +19,7 @@ use uuid::Uuid;
 pub async fn get_active_by_team_id(
     pool: &SqlitePool,
     team_id: Uuid,
-) -> TacticsResult<Option<TeamInstructions>> {
+) -> TacticsResult<Option<TeamTacticalProfile>> {
     let profile_row = fetch_optional_by_param::<TeamTacticalProfileRow>(
         pool,
         "SELECT id, team_id, name, is_active, created_at_unix_seconds FROM team_tactical_profiles WHERE team_id = ? AND is_active = 1",
@@ -36,14 +39,21 @@ pub async fn get_active_by_team_id(
     )
     .await?;
 
-    let instructions = profile_row.to_domain(&value_rows)?;
-    Ok(Some(instructions))
+    let situational_rows = sqlx::query_as::<_, TeamTacticalProfileSituationalParameterRow>(
+        "SELECT id, team_tactical_profile_id, parameter_key, value FROM team_tactical_profile_situational_parameters WHERE team_tactical_profile_id = ?",
+    )
+    .bind(&profile_row.id)
+    .fetch_all(pool)
+    .await?;
+
+    let profile = profile_row.to_domain(&value_rows, &situational_rows)?;
+    Ok(Some(profile))
 }
 
 pub async fn list_profiles_by_team_id(
     pool: &SqlitePool,
     team_id: Uuid,
-) -> TacticsResult<Vec<(TeamTacticalProfileRow, TeamInstructions)>> {
+) -> TacticsResult<Vec<TeamTacticalProfile>> {
     let profile_rows = fetch_all_by_param::<TeamTacticalProfileRow>(
         pool,
         "SELECT id, team_id, name, is_active, created_at_unix_seconds FROM team_tactical_profiles WHERE team_id = ? ORDER BY created_at_unix_seconds ASC",
@@ -59,8 +69,16 @@ pub async fn list_profiles_by_team_id(
             &row.id,
         )
         .await?;
-        let instructions = row.to_domain(&value_rows)?;
-        results.push((row, instructions));
+
+        let situational_rows = sqlx::query_as::<_, TeamTacticalProfileSituationalParameterRow>(
+            "SELECT id, team_tactical_profile_id, parameter_key, value FROM team_tactical_profile_situational_parameters WHERE team_tactical_profile_id = ?",
+        )
+        .bind(&row.id)
+        .fetch_all(pool)
+        .await?;
+
+        let profile = row.to_domain(&value_rows, &situational_rows)?;
+        results.push(profile);
     }
 
     Ok(results)
@@ -69,7 +87,7 @@ pub async fn list_profiles_by_team_id(
 pub async fn get_profile_by_id(
     pool: &SqlitePool,
     id: Uuid,
-) -> TacticsResult<Option<(TeamTacticalProfileRow, TeamInstructions)>> {
+) -> TacticsResult<Option<TeamTacticalProfile>> {
     let profile_row = fetch_optional_by_param::<TeamTacticalProfileRow>(
         pool,
         "SELECT id, team_id, name, is_active, created_at_unix_seconds FROM team_tactical_profiles WHERE id = ?",
@@ -89,8 +107,15 @@ pub async fn get_profile_by_id(
     )
     .await?;
 
-    let instructions = profile_row.to_domain(&value_rows)?;
-    Ok(Some((profile_row, instructions)))
+    let situational_rows = sqlx::query_as::<_, TeamTacticalProfileSituationalParameterRow>(
+        "SELECT id, team_tactical_profile_id, parameter_key, value FROM team_tactical_profile_situational_parameters WHERE team_tactical_profile_id = ?",
+    )
+    .bind(&profile_row.id)
+    .fetch_all(pool)
+    .await?;
+
+    let profile = profile_row.to_domain(&value_rows, &situational_rows)?;
+    Ok(Some(profile))
 }
 
 pub async fn insert_profile(
@@ -98,6 +123,7 @@ pub async fn insert_profile(
     team_id: Uuid,
     name: &str,
     instructions: &TeamInstructions,
+    situational_profile: Option<&SituationalProfile>,
 ) -> TacticsResult<Uuid> {
     let profile_id = Uuid::new_v4();
     let timestamp = SystemTime::now()
@@ -204,6 +230,23 @@ pub async fn insert_profile(
         .bind(value)
         .execute(&mut *tx)
         .await?;
+    }
+
+    if let Some(profile) = situational_profile {
+        let pairs = situational_profile_to_pairs(profile);
+        for (key, val) in pairs {
+            let param_id = Uuid::new_v4().to_string();
+            let key_code = situational_parameter_key_to_code(key);
+            sqlx::query(
+                "INSERT INTO team_tactical_profile_situational_parameters (id, team_tactical_profile_id, parameter_key, value) VALUES (?, ?, ?, ?)",
+            )
+            .bind(param_id)
+            .bind(profile_id.to_string())
+            .bind(key_code)
+            .bind(val)
+            .execute(&mut *tx)
+            .await?;
+        }
     }
 
     tx.commit().await?;
