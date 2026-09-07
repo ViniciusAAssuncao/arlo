@@ -408,7 +408,10 @@ impl MatchState {
         Some(shift)
     }
 
-    pub fn process_impulse_bus(&mut self, timestamp_seconds: f64) -> Vec<(Uuid, ImpulseShift)> {
+    pub fn process_impulse_bus(
+        &mut self,
+        timestamp_seconds: f64,
+    ) -> Vec<(Uuid, ImpulseShift, ImpulseEvent)> {
         let events = self.impulse_bus.drain_events();
         let mut shifts = Vec::with_capacity(events.len());
         for dispatched in events {
@@ -419,7 +422,7 @@ impl MatchState {
                     if let Some(shift) =
                         self.apply_impulse_event(pid, &dispatched.event, timestamp_seconds)
                     {
-                        shifts.push((pid, shift));
+                        shifts.push((pid, shift, dispatched.event));
                     }
                 }
             } else if dispatched.target_id == self.away_team_id {
@@ -429,13 +432,13 @@ impl MatchState {
                     if let Some(shift) =
                         self.apply_impulse_event(pid, &dispatched.event, timestamp_seconds)
                     {
-                        shifts.push((pid, shift));
+                        shifts.push((pid, shift, dispatched.event));
                     }
                 }
             } else if let Some(shift) =
                 self.apply_impulse_event(dispatched.target_id, &dispatched.event, timestamp_seconds)
             {
-                shifts.push((dispatched.target_id, shift));
+                shifts.push((dispatched.target_id, shift, dispatched.event));
             }
         }
         shifts

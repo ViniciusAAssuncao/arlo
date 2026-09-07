@@ -65,6 +65,17 @@ pub struct PlayerMatchSnapshot {
     pub distance_second_zone: f64,
     pub distance_corridors: f64,
     pub distance_central: f64,
+    pub impulse_baseline: f64,
+    pub impulse_current: u8,
+    pub impulse_min: u8,
+    pub impulse_max: u8,
+    pub impulse_average: f64,
+    pub impulse_shifts_total: u32,
+    pub impulse_time_below_baseline_seconds: f64,
+    pub impulse_runs_count: u32,
+    pub impulse_longest_run_seconds: f64,
+    pub impulse_peak_run_value: u8,
+    pub impulse_total_run_intensity: f64,
 }
 
 impl PlayerMatchSnapshot {
@@ -141,6 +152,17 @@ impl Default for PlayerMatchSnapshot {
             distance_second_zone: 0.0,
             distance_corridors: 0.0,
             distance_central: 0.0,
+            impulse_baseline: 50.0,
+            impulse_current: 50,
+            impulse_min: 50,
+            impulse_max: 50,
+            impulse_average: 50.0,
+            impulse_shifts_total: 0,
+            impulse_time_below_baseline_seconds: 0.0,
+            impulse_runs_count: 0,
+            impulse_longest_run_seconds: 0.0,
+            impulse_peak_run_value: 50,
+            impulse_total_run_intensity: 0.0,
         }
     }
 }

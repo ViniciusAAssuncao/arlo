@@ -7,8 +7,8 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::period_resolution::resolve_period_end;
 use crate::world_state::play_transition::event_dispatcher::{
     emit_countdown_event, emit_distribution_flight, emit_down_advanced_event,
-    emit_drives, emit_duel_events, emit_out_of_bounds_event, emit_scoring_event,
-    emit_turnover_event,
+    emit_drives, emit_duel_events, emit_impulse_shift, emit_out_of_bounds_event,
+    emit_scoring_event, emit_turnover_event,
 };
 use crate::world_state::play_transition::fatigue_applier::{
     apply_dead_ball_recovery, apply_duel_strain, apply_kinematic_movement_strain,
@@ -134,7 +134,10 @@ pub fn apply_play_transition(
         .publish_events(transition_result.impulse_events.clone());
 
     let current_period_seconds = state.clock().seconds_in_period();
-    state.process_impulse_bus(current_period_seconds);
+    let shifts = state.process_impulse_bus(current_period_seconds);
+    for (pid, shift, ev) in shifts {
+        emit_impulse_shift(state, sink, pid, &shift, &ev);
+    }
 
     if let Some(new_offense) = detailed_outcome.turnover {
         emit_turnover_event(

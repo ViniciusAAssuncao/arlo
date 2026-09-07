@@ -3,6 +3,7 @@ pub mod envelope;
 pub mod in_memory_sink;
 pub mod physical;
 pub mod possession;
+pub mod psychology;
 pub mod scoring;
 pub mod sink;
 
@@ -18,6 +19,9 @@ pub use in_memory_sink::InMemorySink;
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
     CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent, Turnover,
+};
+pub use psychology::{
+    ImpulseCriticalReached, ImpulseEventKind, ImpulseShiftRecorded, PsychologyEvent,
 };
 pub use scoring::{
     FieldGoalScored, FieldPointScored, GoalPointScored, ScoringAttemptMissed, ScoringEvent,
@@ -46,6 +50,8 @@ pub enum MatchEvent {
     ScoringAttemptMissed(ScoringAttemptMissed),
     PhysicalStrainRecorded(PhysicalStrainRecorded),
     RecoveryIntervalProcessed(RecoveryIntervalProcessed),
+    ImpulseShiftRecorded(ImpulseShiftRecorded),
+    ImpulseCriticalReached(ImpulseCriticalReached),
 }
 
 impl MatchEvent {
@@ -90,6 +96,13 @@ impl MatchEvent {
         )
     }
 
+    pub fn is_psychological(&self) -> bool {
+        matches!(
+            self,
+            Self::ImpulseShiftRecorded(_) | Self::ImpulseCriticalReached(_)
+        )
+    }
+
     pub fn event_type_name(&self) -> &'static str {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
@@ -109,6 +122,8 @@ impl MatchEvent {
             Self::ScoringAttemptMissed(_) => "ScoringAttemptMissed",
             Self::PhysicalStrainRecorded(_) => "PhysicalStrainRecorded",
             Self::RecoveryIntervalProcessed(_) => "RecoveryIntervalProcessed",
+            Self::ImpulseShiftRecorded(_) => "ImpulseShiftRecorded",
+            Self::ImpulseCriticalReached(_) => "ImpulseCriticalReached",
         }
     }
 }
@@ -215,11 +230,32 @@ impl From<RecoveryIntervalProcessed> for MatchEvent {
     }
 }
 
+impl From<ImpulseShiftRecorded> for MatchEvent {
+    fn from(ev: ImpulseShiftRecorded) -> Self {
+        Self::ImpulseShiftRecorded(ev)
+    }
+}
+
+impl From<ImpulseCriticalReached> for MatchEvent {
+    fn from(ev: ImpulseCriticalReached) -> Self {
+        Self::ImpulseCriticalReached(ev)
+    }
+}
+
 impl From<PhysicalEvent> for MatchEvent {
     fn from(ev: PhysicalEvent) -> Self {
         match ev {
             PhysicalEvent::PhysicalStrainRecorded(e) => Self::PhysicalStrainRecorded(e),
             PhysicalEvent::RecoveryIntervalProcessed(e) => Self::RecoveryIntervalProcessed(e),
+        }
+    }
+}
+
+impl From<PsychologyEvent> for MatchEvent {
+    fn from(ev: PsychologyEvent) -> Self {
+        match ev {
+            PsychologyEvent::ImpulseShiftRecorded(e) => Self::ImpulseShiftRecorded(e),
+            PsychologyEvent::ImpulseCriticalReached(e) => Self::ImpulseCriticalReached(e),
         }
     }
 }

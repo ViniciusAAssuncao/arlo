@@ -7,6 +7,11 @@ use crate::match_decision::event_translation::{
     translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
+use crate::psychology::event_translation::{
+    translate_impulse_critical_reached, translate_impulse_shift_recorded,
+};
+use crate::psychology::systems::critical::ImpulseCriticalReached as EngineImpulseCritical;
+use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::MatchState;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
@@ -226,4 +231,28 @@ pub fn emit_recovery_processed(
     let seq = state.next_sequence();
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, rec_ev));
+}
+
+pub fn emit_impulse_shift(
+    state: &mut MatchState,
+    sink: &mut impl EventSink,
+    player_id: Uuid,
+    shift: &ImpulseShift,
+    event: &ImpulseEvent,
+) {
+    let shift_event = translate_impulse_shift_recorded(player_id, shift, event);
+    let seq = state.next_sequence();
+    let clock_inst = state.clock().to_instant();
+    sink.record(create_envelope(seq, clock_inst, shift_event));
+}
+
+pub fn emit_impulse_critical(
+    state: &mut MatchState,
+    sink: &mut impl EventSink,
+    critical: &EngineImpulseCritical,
+) {
+    let critical_event = translate_impulse_critical_reached(critical);
+    let seq = state.next_sequence();
+    let clock_inst = state.clock().to_instant();
+    sink.record(create_envelope(seq, clock_inst, critical_event));
 }
