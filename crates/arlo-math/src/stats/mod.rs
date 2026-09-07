@@ -1,8 +1,10 @@
+pub mod bounded;
 pub mod categorical;
 pub mod contrast;
 pub mod noise;
 pub mod probability;
 
+pub use bounded::{BipolarScalar, UnipolarScalar};
 pub use categorical::sample_categorical;
 pub use contrast::{
     bradley_terry, bradley_terry_probability, bradley_terry_with_offset, logistic,
