@@ -26,6 +26,10 @@ pub fn is_cognitive_or_technical_attribute(key: AttributeKey) -> bool {
     !is_physical_attribute(key)
 }
 
+pub fn calculate_physical_exhaustion(state: &PhysicalState) -> f64 {
+    (1.0 - state.w_prime_balance()).max(0.0) * 0.65 + (1.0 - state.energy()).max(0.0) * 0.35
+}
+
 pub fn physical_attribute_modifier(state: &PhysicalState) -> f64 {
     let energy = state.energy().clamp(0.0, 1.0);
     let w_bal = state.w_prime_balance().clamp(0.0, 1.0);

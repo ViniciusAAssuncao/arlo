@@ -1,4 +1,6 @@
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::{
+    calculate_physical_exhaustion, extract_effective_attribute_value,
+};
 use crate::physical::PhysicalState;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use serde::{Deserialize, Serialize};
@@ -86,8 +88,7 @@ impl RiskProfile {
         let norm_vision = (vision.clamp(0.0, 20.0)) / 10.0;
         let norm_decisions = (decisions.clamp(0.0, 20.0)) / 10.0;
 
-        let physical_exhaustion = (1.0 - physical_state.w_prime_balance()).max(0.0) * 0.65
-            + (1.0 - physical_state.energy()).max(0.0) * 0.35;
+        let physical_exhaustion = calculate_physical_exhaustion(physical_state);
 
         let base_tolerance = 0.50
             + 0.35 * norm_flair

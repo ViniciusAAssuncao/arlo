@@ -56,6 +56,10 @@ impl ImpulseState {
         self.value
     }
 
+    pub fn accumulator(&self) -> f64 {
+        self.accumulator
+    }
+
     pub fn recent_successes(&self) -> u32 {
         self.recent_successes
     }
