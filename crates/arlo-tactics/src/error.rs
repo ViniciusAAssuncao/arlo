@@ -10,6 +10,8 @@ pub enum TacticsError {
     Uuid(#[from] uuid::Error),
     #[error("Invalid lineup: {0}")]
     InvalidLineup(String),
+    #[error("Invalid play call: {0}")]
+    InvalidPlayCall(String),
     #[error("Invalid instruction key: {0}")]
     InvalidInstructionKey(String),
     #[error("Invalid enum value: {0}")]
