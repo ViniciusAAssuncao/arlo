@@ -1,5 +1,5 @@
-use crate::tactics::dynamic_anchor::compute_dynamic_anchors;
-use crate::tactics::lineup::Lineup;
+use crate::lineup_runtime::dynamic_anchor::compute_dynamic_anchors;
+use crate::lineup_runtime::lineup::Lineup;
 use arlo_domain::pitch::Pitch;
 use arlo_math::units::Position;
 use std::collections::HashMap;

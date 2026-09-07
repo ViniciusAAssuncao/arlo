@@ -1,7 +1,7 @@
+use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
 use crate::resolution::duel_profiles::DuelProfile;
-use crate::tactics::calculate_fit_for_position;
 use crate::weighting::apply_saturation;
 use arlo_domain::sport_constants::{
     ATTRIBUTE_SATURATION_THRESHOLD, GROUP_AGGREGATION_SATURATION_MULTIPLIER,

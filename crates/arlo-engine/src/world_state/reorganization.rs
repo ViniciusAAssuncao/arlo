@@ -1,6 +1,6 @@
+use crate::lineup_runtime::dynamic_anchor::compute_dynamic_anchors;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
-use crate::tactics::dynamic_anchor::compute_dynamic_anchors;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::fatigue_applier::apply_kinematic_movement_strain;
 use arlo_domain::{AttributeKey, Position as DomainPosition};

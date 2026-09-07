@@ -1,5 +1,5 @@
-use crate::tactics::lineup::Lineup;
-use crate::tactics::position_similarity::position_similarity;
+use crate::lineup_runtime::lineup::Lineup;
+use crate::lineup_runtime::position_similarity::position_similarity;
 use arlo_domain::{FormationSlot, Player, Position};
 use serde::{Deserialize, Serialize};
 

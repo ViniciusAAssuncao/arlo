@@ -1,5 +1,5 @@
 use crate::error::{EngineError, EngineResult};
-use crate::tactics::lineup::Lineup;
+use crate::lineup_runtime::lineup::Lineup;
 use arlo_domain::pitch::{project_slot, project_slot_mirrored, Pitch};
 use arlo_domain::{Venue, VenueKind};
 use arlo_math::units::Position as VectorPosition;

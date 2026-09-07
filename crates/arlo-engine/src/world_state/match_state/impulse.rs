@@ -1,3 +1,4 @@
+use crate::lineup_runtime::Lineup;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::{
     calculate_player_contextual_baseline, find_active_captain,
@@ -5,7 +6,6 @@ use crate::psychology::systems::baseline::{
 use crate::psychology::systems::dynamics::update_player_impulse_contextual;
 use crate::psychology::systems::event_bus::ImpulseEventBus;
 use crate::psychology::systems::events::{apply_impulse_event_contextual_at, ImpulseEvent, ImpulseShift};
-use crate::tactics::Lineup;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::AttributeKey;

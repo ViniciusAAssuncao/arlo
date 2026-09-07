@@ -1,4 +1,4 @@
-use crate::tactics::Lineup;
+use crate::lineup_runtime::Lineup;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

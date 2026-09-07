@@ -1,4 +1,5 @@
 use crate::error::EngineResult;
+use crate::lineup_runtime::Lineup;
 use crate::physical::FatigueState;
 use crate::possession::PossessionSnapshot;
 use crate::psychology::state::ImpulseState;
@@ -6,7 +7,6 @@ use crate::psychology::systems::event_bus::ImpulseEventBus;
 use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
 use crate::rng::{MatchSeed, RngProvider};
 use crate::spatial::DynamicSpatialMap;
-use crate::tactics::Lineup;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::fatigue::FatigueTracker;

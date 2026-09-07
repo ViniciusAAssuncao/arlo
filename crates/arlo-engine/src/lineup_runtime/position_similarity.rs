@@ -44,5 +44,5 @@ pub fn calculate_position_similarity(a: Position, b: Position) -> f64 {
 }
 
 pub fn position_similarity(a: Position, b: Position) -> f64 {
-    crate::tactics::position_profile_cache::get_position_similarity(a, b)
+    crate::lineup_runtime::position_profile_cache::get_position_similarity(a, b)
 }

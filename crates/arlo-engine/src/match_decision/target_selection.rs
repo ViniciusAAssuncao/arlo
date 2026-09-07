@@ -1,7 +1,7 @@
+use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
 use crate::spatial::DynamicSpatialMap;
-use crate::tactics::calculate_fit_for_position;
 use arlo_domain::{AttributeKey, Pitch, Player, Position};
 use arlo_math::stats::sample_categorical;
 use rand::Rng;

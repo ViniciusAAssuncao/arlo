@@ -1,6 +1,6 @@
 use crate::current_ability::profiles::get_profile_for_position;
 use crate::current_ability::weights::PositionWeightProfile;
-use crate::tactics::position_similarity::calculate_profile_similarity;
+use crate::lineup_runtime::position_similarity::calculate_profile_similarity;
 use arlo_domain::Position;
 use std::collections::HashMap;
 use std::sync::OnceLock;
