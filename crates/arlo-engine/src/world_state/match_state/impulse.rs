@@ -1,12 +1,12 @@
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::psychology::systems::event_bus::ImpulseEventBus;
-use crate::psychology::systems::events::{apply_impulse_event_at, ImpulseEvent, ImpulseShift};
+use crate::psychology::systems::events::{ apply_impulse_event_at, ImpulseEvent, ImpulseShift };
 use crate::tactics::Lineup;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::AttributeKey;
-use serde::{Deserialize, Serialize};
+use serde::{ Deserialize, Serialize };
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -21,7 +21,7 @@ impl ImpulseTracker {
     pub fn new(
         home_lineup: &Lineup,
         away_lineup: &Lineup,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        attribute_keys: &HashMap<Uuid, AttributeKey>
     ) -> Self {
         let mut home_impulse = HashMap::with_capacity(home_lineup.len());
         for p in home_lineup.players() {
@@ -50,6 +50,14 @@ impl ImpulseTracker {
         &self.away_impulse
     }
 
+    pub fn home_impulse_mut(&mut self) -> &mut HashMap<Uuid, ImpulseState> {
+        &mut self.home_impulse
+    }
+
+    pub fn away_impulse_mut(&mut self) -> &mut HashMap<Uuid, ImpulseState> {
+        &mut self.away_impulse
+    }
+
     pub fn impulse_bus(&self) -> &ImpulseEventBus {
         &self.impulse_bus
     }
@@ -66,6 +74,76 @@ impl ImpulseTracker {
             .unwrap_or_default()
     }
 
+    pub fn set_player_impulse(&mut self, player_id: Uuid, is_home: bool, state: ImpulseState) {
+        if is_home {
+            self.home_impulse.insert(player_id, state);
+        } else {
+            self.away_impulse.insert(player_id, state);
+        }
+    }
+
+    pub fn set_all_to_initial(&mut self) {
+        for state in self.home_impulse.values_mut() {
+            *state = ImpulseState::initial();
+        }
+        for state in self.away_impulse.values_mut() {
+            *state = ImpulseState::initial();
+        }
+    }
+
+    pub fn reset_all_to_baseline(
+        &mut self,
+        teams: &TeamRegistry,
+        attribute_keys: &HashMap<Uuid, AttributeKey>
+    ) {
+        for p in teams.home_lineup().players() {
+            let base = calculate_player_impulse_baseline(p, attribute_keys);
+            self.home_impulse.insert(p.id(), ImpulseState::from_baseline(base));
+        }
+        for p in teams.away_lineup().players() {
+            let base = calculate_player_impulse_baseline(p, attribute_keys);
+            self.away_impulse.insert(p.id(), ImpulseState::from_baseline(base));
+        }
+    }
+
+    pub fn advance_impulse_dynamics(
+        &mut self,
+        dt_seconds: f64,
+        teams: &TeamRegistry,
+        fatigue: &FatigueTracker,
+        attribute_keys: &HashMap<Uuid, AttributeKey>
+    ) {
+        if dt_seconds <= 0.0 {
+            return;
+        }
+        for player in teams.home_lineup().players() {
+            let pid = player.id();
+            let phys = fatigue.fatigue_for(&pid);
+            if let Some(state) = self.home_impulse.get_mut(&pid) {
+                crate::psychology::systems::dynamics::update_player_impulse(
+                    state,
+                    player,
+                    attribute_keys,
+                    &phys,
+                    dt_seconds
+                );
+            }
+        }
+        for player in teams.away_lineup().players() {
+            let pid = player.id();
+            let phys = fatigue.fatigue_for(&pid);
+            if let Some(state) = self.away_impulse.get_mut(&pid) {
+                crate::psychology::systems::dynamics::update_player_impulse(
+                    state,
+                    player,
+                    attribute_keys,
+                    &phys,
+                    dt_seconds
+                );
+            }
+        }
+    }
+
     pub fn apply_impulse_event(
         &mut self,
         player_id: Uuid,
@@ -73,7 +151,7 @@ impl ImpulseTracker {
         timestamp_seconds: f64,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        attribute_keys: &HashMap<Uuid, AttributeKey>
     ) -> Option<ImpulseShift> {
         let player = teams.find_player(&player_id)?;
         let is_home = teams.is_home_player(&player_id);
@@ -90,7 +168,7 @@ impl ImpulseTracker {
             attribute_keys,
             &physical_state,
             event,
-            timestamp_seconds,
+            timestamp_seconds
         );
 
         Some(shift)
@@ -101,49 +179,63 @@ impl ImpulseTracker {
         timestamp_seconds: f64,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        attribute_keys: &HashMap<Uuid, AttributeKey>
     ) -> Vec<(Uuid, ImpulseShift, ImpulseEvent)> {
         let events = self.impulse_bus.drain_events();
         let mut shifts = Vec::with_capacity(events.len());
         for dispatched in events {
             if dispatched.target_id == teams.home_team_id() {
-                let home_player_ids: Vec<Uuid> =
-                    teams.home_lineup().players().iter().map(|p| p.id()).collect();
+                let home_player_ids: Vec<Uuid> = teams
+                    .home_lineup()
+                    .players()
+                    .iter()
+                    .map(|p| p.id())
+                    .collect();
                 for pid in home_player_ids {
-                    if let Some(shift) = self.apply_impulse_event(
-                        pid,
-                        &dispatched.event,
-                        timestamp_seconds,
-                        teams,
-                        fatigue,
-                        attribute_keys,
-                    ) {
+                    if
+                        let Some(shift) = self.apply_impulse_event(
+                            pid,
+                            &dispatched.event,
+                            timestamp_seconds,
+                            teams,
+                            fatigue,
+                            attribute_keys
+                        )
+                    {
                         shifts.push((pid, shift, dispatched.event));
                     }
                 }
             } else if dispatched.target_id == teams.away_team_id() {
-                let away_player_ids: Vec<Uuid> =
-                    teams.away_lineup().players().iter().map(|p| p.id()).collect();
+                let away_player_ids: Vec<Uuid> = teams
+                    .away_lineup()
+                    .players()
+                    .iter()
+                    .map(|p| p.id())
+                    .collect();
                 for pid in away_player_ids {
-                    if let Some(shift) = self.apply_impulse_event(
-                        pid,
-                        &dispatched.event,
-                        timestamp_seconds,
-                        teams,
-                        fatigue,
-                        attribute_keys,
-                    ) {
+                    if
+                        let Some(shift) = self.apply_impulse_event(
+                            pid,
+                            &dispatched.event,
+                            timestamp_seconds,
+                            teams,
+                            fatigue,
+                            attribute_keys
+                        )
+                    {
                         shifts.push((pid, shift, dispatched.event));
                     }
                 }
-            } else if let Some(shift) = self.apply_impulse_event(
-                dispatched.target_id,
-                &dispatched.event,
-                timestamp_seconds,
-                teams,
-                fatigue,
-                attribute_keys,
-            ) {
+            } else if
+                let Some(shift) = self.apply_impulse_event(
+                    dispatched.target_id,
+                    &dispatched.event,
+                    timestamp_seconds,
+                    teams,
+                    fatigue,
+                    attribute_keys
+                )
+            {
                 shifts.push((dispatched.target_id, shift, dispatched.event));
             }
         }

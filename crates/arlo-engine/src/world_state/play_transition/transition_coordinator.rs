@@ -209,9 +209,17 @@ pub fn apply_play_transition(
     let dead_ball_seconds = play_ledger.total_dead_ball().value();
     apply_dead_ball_recovery(state, sink, dead_ball_seconds);
 
+    let live_seconds = play_ledger.total_live().value();
+    if live_seconds > 0.0 {
+        state.advance_impulse_dynamics(live_seconds);
+    }
+    if dead_ball_seconds > 0.0 {
+        state.advance_impulse_dynamics(dead_ball_seconds);
+    }
+
     let period_ended = state
         .clock_mut()
-        .advance_seconds(play_ledger.total_live().value());
+        .advance_seconds(live_seconds);
     state.real_time_mut().add(play_ledger.total());
     *state.possession_mut() = next_snapshot;
 
