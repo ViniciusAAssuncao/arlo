@@ -45,6 +45,7 @@ pub fn execute_artrine_decision<F, R>(
     is_bonus_phase: bool,
     context: &DuelContext,
     fatigue_for: &F,
+    defense_pressing_multiplier: f64,
     rng: &mut R,
 ) -> EngineResult<ArtrineExecutionOutcome>
 where
@@ -74,6 +75,7 @@ where
             defense_team_id,
             context,
             fatigue_for,
+            defense_pressing_multiplier,
             rng,
         ),
         ArtrineDecisionKind::ShortPass | ArtrineDecisionKind::LongLaunch => execute_distribution(
@@ -97,6 +99,7 @@ where
             is_bonus_phase,
             context,
             fatigue_for,
+            defense_pressing_multiplier,
             rng,
         ),
         ArtrineDecisionKind::Cross => {
@@ -121,6 +124,7 @@ where
                 is_bonus_phase,
                 context,
                 fatigue_for,
+                defense_pressing_multiplier,
                 rng,
             );
 

@@ -45,6 +45,7 @@ pub fn resolve_reception<F, R>(
     attacking_positive_x: bool,
     context: &DuelContext,
     fatigue_for: &F,
+    defense_pressing_multiplier: f64,
     rng: &mut R,
 ) -> ReceptionOutcome
 where
@@ -135,7 +136,7 @@ where
         fatigue_for,
     );
 
-    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
+    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
     let lead_defender = identify_kinematic_lead_defender_with_drift(
         receiver_pos_vec,
         Velocity::zero(),

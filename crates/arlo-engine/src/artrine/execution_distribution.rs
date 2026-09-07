@@ -53,6 +53,7 @@ pub fn execute_distribution<F, R>(
     is_bonus_phase: bool,
     context: &DuelContext,
     fatigue_for: &F,
+    defense_pressing_multiplier: f64,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome
 where
@@ -84,7 +85,7 @@ where
         fatigue_for,
     );
 
-    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
+    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
     let lead_defender = identify_kinematic_lead_defender_with_drift(
         start_pos,
         Velocity::zero(),
@@ -290,6 +291,7 @@ where
         is_bonus_phase,
         context,
         fatigue_for,
+        defense_pressing_multiplier,
         rng,
     )
 }

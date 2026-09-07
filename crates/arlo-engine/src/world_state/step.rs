@@ -226,6 +226,11 @@ pub fn step_call_to_action(
         let clock_inst = state.clock().to_instant();
         sink.record(create_envelope(seq, clock_inst, decision_event));
 
+        let defense_instructions = state.instructions_for_team(defense_team_id);
+        let defense_pressing_multiplier = crate::team_identity::pressing::contest_radius_multiplier(
+            defense_instructions.out_of_possession().pressing_intensity(),
+        );
+
         let seq_execution = state.next_sequence();
         let mut execution_rng = state
             .rng_provider()
@@ -251,6 +256,7 @@ pub fn step_call_to_action(
             is_bonus_phase,
             &context,
             &fatigue_lookup,
+            defense_pressing_multiplier,
             &mut execution_rng,
         )?;
 

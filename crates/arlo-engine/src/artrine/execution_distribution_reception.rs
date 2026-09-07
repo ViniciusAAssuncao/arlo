@@ -46,6 +46,7 @@ pub fn execute_post_throw_reception<F, R>(
     is_bonus_phase: bool,
     context: &DuelContext,
     fatigue_for: &F,
+    defense_pressing_multiplier: f64,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome
 where
@@ -65,6 +66,7 @@ where
         attacking_positive_x,
         context,
         fatigue_for,
+        defense_pressing_multiplier,
         rng,
     );
 
@@ -154,6 +156,7 @@ where
         defense_team_id,
         context,
         fatigue_for,
+        defense_pressing_multiplier,
         rng,
     );
 

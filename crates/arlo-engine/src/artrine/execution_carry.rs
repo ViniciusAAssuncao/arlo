@@ -45,6 +45,7 @@ pub fn execute_carry<F, R>(
     defense_team_id: Uuid,
     context: &DuelContext,
     fatigue_for: &F,
+    defense_pressing_multiplier: f64,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome
 where
@@ -98,7 +99,7 @@ where
     );
     let carrier_vel = derive_velocity_towards_target(start_pos, target_carry_pos, artrine_speed);
 
-    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
+    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
     let lead_defender = identify_kinematic_lead_defender_with_drift(
         start_pos,
         carrier_vel,
