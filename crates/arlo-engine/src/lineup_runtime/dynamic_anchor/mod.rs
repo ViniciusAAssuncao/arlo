@@ -8,6 +8,7 @@ use crate::lineup_runtime::lineup::Lineup;
 use arlo_domain::pitch::{project_slot, project_slot_mirrored, Pitch};
 use arlo_domain::{AttributeKey, FormationSlot, Player};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_tactics::TeamInstructions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -23,6 +24,7 @@ pub fn calculate_player_dynamic_attractor(
     is_offense: bool,
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
 ) -> VectorPosition {
     let pitch_length_m = pitch.length().value();
     let pitch_width_m = pitch.width().value();
@@ -47,6 +49,7 @@ pub fn calculate_player_dynamic_attractor(
             base_y,
             attacking_positive_x,
             attribute_keys,
+            instructions,
         )
     } else {
         calculate_defense_attractor_coordinates(
@@ -79,6 +82,7 @@ pub fn compute_dynamic_anchors(
     is_offense: bool,
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
 ) -> HashMap<Uuid, VectorPosition> {
     if lineup.assignments().is_empty() {
         return HashMap::new();
@@ -101,6 +105,7 @@ pub fn compute_dynamic_anchors(
             is_offense,
             attacking_positive_x,
             attribute_keys,
+            instructions,
         );
         total_x += attractor.raw().0;
         raw_attractors.push((player.id(), attractor));
@@ -145,6 +150,7 @@ pub fn translate_dynamic_formation_to_scrimmage(
     is_offense: bool,
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
 ) -> HashMap<Uuid, VectorPosition> {
     compute_dynamic_anchors(
         pitch,
@@ -153,6 +159,7 @@ pub fn translate_dynamic_formation_to_scrimmage(
         is_offense,
         attacking_positive_x,
         attribute_keys,
+        instructions,
     )
 }
 
@@ -165,6 +172,7 @@ impl DynamicAnchorManager {
         is_offense: bool,
         attacking_positive_x: bool,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
+        instructions: &TeamInstructions,
     ) -> VectorPosition {
         calculate_player_dynamic_attractor(
             pitch,
@@ -174,6 +182,7 @@ impl DynamicAnchorManager {
             is_offense,
             attacking_positive_x,
             attribute_keys,
+            instructions,
         )
     }
 
@@ -184,6 +193,7 @@ impl DynamicAnchorManager {
         is_offense: bool,
         attacking_positive_x: bool,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
+        instructions: &TeamInstructions,
     ) -> HashMap<Uuid, VectorPosition> {
         compute_dynamic_anchors(
             pitch,
@@ -192,6 +202,7 @@ impl DynamicAnchorManager {
             is_offense,
             attacking_positive_x,
             attribute_keys,
+            instructions,
         )
     }
 }

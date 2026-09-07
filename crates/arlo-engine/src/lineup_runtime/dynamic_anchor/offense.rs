@@ -1,19 +1,25 @@
 use crate::spatial::decision_vector::extract_attribute_value;
+use crate::spatial::positioning_drift::anchor_drift_radius_mirim;
+use crate::team_identity::{depth_from_bipolar, lateral_flank_shift, lateral_spread};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, FormationSlot, Player, Position, PositionLine};
-use arlo_math::units::MIRIM_TO_METERS;
+use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_tactics::TeamInstructions;
+use rand::Rng;
 use std::collections::HashMap;
+use std::f64::consts::PI;
 use uuid::Uuid;
 
 pub fn calculate_offense_attractor_coordinates(
     pitch: &Pitch,
     player: &Player,
     slot: &FormationSlot,
-    scrimmage_x_m: f64,
+    _scrimmage_x_m: f64,
     base_x: f64,
     base_y: f64,
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
 ) -> (f64, f64) {
     let pitch_length_m = pitch.length().value();
     let pitch_width_m = pitch.width().value();
@@ -38,41 +44,78 @@ pub fn calculate_offense_attractor_coordinates(
             );
 
             let push_factor = (
-                (tactical_knowledge * 0.45 + positioning * 0.35 + anticipation * 0.2) /
-                20.0
+                (tactical_knowledge * 0.45 + positioning * 0.35 + anticipation * 0.2) / 20.0
             ).clamp(0.1, 1.0);
 
-            let ball_progress = if attacking_positive_x {
-                (scrimmage_x_m / pitch_length_m).clamp(0.0, 1.0)
+            let target_depth = depth_from_bipolar(
+                instructions.in_possession().mentality().value(),
+                pitch_length_m,
+                attacking_positive_x,
+            );
+
+            let distance_to_target = if attacking_positive_x {
+                target_depth - base_x
             } else {
-                ((pitch_length_m - scrimmage_x_m) / pitch_length_m).clamp(0.0, 1.0)
+                base_x - target_depth
             };
 
-            let push_mirim = match target_position {
-                Position::Centerback | Position::DefensiveEnd => {
-                    (10.0 + 18.0 * ball_progress) * push_factor
-                }
-                _ => (7.0 + 14.0 * ball_progress) * push_factor,
-            };
-
-            push_mirim * MIRIM_TO_METERS
+            distance_to_target.max(0.0) * push_factor
         }
         _ => 0.0,
     };
 
-    let x_shift = if attacking_positive_x { push_distance_m } else { -push_distance_m };
+    let x_shift = if attacking_positive_x {
+        push_distance_m
+    } else {
+        -push_distance_m
+    };
 
     let y_pos = match target_position {
         Position::WingOffense
         | Position::TightWing
         | Position::WideEnd
         | Position::Corridor => {
-            let center_y = pitch_width_m * 0.5;
-            let spread = (base_y - center_y) * 1.08;
-            center_y + spread
+            let width_val = instructions.in_possession().width().value();
+            let flank_bias_val = instructions.in_possession().flank_bias().value();
+            let spread_y = lateral_spread(width_val, base_y, pitch_width_m);
+            lateral_flank_shift(flank_bias_val, spread_y, pitch_width_m)
         }
         _ => base_y,
     };
 
     (base_x + x_shift, y_pos)
+}
+
+pub fn calculate_offense_drift_radius_mirim(
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+) -> f64 {
+    let positioning = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
+    let structure_val = instructions.in_possession().structure().value();
+    let base_radius = anchor_drift_radius_mirim(positioning);
+    let multiplier = (1.0 - structure_val).max(0.0);
+    base_radius * multiplier
+}
+
+pub fn apply_offensive_positioning_drift<R: Rng + ?Sized>(
+    anchor: VectorPosition,
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    rng: &mut R,
+) -> VectorPosition {
+    let radius_mirim = calculate_offense_drift_radius_mirim(player, attribute_keys, instructions);
+    if radius_mirim <= 1e-6 {
+        return anchor;
+    }
+    let angle = rng.gen_range(0.0..2.0 * PI);
+    let dist_mirim = radius_mirim * rng.gen_range(0.0..1.0_f64).sqrt();
+    let dx_meters = dist_mirim * angle.cos() * MIRIM_TO_METERS;
+    let dy_meters = dist_mirim * angle.sin() * MIRIM_TO_METERS;
+    VectorPosition::from_components(
+        anchor.raw().0 + dx_meters,
+        anchor.raw().1 + dy_meters,
+        anchor.raw().2,
+    )
 }

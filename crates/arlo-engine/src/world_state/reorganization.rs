@@ -19,6 +19,8 @@ pub fn derive_and_apply_reorganization(
     let attribute_keys = state.attribute_keys().clone();
 
     let is_home_offense = state.possession().role().is_offense(state.home_team_id());
+    let home_instructions = state.home_instructions().clone();
+    let away_instructions = state.away_instructions().clone();
 
     let home_targets = compute_dynamic_anchors(
         &pitch,
@@ -27,6 +29,7 @@ pub fn derive_and_apply_reorganization(
         is_home_offense,
         true,
         &attribute_keys,
+        &home_instructions,
     );
     let away_targets = compute_dynamic_anchors(
         &pitch,
@@ -35,6 +38,7 @@ pub fn derive_and_apply_reorganization(
         !is_home_offense,
         false,
         &attribute_keys,
+        &away_instructions,
     );
 
     let mut movers = Vec::with_capacity(home_lineup.len() + away_lineup.len());

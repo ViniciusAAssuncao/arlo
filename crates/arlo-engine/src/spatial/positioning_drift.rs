@@ -2,8 +2,9 @@ use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::proximity::calculate_distance;
 use crate::weighting::apply_saturation;
-use arlo_domain::{ AttributeKey, Player };
-use arlo_math::units::{ Position, MIRIM_TO_METERS };
+use arlo_domain::{AttributeKey, Player};
+use arlo_math::units::{Position, MIRIM_TO_METERS};
+use arlo_tactics::TeamInstructions;
 use rand::Rng;
 use std::collections::HashMap;
 use std::f64::consts::PI;
@@ -15,10 +16,16 @@ pub fn anchor_drift_radius_mirim(positioning: f64) -> f64 {
     apply_saturation(raw, 1.5, 0.6)
 }
 
+pub fn anchor_drift_radius_mirim_with_structure(positioning: f64, structure: f64) -> f64 {
+    let base = anchor_drift_radius_mirim(positioning);
+    let multiplier = (1.0 - structure).max(0.0);
+    base * multiplier
+}
+
 pub fn apply_positioning_drift<R: Rng + ?Sized>(
     anchor: Position,
     positioning: f64,
-    rng: &mut R
+    rng: &mut R,
 ) -> Position {
     let radius_mirim = anchor_drift_radius_mirim(positioning);
     if radius_mirim <= 1e-6 {
@@ -31,7 +38,28 @@ pub fn apply_positioning_drift<R: Rng + ?Sized>(
     Position::from_components(
         anchor.raw().0 + dx_meters,
         anchor.raw().1 + dy_meters,
-        anchor.raw().2
+        anchor.raw().2,
+    )
+}
+
+pub fn apply_positioning_drift_with_structure<R: Rng + ?Sized>(
+    anchor: Position,
+    positioning: f64,
+    structure: f64,
+    rng: &mut R,
+) -> Position {
+    let radius_mirim = anchor_drift_radius_mirim_with_structure(positioning, structure);
+    if radius_mirim <= 1e-6 {
+        return anchor;
+    }
+    let angle = rng.gen_range(0.0..2.0 * PI);
+    let dist_mirim = radius_mirim * rng.gen_range(0.0..1.0_f64).sqrt();
+    let dx_meters = dist_mirim * angle.cos() * MIRIM_TO_METERS;
+    let dy_meters = dist_mirim * angle.sin() * MIRIM_TO_METERS;
+    Position::from_components(
+        anchor.raw().0 + dx_meters,
+        anchor.raw().1 + dy_meters,
+        anchor.raw().2,
     )
 }
 
@@ -39,11 +67,29 @@ pub fn get_drifted_defender_position<R: Rng + ?Sized>(
     defender: &Player,
     spatial_map: &DynamicSpatialMap,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
-    rng: &mut R
+    rng: &mut R,
 ) -> Option<Position> {
     let anchor = spatial_map.get_position(&defender.id())?;
     let positioning = extract_attribute_value(defender, attribute_keys, AttributeKey::Positioning);
     Some(apply_positioning_drift(anchor, positioning, rng))
+}
+
+pub fn get_drifted_attacker_position<R: Rng + ?Sized>(
+    attacker: &Player,
+    spatial_map: &DynamicSpatialMap,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    rng: &mut R,
+) -> Option<Position> {
+    let anchor = spatial_map.get_position(&attacker.id())?;
+    let positioning = extract_attribute_value(attacker, attribute_keys, AttributeKey::Positioning);
+    let structure = instructions.in_possession().structure().value();
+    Some(apply_positioning_drift_with_structure(
+        anchor,
+        positioning,
+        structure,
+        rng,
+    ))
 }
 
 pub fn nearest_drifted_opponent<'a, R: Rng + ?Sized>(
@@ -51,7 +97,7 @@ pub fn nearest_drifted_opponent<'a, R: Rng + ?Sized>(
     candidates: &[&'a Player],
     spatial_map: &DynamicSpatialMap,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
-    rng: &mut R
+    rng: &mut R,
 ) -> Option<(&'a Player, Position)> {
     candidates
         .iter()
