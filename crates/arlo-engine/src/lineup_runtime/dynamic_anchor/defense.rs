@@ -1,7 +1,8 @@
 use crate::spatial::decision_vector::extract_attribute_value;
+use crate::team_identity::depth_from_bipolar;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, FormationSlot, Player, Position, PositionLine};
-use arlo_math::units::MIRIM_TO_METERS;
+use arlo_domain::{AttributeKey, FormationSlot, Player, PositionLine};
+use arlo_tactics::TeamInstructions;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -14,71 +15,58 @@ pub fn calculate_defense_attractor_coordinates(
     base_y: f64,
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
 ) -> (f64, f64) {
+    let pitch_length_m = pitch.length().value();
     let pitch_width_m = pitch.width().value();
     let target_position = slot.defensive_position();
 
-    let retreat_distance_m = match target_position.line() {
+    let work_rate = extract_attribute_value(
+        player,
+        attribute_keys,
+        AttributeKey::WorkRate,
+    );
+    let tactical_knowledge = extract_attribute_value(
+        player,
+        attribute_keys,
+        AttributeKey::TacticalKnowledge,
+    );
+    let determination = extract_attribute_value(
+        player,
+        attribute_keys,
+        AttributeKey::Determination,
+    );
+
+    let tracking_factor = (
+        (work_rate * 0.5 + tactical_knowledge * 0.35 + determination * 0.15) / 20.0
+    ).clamp(0.1, 1.0);
+
+    let target_bipolar = match target_position.line() {
+        PositionLine::DefenseLine => {
+            Some(instructions.out_of_possession().defensive_line_height().value())
+        }
         PositionLine::OffensiveLine => {
-            let work_rate = extract_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::WorkRate,
-            );
-            let tactical_knowledge = extract_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::TacticalKnowledge,
-            );
-            let determination = extract_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Determination,
-            );
-
-            let tracking_factor = (
-                (work_rate * 0.5 + tactical_knowledge * 0.35 + determination * 0.15) /
-                20.0
-            ).clamp(0.1, 1.0);
-
-            let retreat_mirim = match target_position {
-                Position::CenterOffense | Position::WingOffense => {
-                    14.0 + 10.0 * tracking_factor
-                }
-                _ => 10.0 + 8.0 * tracking_factor,
-            };
-
-            retreat_mirim * MIRIM_TO_METERS
+            Some(instructions.out_of_possession().engagement_line().value())
         }
         PositionLine::BackLine => {
-            let work_rate = extract_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::WorkRate,
-            );
-            let tactical_knowledge = extract_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::TacticalKnowledge,
-            );
-            let tracking_factor = ((work_rate * 0.55 + tactical_knowledge * 0.45) / 20.0).clamp(
-                0.1,
-                1.0,
-            );
-            (6.0 + 6.0 * tracking_factor) * MIRIM_TO_METERS
+            let dl = instructions.out_of_possession().defensive_line_height().value();
+            let el = instructions.out_of_possession().engagement_line().value();
+            Some((dl + el) * 0.5)
         }
-        _ => 0.0,
+        _ => None,
     };
 
-    let x_shift = if attacking_positive_x { -retreat_distance_m } else { retreat_distance_m };
+    let x_pos = match target_bipolar {
+        Some(bipolar_val) => {
+            let target_depth = depth_from_bipolar(bipolar_val, pitch_length_m, attacking_positive_x);
+            base_x + (target_depth - base_x) * tracking_factor
+        }
+        None => base_x,
+    };
 
     let center_y = pitch_width_m * 0.5;
-    let pinch_factor = match target_position.line() {
-        PositionLine::OffensiveLine => 0.18,
-        PositionLine::BackLine => 0.12,
-        _ => 0.06,
-    };
+    let pinch_factor = (1.0 - instructions.out_of_possession().compactness().value()).clamp(0.0, 1.0);
     let y_pos = base_y + (center_y - base_y) * pinch_factor;
 
-    (base_x + x_shift, y_pos)
+    (x_pos, y_pos)
 }

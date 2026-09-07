@@ -61,6 +61,7 @@ pub fn calculate_player_dynamic_attractor(
             base_y,
             attacking_positive_x,
             attribute_keys,
+            instructions,
         )
     };
 
