@@ -4,9 +4,17 @@ use crate::physical::systems::degradation::{
 };
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
+use crate::psychology::systems::baseline::{
+    calculate_captaincy_influence,
+    calculate_player_contextual_baseline,
+};
 use crate::psychology::systems::dynamics::fatigue_depression;
-use arlo_domain::sport_constants::{ impulse_floor_for_baseline, IMPULSE_SCALE_MAX };
+use arlo_domain::sport_constants::{
+    impulse_floor_for_baseline,
+    CAPTAINCY_LOSS_AVERSION_BUFFER,
+    HOME_MOMENTUM_RESILIENCE_BOOST,
+    IMPULSE_SCALE_MAX,
+};
 use arlo_domain::{ AttributeKey, Player };
 use serde::{ Deserialize, Serialize };
 use std::collections::HashMap;
@@ -194,13 +202,34 @@ pub fn calculate_loss_aversion_lambda(
     base_lambda.clamp(1.1, 3.8)
 }
 
-pub fn apply_impulse_event_at(
+pub fn calculate_contextual_loss_aversion_lambda(
+    composure: f64,
+    determination: f64,
+    bravery: f64,
+    exhaustion: f64,
+    captain: Option<&Player>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>
+) -> f64 {
+    let base_lambda = calculate_loss_aversion_lambda(composure, determination, bravery, exhaustion);
+    let captain_modifier = match captain {
+        Some(cap) => {
+            let influence = calculate_captaincy_influence(cap, attribute_keys);
+            influence * CAPTAINCY_LOSS_AVERSION_BUFFER
+        }
+        None => 0.0,
+    };
+    (base_lambda - captain_modifier).clamp(1.1, 3.8)
+}
+
+pub fn apply_impulse_event_contextual_at(
     state: &mut ImpulseState,
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     physical_state: &PhysicalState,
     event: &ImpulseEvent,
-    timestamp_seconds: f64
+    timestamp_seconds: f64,
+    captain: Option<&Player>,
+    is_home: bool
 ) -> ImpulseShift {
     let is_positive = event.kind().is_positive();
     let sign = if is_positive { 1.0 } else { -1.0 };
@@ -245,14 +274,16 @@ pub fn apply_impulse_event_at(
     let raw_stimulus = ALPHA_SURPRISAL_WEIGHT * surprisal_norm + BETA_EPV_WEIGHT * epv_norm;
     let base_magnitude = reaction_scale * raw_stimulus;
 
-    let effective_lambda = calculate_loss_aversion_lambda(
+    let effective_lambda = calculate_contextual_loss_aversion_lambda(
         composure,
         determination,
         bravery,
-        exhaustion
+        exhaustion,
+        captain,
+        attribute_keys
     );
 
-    let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+    let baseline = calculate_player_contextual_baseline(player, attribute_keys, captain, is_home);
     let base_floor = impulse_floor_for_baseline(baseline);
     let fatigue_dep = fatigue_depression(physical_state);
     let effective_floor = (base_floor * fatigue_dep).clamp(0.0, baseline);
@@ -263,7 +294,14 @@ pub fn apply_impulse_event_at(
     ).clamp(baseline, IMPULSE_SCALE_MAX as f64);
 
     let momentum = state.momentum_index(timestamp_seconds);
-    let momentum_multiplier = state.momentum_multiplier_for(is_positive, momentum);
+    let raw_momentum_multiplier = state.momentum_multiplier_for(is_positive, momentum);
+    let momentum_multiplier = if !is_positive && is_home {
+        (raw_momentum_multiplier * (1.0 - HOME_MOMENTUM_RESILIENCE_BOOST)).max(0.4)
+    } else if is_positive && is_home {
+        raw_momentum_multiplier * 1.05
+    } else {
+        raw_momentum_multiplier
+    };
 
     let magnitude = if is_positive {
         base_magnitude * momentum_multiplier
@@ -287,6 +325,26 @@ pub fn apply_impulse_event_at(
         new_accumulator,
         momentum_multiplier,
         effective_lambda
+    )
+}
+
+pub fn apply_impulse_event_at(
+    state: &mut ImpulseState,
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    physical_state: &PhysicalState,
+    event: &ImpulseEvent,
+    timestamp_seconds: f64
+) -> ImpulseShift {
+    apply_impulse_event_contextual_at(
+        state,
+        player,
+        attribute_keys,
+        physical_state,
+        event,
+        timestamp_seconds,
+        None,
+        false
     )
 }
 

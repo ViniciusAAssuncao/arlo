@@ -1,5 +1,5 @@
 use crate::tactics::Lineup;
-use arlo_domain::{Player, Position as DomainPosition};
+use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -110,5 +110,27 @@ impl TeamRegistry {
             .into_iter()
             .chain(self.away_lineup.players().into_iter())
             .find(|p| p.id() == *player_id)
+    }
+
+    pub fn home_captain<'a>(&'a self, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Option<&'a Player> {
+        let players = self.home_lineup.players();
+        crate::psychology::systems::baseline::find_active_captain(&players, attribute_keys)
+    }
+
+    pub fn away_captain<'a>(&'a self, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Option<&'a Player> {
+        let players = self.away_lineup.players();
+        crate::psychology::systems::baseline::find_active_captain(&players, attribute_keys)
+    }
+
+    pub fn team_captain<'a>(
+        &'a self,
+        team_id: Uuid,
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
+    ) -> Option<&'a Player> {
+        if team_id == self.home_team_id {
+            self.home_captain(attribute_keys)
+        } else {
+            self.away_captain(attribute_keys)
+        }
     }
 }
