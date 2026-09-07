@@ -1,5 +1,5 @@
 use crate::lineup_runtime::Lineup;
-use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
+use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_tactics::TeamInstructions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -17,6 +17,8 @@ pub struct TeamRegistry {
     home_defensive_position_index: HashMap<Uuid, DomainPosition>,
     away_offensive_position_index: HashMap<Uuid, DomainPosition>,
     away_defensive_position_index: HashMap<Uuid, DomainPosition>,
+    home_role_index: HashMap<Uuid, SlotRole>,
+    away_role_index: HashMap<Uuid, SlotRole>,
 }
 
 impl TeamRegistry {
@@ -32,6 +34,8 @@ impl TeamRegistry {
         let home_defensive_position_index = home_lineup.defensive_position_index();
         let away_offensive_position_index = away_lineup.offensive_position_index();
         let away_defensive_position_index = away_lineup.defensive_position_index();
+        let home_role_index = home_lineup.role_index();
+        let away_role_index = away_lineup.role_index();
 
         Self {
             home_team_id,
@@ -44,6 +48,8 @@ impl TeamRegistry {
             home_defensive_position_index,
             away_offensive_position_index,
             away_defensive_position_index,
+            home_role_index,
+            away_role_index,
         }
     }
 
@@ -120,6 +126,22 @@ impl TeamRegistry {
             self.offensive_position_index_for_team(team_id)
         } else {
             self.defensive_position_index_for_team(team_id)
+        }
+    }
+
+    pub fn home_role_index(&self) -> &HashMap<Uuid, SlotRole> {
+        &self.home_role_index
+    }
+
+    pub fn away_role_index(&self) -> &HashMap<Uuid, SlotRole> {
+        &self.away_role_index
+    }
+
+    pub fn role_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, SlotRole> {
+        if team_id == self.home_team_id {
+            &self.home_role_index
+        } else {
+            &self.away_role_index
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::error::{EngineError, EngineResult};
 use arlo_domain::sport_constants::TOTAL_PLAYERS_PER_TEAM;
-use arlo_domain::{Formation, FormationSlot, Player, Position};
+use arlo_domain::{Formation, FormationSlot, Player, Position, SlotRole};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
@@ -9,11 +9,16 @@ use uuid::Uuid;
 pub struct LineupAssignment {
     slot: FormationSlot,
     player: Player,
+    slot_role: SlotRole,
 }
 
 impl LineupAssignment {
-    pub fn new(slot: FormationSlot, player: Player) -> Self {
-        Self { slot, player }
+    pub fn new(slot: FormationSlot, player: Player, slot_role: SlotRole) -> Self {
+        Self {
+            slot,
+            player,
+            slot_role,
+        }
     }
 
     pub fn slot(&self) -> &FormationSlot {
@@ -22,6 +27,10 @@ impl LineupAssignment {
 
     pub fn player(&self) -> &Player {
         &self.player
+    }
+
+    pub fn slot_role(&self) -> SlotRole {
+        self.slot_role
     }
 }
 
@@ -61,7 +70,7 @@ impl Lineup {
             .iter()
             .copied()
             .zip(players.into_iter())
-            .map(|(slot, player)| LineupAssignment::new(slot, player))
+            .map(|(slot, player)| LineupAssignment::new(slot, player, SlotRole::Standard))
             .collect();
 
         Ok(Self {
@@ -117,6 +126,13 @@ impl Lineup {
 
     pub fn players(&self) -> Vec<&Player> {
         self.assignments.iter().map(|a| a.player()).collect()
+    }
+
+    pub fn role_index(&self) -> HashMap<Uuid, SlotRole> {
+        self.assignments
+            .iter()
+            .map(|a| (a.player().id(), a.slot_role()))
+            .collect()
     }
 
     pub fn offensive_position_index(&self) -> HashMap<Uuid, Position> {
