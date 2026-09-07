@@ -246,6 +246,14 @@ pub fn resolve_scoring_attempt_with_fatigue<R: Rng + ?Sized>(
         vec![goalguard.id()],
     );
 
+    crate::psychology::systems::instrumentation::instrument_scoring_attempt(
+        &decision,
+        opportunity,
+        finisher.id(),
+        goalguard.id(),
+        raw_outcome.win_probability().value(),
+    );
+
     (decision, outcome)
 }
 

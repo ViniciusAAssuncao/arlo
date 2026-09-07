@@ -134,10 +134,15 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
     );
 
     if utilities.is_empty() {
-        return ArtrineDecisionResult::new(
+        let default_result = ArtrineDecisionResult::new(
             ArtrineDecisionKind::SelfCarry,
             Probability::new_clamped(1.0),
         );
+        crate::psychology::systems::instrumentation::instrument_artrine_decision(
+            artrine.id(),
+            &default_result,
+        );
+        return default_result;
     }
 
     let raw_utilities: Vec<f64> = utilities.iter().map(|(_, u)| *u).collect();
@@ -161,6 +166,12 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
     };
 
     let chosen_probability = Probability::new_clamped(prob_value);
+    let result = ArtrineDecisionResult::new(chosen_kind, chosen_probability);
 
-    ArtrineDecisionResult::new(chosen_kind, chosen_probability)
+    crate::psychology::systems::instrumentation::instrument_artrine_decision(
+        artrine.id(),
+        &result,
+    );
+
+    result
 }

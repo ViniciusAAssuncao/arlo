@@ -1,6 +1,10 @@
 use crate::error::EngineResult;
 use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
 use crate::possession::PossessionSnapshot;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
+use crate::psychology::systems::event_bus::ImpulseEventBus;
+use crate::psychology::systems::events::{apply_impulse_event_at, ImpulseEvent, ImpulseShift};
+use crate::psychology::state::ImpulseState;
 use crate::rng::{MatchSeed, RngProvider};
 use crate::spatial::DynamicSpatialMap;
 use crate::tactics::Lineup;
@@ -71,6 +75,9 @@ pub struct MatchState {
     last_action_score_occurred: bool,
     home_fatigue: HashMap<Uuid, FatigueState>,
     away_fatigue: HashMap<Uuid, FatigueState>,
+    home_impulse: HashMap<Uuid, ImpulseState>,
+    away_impulse: HashMap<Uuid, ImpulseState>,
+    impulse_bus: ImpulseEventBus,
 }
 
 impl MatchState {
@@ -99,6 +106,18 @@ impl MatchState {
         let away_offensive_position_index = away_lineup.offensive_position_index();
         let away_defensive_position_index = away_lineup.defensive_position_index();
 
+        let mut home_impulse = HashMap::with_capacity(home_lineup.len());
+        for p in home_lineup.players() {
+            let base = calculate_player_impulse_baseline(p, &attribute_keys);
+            home_impulse.insert(p.id(), ImpulseState::from_baseline(base));
+        }
+
+        let mut away_impulse = HashMap::with_capacity(away_lineup.len());
+        for p in away_lineup.players() {
+            let base = calculate_player_impulse_baseline(p, &attribute_keys);
+            away_impulse.insert(p.id(), ImpulseState::from_baseline(base));
+        }
+
         Ok(Self {
             home_team_id,
             away_team_id,
@@ -123,6 +142,9 @@ impl MatchState {
             last_action_score_occurred: false,
             home_fatigue: HashMap::new(),
             away_fatigue: HashMap::new(),
+            home_impulse,
+            away_impulse,
+            impulse_bus: ImpulseEventBus::new(),
         })
     }
 
@@ -327,6 +349,76 @@ impl MatchState {
             .or_else(|| self.away_fatigue.get(player_id))
             .copied()
             .unwrap_or_default()
+    }
+
+    pub fn home_impulse(&self) -> &HashMap<Uuid, ImpulseState> {
+        &self.home_impulse
+    }
+
+    pub fn away_impulse(&self) -> &HashMap<Uuid, ImpulseState> {
+        &self.away_impulse
+    }
+
+    pub fn impulse_bus(&self) -> &ImpulseEventBus {
+        &self.impulse_bus
+    }
+
+    pub fn impulse_bus_mut(&mut self) -> &mut ImpulseEventBus {
+        &mut self.impulse_bus
+    }
+
+    pub fn impulse_for(&self, player_id: &Uuid) -> ImpulseState {
+        self.home_impulse
+            .get(player_id)
+            .or_else(|| self.away_impulse.get(player_id))
+            .copied()
+            .unwrap_or_default()
+    }
+
+    pub fn apply_impulse_event(
+        &mut self,
+        player_id: Uuid,
+        event: &ImpulseEvent,
+        timestamp_seconds: f64,
+    ) -> Option<ImpulseShift> {
+        let player = self
+            .home_lineup
+            .players()
+            .into_iter()
+            .chain(self.away_lineup.players().into_iter())
+            .find(|p| p.id() == player_id)?;
+
+        let is_home = self.home_offensive_position_index.contains_key(&player_id);
+        let physical_state = self.fatigue_for(&player_id);
+        let impulse = if is_home {
+            self.home_impulse.entry(player_id).or_default()
+        } else {
+            self.away_impulse.entry(player_id).or_default()
+        };
+
+        let shift = apply_impulse_event_at(
+            impulse,
+            player,
+            &self.attribute_keys,
+            &physical_state,
+            event,
+            timestamp_seconds,
+        );
+
+        Some(shift)
+    }
+
+    pub fn process_impulse_bus(&mut self, timestamp_seconds: f64) -> Vec<(Uuid, ImpulseShift)> {
+        let events = self.impulse_bus.drain_events();
+        let mut shifts = Vec::with_capacity(events.len());
+        for dispatched in events {
+            if let Some(shift) =
+                self.apply_impulse_event(dispatched.target_id, &dispatched.event, timestamp_seconds)
+            {
+                shifts.push((dispatched.target_id, shift));
+            }
+        }
+        shifts
     }
 
     pub fn record_distance(&mut self, player_id: Uuid, mirim: f64) -> (f64, f64) {

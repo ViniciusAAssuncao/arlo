@@ -51,14 +51,22 @@ pub fn resolve_duel_with_fatigue<R: Rng + ?Sized>(
     let attacker_won = win_prob.sample(rng);
     let net_advantage = attacker_rating - defender_rating;
 
-    DuelOutcome::new(
+    let outcome = DuelOutcome::new(
         kind,
         attacker_won,
         attacker_rating,
         defender_rating,
         win_prob,
         net_advantage,
-    )
+    );
+
+    crate::psychology::systems::instrumentation::instrument_duel_outcome(
+        &outcome,
+        attacker_primary.id(),
+        defender_primary.id(),
+    );
+
+    outcome
 }
 
 pub fn resolve_duel<R: Rng + ?Sized>(

@@ -79,6 +79,13 @@ pub fn apply_play_transition(
     let previous_down = state.possession().down() as u32;
     let transition_result = resolve_possession_transition(state, &detailed_outcome);
 
+    state
+        .impulse_bus_mut()
+        .publish_events(transition_result.impulse_events.clone());
+
+    let current_period_seconds = state.clock().seconds_in_period();
+    state.process_impulse_bus(current_period_seconds);
+
     if let Some(new_offense) = detailed_outcome.turnover {
         emit_turnover_event(
             state,
