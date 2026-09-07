@@ -1,5 +1,6 @@
 use crate::lineup_runtime::Lineup;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
+use arlo_tactics::TeamInstructions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -10,6 +11,8 @@ pub struct TeamRegistry {
     away_team_id: Uuid,
     home_lineup: Lineup,
     away_lineup: Lineup,
+    home_instructions: TeamInstructions,
+    away_instructions: TeamInstructions,
     home_offensive_position_index: HashMap<Uuid, DomainPosition>,
     home_defensive_position_index: HashMap<Uuid, DomainPosition>,
     away_offensive_position_index: HashMap<Uuid, DomainPosition>,
@@ -22,6 +25,8 @@ impl TeamRegistry {
         away_team_id: Uuid,
         home_lineup: Lineup,
         away_lineup: Lineup,
+        home_instructions: TeamInstructions,
+        away_instructions: TeamInstructions,
     ) -> Self {
         let home_offensive_position_index = home_lineup.offensive_position_index();
         let home_defensive_position_index = home_lineup.defensive_position_index();
@@ -33,6 +38,8 @@ impl TeamRegistry {
             away_team_id,
             home_lineup,
             away_lineup,
+            home_instructions,
+            away_instructions,
             home_offensive_position_index,
             home_defensive_position_index,
             away_offensive_position_index,
@@ -54,6 +61,22 @@ impl TeamRegistry {
 
     pub fn away_lineup(&self) -> &Lineup {
         &self.away_lineup
+    }
+
+    pub fn home_instructions(&self) -> &TeamInstructions {
+        &self.home_instructions
+    }
+
+    pub fn away_instructions(&self) -> &TeamInstructions {
+        &self.away_instructions
+    }
+
+    pub fn instructions_for_team(&self, team_id: Uuid) -> &TeamInstructions {
+        if team_id == self.home_team_id {
+            &self.home_instructions
+        } else {
+            &self.away_instructions
+        }
     }
 
     pub fn home_offensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {

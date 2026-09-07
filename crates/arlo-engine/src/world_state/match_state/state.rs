@@ -17,6 +17,7 @@ use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, MatchFormatRules, Player, Position as DomainPosition};
 use arlo_events::ScoringPost;
 use arlo_math::units::Position;
+use arlo_tactics::TeamInstructions;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -44,6 +45,8 @@ impl MatchState {
         away_team_id: Uuid,
         home_lineup: Lineup,
         away_lineup: Lineup,
+        home_instructions: TeamInstructions,
+        away_instructions: TeamInstructions,
         pitch: Pitch,
         attribute_keys: HashMap<Uuid, AttributeKey>,
         format_rules: MatchFormatRules,
@@ -65,6 +68,8 @@ impl MatchState {
             away_team_id,
             home_lineup.clone(),
             away_lineup.clone(),
+            home_instructions,
+            away_instructions,
         );
 
         let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &attribute_keys);
@@ -102,6 +107,26 @@ impl MatchState {
 
     pub fn away_lineup(&self) -> &Lineup {
         self.teams.away_lineup()
+    }
+
+    pub fn home_instructions(&self) -> &TeamInstructions {
+        self.teams.home_instructions()
+    }
+
+    pub fn away_instructions(&self) -> &TeamInstructions {
+        self.teams.away_instructions()
+    }
+
+    pub fn instructions_for_team(&self, team_id: Uuid) -> &TeamInstructions {
+        self.teams.instructions_for_team(team_id)
+    }
+
+    pub fn offense_instructions(&self) -> &TeamInstructions {
+        self.instructions_for_team(self.possession.role().offense())
+    }
+
+    pub fn defense_instructions(&self) -> &TeamInstructions {
+        self.instructions_for_team(self.possession.role().defense())
     }
 
     pub fn home_offensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
