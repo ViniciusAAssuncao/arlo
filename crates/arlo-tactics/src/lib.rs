@@ -32,10 +32,13 @@ pub use persistence::models::{
     situational_profile_from_pairs, situational_profile_to_pairs, slot_role_to_code,
     tactical_phase_to_code, InstructionKey, PlayCallDecisionEmphasisRow,
     PlayCallMisdirectionLinkRow, PlayCallRouteAssignmentRow, PlayCallRow,
-    PlayCallSituationalParameterRow, PlayerInstructionKey, SituationalParameterKey,
-    TacticalInstructionValueRow, TacticalLineupRow, TacticalLineupSlotInstructionRow,
-    TacticalLineupSlotRow, TacticalPhase, TeamTacticalProfileRow,
+    PlayCallSituationalParameterRow, PlayerInstructionKey, SeriesScriptEntryRow, SeriesScriptRow,
+    SituationalParameterKey, TacticalInstructionValueRow, TacticalLineupRow,
+    TacticalLineupSlotInstructionRow, TacticalLineupSlotRow, TacticalPhase, TeamTacticalProfileRow,
     TeamTacticalProfileSituationalParameterRow,
 };
-pub use persistence::repositories::{play_call, tactical_lineup, team_instructions};
+pub use persistence::repositories::{
+    play_call, series_script, tactical_lineup, team_instructions,
+};
 pub use playcall::*;
+pub use series::{SeriesScript, SeriesScriptBuilder};
