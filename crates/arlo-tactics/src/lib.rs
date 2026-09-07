@@ -6,6 +6,7 @@ pub mod playcall;
 pub mod series;
 
 pub use error::{TacticsError, TacticsResult};
+
 pub use instructions::{
     default_aggression, default_counter_attack_intensity, default_counter_press_intensity,
     default_defensive_line_height, default_directness, default_pressing_intensity, default_tempo,
@@ -18,10 +19,21 @@ pub use instructions::{
     TeamInstructions, TeamInstructionsBuilder, TeamTacticalProfile, Tempo, TransitionInstructions,
     TransitionPlayerInstructions, TransitionUrgency, Width,
 };
+
 pub use lineup::{
     derive_tier, is_role_eligible_for_position, max_concurrent_count, validate_tactical_lineup,
     ProficiencyTier, SlotAssignment, TacticalLineup, TacticalLineupBuilder,
 };
+
+pub use playcall::{
+    derive_distance_urgency, derive_down_pressure, derive_drive_scarcity, derive_scoring_proximity,
+    rank_by_situational_fit, validate_play_call, DecisionEmphasis, HasSituationalProfile,
+    MisdirectionLink, PlayCall, PlayCallBuilder, PlayCallCategory, ReadPriority, RouteAssignment,
+    SituationalContext, SituationalProfile, SITUATIONAL_SIGMA_MAX, SITUATIONAL_SIGMA_MIN,
+};
+
+pub use series::{SeriesScript, SeriesScriptBuilder};
+
 pub use persistence::models::{
     artro_placement_to_code, artrine_decision_kind_to_code, build_decision_emphasis,
     build_player_instructions, instruction_key_to_code, marking_assignment_to_columns,
@@ -37,8 +49,7 @@ pub use persistence::models::{
     TacticalLineupSlotInstructionRow, TacticalLineupSlotRow, TacticalPhase, TeamTacticalProfileRow,
     TeamTacticalProfileSituationalParameterRow,
 };
+
 pub use persistence::repositories::{
     play_call, series_script, tactical_lineup, team_instructions,
 };
-pub use playcall::*;
-pub use series::{SeriesScript, SeriesScriptBuilder};
