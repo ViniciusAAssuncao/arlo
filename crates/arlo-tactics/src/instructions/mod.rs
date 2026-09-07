@@ -1,3 +1,19 @@
 pub mod axes;
+pub mod builder;
+pub mod derivation;
+pub mod in_possession;
+pub mod mentality_defaults;
+pub mod mentality_defaults_constants;
+pub mod out_of_possession;
+pub mod team_instructions;
+pub mod transition;
 
 pub use axes::*;
+pub use builder::TeamInstructionsBuilder;
+pub use derivation::*;
+pub use in_possession::InPossessionInstructions;
+pub use mentality_defaults::*;
+pub use mentality_defaults_constants::*;
+pub use out_of_possession::OutOfPossessionInstructions;
+pub use team_instructions::TeamInstructions;
+pub use transition::TransitionInstructions;

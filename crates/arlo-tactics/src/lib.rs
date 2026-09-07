@@ -4,3 +4,4 @@ pub mod lineup;
 pub mod persistence;
 
 pub use error::{TacticsError, TacticsResult};
+pub use instructions::*;
