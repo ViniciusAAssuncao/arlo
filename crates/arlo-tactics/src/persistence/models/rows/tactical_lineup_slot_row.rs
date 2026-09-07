@@ -13,10 +13,16 @@ pub struct TacticalLineupSlotRow {
     pub slot_index: i32,
     pub player_id: String,
     pub slot_role: String,
+    pub marking_scheme: Option<String>,
+    pub marking_target_position: Option<String>,
 }
 
 impl TacticalLineupSlotRow {
-    pub fn to_domain(&self, position: Position) -> TacticsResult<SlotAssignment> {
+    pub fn to_domain(
+        &self,
+        position: Position,
+        player_instructions: PlayerInstructions,
+    ) -> TacticsResult<SlotAssignment> {
         let player_id = Uuid::parse_str(&self.player_id)?;
         let slot_role = parse_slot_role(&self.slot_role)?;
         Ok(SlotAssignment::new(
@@ -24,7 +30,7 @@ impl TacticalLineupSlotRow {
             position,
             player_id,
             slot_role,
-            PlayerInstructions::default(),
+            player_instructions,
         ))
     }
 }
