@@ -6,6 +6,7 @@ pub struct DuelContext {
     attacker_is_home: bool,
     defender_is_home: bool,
     aggression_logit_offset: f64,
+    misdirection_logit_offset: f64,
 }
 
 impl DuelContext {
@@ -14,6 +15,7 @@ impl DuelContext {
             attacker_is_home,
             defender_is_home,
             aggression_logit_offset: 0.0,
+            misdirection_logit_offset: 0.0,
         }
     }
 
@@ -26,6 +28,21 @@ impl DuelContext {
             attacker_is_home,
             defender_is_home,
             aggression_logit_offset,
+            misdirection_logit_offset: 0.0,
+        }
+    }
+
+    pub fn with_offsets(
+        attacker_is_home: bool,
+        defender_is_home: bool,
+        aggression_logit_offset: f64,
+        misdirection_logit_offset: f64,
+    ) -> Self {
+        Self {
+            attacker_is_home,
+            defender_is_home,
+            aggression_logit_offset,
+            misdirection_logit_offset,
         }
     }
 
@@ -34,6 +51,7 @@ impl DuelContext {
             attacker_is_home: false,
             defender_is_home: false,
             aggression_logit_offset: 0.0,
+            misdirection_logit_offset: 0.0,
         }
     }
 
@@ -42,6 +60,7 @@ impl DuelContext {
             attacker_is_home: true,
             defender_is_home: false,
             aggression_logit_offset: 0.0,
+            misdirection_logit_offset: 0.0,
         }
     }
 
@@ -50,6 +69,7 @@ impl DuelContext {
             attacker_is_home: false,
             defender_is_home: true,
             aggression_logit_offset: 0.0,
+            misdirection_logit_offset: 0.0,
         }
     }
 
@@ -65,11 +85,20 @@ impl DuelContext {
         self.aggression_logit_offset
     }
 
+    pub fn misdirection_logit_offset(&self) -> f64 {
+        self.misdirection_logit_offset
+    }
+
     pub fn for_duel_kind(&self, kind: DuelKind) -> Self {
         if kind.is_contact_duel() {
             *self
         } else {
-            Self::new(self.attacker_is_home, self.defender_is_home)
+            Self::with_offsets(
+                self.attacker_is_home,
+                self.defender_is_home,
+                0.0,
+                self.misdirection_logit_offset,
+            )
         }
     }
 }

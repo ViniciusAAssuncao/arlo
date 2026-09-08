@@ -35,6 +35,7 @@ pub fn resolve_duel_with_fatigue<R: Rng + ?Sized>(
         hfa_logit -= HOME_FIELD_ADVANTAGE_LOGIT;
     }
     hfa_logit += context.aggression_logit_offset();
+    hfa_logit += context.misdirection_logit_offset();
 
     let noisy_attacker = attacker_rating + noise_a;
     let noisy_defender = defender_rating + noise_b;

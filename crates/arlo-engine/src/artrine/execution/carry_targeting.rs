@@ -2,21 +2,29 @@ use crate::artrine::constants::CARRY_FORWARD_TARGET_OFFSET_MIRIM;
 use arlo_domain::pitch::{channel_y_meters, Pitch};
 use arlo_domain::{ArtroPlacement, Player, SlotRole};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_tactics::RouteAssignment;
 use std::collections::HashMap;
 use uuid::Uuid;
 
 pub fn filter_blocker_helpers<'a>(
     offense_helpers: &'a [&'a Player],
     offense_role_index: &HashMap<Uuid, SlotRole>,
+    route_index: &HashMap<Uuid, RouteAssignment>,
 ) -> Vec<&'a Player> {
-    let blockers: Vec<&Player> = offense_helpers
+    let non_route_helpers: Vec<&'a Player> = offense_helpers
+        .iter()
+        .copied()
+        .filter(|p| !route_index.contains_key(&p.id()))
+        .collect();
+
+    let blockers: Vec<&'a Player> = non_route_helpers
         .iter()
         .copied()
         .filter(|p| offense_role_index.get(&p.id()) == Some(&SlotRole::Blocker))
         .collect();
 
     if blockers.is_empty() {
-        offense_helpers.to_vec()
+        non_route_helpers
     } else {
         blockers
     }

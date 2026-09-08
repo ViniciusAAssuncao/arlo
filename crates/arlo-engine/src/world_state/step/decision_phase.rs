@@ -11,6 +11,7 @@ use crate::match_decision::scoring::ScoringDecision;
 use crate::match_decision::target_selection::{
     calculate_player_target_weight_with_state, ReceptionRole,
 };
+use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::resolution::DuelContext;
 use crate::rng::RngStream;
 use crate::spatial::{calculate_artro_advance_pitch_control, find_next_artro_position};
@@ -212,10 +213,16 @@ pub fn run_decision_phase(
     );
     let defense_aggression = defense_instructions.out_of_possession().aggression();
     let aggression_offset = crate::team_identity::aggression::duel_logit_offset(defense_aggression);
-    let duel_context = DuelContext::with_aggression_offset(
+    let misdirection_offset = resolve_misdirection_logit_offset(
+        context.active_play_call.as_ref(),
+        &context.offense_route_index,
+        &context.offense_lineup,
+    );
+    let duel_context = DuelContext::with_offsets(
         context.is_home_offense,
         !context.is_home_offense,
         aggression_offset,
+        misdirection_offset,
     );
 
     let seq_execution = state.next_sequence();

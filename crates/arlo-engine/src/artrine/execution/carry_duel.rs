@@ -47,7 +47,11 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let blocker_helpers = filter_blocker_helpers(ctx.offense_helpers, ctx.offense_role_index);
+    let blocker_helpers = filter_blocker_helpers(
+        ctx.offense_helpers,
+        ctx.offense_role_index,
+        ctx.offense_route_index,
+    );
     let (offense_profile, defense_profile) = get_duel_profiles(DuelKind::ArtroBreakthrough);
 
     let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
