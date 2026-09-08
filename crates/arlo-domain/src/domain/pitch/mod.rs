@@ -4,7 +4,7 @@ pub mod pitch;
 pub mod projection;
 pub mod zone;
 
-pub use artro::{artro_rows_for_pitch, Artro, ArtroPlacement, ArtroRow};
+pub use artro::{artro_rows_for_pitch, channel_y_meters, Artro, ArtroPlacement, ArtroRow};
 pub use coordinates::PitchCoordinates;
 pub use pitch::Pitch;
 pub use projection::{
