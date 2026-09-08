@@ -174,7 +174,10 @@ pub fn compute_dynamic_anchors(
     for (id, pos) in raw_attractors {
         let shifted_x = (pos.raw().0 + delta_x).clamp(min_x, max_x);
         let clamped_y = pos.raw().1.clamp(min_y, max_y);
-        result.insert(id, VectorPosition::from_components(shifted_x, clamped_y, 0.0));
+        result.insert(
+            id,
+            VectorPosition::from_components(shifted_x, clamped_y, 0.0),
+        );
     }
 
     result

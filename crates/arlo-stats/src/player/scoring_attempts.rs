@@ -94,7 +94,8 @@ impl PlayerScoringAttemptStats {
     }
 
     pub fn missed_for_post(&self, post: ScoringPost) -> u32 {
-        self.attempts_for_post(post).saturating_sub(self.converted_for_post(post))
+        self.attempts_for_post(post)
+            .saturating_sub(self.converted_for_post(post))
     }
 
     pub fn conversion_rate_for_post(&self, post: ScoringPost) -> f64 {

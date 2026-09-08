@@ -24,9 +24,7 @@ pub fn publish_scoring_impulse(
     defense_players: &[&Player],
     offense_players: &[&Player],
 ) {
-    if scoring_decision.is_scored()
-        || matches!(scoring_decision, ScoringDecision::Missed { .. })
-    {
+    if scoring_decision.is_scored() || matches!(scoring_decision, ScoringDecision::Missed { .. }) {
         let goalguard = find_defense_goalguard(defense_players);
         state.impulse_bus_mut().publish_scoring_decision(
             scoring_decision,

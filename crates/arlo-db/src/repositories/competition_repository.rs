@@ -49,10 +49,7 @@ pub async fn list_by_federation_id(
     Ok(results)
 }
 
-pub async fn list_by_country_id(
-    pool: &SqlitePool,
-    country_id: Uuid,
-) -> DbResult<Vec<Competition>> {
+pub async fn list_by_country_id(pool: &SqlitePool, country_id: Uuid) -> DbResult<Vec<Competition>> {
     let rows = fetch_all_by_param::<CompetitionRow>(
         pool,
         "SELECT id, name, federation_id, country_id, scope, kind, prestige FROM competitions WHERE country_id = ?",

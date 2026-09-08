@@ -64,7 +64,10 @@ where
 
     let block = resolve_rac_block(&ctx, rng);
     let mut ledger = DurationLedger::new();
-    ledger.record_live(DurationComponentKind::RunAfterCatchEngagement, block.duration);
+    ledger.record_live(
+        DurationComponentKind::RunAfterCatchEngagement,
+        block.duration,
+    );
 
     if !block.won {
         return RunAfterCatchOutcome {
@@ -77,7 +80,10 @@ where
     }
 
     let breakthrough = resolve_rac_breakthrough(&ctx, &block, rng);
-    ledger.record_live(DurationComponentKind::RunAfterCatchEngagement, breakthrough.duration);
+    ledger.record_live(
+        DurationComponentKind::RunAfterCatchEngagement,
+        breakthrough.duration,
+    );
 
     if breakthrough.won {
         return RunAfterCatchOutcome {
@@ -90,7 +96,10 @@ where
     }
 
     let security = resolve_rac_security(&ctx, block.receiver_pos_vec, breakthrough.rec_spd, rng);
-    ledger.record_live(DurationComponentKind::BallSecurityEngagement, security.duration);
+    ledger.record_live(
+        DurationComponentKind::BallSecurityEngagement,
+        security.duration,
+    );
 
     RunAfterCatchOutcome {
         additional_mirins_advanced: 0.0,

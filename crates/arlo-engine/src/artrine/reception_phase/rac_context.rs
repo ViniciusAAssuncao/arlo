@@ -39,9 +39,7 @@ where
 
     pub fn contest_radius(&self) -> Length {
         Length::new(
-            PROXIMITY_CONTEST_RADIUS_MIRIM
-                * self.defense_pressing_multiplier
-                * MIRIM_TO_METERS,
+            PROXIMITY_CONTEST_RADIUS_MIRIM * self.defense_pressing_multiplier * MIRIM_TO_METERS,
         )
     }
 

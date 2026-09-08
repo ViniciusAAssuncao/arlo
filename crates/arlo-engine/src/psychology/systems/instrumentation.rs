@@ -62,18 +62,9 @@ pub fn create_scoring_impulse_events(
         let att_surprisal = -p.ln();
         let def_surprisal = -(1.0 - p).ln();
 
-        let att_event = ImpulseEvent::new(
-            ImpulseEventKind::ScoreFor,
-            att_surprisal,
-            points,
-            true,
-        );
-        let def_event = ImpulseEvent::new(
-            ImpulseEventKind::ScoreAgainst,
-            def_surprisal,
-            points,
-            true,
-        );
+        let att_event = ImpulseEvent::new(ImpulseEventKind::ScoreFor, att_surprisal, points, true);
+        let def_event =
+            ImpulseEvent::new(ImpulseEventKind::ScoreAgainst, def_surprisal, points, true);
 
         vec![
             DispatchedImpulseEvent::new(attacker_id, att_event),
@@ -110,7 +101,13 @@ pub fn instrument_scoring_attempt(
     defender_id: Uuid,
     win_probability: f64,
 ) -> Vec<DispatchedImpulseEvent> {
-    create_scoring_impulse_events(decision, opportunity, attacker_id, defender_id, win_probability)
+    create_scoring_impulse_events(
+        decision,
+        opportunity,
+        attacker_id,
+        defender_id,
+        win_probability,
+    )
 }
 
 pub fn create_transition_impulse_events(
@@ -123,51 +120,21 @@ pub fn create_transition_impulse_events(
     let prev_defense = previous_snapshot.role().defense();
 
     if let Some(new_offense) = outcome.turnover {
-        let lost_event = ImpulseEvent::new(
-            ImpulseEventKind::TurnoverCommitted,
-            1.20,
-            2.5,
-            true,
-        );
-        let won_event = ImpulseEvent::new(
-            ImpulseEventKind::TurnoverWon,
-            1.20,
-            2.5,
-            true,
-        );
+        let lost_event = ImpulseEvent::new(ImpulseEventKind::TurnoverCommitted, 1.20, 2.5, true);
+        let won_event = ImpulseEvent::new(ImpulseEventKind::TurnoverWon, 1.20, 2.5, true);
         events.push(DispatchedImpulseEvent::new(prev_offense, lost_event));
         events.push(DispatchedImpulseEvent::new(new_offense, won_event));
     } else if previous_snapshot.series_state().should_turnover_on_downs() {
-        let failure_event = ImpulseEvent::new(
-            ImpulseEventKind::SeriesFailure,
-            0.90,
-            2.0,
-            true,
-        );
-        let success_event = ImpulseEvent::new(
-            ImpulseEventKind::SeriesSuccess,
-            0.90,
-            2.0,
-            true,
-        );
+        let failure_event = ImpulseEvent::new(ImpulseEventKind::SeriesFailure, 0.90, 2.0, true);
+        let success_event = ImpulseEvent::new(ImpulseEventKind::SeriesSuccess, 0.90, 2.0, true);
         events.push(DispatchedImpulseEvent::new(prev_offense, failure_event));
         events.push(DispatchedImpulseEvent::new(prev_defense, success_event));
     } else if new_snapshot.series_state().down() == 1
         && previous_snapshot.series_state().down() > 1
         && !outcome.score_occurred
     {
-        let success_event = ImpulseEvent::new(
-            ImpulseEventKind::SeriesSuccess,
-            0.70,
-            1.5,
-            false,
-        );
-        let failure_event = ImpulseEvent::new(
-            ImpulseEventKind::SeriesFailure,
-            0.70,
-            1.5,
-            false,
-        );
+        let success_event = ImpulseEvent::new(ImpulseEventKind::SeriesSuccess, 0.70, 1.5, false);
+        let failure_event = ImpulseEvent::new(ImpulseEventKind::SeriesFailure, 0.70, 1.5, false);
         events.push(DispatchedImpulseEvent::new(prev_offense, success_event));
         events.push(DispatchedImpulseEvent::new(prev_defense, failure_event));
     }

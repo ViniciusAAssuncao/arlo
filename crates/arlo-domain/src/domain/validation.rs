@@ -1,5 +1,5 @@
 use crate::domain::InvariantViolation;
-use crate::error::{ DomainError, DomainResult };
+use crate::error::{DomainError, DomainResult};
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -48,10 +48,9 @@ pub fn validate_float_range(value: f64, min: f64, max: f64, field: &str) -> Doma
 }
 
 pub fn validate_hex_color(value: &str, field: &str) -> DomainResult<()> {
-    if
-        value.len() == 7 &&
-        value.starts_with('#') &&
-        value[1..].chars().all(|c| c.is_ascii_hexdigit())
+    if value.len() == 7
+        && value.starts_with('#')
+        && value[1..].chars().all(|c| c.is_ascii_hexdigit())
     {
         Ok(())
     } else {
@@ -66,10 +65,11 @@ pub fn validate_no_duplicate_keys<T, K, F>(
     items: &[T],
     get_key: F,
     field: &str,
-    key_name: &str
-)
-    -> DomainResult<()>
-    where K: Eq + Hash, F: Fn(&T) -> K
+    key_name: &str,
+) -> DomainResult<()>
+where
+    K: Eq + Hash,
+    F: Fn(&T) -> K,
 {
     let mut seen = HashSet::new();
     for item in items {
@@ -90,14 +90,12 @@ pub fn validate_exact_count<T, F>(
     items: &[T],
     predicate: F,
     expected: usize,
-    field: &str
+    field: &str,
 ) -> DomainResult<()>
-    where F: Fn(&T) -> bool
+where
+    F: Fn(&T) -> bool,
 {
-    let actual = items
-        .iter()
-        .filter(|item| predicate(item))
-        .count();
+    let actual = items.iter().filter(|item| predicate(item)).count();
     if actual != expected {
         Err(DomainError::InvalidInvariant {
             field: field.to_string(),

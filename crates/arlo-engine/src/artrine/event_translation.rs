@@ -9,10 +9,5 @@ pub fn translate_artrine_decision_made(
     down_number: u32,
     decision_probability: Probability,
 ) -> ArtrineDecisionMade {
-    ArtrineDecisionMade::new(
-        artrine_id,
-        decision_kind,
-        down_number,
-        decision_probability,
-    )
+    ArtrineDecisionMade::new(artrine_id, decision_kind, down_number, decision_probability)
 }

@@ -52,12 +52,7 @@ pub struct ReceptionResolved {
 }
 
 impl ReceptionResolved {
-    pub fn new(
-        receiver_id: Uuid,
-        passer_id: Uuid,
-        caught: bool,
-        is_aerial: bool,
-    ) -> Self {
+    pub fn new(receiver_id: Uuid, passer_id: Uuid, caught: bool, is_aerial: bool) -> Self {
         Self {
             receiver_id,
             passer_id,

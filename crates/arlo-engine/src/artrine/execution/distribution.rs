@@ -112,7 +112,8 @@ where
         rng,
     );
 
-    let artrine_speed = calculate_effective_player_speed(artrine, ctx.attribute_keys, &artrine_state);
+    let artrine_speed =
+        calculate_effective_player_speed(artrine, ctx.attribute_keys, &artrine_state);
 
     let (dist_duration, nearest_def_opt) = match nearest_drifted_opponent(
         start_pos,
@@ -124,7 +125,10 @@ where
         Some((d, pos)) => {
             let d_state = ctx.fatigue(&d.id());
             let d_spd = calculate_effective_player_speed(d, ctx.attribute_keys, &d_state);
-            (derive_duel_duration(start_pos, artrine_speed, pos, d_spd), Some((d, pos)))
+            (
+                derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
+                Some((d, pos)),
+            )
         }
         None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
     };

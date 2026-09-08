@@ -1,9 +1,9 @@
 use crate::possession::ball_state::BallState;
-use crate::possession::clock_state::{ ClockState, ClockStopReason };
-use crate::possession::role::{ opening_possession, PossessionRole };
+use crate::possession::clock_state::{ClockState, ClockStopReason};
+use crate::possession::role::{opening_possession, PossessionRole};
 use crate::possession::series_state::SeriesState;
 use arlo_math::units::Position;
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -19,7 +19,7 @@ impl PossessionSnapshot {
         ball_state: BallState,
         clock_state: ClockState,
         role: PossessionRole,
-        series_state: SeriesState
+        series_state: SeriesState,
     ) -> Self {
         Self {
             ball_state,

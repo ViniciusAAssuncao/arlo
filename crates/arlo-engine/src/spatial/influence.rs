@@ -21,11 +21,7 @@ pub fn defender_projected_mean(defender: &Player, spatial_map: &DynamicSpatialMa
         .get_velocity(&defender.id())
         .unwrap_or_else(arlo_math::units::Velocity::zero);
 
-    Position::from_components(
-        pos.raw().0 + vel.raw().0,
-        pos.raw().1 + vel.raw().1,
-        0.0,
-    )
+    Position::from_components(pos.raw().0 + vel.raw().0, pos.raw().1 + vel.raw().1, 0.0)
 }
 
 pub fn calculate_point_resistance(
@@ -91,7 +87,9 @@ pub fn calculate_spatial_resistance(
         .min_by(|(_, a), (_, b)| {
             let dist_a = calculate_distance(**a, target_vector).value();
             let dist_b = calculate_distance(**b, target_vector).value();
-            dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+            dist_a
+                .partial_cmp(&dist_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
         .map(|(_, pos)| *pos)
         .unwrap_or_else(Position::zero);

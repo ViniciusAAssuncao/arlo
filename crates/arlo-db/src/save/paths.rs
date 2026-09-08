@@ -53,5 +53,7 @@ pub async fn list_existing_saves() -> DbResult<Vec<PathBuf>> {
 }
 
 pub fn most_recent_save(saves: &[PathBuf]) -> Option<&PathBuf> {
-    saves.iter().max_by(|a, b| a.file_name().cmp(&b.file_name()))
+    saves
+        .iter()
+        .max_by(|a, b| a.file_name().cmp(&b.file_name()))
 }

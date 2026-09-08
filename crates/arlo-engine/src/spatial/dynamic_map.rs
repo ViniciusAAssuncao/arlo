@@ -134,10 +134,9 @@ impl DynamicSpatialMap {
             let base_speed = calculate_player_speed(player, attribute_keys, fatigue_multiplier);
             let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
             let pace = extract_attribute_value(player, attribute_keys, AttributeKey::Pace);
-            let momentum_boost = ((net_advantage * 0.08)
-                + ((balance - 10.0) * 0.02)
-                + ((pace - 10.0) * 0.02))
-                .clamp(0.0, 0.75);
+            let momentum_boost =
+                ((net_advantage * 0.08) + ((balance - 10.0) * 0.02) + ((pace - 10.0) * 0.02))
+                    .clamp(0.0, 0.75);
             let boosted_speed = Speed::new(base_speed.value() * (1.0 + momentum_boost));
             let vel = derive_velocity_towards_target(current_pos, target, boosted_speed);
             self.velocities.insert(pid, vel);
@@ -184,11 +183,7 @@ impl DynamicSpatialMap {
         if let (Some(&current_pos), Some(&target_pos)) =
             (self.positions.get(player_id), self.targets.get(player_id))
         {
-            let vel = derive_velocity_towards_target(
-                current_pos,
-                target_pos,
-                speed,
-            );
+            let vel = derive_velocity_towards_target(current_pos, target_pos, speed);
             self.velocities.insert(*player_id, vel);
         }
     }
@@ -204,11 +199,7 @@ impl DynamicSpatialMap {
                 (self.positions.get(&pid), self.targets.get(&pid))
             {
                 let speed = calculate_player_speed(player, attribute_keys, 1.0);
-                let vel = derive_velocity_towards_target(
-                    current_pos,
-                    target_pos,
-                    speed,
-                );
+                let vel = derive_velocity_towards_target(current_pos, target_pos, speed);
                 self.velocities.insert(pid, vel);
             }
         }

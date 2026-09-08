@@ -1,7 +1,9 @@
 use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::artrine::decision_profiles::self_finish_profile;
-use arlo_domain::sport_constants::{FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE};
+use arlo_domain::sport_constants::{
+    FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+};
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -41,9 +43,15 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
         let expected_future_value = w_succ * v_succ + w_to * v_to;
 
         let gravity_factor = 0.70 + 0.30 * ctx.offensive_gravity.min(2.0);
-        let risk_multiplier = ctx.risk_profile.risk_multiplier_for_action(ArtrineDecisionKind::SelfFinish);
-        let game_state_bias = ctx.game_state_pressure.bias_for_decision(ArtrineDecisionKind::SelfFinish, ctx.drives_in_series);
-        let team_identity_bias = ctx.team_identity_bias.bias_for(ArtrineDecisionKind::SelfFinish);
+        let risk_multiplier = ctx
+            .risk_profile
+            .risk_multiplier_for_action(ArtrineDecisionKind::SelfFinish);
+        let game_state_bias = ctx
+            .game_state_pressure
+            .bias_for_decision(ArtrineDecisionKind::SelfFinish, ctx.drives_in_series);
+        let team_identity_bias = ctx
+            .team_identity_bias
+            .bias_for(ArtrineDecisionKind::SelfFinish);
 
         (expected_future_value * gravity_factor)
             * risk_multiplier

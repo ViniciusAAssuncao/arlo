@@ -48,15 +48,9 @@ pub fn setup_call_to_action_context(state: &MatchState) -> CallToActionContext {
     let defense_pos_index = state
         .defensive_position_index_for_team(defense_team_id)
         .clone();
-    let offense_role_index = state
-        .role_index_for_team(offense_team_id)
-        .clone();
-    let offense_instructions_index = state
-        .instructions_index_for_team(offense_team_id)
-        .clone();
-    let defense_instructions_index = state
-        .instructions_index_for_team(defense_team_id)
-        .clone();
+    let offense_role_index = state.role_index_for_team(offense_team_id).clone();
+    let offense_instructions_index = state.instructions_index_for_team(offense_team_id).clone();
+    let defense_instructions_index = state.instructions_index_for_team(defense_team_id).clone();
 
     CallToActionContext {
         is_home_offense,

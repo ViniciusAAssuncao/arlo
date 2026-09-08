@@ -64,26 +64,32 @@ impl MatchFormatRules {
                 RuleCategory::TieBreaker => match rule.rule_key() {
                     "allows_overtime" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<bool>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "allows_overtime".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<bool>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "allows_overtime".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         format.allows_overtime = parsed;
                     }
                     "overtime_periods" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<u32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "overtime_periods".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<u32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "overtime_periods".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         format.overtime_periods = parsed;
                     }
                     "overtime_period_duration_minutes" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<u32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "overtime_period_duration_minutes".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<u32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "overtime_period_duration_minutes".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         format.overtime_period_duration_minutes = parsed;
                     }
                     _ => {}
@@ -91,42 +97,52 @@ impl MatchFormatRules {
                 RuleCategory::Phases => match rule.rule_key() {
                     "regulation_periods" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<u32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "regulation_periods".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<u32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "regulation_periods".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         format.regulation_periods = parsed;
                     }
                     "regulation_period_duration_minutes" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<u32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "regulation_period_duration_minutes".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<u32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "regulation_period_duration_minutes".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         format.regulation_period_duration_minutes = parsed;
                     }
                     "time_calls_per_period" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<u32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "time_calls_per_period".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<u32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "time_calls_per_period".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         format.time_calls_per_period = parsed;
                     }
                     "time_call_duration_minutes" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<u32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "time_call_duration_minutes".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<u32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "time_call_duration_minutes".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         format.time_call_duration_minutes = parsed;
                     }
                     "challenges_per_match" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<u32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "challenges_per_match".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<u32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "challenges_per_match".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         format.challenges_per_match = parsed;
                     }
                     _ => {}
@@ -139,7 +155,12 @@ impl MatchFormatRules {
     }
 
     pub fn total_periods(&self) -> u32 {
-        self.regulation_periods + if self.allows_overtime { self.overtime_periods } else { 0 }
+        self.regulation_periods
+            + if self.allows_overtime {
+                self.overtime_periods
+            } else {
+                0
+            }
     }
 
     pub fn regulation_periods(&self) -> u32 {

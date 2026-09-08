@@ -107,7 +107,10 @@ impl TeamRegistry {
         &self.away_defensive_position_index
     }
 
-    pub fn offensive_position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+    pub fn offensive_position_index_for_team(
+        &self,
+        team_id: Uuid,
+    ) -> &HashMap<Uuid, DomainPosition> {
         if team_id == self.home_team_id {
             &self.home_offensive_position_index
         } else {
@@ -115,7 +118,10 @@ impl TeamRegistry {
         }
     }
 
-    pub fn defensive_position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+    pub fn defensive_position_index_for_team(
+        &self,
+        team_id: Uuid,
+    ) -> &HashMap<Uuid, DomainPosition> {
         if team_id == self.home_team_id {
             &self.home_defensive_position_index
         } else {
@@ -183,16 +189,22 @@ impl TeamRegistry {
         self.home_lineup
             .players()
             .into_iter()
-            .chain(self.away_lineup.players().into_iter())
+            .chain(self.away_lineup.players())
             .find(|p| p.id() == *player_id)
     }
 
-    pub fn home_captain<'a>(&'a self, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Option<&'a Player> {
+    pub fn home_captain<'a>(
+        &'a self,
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
+    ) -> Option<&'a Player> {
         let players = self.home_lineup.players();
         crate::psychology::systems::baseline::find_active_captain(&players, attribute_keys)
     }
 
-    pub fn away_captain<'a>(&'a self, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Option<&'a Player> {
+    pub fn away_captain<'a>(
+        &'a self,
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
+    ) -> Option<&'a Player> {
         let players = self.away_lineup.players();
         crate::psychology::systems::baseline::find_active_captain(&players, attribute_keys)
     }

@@ -109,16 +109,13 @@ impl RiskProfile {
 
         let tolerance_impulse_shift =
             0.15 * (2.0 / (1.0 + (-2.5 * norm_impulse_delta).exp()) - 1.0);
-        let lambda_impulse_shift =
-            -0.20 * (2.0 / (1.0 + (-2.5 * norm_impulse_delta).exp()) - 1.0);
+        let lambda_impulse_shift = -0.20 * (2.0 / (1.0 + (-2.5 * norm_impulse_delta).exp()) - 1.0);
 
         let tolerance_index = ((base_tolerance + tolerance_impulse_shift)
             * (1.0 - 0.40 * physical_exhaustion))
             .clamp(0.40, 2.50);
 
-        let loss_aversion_lambda = (2.25
-            - 0.45 * (norm_bravery - 1.0)
-            - 0.35 * (norm_flair - 1.0)
+        let loss_aversion_lambda = (2.25 - 0.45 * (norm_bravery - 1.0) - 0.35 * (norm_flair - 1.0)
             + 0.20 * (1.0 - norm_decisions)
             + lambda_impulse_shift
             + 0.60 * physical_exhaustion)
@@ -127,8 +124,7 @@ impl RiskProfile {
         let gain_diminishing_alpha = (0.88 + 0.06 * (norm_vision - 1.0)).clamp(0.70, 1.00);
         let loss_diminishing_beta = (0.88 + 0.06 * (norm_decisions - 1.0)).clamp(0.70, 1.00);
 
-        let probability_distortion_gamma = (0.65
-            - 0.12 * (norm_flair - 1.0)
+        let probability_distortion_gamma = (0.65 - 0.12 * (norm_flair - 1.0)
             + 0.15 * (norm_decisions - 1.0)
             - 0.10 * physical_exhaustion)
             .clamp(0.40, 0.95);

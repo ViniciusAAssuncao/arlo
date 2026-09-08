@@ -161,9 +161,8 @@ where
         fatigue_for,
     );
 
-    let contest_radius = Length::new(
-        PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS,
-    );
+    let contest_radius =
+        Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
     let lead_defender = resolve_primary_lead_defender(
         receiver_id,
         position_index,

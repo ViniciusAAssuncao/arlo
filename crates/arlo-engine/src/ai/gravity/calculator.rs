@@ -23,27 +23,57 @@ pub fn calculate_player_offensive_gravity_with_state(
 ) -> OffensiveGravity {
     let finishing_attrs = [
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Finishing, state),
+            extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Finishing,
+                state,
+            ),
             5.0,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Composure, state),
+            extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Composure,
+                state,
+            ),
             4.0,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Anticipation, state),
+            extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Anticipation,
+                state,
+            ),
             3.5,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Technique, state),
+            extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Technique,
+                state,
+            ),
             3.5,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Positioning, state),
+            extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Positioning,
+                state,
+            ),
             3.0,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Decisions, state),
+            extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Decisions,
+                state,
+            ),
             2.5,
         ),
     ];
@@ -66,11 +96,21 @@ pub fn calculate_player_offensive_gravity_with_state(
             3.0,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Acceleration, state),
+            extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Acceleration,
+                state,
+            ),
             3.0,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::ArloControl, state),
+            extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::ArloControl,
+                state,
+            ),
             3.0,
         ),
     ];
@@ -108,12 +148,7 @@ pub fn calculate_player_offensive_gravity_with_state(
     let raw_curve = 0.50 + 1.50 / (1.0 + (-2.2 * (composite_threat - 1.15)).exp());
     let multiplier = (raw_curve * zone_factor).clamp(0.5, 2.0);
 
-    OffensiveGravity::new(
-        multiplier,
-        finishing_threat,
-        creation_threat,
-        zone_factor,
-    )
+    OffensiveGravity::new(multiplier, finishing_threat, creation_threat, zone_factor)
 }
 
 pub fn calculate_player_offensive_gravity(

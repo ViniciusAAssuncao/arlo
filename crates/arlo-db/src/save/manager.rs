@@ -26,11 +26,7 @@ pub async fn create_new_save() -> DbResult<(SqlitePool, SaveMetadata)> {
     let pool = open_pool(&url).await?;
     run_migrations(&pool).await?;
 
-    let metadata = SaveMetadata::new(
-        uuid,
-        timestamp,
-        template_database_url(),
-    )?;
+    let metadata = SaveMetadata::new(uuid, timestamp, template_database_url())?;
     crate::repositories::save_metadata::insert(&pool, &metadata).await?;
 
     Ok((pool, metadata))
@@ -39,12 +35,9 @@ pub async fn create_new_save() -> DbResult<(SqlitePool, SaveMetadata)> {
 pub async fn resolve_current_save_pool() -> DbResult<SqlitePool> {
     let saves = list_existing_saves().await?;
     if let Some(recent) = most_recent_save(&saves) {
-        let filename = recent
-            .file_name()
-            .and_then(|n| n.to_str())
-            .ok_or_else(|| {
-                crate::error::DbError::InvalidData("Invalid save filename".to_string())
-            })?;
+        let filename = recent.file_name().and_then(|n| n.to_str()).ok_or_else(|| {
+            crate::error::DbError::InvalidData("Invalid save filename".to_string())
+        })?;
 
         let url = save_database_url(filename);
         let pool = open_pool(&url).await?;

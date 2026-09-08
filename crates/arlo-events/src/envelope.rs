@@ -47,9 +47,7 @@ impl MatchClockInstant {
         } else if self.period <= 4 {
             ((self.period - 1) as f64) * 30.0 * 60.0 + self.seconds_in_period
         } else {
-            4.0 * 30.0 * 60.0
-                + ((self.period - 5) as f64) * 15.0 * 60.0
-                + self.seconds_in_period
+            4.0 * 30.0 * 60.0 + ((self.period - 5) as f64) * 15.0 * 60.0 + self.seconds_in_period
         }
     }
 }

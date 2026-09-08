@@ -3,9 +3,7 @@ use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::{logistic_slope_for, DuelKind};
 use crate::resolution::duel_noise::sample_player_noise;
 use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::group_rating::{
-    calculate_side_rating_from_index_with_fatigue,
-};
+use crate::resolution::group_rating::calculate_side_rating_from_index_with_fatigue;
 use crate::resolution::outcome::DuelOutcome;
 use arlo_domain::sport_constants::HOME_FIELD_ADVANTAGE_LOGIT;
 use arlo_domain::{AttributeKey, Player, Position};
@@ -42,12 +40,7 @@ pub fn resolve_duel_with_fatigue<R: Rng + ?Sized>(
     let noisy_defender = defender_rating + noise_b;
     let slope = logistic_slope_for(kind);
 
-    let win_prob = bradley_terry_with_offset(
-        noisy_attacker,
-        noisy_defender,
-        slope,
-        hfa_logit,
-    );
+    let win_prob = bradley_terry_with_offset(noisy_attacker, noisy_defender, slope, hfa_logit);
 
     let attacker_won = win_prob.sample(rng);
     let net_advantage = attacker_rating - defender_rating;
@@ -110,20 +103,18 @@ where
     R: Rng + ?Sized,
 {
     let (attacker_profile, defender_profile) = get_duel_profiles(kind);
-    let attacker_rating =
-        crate::resolution::group_rating::calculate_side_rating_with_fatigue(
-            attackers,
-            attribute_keys,
-            &attacker_profile,
-            fatigue_for,
-        );
-    let defender_rating =
-        crate::resolution::group_rating::calculate_side_rating_with_fatigue(
-            defenders,
-            attribute_keys,
-            &defender_profile,
-            fatigue_for,
-        );
+    let attacker_rating = crate::resolution::group_rating::calculate_side_rating_with_fatigue(
+        attackers,
+        attribute_keys,
+        &attacker_profile,
+        fatigue_for,
+    );
+    let defender_rating = crate::resolution::group_rating::calculate_side_rating_with_fatigue(
+        defenders,
+        attribute_keys,
+        &defender_profile,
+        fatigue_for,
+    );
 
     let att_state = fatigue_for(&attacker_primary.id());
     let def_state = fatigue_for(&defender_primary.id());

@@ -19,11 +19,7 @@ impl MatchSession {
         }
     }
 
-    pub fn with_sink(
-        state: MatchState,
-        registry: AggregatorRegistry,
-        sink: InMemorySink,
-    ) -> Self {
+    pub fn with_sink(state: MatchState, registry: AggregatorRegistry, sink: InMemorySink) -> Self {
         Self {
             state,
             registry,

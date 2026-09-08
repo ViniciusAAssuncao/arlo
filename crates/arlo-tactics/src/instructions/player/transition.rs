@@ -8,10 +8,7 @@ pub struct TransitionPlayerInstructions {
 }
 
 impl TransitionPlayerInstructions {
-    pub fn new(
-        transition_urgency: TransitionUrgency,
-        release_tempo: ReleaseTempo,
-    ) -> Self {
+    pub fn new(transition_urgency: TransitionUrgency, release_tempo: ReleaseTempo) -> Self {
         Self {
             transition_urgency,
             release_tempo,

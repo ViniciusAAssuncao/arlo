@@ -5,9 +5,7 @@ use crate::artrine::execution::drive_detection::detect_drive_crossings;
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::physical::FatigueState;
-use crate::spatial::{
-    run_spatial_tick_loop_with_context, DynamicSpatialMap, MovementContext,
-};
+use crate::spatial::{run_spatial_tick_loop_with_context, DynamicSpatialMap, MovementContext};
 use crate::team_identity::tempo::effort_multiplier_from_value;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::Player;

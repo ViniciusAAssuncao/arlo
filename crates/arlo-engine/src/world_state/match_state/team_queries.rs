@@ -66,19 +66,23 @@ impl MatchState {
         self.position_index_for_team(self.teams.away_team_id())
     }
 
-    pub fn offensive_position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+    pub fn offensive_position_index_for_team(
+        &self,
+        team_id: Uuid,
+    ) -> &HashMap<Uuid, DomainPosition> {
         self.teams.offensive_position_index_for_team(team_id)
     }
 
-    pub fn defensive_position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+    pub fn defensive_position_index_for_team(
+        &self,
+        team_id: Uuid,
+    ) -> &HashMap<Uuid, DomainPosition> {
         self.teams.defensive_position_index_for_team(team_id)
     }
 
     pub fn position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
-        self.teams.position_index_for_team(
-            team_id,
-            self.possession.role().is_offense(team_id),
-        )
+        self.teams
+            .position_index_for_team(team_id, self.possession.role().is_offense(team_id))
     }
 
     pub fn home_role_index(&self) -> &HashMap<Uuid, SlotRole> {

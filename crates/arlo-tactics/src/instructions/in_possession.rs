@@ -1,8 +1,6 @@
 use crate::instructions::axes::{Directness, FlankBias, Mentality, Structure, Tempo, Width};
 use crate::instructions::derivation::ChannelDistribution;
-use crate::instructions::mentality_defaults::{
-    default_directness, default_tempo, default_width,
-};
+use crate::instructions::mentality_defaults::{default_directness, default_tempo, default_width};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

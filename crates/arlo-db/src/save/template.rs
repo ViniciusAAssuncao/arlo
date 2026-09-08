@@ -28,9 +28,9 @@ pub async fn create_save_copy(destination: &Path) -> DbResult<()> {
     let options = SqliteConnectOptions::from_str(&template_url)?.read_only(true);
     let mut conn = SqliteConnection::connect_with(&options).await?;
 
-    let dest_str = destination.to_str().ok_or_else(|| {
-        DbError::InvalidData("Destination path is not valid UTF-8".to_string())
-    })?;
+    let dest_str = destination
+        .to_str()
+        .ok_or_else(|| DbError::InvalidData("Destination path is not valid UTF-8".to_string()))?;
 
     sqlx::query("VACUUM INTO ?")
         .bind(dest_str)

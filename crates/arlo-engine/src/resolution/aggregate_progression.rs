@@ -51,11 +51,7 @@ impl Default for AggregateProgressionStrategy {
 }
 
 impl ProgressionResolutionStrategy for AggregateProgressionStrategy {
-    fn resolve_progression<R: Rng + ?Sized>(
-        &self,
-        duel_outcome: &DuelOutcome,
-        rng: &mut R,
-    ) -> f64 {
+    fn resolve_progression<R: Rng + ?Sized>(&self, duel_outcome: &DuelOutcome, rng: &mut R) -> f64 {
         let advantage = duel_outcome.net_advantage();
         let mean = (self.base_mean + advantage * self.advantage_factor).max(self.min_mean);
         let scale = mean / self.shape;

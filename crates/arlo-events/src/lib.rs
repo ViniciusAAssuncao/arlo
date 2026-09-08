@@ -9,8 +9,7 @@ pub mod sink;
 
 pub use action::{
     ActionEvent, ArtrineDecisionMade, CallToActionStarted, DistributionCompleted, DriveRecorded,
-    DriveRegistered, DuelKind, DuelResolved, EventArtroPlacement, PassCompleted,
-    ReceptionResolved,
+    DriveRegistered, DuelKind, DuelResolved, EventArtroPlacement, PassCompleted, ReceptionResolved,
 };
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use arlo_domain::PitchZone;

@@ -4,9 +4,7 @@ use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
 use crate::team_identity::tempo::{
     effort_multiplier_from_value, huddle_duration_scale, individual_transition_effort_multiplier,
 };
-use crate::team_identity::transition::{
-    counter_attack_depth_bias, counter_press_engagement_bias,
-};
+use crate::team_identity::transition::{counter_attack_depth_bias, counter_press_engagement_bias};
 use crate::world_state::constants::{
     COUNTER_PRESS_SHIFT_PERCENTAGE, DEFAULT_ATTRIBUTE_VALUE, HUDDLE_BASE_MAX_SECONDS,
     HUDDLE_LEADERSHIP_WEIGHT, HUDDLE_MAX_SECONDS, HUDDLE_MIN_SECONDS, HUDDLE_TACTICAL_WEIGHT,
@@ -31,18 +29,24 @@ pub fn derive_and_apply_reorganization(
     let away_lineup = publisher.state().away_lineup().clone();
     let attribute_keys = publisher.state().attribute_keys().clone();
 
-    let was_home_offense = publisher.state().possession().role().is_offense(publisher.state().home_team_id());
+    let was_home_offense = publisher
+        .state()
+        .possession()
+        .role()
+        .is_offense(publisher.state().home_team_id());
     let is_home_offense = if is_post_turnover {
         !was_home_offense
     } else {
         was_home_offense
     };
 
-    let home_instructions = publisher.state().home_instructions().clone();
-    let away_instructions = publisher.state().away_instructions().clone();
+    let home_instructions = *publisher.state().home_instructions();
+    let away_instructions = *publisher.state().away_instructions();
 
     let home_ctx = AnchorComputationContext {
-        player_instructions_index: publisher.state().instructions_index_for_team(publisher.state().home_team_id()),
+        player_instructions_index: publisher
+            .state()
+            .instructions_index_for_team(publisher.state().home_team_id()),
         opposing_lineup: Some(&away_lineup),
         spatial_map: Some(publisher.state().spatial_map()),
     };
@@ -58,7 +62,9 @@ pub fn derive_and_apply_reorganization(
     );
 
     let away_ctx = AnchorComputationContext {
-        player_instructions_index: publisher.state().instructions_index_for_team(publisher.state().away_team_id()),
+        player_instructions_index: publisher
+            .state()
+            .instructions_index_for_team(publisher.state().away_team_id()),
         opposing_lineup: Some(&home_lineup),
         spatial_map: Some(publisher.state().spatial_map()),
     };
@@ -74,8 +80,13 @@ pub fn derive_and_apply_reorganization(
     );
 
     let individual_release_tempo = if is_post_turnover {
-        recovering_player_id
-            .map(|id| publisher.state().player_instructions_for(&id).transition().release_tempo())
+        recovering_player_id.map(|id| {
+            publisher
+                .state()
+                .player_instructions_for(&id)
+                .transition()
+                .release_tempo()
+        })
     } else {
         None
     };
@@ -152,9 +163,19 @@ pub fn derive_and_apply_reorganization(
 
     let home_team_id = publisher.state().home_team_id();
     let away_team_id = publisher.state().away_team_id();
-    let home_instr = publisher.state().instructions_index_for_team(home_team_id).clone();
-    let away_instr = publisher.state().instructions_index_for_team(away_team_id).clone();
-    let home_ids: HashSet<Uuid> = home_lineup.assignments().iter().map(|a| a.player().id()).collect();
+    let home_instr = publisher
+        .state()
+        .instructions_index_for_team(home_team_id)
+        .clone();
+    let away_instr = publisher
+        .state()
+        .instructions_index_for_team(away_team_id)
+        .clone();
+    let home_ids: HashSet<Uuid> = home_lineup
+        .assignments()
+        .iter()
+        .map(|a| a.player().id())
+        .collect();
 
     let (offense_instructions, defense_instructions) = if is_home_offense {
         (&home_instructions, &away_instructions)
@@ -163,7 +184,10 @@ pub fn derive_and_apply_reorganization(
     };
 
     let offense_tempo = offense_instructions.in_possession().tempo().value();
-    let defense_pressing = defense_instructions.out_of_possession().pressing_intensity().value();
+    let defense_pressing = defense_instructions
+        .out_of_possession()
+        .pressing_intensity()
+        .value();
 
     let effort_multiplier_for = |id: &Uuid| {
         let is_home = home_ids.contains(id);
@@ -179,7 +203,10 @@ pub fn derive_and_apply_reorganization(
             } else {
                 away_instr.get(id).copied().unwrap_or_default()
             };
-            individual_transition_effort_multiplier(base_mult, instr.transition().transition_urgency())
+            individual_transition_effort_multiplier(
+                base_mult,
+                instr.transition().transition_urgency(),
+            )
         } else {
             base_mult
         }
@@ -214,17 +241,20 @@ pub fn derive_and_apply_reorganization(
         });
 
     let (tac, lead) = if let Some(artrine) = offense_artrine {
-        let tac = extract_attribute_value(artrine, &attribute_keys, AttributeKey::TacticalKnowledge);
+        let tac =
+            extract_attribute_value(artrine, &attribute_keys, AttributeKey::TacticalKnowledge);
         let lead = extract_attribute_value(artrine, &attribute_keys, AttributeKey::Leadership);
         (tac, lead)
     } else {
         (DEFAULT_ATTRIBUTE_VALUE, DEFAULT_ATTRIBUTE_VALUE)
     };
 
-    let base_huddle_seconds = (HUDDLE_BASE_MAX_SECONDS - (tac * HUDDLE_TACTICAL_WEIGHT + lead * HUDDLE_LEADERSHIP_WEIGHT))
+    let base_huddle_seconds = (HUDDLE_BASE_MAX_SECONDS
+        - (tac * HUDDLE_TACTICAL_WEIGHT + lead * HUDDLE_LEADERSHIP_WEIGHT))
         .clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
     let huddle_scale = huddle_duration_scale(offense_instructions.in_possession().tempo());
-    let huddle_seconds = (base_huddle_seconds * huddle_scale).clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
+    let huddle_seconds =
+        (base_huddle_seconds * huddle_scale).clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
 
     (
         Duration::new(tick_result.elapsed_seconds()),

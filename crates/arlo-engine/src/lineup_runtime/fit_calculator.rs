@@ -40,11 +40,7 @@ impl PositionalFit {
     }
 }
 
-fn evaluate_position_match(
-    pos: Position,
-    nominal_prof: i32,
-    target_pos: Position,
-) -> (f64, bool) {
+fn evaluate_position_match(pos: Position, nominal_prof: i32, target_pos: Position) -> (f64, bool) {
     let prof = nominal_prof as f64;
     if pos == target_pos {
         (prof, true)
@@ -74,11 +70,7 @@ pub fn calculate_fit_for_position(player: &Player, target_position: Position) ->
     let effective_proficiency = best_score.max(0.0);
     let efficiency_multiplier = (effective_proficiency / 10.0).clamp(0.0, 1.0);
 
-    PositionalFit::new(
-        effective_proficiency,
-        efficiency_multiplier,
-        best_exact,
-    )
+    PositionalFit::new(effective_proficiency, efficiency_multiplier, best_exact)
 }
 
 pub fn calculate_fit(player: &Player, slot: &FormationSlot) -> PositionalFit {

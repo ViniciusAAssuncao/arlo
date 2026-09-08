@@ -36,8 +36,7 @@ where
         .filter(|cand| {
             get_drifted_defender_position(cand, ctx.spatial_map, ctx.attribute_keys, rng)
                 .map(|p| {
-                    calculate_distance_mirim(receiver_pos_vec, p)
-                        <= PROXIMITY_CONTEST_RADIUS_MIRIM
+                    calculate_distance_mirim(receiver_pos_vec, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM
                 })
                 .unwrap_or(false)
         })

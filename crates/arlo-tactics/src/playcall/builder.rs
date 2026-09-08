@@ -26,12 +26,7 @@ pub struct PlayCallBuilder {
 }
 
 impl PlayCallBuilder {
-    pub fn new(
-        id: Uuid,
-        team_id: Uuid,
-        tactical_lineup_id: Uuid,
-        name: impl Into<String>,
-    ) -> Self {
+    pub fn new(id: Uuid, team_id: Uuid, tactical_lineup_id: Uuid, name: impl Into<String>) -> Self {
         Self {
             id,
             team_id,
@@ -108,10 +103,7 @@ impl PlayCallBuilder {
         self
     }
 
-    pub fn with_optional_misdirection(
-        mut self,
-        misdirection: Option<MisdirectionLink>,
-    ) -> Self {
+    pub fn with_optional_misdirection(mut self, misdirection: Option<MisdirectionLink>) -> Self {
         self.misdirection = misdirection;
         self
     }

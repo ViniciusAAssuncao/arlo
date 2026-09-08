@@ -65,11 +65,8 @@ pub fn run_decision_phase(
     let is_last_down = state.possession().series_state().is_last_down();
     let advanced_mirins = state.possession().series_state().advanced_mirins();
 
-    let normalized_proximity = calculate_normalized_proximity(
-        pass_phase.reception_point,
-        &pitch,
-        context.is_home_offense,
-    );
+    let normalized_proximity =
+        calculate_normalized_proximity(pass_phase.reception_point, &pitch, context.is_home_offense);
 
     let target_candidates: Vec<&Player> = offense_players
         .iter()
@@ -118,11 +115,8 @@ pub fn run_decision_phase(
         &fatigue_lookup,
     );
 
-    let next_artro_pos = find_next_artro_position(
-        pass_phase.reception_point,
-        &pitch,
-        context.is_home_offense,
-    );
+    let next_artro_pos =
+        find_next_artro_position(pass_phase.reception_point, &pitch, context.is_home_offense);
 
     let pitch_control_ahead = calculate_artro_advance_pitch_control(
         pass_phase.artrine,
@@ -191,7 +185,9 @@ pub fn run_decision_phase(
     let offense_tempo_value = offense_instructions.in_possession().tempo().value();
     let defense_instructions = *state.instructions_for_team(context.defense_team_id);
     let defense_pressing_multiplier = crate::team_identity::pressing::contest_radius_multiplier(
-        defense_instructions.out_of_possession().pressing_intensity(),
+        defense_instructions
+            .out_of_possession()
+            .pressing_intensity(),
     );
     let defense_aggression = defense_instructions.out_of_possession().aggression();
     let aggression_offset = crate::team_identity::aggression::duel_logit_offset(defense_aggression);

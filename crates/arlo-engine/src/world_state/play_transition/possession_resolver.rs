@@ -30,7 +30,7 @@ pub fn classify_play_outcome(
     let is_distribution_dropped = execution_outcome
         .distribution_flight
         .as_ref()
-        .map_or(false, |f| !f.caught && execution_outcome.turnover.is_none());
+        .is_some_and(|f| !f.caught && execution_outcome.turnover.is_none());
 
     let out_of_bounds = pass_failed || is_scored || is_missed || is_distribution_dropped;
     let arbitral_stoppage = is_scored;
@@ -52,7 +52,7 @@ pub fn classify_play_outcome(
         let category = if execution_outcome
             .distribution_flight
             .as_ref()
-            .map_or(false, |f| !f.caught)
+            .is_some_and(|f| !f.caught)
         {
             TurnoverCategory::Interception
         } else {

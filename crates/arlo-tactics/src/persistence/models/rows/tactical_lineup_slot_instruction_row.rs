@@ -35,8 +35,8 @@ pub fn build_player_instructions(
                 builder = builder.with_positioning_bias(PositioningBias::new_clamped(row.value));
             }
             PlayerInstructionKey::InvolvementPriority => {
-                builder = builder
-                    .with_involvement_priority(InvolvementPriority::new_clamped(row.value));
+                builder =
+                    builder.with_involvement_priority(InvolvementPriority::new_clamped(row.value));
             }
             PlayerInstructionKey::CreativeLicense => {
                 builder = builder.with_creative_license(CreativeLicense::new_clamped(row.value));

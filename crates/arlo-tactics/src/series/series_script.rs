@@ -32,11 +32,7 @@ impl SeriesScript {
         })
     }
 
-    pub fn builder(
-        id: Uuid,
-        team_id: Uuid,
-        name: impl Into<String>,
-    ) -> SeriesScriptBuilder {
+    pub fn builder(id: Uuid, team_id: Uuid, name: impl Into<String>) -> SeriesScriptBuilder {
         SeriesScriptBuilder::new(id, team_id, name)
     }
 

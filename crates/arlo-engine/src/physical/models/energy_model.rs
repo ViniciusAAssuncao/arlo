@@ -27,6 +27,7 @@ pub fn compute_player_fatigue_multiplier(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
     let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
-    let natural_fitness = extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
+    let natural_fitness =
+        extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
     fatigue_multiplier(physical_state, stamina, natural_fitness)
 }

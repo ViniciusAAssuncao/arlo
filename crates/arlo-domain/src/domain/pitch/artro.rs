@@ -1,6 +1,6 @@
 use crate::domain::pitch::pitch::Pitch;
 use crate::domain::sport_constants::{
-    ARTRO_ROW_SPACING_MIRIM, ARTRO_SIZE_VAINA, ARTROS_PER_ROW, DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM,
+    ARTROS_PER_ROW, ARTRO_ROW_SPACING_MIRIM, ARTRO_SIZE_VAINA, DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM,
 };
 use arlo_math::units::{Length, MIRIM_TO_METERS, VAINA_TO_METERS};
 use serde::{Deserialize, Serialize};
@@ -112,11 +112,7 @@ pub fn artro_rows_for_pitch(pitch: &Pitch) -> Vec<ArtroRow> {
         let center_artro = Artro::new(ArtroPlacement::Central, x, center_y, artro_size);
         let right_artro = Artro::new(ArtroPlacement::RightLateral, x, right_y, artro_size);
 
-        rows.push(ArtroRow::new(
-            i,
-            x,
-            [left_artro, center_artro, right_artro],
-        ));
+        rows.push(ArtroRow::new(i, x, [left_artro, center_artro, right_artro]));
     }
 
     rows

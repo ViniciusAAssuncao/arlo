@@ -52,9 +52,5 @@ pub fn compute_forward_target_pos(
         (start_pos.raw().0 / MIRIM_TO_METERS - CARRY_FORWARD_TARGET_OFFSET_MIRIM).max(0.0)
     };
 
-    VectorPosition::from_components(
-        forward_x_mirim * MIRIM_TO_METERS,
-        target_channel_y_m,
-        0.0,
-    )
+    VectorPosition::from_components(forward_x_mirim * MIRIM_TO_METERS, target_channel_y_m, 0.0)
 }

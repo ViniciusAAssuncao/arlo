@@ -47,21 +47,21 @@ pub fn extract_participants<'a>(
     let mut attacker_ids = vec![passer.id(), artrine.id()];
 
     for &player in offense_players {
-        if offense_role_index.get(&player.id()) == Some(&SlotRole::Safeguard) {
-            if !attacker_ids.contains(&player.id()) {
-                let pos = offense_pos_index
-                    .get(&player.id())
-                    .copied()
-                    .unwrap_or_else(|| {
-                        player
-                            .positions()
-                            .first()
-                            .map(|pp| pp.position())
-                            .unwrap_or(DomainPosition::Fullback)
-                    });
-                pass_blockers.push((player, pos));
-                attacker_ids.push(player.id());
-            }
+        if offense_role_index.get(&player.id()) == Some(&SlotRole::Safeguard)
+            && !attacker_ids.contains(&player.id())
+        {
+            let pos = offense_pos_index
+                .get(&player.id())
+                .copied()
+                .unwrap_or_else(|| {
+                    player
+                        .positions()
+                        .first()
+                        .map(|pp| pp.position())
+                        .unwrap_or(DomainPosition::Fullback)
+                });
+            pass_blockers.push((player, pos));
+            attacker_ids.push(player.id());
         }
     }
 

@@ -38,13 +38,12 @@ pub fn calculate_defender_tti(
 
     let raw_t = match swept_t {
         Some(d) => Some(d),
-        None => calculate_time_to_moving_intercept(
-            defender_pos,
-            defender_speed,
-            target_pos,
-            target_vel,
-        )
-        .or_else(|| calculate_time_to_direct_intercept(defender_pos, defender_speed, target_pos)),
+        None => {
+            calculate_time_to_moving_intercept(defender_pos, defender_speed, target_pos, target_vel)
+                .or_else(|| {
+                    calculate_time_to_direct_intercept(defender_pos, defender_speed, target_pos)
+                })
+        }
     };
 
     let ant = extract_attribute_value(defender, attribute_keys, AttributeKey::Anticipation);
@@ -83,7 +82,9 @@ where
     let mut min_effective_tti = f64::INFINITY;
 
     for &defender in defenders {
-        let def_pos = spatial_map.get_position(&defender.id()).unwrap_or(target_pos);
+        let def_pos = spatial_map
+            .get_position(&defender.id())
+            .unwrap_or(target_pos);
         let fatigue = fatigue_for(&defender.id());
         let mult = compute_player_fatigue_multiplier(defender, &fatigue, attribute_keys);
         let speed = calculate_player_speed(defender, attribute_keys, mult);
@@ -214,13 +215,9 @@ pub fn filter_kinematic_active_duelists(
         .iter()
         .filter(|(_, pos, speed)| {
             let vel = derive_velocity_towards_target(*pos, target_pos, *speed);
-            if let Some(t) = compute_swept_sphere_intersection(
-                target_pos,
-                target_vel,
-                *pos,
-                vel,
-                contest_radius,
-            ) {
+            if let Some(t) =
+                compute_swept_sphere_intersection(target_pos, target_vel, *pos, vel, contest_radius)
+            {
                 t.value() <= max_duration.value()
             } else {
                 false

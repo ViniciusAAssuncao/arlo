@@ -67,8 +67,11 @@ impl<'a> DecisionEvaluationContext<'a> {
 
     pub fn probability_bounds(&self) -> (f64, f64) {
         let consistency = self.consistency();
-        let noise_params =
-            player_noise_distribution(self.artrine, self.attribute_keys, &self.artrine_physical_state);
+        let noise_params = player_noise_distribution(
+            self.artrine,
+            self.attribute_keys,
+            &self.artrine_physical_state,
+        );
         let scale = noise_params.scale();
         let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
         let floor =

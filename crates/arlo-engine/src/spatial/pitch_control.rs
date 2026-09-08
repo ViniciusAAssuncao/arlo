@@ -60,8 +60,10 @@ pub fn calculate_kinematic_pitch_control<F>(
 where
     F: Fn(&Uuid) -> FatigueState,
 {
-    let att_sites = build_team_voronoi_sites(attackers, spatial_map, attribute_keys, fatigue_for, 0);
-    let def_sites = build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
+    let att_sites =
+        build_team_voronoi_sites(attackers, spatial_map, attribute_keys, fatigue_for, 0);
+    let def_sites =
+        build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
     compute_team_control_fraction(&att_sites, &def_sites, region, 5, 5)
 }
 
@@ -96,22 +98,18 @@ where
     let y_max = (y_center + half_width).min(pitch.width().value());
 
     let region = VoronoiRegion::new(x_min, x_max, y_min, y_max);
-    let mut att_sites = build_team_voronoi_sites(&attackers, spatial_map, attribute_keys, fatigue_for, 0);
+    let mut att_sites =
+        build_team_voronoi_sites(&attackers, spatial_map, attribute_keys, fatigue_for, 0);
 
     for &helper in helpers {
         if offense_role_index.get(&helper.id()) == Some(&SlotRole::FalseArtrine) {
-            let phantom = phantom_voronoi_site(
-                helper,
-                spatial_map,
-                attribute_keys,
-                fatigue_for,
-                0,
-            );
+            let phantom = phantom_voronoi_site(helper, spatial_map, attribute_keys, fatigue_for, 0);
             att_sites.push(phantom);
         }
     }
 
-    let def_sites = build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
+    let def_sites =
+        build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
     compute_team_control_fraction(&att_sites, &def_sites, &region, 5, 5)
 }
 
@@ -126,7 +124,9 @@ pub fn calculate_point_pitch_control_players<F>(
 where
     F: Fn(&Uuid) -> FatigueState,
 {
-    let att_sites = build_team_voronoi_sites(attackers, spatial_map, attribute_keys, fatigue_for, 0);
-    let def_sites = build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
+    let att_sites =
+        build_team_voronoi_sites(attackers, spatial_map, attribute_keys, fatigue_for, 0);
+    let def_sites =
+        build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
     compute_point_team_control(&att_sites, &def_sites, point.raw().0, point.raw().1)
 }

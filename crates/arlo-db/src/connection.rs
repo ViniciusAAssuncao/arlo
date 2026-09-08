@@ -32,9 +32,9 @@ pub async fn open_pool(db_url: &str) -> DbResult<SqlitePool> {
 }
 
 pub async fn provision_database(path: &Path) -> DbResult<SqlitePool> {
-    let path_str = path.to_str().ok_or_else(|| {
-        crate::error::DbError::InvalidData("Invalid database path".to_string())
-    })?;
+    let path_str = path
+        .to_str()
+        .ok_or_else(|| crate::error::DbError::InvalidData("Invalid database path".to_string()))?;
     let db_url = format!("sqlite://{path_str}");
     open_pool(&db_url).await
 }

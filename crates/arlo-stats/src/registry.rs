@@ -258,11 +258,7 @@ impl AggregatorRegistry {
         sequence_number: u64,
         clock: MatchClockInstant,
     ) -> PeriodicMatchSnapshot {
-        PeriodicMatchSnapshot::new(
-            sequence_number,
-            clock,
-            self.player_snapshots_vec(),
-        )
+        PeriodicMatchSnapshot::new(sequence_number, clock, self.player_snapshots_vec())
     }
 }
 

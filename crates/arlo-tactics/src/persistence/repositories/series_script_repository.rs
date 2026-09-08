@@ -29,10 +29,7 @@ pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> TacticsResult<Option<Seri
     Ok(Some(row.to_domain(&entry_rows)?))
 }
 
-pub async fn list_by_team_id(
-    pool: &SqlitePool,
-    team_id: Uuid,
-) -> TacticsResult<Vec<SeriesScript>> {
+pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> TacticsResult<Vec<SeriesScript>> {
     let rows = fetch_all_by_param::<SeriesScriptRow>(
         pool,
         "SELECT id, team_id, name, created_at_unix_seconds FROM series_scripts WHERE team_id = ? ORDER BY created_at_unix_seconds ASC",
@@ -61,12 +58,11 @@ pub async fn insert(pool: &SqlitePool, script: &SeriesScript) -> TacticsResult<(
     let team_id_str = script.team_id().to_string();
 
     for play_call_id in script.entries() {
-        let play_row: Option<(String,)> = sqlx::query_as(
-            "SELECT team_id FROM play_calls WHERE id = ?",
-        )
-        .bind(play_call_id.to_string())
-        .fetch_optional(&mut *tx)
-        .await?;
+        let play_row: Option<(String,)> =
+            sqlx::query_as("SELECT team_id FROM play_calls WHERE id = ?")
+                .bind(play_call_id.to_string())
+                .fetch_optional(&mut *tx)
+                .await?;
 
         match play_row {
             Some((play_team_id,)) => {

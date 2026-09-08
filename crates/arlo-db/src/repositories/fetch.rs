@@ -24,11 +24,7 @@ where
     Ok(result)
 }
 
-pub async fn fetch_all_by_param<T>(
-    pool: &SqlitePool,
-    query: &str,
-    param: &str,
-) -> DbResult<Vec<T>>
+pub async fn fetch_all_by_param<T>(pool: &SqlitePool, query: &str, param: &str) -> DbResult<Vec<T>>
 where
     T: for<'r> FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
 {

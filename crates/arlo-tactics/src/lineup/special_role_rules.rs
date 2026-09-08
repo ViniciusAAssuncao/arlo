@@ -13,9 +13,7 @@ pub fn max_concurrent_count(role: SlotRole) -> Option<u32> {
 
 pub fn is_role_eligible_for_position(role: SlotRole, position: Position) -> bool {
     match role {
-        SlotRole::FalseArtrine => {
-            position != Position::Artrine && position != Position::Passer
-        }
+        SlotRole::FalseArtrine => position != Position::Artrine && position != Position::Passer,
         _ => true,
     }
 }

@@ -203,8 +203,8 @@ pub fn analyze_game_state(
             .clamp(1.0, LARGE_DEFICIT_SELF_FINISH_MAX);
         let short_pass_bias = (1.0 - LARGE_DEFICIT_SHORT_PASS_SCALE * intensity)
             .clamp(LARGE_DEFICIT_SHORT_PASS_MIN, 1.00);
-        let carry_bias = (1.0 - LARGE_DEFICIT_CARRY_SCALE * intensity)
-            .clamp(LARGE_DEFICIT_CARRY_MIN, 1.00);
+        let carry_bias =
+            (1.0 - LARGE_DEFICIT_CARRY_SCALE * intensity).clamp(LARGE_DEFICIT_CARRY_MIN, 1.00);
         let turnover_aversion_scale = (1.0 - LARGE_DEFICIT_TURNOVER_AVERSION_SCALE * intensity)
             .clamp(LARGE_DEFICIT_TURNOVER_AVERSION_MIN, 1.00);
 
@@ -260,19 +260,17 @@ pub fn analyze_game_state(
     } else if score_deficit < 0 && time_urgency > URGENCY_THRESHOLD {
         let intensity =
             ((time_urgency - URGENCY_THRESHOLD) / URGENCY_INTENSITY_DIVISOR).clamp(0.0, 1.0);
-        let goal_point_bias = (1.0 - LEADING_GOAL_POINT_SCALE * intensity)
-            .clamp(LEADING_GOAL_POINT_MIN, 1.00);
+        let goal_point_bias =
+            (1.0 - LEADING_GOAL_POINT_SCALE * intensity).clamp(LEADING_GOAL_POINT_MIN, 1.00);
         let field_point_bias = 1.0;
-        let long_launch_bias = (1.0 - LEADING_LONG_LAUNCH_SCALE * intensity)
-            .clamp(LEADING_LONG_LAUNCH_MIN, 1.00);
-        let cross_bias =
-            (1.0 - LEADING_CROSS_SCALE * intensity).clamp(LEADING_CROSS_MIN, 1.00);
-        let self_finish_bias = (1.0 - LEADING_SELF_FINISH_SCALE * intensity)
-            .clamp(LEADING_SELF_FINISH_MIN, 1.00);
-        let short_pass_bias = (1.0 + LEADING_SHORT_PASS_SCALE * intensity)
-            .clamp(1.0, LEADING_SHORT_PASS_MAX);
-        let carry_bias =
-            (1.0 + LEADING_CARRY_SCALE * intensity).clamp(1.0, LEADING_CARRY_MAX);
+        let long_launch_bias =
+            (1.0 - LEADING_LONG_LAUNCH_SCALE * intensity).clamp(LEADING_LONG_LAUNCH_MIN, 1.00);
+        let cross_bias = (1.0 - LEADING_CROSS_SCALE * intensity).clamp(LEADING_CROSS_MIN, 1.00);
+        let self_finish_bias =
+            (1.0 - LEADING_SELF_FINISH_SCALE * intensity).clamp(LEADING_SELF_FINISH_MIN, 1.00);
+        let short_pass_bias =
+            (1.0 + LEADING_SHORT_PASS_SCALE * intensity).clamp(1.0, LEADING_SHORT_PASS_MAX);
+        let carry_bias = (1.0 + LEADING_CARRY_SCALE * intensity).clamp(1.0, LEADING_CARRY_MAX);
         let turnover_aversion_scale = (1.0 + LEADING_TURNOVER_AVERSION_SCALE * intensity)
             .clamp(1.0, LEADING_TURNOVER_AVERSION_MAX);
 

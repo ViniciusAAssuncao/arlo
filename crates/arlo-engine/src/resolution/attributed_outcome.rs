@@ -10,11 +10,7 @@ pub struct AttributedDuelOutcome {
 }
 
 impl AttributedDuelOutcome {
-    pub fn new(
-        outcome: DuelOutcome,
-        attacker_ids: Vec<Uuid>,
-        defender_ids: Vec<Uuid>,
-    ) -> Self {
+    pub fn new(outcome: DuelOutcome, attacker_ids: Vec<Uuid>, defender_ids: Vec<Uuid>) -> Self {
         Self {
             outcome,
             attacker_ids,

@@ -158,12 +158,7 @@ impl PlayerBuilder {
             });
         }
 
-        validate_no_duplicate_keys(
-            &self.positions,
-            |p| p.position(),
-            "positions",
-            "position",
-        )?;
+        validate_no_duplicate_keys(&self.positions, |p| p.position(), "positions", "position")?;
 
         validate_no_duplicate_keys(
             &self.attributes,

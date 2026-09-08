@@ -65,10 +65,7 @@ pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> TacticsResult<Option<Play
     )?))
 }
 
-pub async fn list_by_team_id(
-    pool: &SqlitePool,
-    team_id: Uuid,
-) -> TacticsResult<Vec<PlayCall>> {
+pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> TacticsResult<Vec<PlayCall>> {
     let rows = fetch_all_by_param::<PlayCallRow>(
         pool,
         "SELECT id, team_id, tactical_lineup_id, name, category, counter_play_id, created_at_unix_seconds FROM play_calls WHERE team_id = ? ORDER BY created_at_unix_seconds ASC",
@@ -132,7 +129,8 @@ pub async fn insert(pool: &SqlitePool, play_call: &PlayCall) -> TacticsResult<()
             Some(cr) => {
                 if cr.tactical_lineup_id != play_call.tactical_lineup_id().to_string() {
                     return Err(TacticsError::InvalidPlayCall(
-                        "Counter play references a play from a different tactical lineup".to_string(),
+                        "Counter play references a play from a different tactical lineup"
+                            .to_string(),
                     ));
                 }
             }
@@ -233,7 +231,9 @@ pub async fn insert(pool: &SqlitePool, play_call: &PlayCall) -> TacticsResult<()
         processed_slots.insert(slot_idx);
 
         let target_channel = artro_placement_to_code(route.target_channel());
-        let role_override_code = role_override_map.get(&slot_idx).map(|r| slot_role_to_code(*r));
+        let role_override_code = role_override_map
+            .get(&slot_idx)
+            .map(|r| slot_role_to_code(*r));
 
         sqlx::query(
             "INSERT INTO play_call_route_assignments (id, play_call_id, slot_index, has_route, target_channel, depth_ratio, break_ratio, read_priority, role_override) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)",

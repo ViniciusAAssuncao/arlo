@@ -29,7 +29,9 @@ where
     if let Some(&carrier_position) = offense_pos_index.get(&carrier_id) {
         for &defender in defenders {
             if let Some(instructions) = instructions_index.get(&defender.id()) {
-                if let Some(MarkingAssignment::Man(target)) = instructions.out_of_possession().marking() {
+                if let Some(MarkingAssignment::Man(target)) =
+                    instructions.out_of_possession().marking()
+                {
                     if target == carrier_position {
                         return Some(defender);
                     }

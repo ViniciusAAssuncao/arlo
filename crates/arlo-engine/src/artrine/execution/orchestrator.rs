@@ -8,7 +8,9 @@ use crate::physical::FatigueState;
 use crate::resolution::DuelContext;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole};
+use arlo_domain::{
+    ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole,
+};
 use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use rand::Rng;

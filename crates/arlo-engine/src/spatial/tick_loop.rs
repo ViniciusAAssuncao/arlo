@@ -100,15 +100,19 @@ where
     for (player, target) in movers {
         let pid = player.id();
         spatial_map.set_target(pid, *target);
-        let initial_pos = spatial_map.get_position(&pid).unwrap_or_else(Position::zero);
+        let initial_pos = spatial_map
+            .get_position(&pid)
+            .unwrap_or_else(Position::zero);
         trajectories.insert(pid, SpatialTrajectory::new(pid, initial_pos));
 
         let state = fatigue_for(&pid);
         let critical_speed_m_s = calculate_player_critical_speed(player, attribute_keys, 0).value();
         let work_rate = extract_attribute_value(player, attribute_keys, AttributeKey::WorkRate);
-        let positioning = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
+        let positioning =
+            extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
         let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
-        let acceleration = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
+        let acceleration =
+            extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
         let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
         let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
         let mass_kg = calculate_player_body_mass(player, attribute_keys);
@@ -136,28 +140,32 @@ where
         let speed = match movement_context {
             MovementContext::LivePlay => pacing_state.target_cruise_speed(),
             MovementContext::DeadBall => {
-                let base_cruise = calculate_desired_cruise_speed(critical_speed_m_s, work_rate, positioning);
+                let base_cruise =
+                    calculate_desired_cruise_speed(critical_speed_m_s, work_rate, positioning);
                 let phys_mod = physical_attribute_modifier(&state);
                 let cruise_val = (base_cruise * phys_mod).clamp(0.5, critical_speed_m_s);
                 Speed::new(cruise_val)
             }
         };
 
-        mover_kinematics.insert(pid, MoverKinematics {
-            speed,
-            critical_speed_m_s,
-            agility,
-            acceleration,
-            balance,
-            strength,
-            mass_kg,
-            fatigue_multiplier: state.energy(),
-            physical_radius,
-        });
+        mover_kinematics.insert(
+            pid,
+            MoverKinematics {
+                speed,
+                critical_speed_m_s,
+                agility,
+                acceleration,
+                balance,
+                strength,
+                mass_kg,
+                fatigue_multiplier: state.energy(),
+                physical_radius,
+            },
+        );
     }
 
     let mut physical_radii = HashMap::with_capacity(spatial_map.positions().len());
-    for (&id, _) in spatial_map.positions() {
+    for &id in spatial_map.positions().keys() {
         let radius = if let Some(props) = mover_kinematics.get(&id) {
             props.physical_radius
         } else {
@@ -179,9 +187,7 @@ where
 
         neighbor_snapshot.clear();
         for (&id, &pos) in spatial_map.positions() {
-            let vel = spatial_map
-                .get_velocity(&id)
-                .unwrap_or_else(Velocity::zero);
+            let vel = spatial_map.get_velocity(&id).unwrap_or_else(Velocity::zero);
             let is_home = spatial_map.is_home_player(&id);
             let physical_radius = *physical_radii.get(&id).unwrap_or(&0.55);
             neighbor_snapshot.push(SpatialNeighbor::new(id, pos, vel, is_home, physical_radius));
@@ -189,7 +195,9 @@ where
 
         for (player, target) in movers {
             let pid = player.id();
-            let current_pos = spatial_map.get_position(&pid).unwrap_or_else(Position::zero);
+            let current_pos = spatial_map
+                .get_position(&pid)
+                .unwrap_or_else(Position::zero);
             let dist_mirim = calculate_distance_mirim(current_pos, *target);
 
             if dist_mirim > TARGET_ARRIVAL_TOLERANCE_MIRIM {
@@ -223,18 +231,26 @@ where
                 let step_dist = vel.magnitude().value() * SPATIAL_TICK_DURATION_SECONDS;
                 let dist_meters = calculate_distance(current_pos, *target).value();
 
-                let (next_pos, step_vel) = if dist_meters <= step_dist || dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM {
-                    (*target, Velocity::zero())
-                } else {
-                    (advance_position(current_pos, vel, dt), vel)
-                };
+                let (next_pos, step_vel) =
+                    if dist_meters <= step_dist || dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM {
+                        (*target, Velocity::zero())
+                    } else {
+                        (advance_position(current_pos, vel, dt), vel)
+                    };
 
                 spatial_map.set_position(pid, next_pos);
                 spatial_map.set_velocity(pid, step_vel);
 
                 if let Some(traj) = trajectories.get_mut(&pid) {
                     let zone = pitch.zone_at_position(next_pos);
-                    traj.record_step(next_pos, vel, props.critical_speed_m_s, props.mass_kg, zone, dt);
+                    traj.record_step(
+                        next_pos,
+                        vel,
+                        props.critical_speed_m_s,
+                        props.mass_kg,
+                        zone,
+                        dt,
+                    );
                 }
             } else {
                 spatial_map.set_position(pid, *target);

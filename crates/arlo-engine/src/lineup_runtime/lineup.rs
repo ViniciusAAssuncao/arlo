@@ -81,7 +81,7 @@ impl Lineup {
             .slots()
             .iter()
             .copied()
-            .zip(players.into_iter())
+            .zip(players)
             .map(|(slot, player)| {
                 LineupAssignment::new(
                     slot,

@@ -5,9 +5,7 @@ pub fn format_domain_error(error: &DomainError) -> String {
         DomainError::InvalidInvariant { field, violation } => {
             let message = match violation {
                 InvariantViolation::Empty => "não pode ser vazio".to_string(),
-                InvariantViolation::NotPositiveFinite => {
-                    "deve ser positivo e finito".to_string()
-                }
+                InvariantViolation::NotPositiveFinite => "deve ser positivo e finito".to_string(),
                 InvariantViolation::OutOfIntegerRange { min, max } => {
                     format!("deve estar entre {min} e {max}")
                 }
@@ -20,13 +18,9 @@ pub fn format_domain_error(error: &DomainError) -> String {
                 InvariantViolation::DuplicateKey { key_name } => {
                     format!("chave duplicada '{key_name}' encontrada")
                 }
-                InvariantViolation::MissingRequiredValue => {
-                    "valor obrigatório ausente".to_string()
-                }
+                InvariantViolation::MissingRequiredValue => "valor obrigatório ausente".to_string(),
                 InvariantViolation::UnexpectedValue => "valor inesperado".to_string(),
-                InvariantViolation::SelfReference => {
-                    "não pode referenciar a si mesmo".to_string()
-                }
+                InvariantViolation::SelfReference => "não pode referenciar a si mesmo".to_string(),
                 InvariantViolation::CountMismatch { expected, actual } => {
                     format!("esperava {expected}, mas encontrou {actual}")
                 }

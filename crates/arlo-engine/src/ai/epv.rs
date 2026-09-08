@@ -1,8 +1,5 @@
 use arlo_domain::sport_constants::{
-    FIELD_POINT_REQUIRED_DRIVES,
-    FIELD_POINT_VALUE,
-    GOAL_POINT_REQUIRED_DRIVES,
-    GOAL_POINT_VALUE,
+    FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use serde::{Deserialize, Serialize};
 
@@ -117,17 +114,12 @@ impl DynamicEpvModel {
     ) -> f64 {
         let x = normalized_x.clamp(0.0, 1.0);
         let p_goal = self.goal_probability(x, drives_in_series, down, remaining_advance_mirim);
-        let p_field = self.field_point_probability(
-            x,
-            drives_in_series,
-            down,
-            remaining_advance_mirim,
-        );
+        let p_field =
+            self.field_point_probability(x, drives_in_series, down, remaining_advance_mirim);
         let p_turnover = self.turnover_probability(x, down, remaining_advance_mirim);
         let opp_epa = self.opponent_epa(x);
 
-        p_goal * (GOAL_POINT_VALUE as f64)
-            + p_field * (FIELD_POINT_VALUE as f64)
+        p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
             - p_turnover * opp_epa
     }
 
@@ -138,7 +130,12 @@ impl DynamicEpvModel {
         remaining_advance_mirim: f64,
         drives_in_series: u32,
     ) -> f64 {
-        self.calculate_epa(normalized_x, down, remaining_advance_mirim, drives_in_series)
+        self.calculate_epa(
+            normalized_x,
+            down,
+            remaining_advance_mirim,
+            drives_in_series,
+        )
     }
 
     pub fn epv_for_pitch_position(
@@ -175,7 +172,12 @@ impl DynamicEpvModel {
         remaining_advance_mirim: f64,
         drives_in_series: u32,
     ) -> f64 {
-        Self::default().calculate_epa(normalized_x, down, remaining_advance_mirim, drives_in_series)
+        Self::default().calculate_epa(
+            normalized_x,
+            down,
+            remaining_advance_mirim,
+            drives_in_series,
+        )
     }
 
     pub fn opponent_score_value(normalized_x: f64) -> f64 {

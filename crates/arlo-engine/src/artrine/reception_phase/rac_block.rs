@@ -3,8 +3,8 @@ use crate::artrine::constants::{
     CENTRAL_ZONE_NORMALIZED_Y_MAX, CENTRAL_ZONE_NORMALIZED_Y_MIN,
 };
 use crate::artrine::logistics::{
-    collect_drifted_defender_candidates, collect_helper_candidates,
-    collect_swept_participant_ids, resolve_primary_lead_defender,
+    collect_drifted_defender_candidates, collect_helper_candidates, collect_swept_participant_ids,
+    resolve_primary_lead_defender,
 };
 use crate::artrine::reception_phase::rac_context::RacContext;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
@@ -12,8 +12,8 @@ use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating_with_state,
-    calculate_side_rating_from_index_with_fatigue, identify_lead_player_from_index,
+    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
+    identify_lead_player_from_index,
 };
 use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
@@ -32,10 +32,7 @@ pub struct RacBlockResult<'a> {
     pub receiver_pos_vec: VectorPosition,
 }
 
-pub fn resolve_rac_block<'a, F, R>(
-    ctx: &'a RacContext<'a, F>,
-    rng: &mut R,
-) -> RacBlockResult<'a>
+pub fn resolve_rac_block<'a, F, R>(ctx: &'a RacContext<'a, F>, rng: &mut R) -> RacBlockResult<'a>
 where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
@@ -49,8 +46,8 @@ where
         CENTRAL_ZONE_NORMALIZED_Y_FALLBACK
     };
 
-    let is_central = (CENTRAL_ZONE_NORMALIZED_Y_MIN..=CENTRAL_ZONE_NORMALIZED_Y_MAX)
-        .contains(&normalized_y);
+    let is_central =
+        (CENTRAL_ZONE_NORMALIZED_Y_MIN..=CENTRAL_ZONE_NORMALIZED_Y_MAX).contains(&normalized_y);
     let block_duel_kind = if is_central {
         DuelKind::CentralBlock
     } else {
@@ -135,11 +132,8 @@ where
         .spatial_map
         .get_position(&lead_blocker.id())
         .unwrap_or(receiver_pos_vec);
-    let blocker_spd = calculate_effective_player_speed(
-        lead_blocker,
-        ctx.attribute_keys,
-        &lead_blocker_state,
-    );
+    let blocker_spd =
+        calculate_effective_player_speed(lead_blocker, ctx.attribute_keys, &lead_blocker_state);
 
     let block_def_pos = get_drifted_defender_position(
         lead_block_defender,

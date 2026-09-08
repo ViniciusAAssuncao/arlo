@@ -140,7 +140,9 @@ where
         .copied()
         .filter(|cand| {
             get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
-                .map(|p| calculate_distance_mirim(receiver_pos_vec, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM)
+                .map(|p| {
+                    calculate_distance_mirim(receiver_pos_vec, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM
+                })
                 .unwrap_or(false)
         })
         .collect();
@@ -159,9 +161,8 @@ where
         fatigue_for,
     );
 
-    let contest_radius = Length::new(
-        PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS,
-    );
+    let contest_radius =
+        Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
     let lead_defender = resolve_primary_lead_defender(
         receiver_id,
         position_index,
@@ -196,11 +197,8 @@ where
     let caught = raw_duel.attacker_won();
 
     let intercepted_by_defender = if !caught {
-        let def_hands = extract_attribute_value(
-            lead_defender,
-            attribute_keys,
-            AttributeKey::HandsReception,
-        );
+        let def_hands =
+            extract_attribute_value(lead_defender, attribute_keys, AttributeKey::HandsReception);
         let def_ant =
             extract_attribute_value(lead_defender, attribute_keys, AttributeKey::Anticipation);
         let att_hands = extract_attribute_value(

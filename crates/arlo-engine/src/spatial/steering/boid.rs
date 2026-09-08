@@ -71,13 +71,8 @@ pub fn calculate_dynamic_boid_steering_velocity_with_context(
         1.0
     };
 
-    let raw_accel = calculate_max_acceleration(
-        acceleration,
-        agility,
-        strength,
-        mass_kg,
-        fatigue_multiplier,
-    );
+    let raw_accel =
+        calculate_max_acceleration(acceleration, agility, strength, mass_kg, fatigue_multiplier);
 
     let max_accel = match context {
         MovementContext::DeadBall => (raw_accel * 0.55).clamp(1.0, 3.5),

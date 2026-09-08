@@ -5,8 +5,8 @@ use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution::security::resolve_proximity_ball_security;
 use crate::artrine::logistics::{
-    collect_drifted_defender_candidates, collect_helper_candidates,
-    collect_swept_participant_ids, resolve_primary_lead_defender,
+    collect_drifted_defender_candidates, collect_helper_candidates, collect_swept_participant_ids,
+    resolve_primary_lead_defender,
 };
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
@@ -69,7 +69,8 @@ where
     );
 
     let artrine_state = ctx.fatigue(&artrine.id());
-    let artrine_speed = calculate_effective_player_speed(artrine, ctx.attribute_keys, &artrine_state);
+    let artrine_speed =
+        calculate_effective_player_speed(artrine, ctx.attribute_keys, &artrine_state);
     let target_channel_y_m = compute_carry_target_lane(start_pos, ctx.pitch);
     let target_carry_pos = compute_forward_target_pos(
         start_pos,
@@ -109,18 +110,23 @@ where
         rng,
     );
 
-    let (artro_duration, nearest_def_opt) =
-        match nearest_drifted_opponent(start_pos, ctx.defenders, spatial_map, ctx.attribute_keys, rng) {
-            Some((d, pos)) => {
-                let d_state = ctx.fatigue(&d.id());
-                let d_spd = calculate_effective_player_speed(d, ctx.attribute_keys, &d_state);
-                (
-                    derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
-                    Some((d, pos)),
-                )
-            }
-            None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
-        };
+    let (artro_duration, nearest_def_opt) = match nearest_drifted_opponent(
+        start_pos,
+        ctx.defenders,
+        spatial_map,
+        ctx.attribute_keys,
+        rng,
+    ) {
+        Some((d, pos)) => {
+            let d_state = ctx.fatigue(&d.id());
+            let d_spd = calculate_effective_player_speed(d, ctx.attribute_keys, &d_state);
+            (
+                derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
+                Some((d, pos)),
+            )
+        }
+        None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
+    };
 
     let helper_candidates = collect_helper_candidates(
         ctx.offense_helpers,

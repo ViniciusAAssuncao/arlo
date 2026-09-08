@@ -21,7 +21,12 @@ impl FederationRow {
             "National" => Scope::National,
             "Continental" => Scope::Continental,
             "International" => Scope::International,
-            _ => return Err(DbError::InvalidEnum(format!("Invalid scope: {}", self.scope))),
+            _ => {
+                return Err(DbError::InvalidEnum(format!(
+                    "Invalid scope: {}",
+                    self.scope
+                )))
+            }
         };
         let continent_id = match &self.continent_id {
             Some(cid) => Some(Uuid::parse_str(cid)?),

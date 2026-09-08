@@ -24,21 +24,45 @@ pub fn player_base_reception_weight_with_state(
 ) -> f64 {
     match role {
         ReceptionRole::OpenPlayReceiver => {
-            let hands =
-                extract_effective_attribute_value(player, attribute_keys, AttributeKey::HandsReception, state);
-            let ant =
-                extract_effective_attribute_value(player, attribute_keys, AttributeKey::Anticipation, state);
-            let pos =
-                extract_effective_attribute_value(player, attribute_keys, AttributeKey::Positioning, state);
+            let hands = extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::HandsReception,
+                state,
+            );
+            let ant = extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Anticipation,
+                state,
+            );
+            let pos = extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Positioning,
+                state,
+            );
             (hands * 0.45 + ant * 0.35 + pos * 0.20).max(0.1)
         }
         ReceptionRole::Finisher => {
-            let finishing =
-                extract_effective_attribute_value(player, attribute_keys, AttributeKey::Finishing, state);
-            let technique =
-                extract_effective_attribute_value(player, attribute_keys, AttributeKey::Technique, state);
-            let composure =
-                extract_effective_attribute_value(player, attribute_keys, AttributeKey::Composure, state);
+            let finishing = extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Finishing,
+                state,
+            );
+            let technique = extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Technique,
+                state,
+            );
+            let composure = extract_effective_attribute_value(
+                player,
+                attribute_keys,
+                AttributeKey::Composure,
+                state,
+            );
             (finishing * 0.50 + technique * 0.30 + composure * 0.20).max(0.1)
         }
     }

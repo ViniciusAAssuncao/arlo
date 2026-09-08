@@ -2,8 +2,8 @@ use crate::domain::pitch::coordinates::PitchCoordinates;
 use crate::domain::pitch::zone::PitchZone;
 use crate::domain::sport_constants::{
     AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM, DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM,
-    FIRST_ZONE_DEPTH_MIRIM, PITCH_LENGTH_MIRIM_MAX, PITCH_LENGTH_MIRIM_MIN,
-    PITCH_WIDTH_MIRIM_MAX, PITCH_WIDTH_MIRIM_MIN,
+    FIRST_ZONE_DEPTH_MIRIM, PITCH_LENGTH_MIRIM_MAX, PITCH_LENGTH_MIRIM_MIN, PITCH_WIDTH_MIRIM_MAX,
+    PITCH_WIDTH_MIRIM_MIN,
 };
 use crate::domain::validation::validate_float_range;
 use crate::error::DomainResult;

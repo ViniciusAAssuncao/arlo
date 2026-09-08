@@ -5,8 +5,7 @@ use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE,
-    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
-    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
+    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST, FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
     FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use arlo_domain::{AttributeKey, Player, Position};
@@ -240,11 +239,8 @@ pub fn resolve_scoring_attempt_with_fatigue<R: Rng + ?Sized>(
         }
     };
 
-    let outcome = AttributedDuelOutcome::new(
-        raw_outcome,
-        vec![finisher.id()],
-        vec![goalguard.id()],
-    );
+    let outcome =
+        AttributedDuelOutcome::new(raw_outcome, vec![finisher.id()], vec![goalguard.id()]);
 
     crate::psychology::systems::instrumentation::instrument_scoring_attempt(
         &decision,

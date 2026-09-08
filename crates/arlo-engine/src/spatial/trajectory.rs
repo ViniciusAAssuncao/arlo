@@ -146,10 +146,7 @@ impl SpatialTrajectory {
         if self.positions.len() < 2 {
             return Vec::new();
         }
-        self.positions
-            .windows(2)
-            .map(|w| (w[0], w[1]))
-            .collect()
+        self.positions.windows(2).map(|w| (w[0], w[1])).collect()
     }
 }
 

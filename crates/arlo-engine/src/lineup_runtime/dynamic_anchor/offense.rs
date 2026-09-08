@@ -69,25 +69,16 @@ pub fn calculate_offense_attractor_coordinates_for_position(
 
     let push_distance_m = match target_position.line() {
         PositionLine::DefenseLine => {
-            let tactical_knowledge = extract_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::TacticalKnowledge,
-            );
-            let positioning = extract_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Positioning,
-            );
-            let anticipation = extract_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Anticipation,
-            );
+            let tactical_knowledge =
+                extract_attribute_value(player, attribute_keys, AttributeKey::TacticalKnowledge);
+            let positioning =
+                extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
+            let anticipation =
+                extract_attribute_value(player, attribute_keys, AttributeKey::Anticipation);
 
-            let push_factor = (
-                (tactical_knowledge * 0.45 + positioning * 0.35 + anticipation * 0.2) / 20.0
-            ).clamp(0.1, 1.0);
+            let push_factor =
+                ((tactical_knowledge * 0.45 + positioning * 0.35 + anticipation * 0.2) / 20.0)
+                    .clamp(0.1, 1.0);
 
             let target_depth = depth_from_bipolar(
                 instructions.in_possession().mentality().value(),
@@ -113,10 +104,7 @@ pub fn calculate_offense_attractor_coordinates_for_position(
     };
 
     let y_pos = match target_position {
-        Position::WingOffense
-        | Position::TightWing
-        | Position::WideEnd
-        | Position::Corridor => {
+        Position::WingOffense | Position::TightWing | Position::WideEnd | Position::Corridor => {
             let width_val = instructions.in_possession().width().value();
             let flank_bias_val = instructions.in_possession().flank_bias().value();
             let spread_y = lateral_spread(width_val, base_y, pitch_width_m);
@@ -180,7 +168,10 @@ pub fn calculate_offense_drift_radius_mirim(
     let structure_val = instructions.in_possession().structure().value();
     let base_radius = anchor_drift_radius_mirim(positioning);
     let team_structure_multiplier = (1.0 - structure_val).max(0.0);
-    let creative_license_val = player_instructions.in_possession().creative_license().value();
+    let creative_license_val = player_instructions
+        .in_possession()
+        .creative_license()
+        .value();
     let effective_multiplier = team_structure_multiplier.max(creative_license_val);
     base_radius * effective_multiplier
 }
@@ -193,7 +184,12 @@ pub fn apply_offensive_positioning_drift<R: Rng + ?Sized>(
     player_instructions: PlayerInstructions,
     rng: &mut R,
 ) -> VectorPosition {
-    let radius_mirim = calculate_offense_drift_radius_mirim(player, attribute_keys, instructions, player_instructions);
+    let radius_mirim = calculate_offense_drift_radius_mirim(
+        player,
+        attribute_keys,
+        instructions,
+        player_instructions,
+    );
     if radius_mirim <= 1e-6 {
         return anchor;
     }

@@ -1,11 +1,8 @@
 use crate::physical::models::metabolic_power::{
-    calculate_critical_speed as calc_crit_speed,
-    calculate_max_w_prime as calc_max_w_prime,
-    calculate_metabolic_work_rate,
-    calculate_player_body_mass,
+    calculate_critical_speed as calc_crit_speed, calculate_max_w_prime as calc_max_w_prime,
+    calculate_metabolic_work_rate, calculate_player_body_mass,
     calculate_player_critical_speed as calc_player_crit_speed,
-    calculate_player_max_w_prime as calc_player_max_w_prime,
-    estimate_body_mass,
+    calculate_player_max_w_prime as calc_player_max_w_prime, estimate_body_mass,
 };
 use crate::physical::state::PhysicalState;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
@@ -61,7 +58,12 @@ pub fn calculate_anaerobic_cost(
 ) -> f64 {
     let duration = duration_seconds.max(0.0);
     let mass = 78.0;
-    let rate = calculate_metabolic_work_rate(speed_meters_per_sec, critical_speed, mass, intensity_multiplier);
+    let rate = calculate_metabolic_work_rate(
+        speed_meters_per_sec,
+        critical_speed,
+        mass,
+        intensity_multiplier,
+    );
     rate * duration
 }
 
@@ -75,15 +77,16 @@ pub fn calculate_player_anaerobic_cost(
 ) -> f64 {
     let duration = duration_seconds.max(0.0);
     let mass = calculate_player_body_mass(player, attribute_keys);
-    let rate = calculate_metabolic_work_rate(speed_meters_per_sec, critical_speed, mass, intensity_multiplier);
+    let rate = calculate_metabolic_work_rate(
+        speed_meters_per_sec,
+        critical_speed,
+        mass,
+        intensity_multiplier,
+    );
     rate * duration
 }
 
-pub fn apply_anaerobic_cost_to_state(
-    state: &mut PhysicalState,
-    cost: f64,
-    max_w_prime: f64,
-) {
+pub fn apply_anaerobic_cost_to_state(state: &mut PhysicalState, cost: f64, max_w_prime: f64) {
     if cost <= 0.0 || max_w_prime <= 0.0 {
         return;
     }

@@ -37,12 +37,8 @@ pub fn calculate_pass_kinematics(
         state.attribute_keys(),
         &pass_rusher_state,
     );
-    let pass_protection_duration = derive_duel_duration(
-        passer_pos,
-        passer_speed,
-        pass_rusher_pos,
-        pass_rusher_speed,
-    );
+    let pass_protection_duration =
+        derive_duel_duration(passer_pos, passer_speed, pass_rusher_pos, pass_rusher_speed);
 
     let pass_completed = pass_won;
     let is_aerial = false;
@@ -62,10 +58,7 @@ pub fn calculate_pass_kinematics(
             &passer_state,
         );
         let flight_duration = ball_flight_duration(pass_distance_mirim, pass_speed);
-        duration_ledger.record_live(
-            DurationComponentKind::InitialHandoffFlight,
-            flight_duration,
-        );
+        duration_ledger.record_live(DurationComponentKind::InitialHandoffFlight, flight_duration);
 
         let pass_event = translate_pass_completed(
             participants.passer.id(),

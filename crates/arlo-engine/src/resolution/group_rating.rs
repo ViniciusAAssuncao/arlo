@@ -125,15 +125,12 @@ pub fn calculate_side_rating_from_index(
     let players_with_positions: Vec<(&Player, Position)> = players
         .iter()
         .map(|&p| {
-            let pos = position_index
-                .get(&p.id())
-                .copied()
-                .unwrap_or_else(|| {
-                    p.positions()
-                        .first()
-                        .map(|pp| pp.position())
-                        .unwrap_or(Position::CenterOffense)
-                });
+            let pos = position_index.get(&p.id()).copied().unwrap_or_else(|| {
+                p.positions()
+                    .first()
+                    .map(|pp| pp.position())
+                    .unwrap_or(Position::CenterOffense)
+            });
             (p, pos)
         })
         .collect();
@@ -153,19 +150,21 @@ where
     let players_with_positions: Vec<(&Player, Position)> = players
         .iter()
         .map(|&p| {
-            let pos = position_index
-                .get(&p.id())
-                .copied()
-                .unwrap_or_else(|| {
-                    p.positions()
-                        .first()
-                        .map(|pp| pp.position())
-                        .unwrap_or(Position::CenterOffense)
-                });
+            let pos = position_index.get(&p.id()).copied().unwrap_or_else(|| {
+                p.positions()
+                    .first()
+                    .map(|pp| pp.position())
+                    .unwrap_or(Position::CenterOffense)
+            });
             (p, pos)
         })
         .collect();
-    calculate_side_rating_with_fatigue(&players_with_positions, attribute_keys, profile, fatigue_for)
+    calculate_side_rating_with_fatigue(
+        &players_with_positions,
+        attribute_keys,
+        profile,
+        fatigue_for,
+    )
 }
 
 pub fn calculate_anchored_rating(anchor_rating: f64, helper_ratings: &[f64]) -> f64 {
@@ -200,7 +199,8 @@ pub fn calculate_anchored_side_rating(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     profile: &DuelProfile,
 ) -> f64 {
-    let anchor_rating = calculate_player_duel_rating(anchor, anchor_position, attribute_keys, profile);
+    let anchor_rating =
+        calculate_player_duel_rating(anchor, anchor_position, attribute_keys, profile);
     let helper_ratings: Vec<f64> = helpers
         .iter()
         .map(|(p, pos)| calculate_player_duel_rating(p, *pos, attribute_keys, profile))
@@ -332,15 +332,12 @@ pub fn identify_lead_player_from_index<'a>(
     let players_with_positions: Vec<(&'a Player, Position)> = players
         .iter()
         .map(|&p| {
-            let pos = position_index
-                .get(&p.id())
-                .copied()
-                .unwrap_or_else(|| {
-                    p.positions()
-                        .first()
-                        .map(|pp| pp.position())
-                        .unwrap_or(Position::CenterOffense)
-                });
+            let pos = position_index.get(&p.id()).copied().unwrap_or_else(|| {
+                p.positions()
+                    .first()
+                    .map(|pp| pp.position())
+                    .unwrap_or(Position::CenterOffense)
+            });
             (p, pos)
         })
         .collect();

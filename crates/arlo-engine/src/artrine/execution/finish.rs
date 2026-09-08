@@ -46,8 +46,7 @@ where
     let finishing_duration =
         derive_duel_duration(finisher_pos, finisher_speed, goalguard_pos, goalguard_speed);
 
-    let shot_speed =
-        calculate_shot_speed_with_state(finisher, ctx.attribute_keys, &finisher_state);
+    let shot_speed = calculate_shot_speed_with_state(finisher, ctx.attribute_keys, &finisher_state);
     let finisher_x_mirim = finisher_pos.raw().0 / MIRIM_TO_METERS;
     let dist_to_goal_mirim = if ctx.attacking_positive_x {
         (ctx.pitch.length_mirim() - finisher_x_mirim).max(0.0)
@@ -79,10 +78,7 @@ where
         DurationComponentKind::FinishingEngagement,
         finishing_duration,
     );
-    ledger.record_live(
-        DurationComponentKind::ShotFlight,
-        shot_flight,
-    );
+    ledger.record_live(DurationComponentKind::ShotFlight, shot_flight);
 
     execute_finishing_with_player(
         ctx,
@@ -125,7 +121,9 @@ where
 
     let artrine_state = ctx.fatigue(&artrine.id());
     let artrine_pos = spatial_map.get_position(&artrine.id()).unwrap_or(start_pos);
-    let finisher_pos = spatial_map.get_position(&finisher.id()).unwrap_or(start_pos);
+    let finisher_pos = spatial_map
+        .get_position(&finisher.id())
+        .unwrap_or(start_pos);
 
     let cross_dist_mirim = calculate_distance_mirim(artrine_pos, finisher_pos);
     let cross_speed = calculate_cross_speed_with_state(artrine, ctx.attribute_keys, &artrine_state);
@@ -135,18 +133,12 @@ where
         calculate_shot_kinematics(ctx, finisher, finisher_pos, spatial_map);
 
     let mut ledger = DurationLedger::new();
-    ledger.record_live(
-        DurationComponentKind::CrossFlight,
-        cross_flight,
-    );
+    ledger.record_live(DurationComponentKind::CrossFlight, cross_flight);
     ledger.record_live(
         DurationComponentKind::FinishingEngagement,
         finishing_duration,
     );
-    ledger.record_live(
-        DurationComponentKind::ShotFlight,
-        shot_flight,
-    );
+    ledger.record_live(DurationComponentKind::ShotFlight, shot_flight);
 
     let total_advance = ctx.accumulated_advance_mirim + additional_advance;
     execute_finishing_with_player(

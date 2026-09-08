@@ -87,7 +87,7 @@ impl SeriesState {
     }
 
     pub fn has_achieved_target(&self) -> bool {
-        self.advanced_mirins >= MINIMUM_ADVANCE_MIRINS_PER_SERIES as f64
+        self.advanced_mirins >= MINIMUM_ADVANCE_MIRINS_PER_SERIES
     }
 
     pub fn is_last_down(&self) -> bool {
@@ -106,7 +106,7 @@ impl SeriesState {
     }
 
     pub fn remaining_mirins_to_target(&self) -> f64 {
-        (MINIMUM_ADVANCE_MIRINS_PER_SERIES as f64 - self.advanced_mirins).max(0.0)
+        (MINIMUM_ADVANCE_MIRINS_PER_SERIES - self.advanced_mirins).max(0.0)
     }
 
     pub fn remaining_downs(&self) -> u8 {

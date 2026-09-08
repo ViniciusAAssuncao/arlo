@@ -32,10 +32,7 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Venue>> {
     Ok(results)
 }
 
-pub async fn list_by_owner_team_id(
-    pool: &SqlitePool,
-    owner_team_id: Uuid,
-) -> DbResult<Vec<Venue>> {
+pub async fn list_by_owner_team_id(pool: &SqlitePool, owner_team_id: Uuid) -> DbResult<Vec<Venue>> {
     let rows = fetch_all_by_param::<VenueRow>(
         pool,
         "SELECT id, name, kind, owner_team_id, country_id, capacity, pitch_length_mirim, pitch_width_mirim FROM venues WHERE owner_team_id = ?",
@@ -49,10 +46,7 @@ pub async fn list_by_owner_team_id(
     Ok(results)
 }
 
-pub async fn list_by_country_id(
-    pool: &SqlitePool,
-    country_id: Uuid,
-) -> DbResult<Vec<Venue>> {
+pub async fn list_by_country_id(pool: &SqlitePool, country_id: Uuid) -> DbResult<Vec<Venue>> {
     let rows = fetch_all_by_param::<VenueRow>(
         pool,
         "SELECT id, name, kind, owner_team_id, country_id, capacity, pitch_length_mirim, pitch_width_mirim FROM venues WHERE country_id = ?",

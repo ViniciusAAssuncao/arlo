@@ -15,11 +15,7 @@ pub struct SpatialAnchorMap {
 }
 
 impl SpatialAnchorMap {
-    pub fn new(
-        pitch: &Pitch,
-        home_lineup: &Lineup,
-        away_lineup: &Lineup,
-    ) -> EngineResult<Self> {
+    pub fn new(pitch: &Pitch, home_lineup: &Lineup, away_lineup: &Lineup) -> EngineResult<Self> {
         Self::from_pitch(pitch, home_lineup, away_lineup)
     }
 

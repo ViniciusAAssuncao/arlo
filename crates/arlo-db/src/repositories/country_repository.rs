@@ -32,10 +32,7 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Country>> {
     Ok(results)
 }
 
-pub async fn list_by_continent_id(
-    pool: &SqlitePool,
-    continent_id: Uuid,
-) -> DbResult<Vec<Country>> {
+pub async fn list_by_continent_id(pool: &SqlitePool, continent_id: Uuid) -> DbResult<Vec<Country>> {
     let rows = fetch_all_by_param::<CountryRow>(
         pool,
         "SELECT id, name, continent_id, federation_id FROM countries WHERE continent_id = ?",

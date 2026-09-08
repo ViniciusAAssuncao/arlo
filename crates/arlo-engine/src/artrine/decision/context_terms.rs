@@ -1,9 +1,9 @@
 use crate::ai::epv::DynamicEpvModel;
 use crate::artrine::constants::{
     DRIVE_SCARCITY_SERIES_LIMIT, EPV_EPA_DIFF_MULTIPLIER, EPV_LONG_LAUNCH_ADVANCE_MIRIM,
-    EPV_LONG_LAUNCH_PROXIMITY_BONUS, EPV_SELF_CARRY_ADVANCE_MIRIM,
-    EPV_SELF_CARRY_PROXIMITY_BONUS, EPV_SHORT_PASS_ADVANCE_MIRIM,
-    EPV_SHORT_PASS_PROXIMITY_BONUS, SERIES_MAX_DOWNS, SERIES_TARGET_ADVANCE_MIRIM,
+    EPV_LONG_LAUNCH_PROXIMITY_BONUS, EPV_SELF_CARRY_ADVANCE_MIRIM, EPV_SELF_CARRY_PROXIMITY_BONUS,
+    EPV_SHORT_PASS_ADVANCE_MIRIM, EPV_SHORT_PASS_PROXIMITY_BONUS, SERIES_MAX_DOWNS,
+    SERIES_TARGET_ADVANCE_MIRIM,
 };
 use arlo_domain::{ArtrineDecisionKind, Pitch};
 use arlo_math::units::Position;
@@ -53,8 +53,12 @@ pub fn total_context_utility(
     };
     let rem_adv = (SERIES_TARGET_ADVANCE_MIRIM - territory_advance_mirim).max(0.0);
     let epv_model = DynamicEpvModel::default();
-    let base_epv =
-        epv_model.calculate_epa(normalized_proximity, down, rem_adv, drives_in_current_series);
+    let base_epv = epv_model.calculate_epa(
+        normalized_proximity,
+        down,
+        rem_adv,
+        drives_in_current_series,
+    );
 
     match decision {
         ArtrineDecisionKind::SelfCarry => {

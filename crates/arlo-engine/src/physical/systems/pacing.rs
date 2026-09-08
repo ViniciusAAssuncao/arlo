@@ -120,8 +120,8 @@ pub fn calculate_pacing_state_with_effort_and_impulse(
         } else {
             -0.10 * (-norm_impulse_delta)
         };
-        let mult = 1.0
-            + (urgency * (0.40 + conservation_penalty + deficit_scale + impulse_urgency_boost));
+        let mult =
+            1.0 + (urgency * (0.40 + conservation_penalty + deficit_scale + impulse_urgency_boost));
         (mult, is_conserving)
     } else if urgency > 0.50 {
         let mult = 1.0 + urgency * (0.20 + 0.05 * norm_impulse_delta * mental_drive);
@@ -130,14 +130,14 @@ pub fn calculate_pacing_state_with_effort_and_impulse(
         (1.0, false)
     };
 
-    let effort_scale = (base_effort * urgency_effort * impulse_effort_mod * effort_multiplier).clamp(0.50, 1.80);
+    let effort_scale =
+        (base_effort * urgency_effort * impulse_effort_mod * effort_multiplier).clamp(0.50, 1.80);
     let paced_speed_val = (base_cruise_speed * effort_scale).clamp(0.5, critical_speed * 1.15);
     let target_cruise_speed = Speed::new(paced_speed_val);
 
-    let paced_accel = (raw_max_acceleration
-        * (0.75 + 0.25 * effort_scale)
-        * fatigue_multiplier.clamp(0.3, 1.0))
-    .clamp(0.8, raw_max_acceleration * 1.3);
+    let paced_accel =
+        (raw_max_acceleration * (0.75 + 0.25 * effort_scale) * fatigue_multiplier.clamp(0.3, 1.0))
+            .clamp(0.8, raw_max_acceleration * 1.3);
 
     PacingState::new(
         target_cruise_speed,
@@ -208,7 +208,8 @@ pub fn calculate_player_pacing_state_with_effort_and_impulse(
     current_time_unix_seconds: i64,
 ) -> PacingState {
     let work_rate = extract_attribute_value(player, attribute_keys, AttributeKey::WorkRate);
-    let determination = extract_attribute_value(player, attribute_keys, AttributeKey::Determination);
+    let determination =
+        extract_attribute_value(player, attribute_keys, AttributeKey::Determination);
     let positioning = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
     let accel_attr = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
     let agility_attr = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);

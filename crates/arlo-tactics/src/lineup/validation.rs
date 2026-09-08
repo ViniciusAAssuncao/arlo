@@ -82,8 +82,10 @@ pub fn validate_tactical_lineup(
     }
 
     for assignment in lineup.assignments() {
-        if let Some(MarkingAssignment::Man(target)) =
-            assignment.player_instructions().out_of_possession().marking()
+        if let Some(MarkingAssignment::Man(target)) = assignment
+            .player_instructions()
+            .out_of_possession()
+            .marking()
         {
             if target == assignment.position() {
                 return Err(TacticsError::InvalidLineup(

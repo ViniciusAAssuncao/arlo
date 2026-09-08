@@ -49,10 +49,7 @@ pub fn project_formation(pitch: &Pitch, formation: &Formation) -> Vec<PitchCoord
         .collect()
 }
 
-pub fn project_formation_mirrored(
-    pitch: &Pitch,
-    formation: &Formation,
-) -> Vec<PitchCoordinates> {
+pub fn project_formation_mirrored(pitch: &Pitch, formation: &Formation) -> Vec<PitchCoordinates> {
     formation
         .slots()
         .iter()

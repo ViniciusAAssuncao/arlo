@@ -21,6 +21,6 @@ pub use physical_exertion::{
 };
 pub use receiving::{PlayerReceivingAggregator, PlayerReceivingStats};
 pub use scoring_attempts::{
-    PlayerScoringAttemptAggregator, PlayerScoringAttemptsAggregator, PlayerScoringAttemptStats,
+    PlayerScoringAttemptAggregator, PlayerScoringAttemptStats, PlayerScoringAttemptsAggregator,
 };
 pub use touches::{PlayerTouchStats, PlayerTouchesAggregator};

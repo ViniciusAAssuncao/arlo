@@ -32,11 +32,8 @@ where
         (start_x_mirim - raw_advance).max(0.0)
     };
 
-    let target_pos = VectorPosition::from_components(
-        end_x_mirim * MIRIM_TO_METERS,
-        target_channel_y_m,
-        0.0,
-    );
+    let target_pos =
+        VectorPosition::from_components(end_x_mirim * MIRIM_TO_METERS, target_channel_y_m, 0.0);
 
     (raw_advance, target_pos)
 }

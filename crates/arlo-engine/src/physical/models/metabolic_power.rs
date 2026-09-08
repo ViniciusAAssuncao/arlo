@@ -35,15 +35,12 @@ pub fn calculate_critical_speed(
     let norm_fitness = (natural_fitness.clamp(0.0, 20.0)) / 20.0;
     let norm_pace = (pace.clamp(0.0, 20.0)) / 20.0;
     let age_factor = calculate_age_degradation(age_years);
-    let v_crit = (2.6 + (norm_stamina * 2.0) + (norm_fitness * 1.4) + (norm_pace * 0.6)) * age_factor;
+    let v_crit =
+        (2.6 + (norm_stamina * 2.0) + (norm_fitness * 1.4) + (norm_pace * 0.6)) * age_factor;
     v_crit.clamp(2.0, 6.8)
 }
 
-pub fn calculate_max_w_prime(
-    strength: f64,
-    acceleration: f64,
-    mass_kg: f64,
-) -> f64 {
+pub fn calculate_max_w_prime(strength: f64, acceleration: f64, mass_kg: f64) -> f64 {
     let norm_str = (strength.clamp(0.0, 20.0)) / 20.0;
     let norm_acc = (acceleration.clamp(0.0, 20.0)) / 20.0;
     let joules_per_kg = 140.0 + (norm_str * 130.0) + (norm_acc * 170.0);
@@ -71,7 +68,8 @@ pub fn calculate_max_acceleration(
     let norm_acc = (acceleration.clamp(0.0, 20.0)) / 20.0;
     let norm_ag = (agility.clamp(0.0, 20.0)) / 20.0;
     let norm_str = (strength.clamp(0.0, 20.0)) / 20.0;
-    let power_factor = (norm_acc * 0.5 + norm_str * 0.3 + norm_ag * 0.2) / (mass_kg / 75.0).sqrt().max(0.7);
+    let power_factor =
+        (norm_acc * 0.5 + norm_str * 0.3 + norm_ag * 0.2) / (mass_kg / 75.0).sqrt().max(0.7);
     let base_accel = 2.4 + power_factor * 4.8;
     (base_accel * fatigue_multiplier.clamp(0.3, 1.0)).clamp(1.0, 8.5)
 }
@@ -103,7 +101,8 @@ pub fn calculate_player_critical_speed(
     let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
     let fitness = extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
     let pace = extract_attribute_value(player, attribute_keys, AttributeKey::Pace);
-    let age = crate::physical::models::aerobic::calculate_player_age(player, current_time_unix_seconds);
+    let age =
+        crate::physical::models::aerobic::calculate_player_age(player, current_time_unix_seconds);
     let val = calculate_critical_speed(stamina, fitness, pace, age);
     Speed::new(val)
 }
@@ -123,7 +122,8 @@ pub fn calculate_player_desired_cruise_speed(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     current_time_unix_seconds: i64,
 ) -> Speed {
-    let v_crit = calculate_player_critical_speed(player, attribute_keys, current_time_unix_seconds).value();
+    let v_crit =
+        calculate_player_critical_speed(player, attribute_keys, current_time_unix_seconds).value();
     let work_rate = extract_attribute_value(player, attribute_keys, AttributeKey::WorkRate);
     let positioning = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
     let val = calculate_desired_cruise_speed(v_crit, work_rate, positioning);

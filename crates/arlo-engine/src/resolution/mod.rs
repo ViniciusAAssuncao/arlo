@@ -22,16 +22,14 @@ pub use group_rating::{
     calculate_anchored_side_rating_from_index,
     calculate_anchored_side_rating_from_index_with_fatigue,
     calculate_anchored_side_rating_with_fatigue, calculate_group_rating,
-    calculate_player_duel_rating, calculate_player_duel_rating_with_state,
-    calculate_side_rating, calculate_side_rating_from_index,
-    calculate_side_rating_from_index_with_fatigue, calculate_side_rating_with_fatigue,
-    identify_lead_player, identify_lead_player_from_index,
+    calculate_player_duel_rating, calculate_player_duel_rating_with_state, calculate_side_rating,
+    calculate_side_rating_from_index, calculate_side_rating_from_index_with_fatigue,
+    calculate_side_rating_with_fatigue, identify_lead_player, identify_lead_player_from_index,
 };
 pub use outcome::DuelOutcome;
 pub use progression_strategy::ProgressionResolutionStrategy;
 pub use resolver::{
-    resolve_duel, resolve_duel_for_participants,
-    resolve_duel_for_participants_from_index,
+    resolve_duel, resolve_duel_for_participants, resolve_duel_for_participants_from_index,
     resolve_duel_for_participants_from_index_with_fatigue,
     resolve_duel_for_participants_with_fatigue, resolve_duel_with_fatigue,
 };

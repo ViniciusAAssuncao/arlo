@@ -1,6 +1,4 @@
-use crate::instructions::player::axes::{
-    CreativeLicense, InvolvementPriority, PositioningBias,
-};
+use crate::instructions::player::axes::{CreativeLicense, InvolvementPriority, PositioningBias};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]

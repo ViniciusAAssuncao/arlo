@@ -17,9 +17,10 @@ pub fn apply_duel_strain(
         let duel_kind = duel.outcome().kind();
         let base_mult = calculate_duel_intensity_multiplier(duel_kind);
         for attacker_id in duel.attacker_ids() {
-            let (energy, w_bal) = publisher
-                .state_mut()
-                .apply_duel_anaerobic_cost(*attacker_id, 1.0, base_mult);
+            let (energy, w_bal) =
+                publisher
+                    .state_mut()
+                    .apply_duel_anaerobic_cost(*attacker_id, 1.0, base_mult);
             let pos = publisher
                 .state()
                 .spatial_map()
@@ -58,9 +59,10 @@ pub fn apply_duel_strain(
             } else {
                 base_mult
             };
-            let (energy, w_bal) = publisher
-                .state_mut()
-                .apply_duel_anaerobic_cost(*defender_id, 1.0, mult);
+            let (energy, w_bal) =
+                publisher
+                    .state_mut()
+                    .apply_duel_anaerobic_cost(*defender_id, 1.0, mult);
             let pos = publisher
                 .state()
                 .spatial_map()
@@ -135,15 +137,12 @@ pub fn apply_dead_ball_recovery(
     if dead_ball_seconds <= 0.0 {
         return;
     }
-    let recoveries = publisher.state_mut().apply_dead_ball_recovery(dead_ball_seconds);
+    let recoveries = publisher
+        .state_mut()
+        .apply_dead_ball_recovery(dead_ball_seconds);
     for (pid, recovery_amount, new_w_bal) in recoveries {
         if recovery_amount > 0.0 {
-            publisher.emit_recovery_processed(
-                pid,
-                recovery_amount,
-                dead_ball_seconds,
-                new_w_bal,
-            );
+            publisher.emit_recovery_processed(pid, recovery_amount, dead_ball_seconds, new_w_bal);
         }
     }
 }

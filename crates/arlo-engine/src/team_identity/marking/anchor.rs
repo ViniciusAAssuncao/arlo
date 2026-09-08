@@ -27,13 +27,16 @@ pub fn resolve_man_marking_target_position(
         return None;
     }
 
-    let (best_player, target_live_pos) = matching_candidates
-        .into_iter()
-        .min_by(|(_, pos_a), (_, pos_b)| {
-            let dist_a = calculate_distance(defender_pos, *pos_a).value();
-            let dist_b = calculate_distance(defender_pos, *pos_b).value();
-            dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
-        })?;
+    let (best_player, target_live_pos) =
+        matching_candidates
+            .into_iter()
+            .min_by(|(_, pos_a), (_, pos_b)| {
+                let dist_a = calculate_distance(defender_pos, *pos_a).value();
+                let dist_b = calculate_distance(defender_pos, *pos_b).value();
+                dist_a
+                    .partial_cmp(&dist_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })?;
 
     let offset_m = PROXIMITY_CONTEST_RADIUS_MIRIM * 0.5 * MIRIM_TO_METERS;
     let is_target_home = spatial_map.is_home_player(&best_player.id());

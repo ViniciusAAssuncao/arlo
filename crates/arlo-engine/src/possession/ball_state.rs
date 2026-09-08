@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum BallState {
     InPlay,
     OutOfBounds,
+    #[default]
     Dead,
 }
 
@@ -18,11 +19,5 @@ impl BallState {
 
     pub fn is_dead(&self) -> bool {
         matches!(self, Self::Dead)
-    }
-}
-
-impl Default for BallState {
-    fn default() -> Self {
-        Self::Dead
     }
 }

@@ -30,10 +30,7 @@ impl PlayerInstructionsBuilder {
         self
     }
 
-    pub fn with_involvement_priority(
-        mut self,
-        involvement_priority: InvolvementPriority,
-    ) -> Self {
+    pub fn with_involvement_priority(mut self, involvement_priority: InvolvementPriority) -> Self {
         self.involvement_priority = involvement_priority;
         self
     }

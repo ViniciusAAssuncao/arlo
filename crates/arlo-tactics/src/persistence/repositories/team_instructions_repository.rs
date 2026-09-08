@@ -1,8 +1,6 @@
 use crate::error::{TacticsError, TacticsResult};
 use crate::instructions::{TeamInstructions, TeamTacticalProfile};
-use crate::persistence::models::instruction_key_code::{
-    instruction_key_to_code, InstructionKey,
-};
+use crate::persistence::models::instruction_key_code::{instruction_key_to_code, InstructionKey};
 use crate::persistence::models::rows::{
     situational_profile_to_pairs, TacticalInstructionValueRow, TeamTacticalProfileRow,
     TeamTacticalProfileSituationalParameterRow,
@@ -204,10 +202,7 @@ pub async fn insert_profile(
         (
             TacticalPhase::Transition,
             InstructionKey::CounterAttackIntensity,
-            instructions
-                .transition()
-                .counter_attack_intensity()
-                .value(),
+            instructions.transition().counter_attack_intensity().value(),
         ),
         (
             TacticalPhase::Transition,

@@ -70,12 +70,13 @@ impl FatigueTracker {
                 p,
                 attribute_keys,
             );
-            let crit_speed = crate::physical::models::metabolic_power::calculate_player_critical_speed(
-                p,
-                attribute_keys,
-                0,
-            )
-            .value();
+            let crit_speed =
+                crate::physical::models::metabolic_power::calculate_player_critical_speed(
+                    p,
+                    attribute_keys,
+                    0,
+                )
+                .value();
             let cost = crate::physical::models::anaerobic::calculate_player_anaerobic_cost(
                 p,
                 attribute_keys,
@@ -89,9 +90,7 @@ impl FatigueTracker {
             } else {
                 self.away_fatigue.entry(player_id).or_default()
             };
-            crate::physical::models::anaerobic::apply_anaerobic_cost_to_state(
-                fatigue, cost, max_w,
-            );
+            crate::physical::models::anaerobic::apply_anaerobic_cost_to_state(fatigue, cost, max_w);
             (fatigue.energy(), fatigue.w_prime_balance())
         } else {
             let fatigue = self.fatigue_for(&player_id);

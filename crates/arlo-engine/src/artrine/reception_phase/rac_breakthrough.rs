@@ -1,6 +1,6 @@
 use crate::artrine::logistics::{
-    collect_drifted_defender_candidates, collect_helper_candidates,
-    collect_swept_participant_ids, resolve_primary_lead_defender,
+    collect_drifted_defender_candidates, collect_helper_candidates, collect_swept_participant_ids,
+    resolve_primary_lead_defender,
 };
 use crate::artrine::reception_phase::rac_block::RacBlockResult;
 use crate::artrine::reception_phase::rac_context::RacContext;
@@ -91,18 +91,11 @@ where
         rng,
     );
 
-    let rb_def_pos = get_drifted_defender_position(
-        lead_defender,
-        ctx.spatial_map,
-        ctx.attribute_keys,
-        rng,
-    )
-    .unwrap_or(block_res.receiver_pos_vec);
-    let rb_def_spd = calculate_effective_player_speed(
-        lead_defender,
-        ctx.attribute_keys,
-        &lead_def_state,
-    );
+    let rb_def_pos =
+        get_drifted_defender_position(lead_defender, ctx.spatial_map, ctx.attribute_keys, rng)
+            .unwrap_or(block_res.receiver_pos_vec);
+    let rb_def_spd =
+        calculate_effective_player_speed(lead_defender, ctx.attribute_keys, &lead_def_state);
 
     let rec_spd =
         calculate_effective_player_speed(ctx.receiver, ctx.attribute_keys, &receiver_state);

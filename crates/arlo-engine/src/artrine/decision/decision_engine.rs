@@ -245,10 +245,7 @@ pub fn resolve_artrine_decision_with_context_and_impulse<R: Rng + ?Sized>(
         rng,
     );
 
-    crate::psychology::systems::instrumentation::instrument_artrine_decision(
-        artrine.id(),
-        &result,
-    );
+    crate::psychology::systems::instrumentation::instrument_artrine_decision(artrine.id(), &result);
 
     result
 }

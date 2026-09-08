@@ -1,7 +1,9 @@
 use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::artrine::decision_profiles::cross_profile;
-use arlo_domain::sport_constants::{FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE};
+use arlo_domain::sport_constants::{
+    FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+};
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -26,11 +28,9 @@ impl ActionUtilityEvaluator for CrossUtilityEvaluator {
             2.0
         };
 
-        let raw_p = (0.35
-            + 0.35 * ctx.normalized_proximity
-            + 0.20 * target_qual
-            + 0.10 * skill_mult)
-            * (0.60 + 0.40 * ctx.offensive_gravity.min(2.0));
+        let raw_p =
+            (0.35 + 0.35 * ctx.normalized_proximity + 0.20 * target_qual + 0.10 * skill_mult)
+                * (0.60 + 0.40 * ctx.offensive_gravity.min(2.0));
         let p_goal = ctx.bound_probability(raw_p);
 
         let v_opp = ctx.epv_model.opponent_epa(ctx.normalized_proximity);
@@ -47,8 +47,12 @@ impl ActionUtilityEvaluator for CrossUtilityEvaluator {
         let expected_future_value = w_succ * v_succ + w_to * v_to;
 
         let gravity_factor = 0.70 + 0.30 * ctx.offensive_gravity.min(2.0);
-        let risk_multiplier = ctx.risk_profile.risk_multiplier_for_action(ArtrineDecisionKind::Cross);
-        let game_state_bias = ctx.game_state_pressure.bias_for_decision(ArtrineDecisionKind::Cross, ctx.drives_in_series);
+        let risk_multiplier = ctx
+            .risk_profile
+            .risk_multiplier_for_action(ArtrineDecisionKind::Cross);
+        let game_state_bias = ctx
+            .game_state_pressure
+            .bias_for_decision(ArtrineDecisionKind::Cross, ctx.drives_in_series);
         let team_identity_bias = ctx.team_identity_bias.bias_for(ArtrineDecisionKind::Cross);
 
         (expected_future_value * gravity_factor)

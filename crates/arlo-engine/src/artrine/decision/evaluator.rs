@@ -86,11 +86,7 @@ pub fn calculate_decision_utilities_with_context(
         available_kinds,
         normalized_proximity,
         drives_in_current_series,
-        if is_last_down {
-            SERIES_MAX_DOWNS
-        } else {
-            down
-        },
+        if is_last_down { SERIES_MAX_DOWNS } else { down },
         remaining_advance_mirim,
         pass_protection_net_advantage,
         best_available_target_weight,

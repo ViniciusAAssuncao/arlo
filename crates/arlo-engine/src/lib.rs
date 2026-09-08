@@ -10,10 +10,10 @@ pub mod psychology;
 pub mod resolution;
 pub mod rng;
 pub mod spatial;
+pub mod team_identity;
 pub mod time;
 pub mod weighting;
 pub mod world_state;
-pub mod team_identity;
 
 pub use error::{EngineError, EngineResult};
 pub use psychology::*;

@@ -27,7 +27,12 @@ impl CompetitionRow {
             "National" => Scope::National,
             "Continental" => Scope::Continental,
             "International" => Scope::International,
-            _ => return Err(DbError::InvalidEnum(format!("Invalid scope: {}", self.scope))),
+            _ => {
+                return Err(DbError::InvalidEnum(format!(
+                    "Invalid scope: {}",
+                    self.scope
+                )))
+            }
         };
         let kind = match self.kind.as_str() {
             "League" => CompetitionKind::League,

@@ -1,7 +1,7 @@
 use super::runs::ImpulseRun;
-use crate::snapshot::{ IntoSnapshot, PlayerImpulseSnapshot };
+use crate::snapshot::{IntoSnapshot, PlayerImpulseSnapshot};
 use arlo_events::ImpulseEventKind;
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -140,7 +140,8 @@ impl PlayerImpulseStats {
     }
 
     pub fn longest_run_duration_seconds(&self) -> f64 {
-        let completed_max = self.runs
+        let completed_max = self
+            .runs
             .iter()
             .map(|r| r.duration_seconds)
             .fold(0.0_f64, f64::max);
@@ -152,7 +153,8 @@ impl PlayerImpulseStats {
     }
 
     pub fn peak_run_value(&self) -> u8 {
-        let completed_max = self.runs
+        let completed_max = self
+            .runs
             .iter()
             .map(|r| r.peak_value)
             .max()
@@ -165,10 +167,7 @@ impl PlayerImpulseStats {
     }
 
     pub fn total_integrated_run_intensity(&self) -> f64 {
-        let sum: f64 = self.runs
-            .iter()
-            .map(|r| r.integrated_intensity)
-            .sum();
+        let sum: f64 = self.runs.iter().map(|r| r.integrated_intensity).sum();
         if let Some(active) = self.active_run {
             sum + active.integrated_intensity
         } else {
@@ -181,11 +180,8 @@ impl PlayerImpulseStats {
         if total_runs == 0 {
             0.0
         } else {
-            let total_dur: f64 =
-                self.runs
-                    .iter()
-                    .map(|r| r.duration_seconds)
-                    .sum::<f64>() + self.active_run.map(|r| r.duration_seconds).unwrap_or(0.0);
+            let total_dur: f64 = self.runs.iter().map(|r| r.duration_seconds).sum::<f64>()
+                + self.active_run.map(|r| r.duration_seconds).unwrap_or(0.0);
             total_dur / (total_runs as f64)
         }
     }
@@ -235,7 +231,7 @@ impl PlayerImpulseStats {
         &mut self,
         new_value: u8,
         event_kind: ImpulseEventKind,
-        timestamp_seconds: f64
+        timestamp_seconds: f64,
     ) {
         let prev_value = self.current_value;
         self.current_value = new_value;

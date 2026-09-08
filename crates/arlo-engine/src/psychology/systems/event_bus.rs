@@ -38,13 +38,12 @@ pub struct ImpulseEventBus {
 
 impl ImpulseEventBus {
     pub fn new() -> Self {
-        Self {
-            events: Vec::new(),
-        }
+        Self { events: Vec::new() }
     }
 
     pub fn publish(&mut self, target_id: Uuid, event: ImpulseEvent) {
-        self.events.push(DispatchedImpulseEvent::new(target_id, event));
+        self.events
+            .push(DispatchedImpulseEvent::new(target_id, event));
     }
 
     pub fn publish_events(&mut self, events: impl IntoIterator<Item = DispatchedImpulseEvent>) {
@@ -68,7 +67,9 @@ impl ImpulseEventBus {
     ) {
         if let Some(&player) = lineup_players.iter().find(|p| {
             position_index.get(&p.id()).copied() == Some(position)
-                || p.positions().iter().any(|pos| pos.position() == position && pos.proficiency() > 0)
+                || p.positions()
+                    .iter()
+                    .any(|pos| pos.position() == position && pos.proficiency() > 0)
         }) {
             self.publish(player.id(), event);
         }
@@ -150,12 +151,8 @@ impl ImpulseEventBus {
             for player in offense_players {
                 let pid = player.id();
                 let involved = pid == finisher_id;
-                let event = ImpulseEvent::new(
-                    ImpulseEventKind::ScoreFor,
-                    att_surprisal,
-                    points,
-                    involved,
-                );
+                let event =
+                    ImpulseEvent::new(ImpulseEventKind::ScoreFor, att_surprisal, points, involved);
                 self.publish(pid, event);
             }
 
@@ -210,24 +207,14 @@ impl ImpulseEventBus {
         for player in offense_players {
             let pid = player.id();
             let involved = Some(pid) == lost_by_player_id;
-            let event = ImpulseEvent::new(
-                ImpulseEventKind::TurnoverCommitted,
-                1.20,
-                2.5,
-                involved,
-            );
+            let event = ImpulseEvent::new(ImpulseEventKind::TurnoverCommitted, 1.20, 2.5, involved);
             self.publish(pid, event);
         }
 
         for player in defense_players {
             let pid = player.id();
             let involved = Some(pid) == recovering_player_id;
-            let event = ImpulseEvent::new(
-                ImpulseEventKind::TurnoverWon,
-                1.20,
-                2.5,
-                involved,
-            );
+            let event = ImpulseEvent::new(ImpulseEventKind::TurnoverWon, 1.20, 2.5, involved);
             self.publish(pid, event);
         }
     }
@@ -240,9 +227,19 @@ impl ImpulseEventBus {
         involved_offense_ids: &[Uuid],
     ) {
         let (off_kind, def_kind, surprisal, epv) = if success {
-            (ImpulseEventKind::SeriesSuccess, ImpulseEventKind::SeriesFailure, 0.70, 1.5)
+            (
+                ImpulseEventKind::SeriesSuccess,
+                ImpulseEventKind::SeriesFailure,
+                0.70,
+                1.5,
+            )
         } else {
-            (ImpulseEventKind::SeriesFailure, ImpulseEventKind::SeriesSuccess, 0.90, 2.0)
+            (
+                ImpulseEventKind::SeriesFailure,
+                ImpulseEventKind::SeriesSuccess,
+                0.90,
+                2.0,
+            )
         };
 
         for player in offense_players {

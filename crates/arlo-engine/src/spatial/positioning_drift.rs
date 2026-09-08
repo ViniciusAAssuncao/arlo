@@ -89,7 +89,10 @@ pub fn get_drifted_attacker_position<R: Rng + ?Sized>(
     let anchor = spatial_map.get_position(&attacker.id())?;
     let positioning = extract_attribute_value(attacker, attribute_keys, AttributeKey::Positioning);
     let structure = instructions.in_possession().structure().value();
-    let creative_license = player_instructions.in_possession().creative_license().value();
+    let creative_license = player_instructions
+        .in_possession()
+        .creative_license()
+        .value();
     Some(apply_positioning_drift_with_structure(
         anchor,
         positioning,
@@ -114,6 +117,8 @@ pub fn nearest_drifted_opponent<'a, R: Rng + ?Sized>(
         .min_by(|(_, pos_a), (_, pos_b)| {
             let dist_a = calculate_distance(reference_pos, *pos_a).value();
             let dist_b = calculate_distance(reference_pos, *pos_b).value();
-            dist_a.partial_cmp(&dist_b).unwrap_or(std::cmp::Ordering::Equal)
+            dist_a
+                .partial_cmp(&dist_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
 }

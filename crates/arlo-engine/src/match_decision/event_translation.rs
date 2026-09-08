@@ -90,9 +90,7 @@ pub fn translate_pass_completed(
     )
 }
 
-pub fn translate_distribution_completed(
-    info: &DistributionFlightInfo,
-) -> DistributionCompleted {
+pub fn translate_distribution_completed(info: &DistributionFlightInfo) -> DistributionCompleted {
     let rx_mirim = info.reception_point.raw().0 / MIRIM_TO_METERS;
     let ry_mirim = info.reception_point.raw().1 / MIRIM_TO_METERS;
     DistributionCompleted::new(
@@ -114,7 +112,13 @@ pub fn translate_drive_recorded(
     drives_in_series: u32,
     x_mirim: f64,
 ) -> DriveRecorded {
-    DriveRecorded::new(artrine_id, artro_row_index, placement, drives_in_series, x_mirim)
+    DriveRecorded::new(
+        artrine_id,
+        artro_row_index,
+        placement,
+        drives_in_series,
+        x_mirim,
+    )
 }
 
 pub fn translate_turnover(

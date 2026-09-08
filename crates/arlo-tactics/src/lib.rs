@@ -35,9 +35,9 @@ pub use playcall::{
 pub use series::{SeriesScript, SeriesScriptBuilder};
 
 pub use persistence::models::{
-    artro_placement_to_code, artrine_decision_kind_to_code, build_decision_emphasis,
+    artrine_decision_kind_to_code, artro_placement_to_code, build_decision_emphasis,
     build_player_instructions, instruction_key_to_code, marking_assignment_to_columns,
-    parse_artro_placement, parse_artrine_decision_kind, parse_instruction_key,
+    parse_artrine_decision_kind, parse_artro_placement, parse_instruction_key,
     parse_marking_assignment, parse_play_call_category, parse_player_instruction_key,
     parse_situational_parameter_key, parse_slot_role, parse_tactical_phase,
     play_call_category_to_code, player_instruction_key_to_code, situational_parameter_key_to_code,
@@ -50,6 +50,4 @@ pub use persistence::models::{
     TeamTacticalProfileSituationalParameterRow,
 };
 
-pub use persistence::repositories::{
-    play_call, series_script, tactical_lineup, team_instructions,
-};
+pub use persistence::repositories::{play_call, series_script, tactical_lineup, team_instructions};

@@ -211,7 +211,9 @@ impl PlayerDuelAggregator {
     }
 
     fn get_mut_or_create(&mut self, player_id: Uuid) -> &mut PlayerDuelStats {
-        self.stats.entry(player_id).or_insert_with(|| PlayerDuelStats::new(player_id))
+        self.stats
+            .entry(player_id)
+            .or_insert_with(|| PlayerDuelStats::new(player_id))
     }
 
     pub fn record_attacker_duel(&mut self, player_id: Uuid, kind: DuelKind, won: bool) {

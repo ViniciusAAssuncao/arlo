@@ -37,14 +37,8 @@ fn handle_failed_reception(
     });
 
     let mut ledger = DurationLedger::new();
-    ledger.record_live(
-        DurationComponentKind::DistributionEngagement,
-        dist_duration,
-    );
-    ledger.record_live(
-        DurationComponentKind::DistributionFlight,
-        flight_duration,
-    );
+    ledger.record_live(DurationComponentKind::DistributionEngagement, dist_duration);
+    ledger.record_live(DurationComponentKind::DistributionFlight, flight_duration);
     ledger.record_live(
         DurationComponentKind::ReceptionEngagement,
         reception_outcome.duration,
@@ -52,7 +46,11 @@ fn handle_failed_reception(
 
     let (turnover, recovering_player_id, end_position) =
         if let Some(interceptor_id) = reception_outcome.intercepted_by_defender {
-            (Some(defense_team_id), Some(interceptor_id), receiver_pos_vec)
+            (
+                Some(defense_team_id),
+                Some(interceptor_id),
+                receiver_pos_vec,
+            )
         } else {
             (None, None, start_pos)
         };
@@ -123,9 +121,7 @@ where
                 .unwrap_or(DomainPosition::CenterOffense)
         });
 
-    let receiver_pos_vec = spatial_map
-        .get_position(&receiver_id)
-        .unwrap_or(start_pos);
+    let receiver_pos_vec = spatial_map.get_position(&receiver_id).unwrap_or(start_pos);
 
     if !reception_outcome.caught {
         return handle_failed_reception(
@@ -179,11 +175,8 @@ where
     };
 
     let mirins_advanced = (end_x_mirim - start_x_mirim).abs();
-    let end_position = VectorPosition::from_components(
-        end_x_mirim * MIRIM_TO_METERS,
-        start_pos.raw().1,
-        0.0,
-    );
+    let end_position =
+        VectorPosition::from_components(end_x_mirim * MIRIM_TO_METERS, start_pos.raw().1, 0.0);
 
     let distribution_flight = Some(DistributionFlightInfo {
         receiver_id,
@@ -199,14 +192,8 @@ where
     duels.extend(rac_outcome.duels);
 
     let mut ledger = DurationLedger::new();
-    ledger.record_live(
-        DurationComponentKind::DistributionEngagement,
-        dist_duration,
-    );
-    ledger.record_live(
-        DurationComponentKind::DistributionFlight,
-        flight_duration,
-    );
+    ledger.record_live(DurationComponentKind::DistributionEngagement, dist_duration);
+    ledger.record_live(DurationComponentKind::DistributionFlight, flight_duration);
     ledger.record_live(
         DurationComponentKind::ReceptionEngagement,
         reception_outcome.duration,

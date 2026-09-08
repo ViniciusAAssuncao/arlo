@@ -20,19 +20,10 @@ pub struct Formation {
 }
 
 impl Formation {
-    pub fn new(
-        id: Uuid,
-        name: impl Into<String>,
-        slots: Vec<FormationSlot>,
-    ) -> DomainResult<Self> {
+    pub fn new(id: Uuid, name: impl Into<String>, slots: Vec<FormationSlot>) -> DomainResult<Self> {
         let name = name.into();
         validate_not_empty(&name, "name")?;
-        validate_exact_count(
-            &slots,
-            |_| true,
-            TOTAL_PLAYERS_PER_TEAM as usize,
-            "slots",
-        )?;
+        validate_exact_count(&slots, |_| true, TOTAL_PLAYERS_PER_TEAM as usize, "slots")?;
         validate_exact_count(
             &slots,
             |s| s.position() == Position::Goalguard,
@@ -54,8 +45,16 @@ impl Formation {
         validate_no_duplicate_keys(
             &slots,
             |s| {
-                let x = if s.pitch_length_ratio() == 0.0 { 0.0 } else { s.pitch_length_ratio() };
-                let y = if s.pitch_width_ratio() == 0.0 { 0.0 } else { s.pitch_width_ratio() };
+                let x = if s.pitch_length_ratio() == 0.0 {
+                    0.0
+                } else {
+                    s.pitch_length_ratio()
+                };
+                let y = if s.pitch_width_ratio() == 0.0 {
+                    0.0
+                } else {
+                    s.pitch_width_ratio()
+                };
                 (x.to_bits(), y.to_bits())
             },
             "slots",

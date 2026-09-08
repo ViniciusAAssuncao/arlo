@@ -8,7 +8,7 @@ pub enum PossessionLossClassification {
 }
 
 pub fn is_immediate_loss(control_duration_seconds: f64) -> bool {
-    control_duration_seconds < IMMEDIATE_POSSESSION_CONTROL_SECONDS as f64
+    control_duration_seconds < IMMEDIATE_POSSESSION_CONTROL_SECONDS
 }
 
 pub fn is_established_possession(control_duration_seconds: f64) -> bool {

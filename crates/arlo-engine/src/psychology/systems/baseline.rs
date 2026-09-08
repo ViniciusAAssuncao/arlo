@@ -94,7 +94,9 @@ pub fn find_active_captain<'a>(
     players.iter().copied().max_by(|a, b| {
         let lead_a = extract_attribute_value(a, attribute_keys, AttributeKey::Leadership);
         let lead_b = extract_attribute_value(b, attribute_keys, AttributeKey::Leadership);
-        lead_a.partial_cmp(&lead_b).unwrap_or(std::cmp::Ordering::Equal)
+        lead_a
+            .partial_cmp(&lead_b)
+            .unwrap_or(std::cmp::Ordering::Equal)
     })
 }
 
@@ -103,15 +105,14 @@ pub fn calculate_captaincy_influence(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
     let leadership = extract_attribute_value(captain, attribute_keys, AttributeKey::Leadership);
-    let communication = extract_attribute_value(captain, attribute_keys, AttributeKey::Communication);
-    let determination = extract_attribute_value(captain, attribute_keys, AttributeKey::Determination);
+    let communication =
+        extract_attribute_value(captain, attribute_keys, AttributeKey::Communication);
+    let determination =
+        extract_attribute_value(captain, attribute_keys, AttributeKey::Determination);
     let teamwork = extract_attribute_value(captain, attribute_keys, AttributeKey::Teamwork);
 
-    let composite = (leadership * 0.40
-        + communication * 0.25
-        + determination * 0.20
-        + teamwork * 0.15)
-        / 20.0;
+    let composite =
+        (leadership * 0.40 + communication * 0.25 + determination * 0.20 + teamwork * 0.15) / 20.0;
 
     let delta = (composite.clamp(0.0, 1.0) - 0.50) / 0.50;
     delta.clamp(-1.0, 1.0)

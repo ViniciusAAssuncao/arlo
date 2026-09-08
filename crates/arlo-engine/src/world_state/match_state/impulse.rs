@@ -5,7 +5,9 @@ use crate::psychology::systems::baseline::{
 };
 use crate::psychology::systems::dynamics::update_player_impulse_contextual;
 use crate::psychology::systems::event_bus::ImpulseEventBus;
-use crate::psychology::systems::events::{apply_impulse_event_contextual_at, ImpulseEvent, ImpulseShift};
+use crate::psychology::systems::events::{
+    apply_impulse_event_contextual_at, ImpulseEvent, ImpulseShift,
+};
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::AttributeKey;
@@ -110,11 +112,13 @@ impl ImpulseTracker {
 
         for p in teams.home_lineup().players() {
             let base = calculate_player_contextual_baseline(p, attribute_keys, home_captain, true);
-            self.home_impulse.insert(p.id(), ImpulseState::from_baseline(base));
+            self.home_impulse
+                .insert(p.id(), ImpulseState::from_baseline(base));
         }
         for p in teams.away_lineup().players() {
             let base = calculate_player_contextual_baseline(p, attribute_keys, away_captain, false);
-            self.away_impulse.insert(p.id(), ImpulseState::from_baseline(base));
+            self.away_impulse
+                .insert(p.id(), ImpulseState::from_baseline(base));
         }
     }
 

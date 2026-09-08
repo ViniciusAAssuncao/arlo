@@ -1,7 +1,5 @@
 use crate::domain::sport_constants::{
-    AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
-    FIRST_ZONE_DEPTH_MIRIM,
-    SECOND_ZONE_DEPTH_MIRIM_MAX,
+    AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM, FIRST_ZONE_DEPTH_MIRIM, SECOND_ZONE_DEPTH_MIRIM_MAX,
     SECOND_ZONE_DEPTH_MIRIM_MIN,
 };
 use crate::domain::validation::validate_float_range;
@@ -84,16 +82,16 @@ impl SecondZone {
     pub fn from_rule_value_or_default(rule_value: Option<&str>) -> DomainResult<Self> {
         match rule_value {
             Some(val) if !val.trim().is_empty() => {
-                let depth_mirim = val
-                    .trim()
-                    .parse::<f64>()
-                    .map_err(|_| DomainError::InvalidInvariant {
-                        field: "second_zone_depth_mirim".to_string(),
-                        violation: InvariantViolation::OutOfFloatRange {
-                            min: SECOND_ZONE_DEPTH_MIRIM_MIN,
-                            max: SECOND_ZONE_DEPTH_MIRIM_MAX,
-                        },
-                    })?;
+                let depth_mirim =
+                    val.trim()
+                        .parse::<f64>()
+                        .map_err(|_| DomainError::InvalidInvariant {
+                            field: "second_zone_depth_mirim".to_string(),
+                            violation: InvariantViolation::OutOfFloatRange {
+                                min: SECOND_ZONE_DEPTH_MIRIM_MIN,
+                                max: SECOND_ZONE_DEPTH_MIRIM_MAX,
+                            },
+                        })?;
                 Self::from_mirim(depth_mirim)
             }
             _ => Ok(Self::default_awc()),

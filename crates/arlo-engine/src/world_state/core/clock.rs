@@ -30,10 +30,12 @@ impl MatchClock {
             away_challenges: format_rules.challenges_per_match(),
             is_finished: false,
             regulation_periods: format_rules.regulation_periods(),
-            regulation_period_duration_seconds: (format_rules.regulation_period_duration_minutes() * 60) as f64,
+            regulation_period_duration_seconds: (format_rules.regulation_period_duration_minutes()
+                * 60) as f64,
             allows_overtime: format_rules.allows_overtime(),
             overtime_periods: format_rules.overtime_periods(),
-            overtime_period_duration_seconds: (format_rules.overtime_period_duration_minutes() * 60) as f64,
+            overtime_period_duration_seconds: (format_rules.overtime_period_duration_minutes() * 60)
+                as f64,
             time_calls_per_period: format_rules.time_calls_per_period(),
         }
     }

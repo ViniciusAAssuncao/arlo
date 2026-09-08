@@ -16,11 +16,8 @@ impl TryFrom<SaveMetadataRow> for SaveMetadata {
 
     fn try_from(row: SaveMetadataRow) -> Result<Self, Self::Error> {
         let uuid = Uuid::parse_str(&row.save_uuid)?;
-        let metadata = SaveMetadata::new(
-            uuid,
-            row.created_at_unix_seconds,
-            row.source_template_path,
-        )?;
+        let metadata =
+            SaveMetadata::new(uuid, row.created_at_unix_seconds, row.source_template_path)?;
         Ok(metadata)
     }
 }

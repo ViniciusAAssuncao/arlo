@@ -152,21 +152,15 @@ where
 
     if let Some((closest_def, closest_pos)) = nearest_def_opt {
         let closest_def_state = ctx.fatigue(&closest_def.id());
-        let closest_def_speed = calculate_effective_player_speed(
-            closest_def,
-            ctx.attribute_keys,
-            &closest_def_state,
-        );
+        let closest_def_speed =
+            calculate_effective_player_speed(closest_def, ctx.attribute_keys, &closest_def_state);
         let sec_duration = derive_duel_duration(
             carrier_pos_vec,
             carrier_speed,
             closest_pos,
             closest_def_speed,
         );
-        ledger.record_live(
-            DurationComponentKind::BallSecurityEngagement,
-            sec_duration,
-        );
+        ledger.record_live(DurationComponentKind::BallSecurityEngagement, sec_duration);
     }
 
     let sec_context = ctx.duel_context.for_duel_kind(security_kind);

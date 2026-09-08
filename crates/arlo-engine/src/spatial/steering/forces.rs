@@ -1,5 +1,7 @@
 use crate::spatial::steering::neighbor::SpatialNeighbor;
-use crate::spatial::steering::radii::{derive_dynamic_separation_radius, max_turn_radians_per_tick};
+use crate::spatial::steering::radii::{
+    derive_dynamic_separation_radius, max_turn_radians_per_tick,
+};
 use arlo_math::units::{Duration, Position, Speed, Vector3, Velocity};
 use std::f64::consts::PI;
 use uuid::Uuid;
@@ -125,7 +127,8 @@ pub fn calculate_dynamic_separation_force_with_id(
         if dist > 1e-4 {
             let dir_to_neighbor = (pn - p0) / dist;
             let approach_speed = if v0_mag > 1e-6 {
-                (v0.0 * dir_to_neighbor.0 + v0.1 * dir_to_neighbor.1 + v0.2 * dir_to_neighbor.2).max(0.0)
+                (v0.0 * dir_to_neighbor.0 + v0.1 * dir_to_neighbor.1 + v0.2 * dir_to_neighbor.2)
+                    .max(0.0)
             } else {
                 0.0
             };

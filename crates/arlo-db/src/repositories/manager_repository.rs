@@ -8,14 +8,9 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-async fn load_definitions_map(
-    pool: &SqlitePool,
-) -> DbResult<HashMap<Uuid, AttributeDefinition>> {
-    let defs = attribute_definition_repository::list_by_applies_to(
-        pool,
-        AttributeTarget::Manager,
-    )
-    .await?;
+async fn load_definitions_map(pool: &SqlitePool) -> DbResult<HashMap<Uuid, AttributeDefinition>> {
+    let defs =
+        attribute_definition_repository::list_by_applies_to(pool, AttributeTarget::Manager).await?;
     let mut map = HashMap::new();
     for d in defs {
         map.insert(d.id(), d);

@@ -2,9 +2,8 @@ use crate::artrine::DistributionFlightInfo;
 use crate::match_decision::event_translation::{
     create_envelope, translate_countdown_started, translate_distribution_completed,
     translate_down_advanced, translate_drive_recorded, translate_duel_resolved,
-    translate_out_of_bounds, translate_physical_strain_recorded,
-    translate_reception_resolved, translate_recovery_interval_processed,
-    translate_scoring_decision, translate_turnover,
+    translate_out_of_bounds, translate_physical_strain_recorded, translate_reception_resolved,
+    translate_recovery_interval_processed, translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
 use crate::psychology::event_translation::{
@@ -48,11 +47,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         self.sink.record(create_envelope(seq, clock_inst, event));
     }
 
-    pub fn emit_drives(
-        &mut self,
-        artrine_id: Uuid,
-        drive_row_indices: &[usize],
-    ) {
+    pub fn emit_drives(&mut self, artrine_id: Uuid, drive_row_indices: &[usize]) {
         for &row_index in drive_row_indices {
             self.state.increment_drives();
             let rx = (row_index as f64 + 1.0) * ARTRO_ROW_SPACING_MIRIM;
@@ -67,19 +62,12 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         }
     }
 
-    pub fn emit_distribution_flight(
-        &mut self,
-        flight_info: &DistributionFlightInfo,
-    ) {
+    pub fn emit_distribution_flight(&mut self, flight_info: &DistributionFlightInfo) {
         let dist_event = translate_distribution_completed(flight_info);
         self.publish(dist_event);
     }
 
-    pub fn emit_duel_events(
-        &mut self,
-        duels: &[AttributedDuelOutcome],
-        default_receiver_id: Uuid,
-    ) {
+    pub fn emit_duel_events(&mut self, duels: &[AttributedDuelOutcome], default_receiver_id: Uuid) {
         for duel in duels {
             let duel_event = translate_duel_resolved(
                 duel.outcome(),
@@ -108,10 +96,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         }
     }
 
-    pub fn emit_scoring_event(
-        &mut self,
-        scoring_decision: &ScoringDecision,
-    ) {
+    pub fn emit_scoring_event(&mut self, scoring_decision: &ScoringDecision) {
         if let Some(match_event) = translate_scoring_decision(scoring_decision) {
             self.publish(match_event);
         }
@@ -144,12 +129,8 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         point: VectorPosition,
         was_immediate: bool,
     ) {
-        let oob_event = translate_out_of_bounds(
-            offense_team_id,
-            last_player_id,
-            point,
-            was_immediate,
-        );
+        let oob_event =
+            translate_out_of_bounds(offense_team_id, last_player_id, point, was_immediate);
         self.publish(oob_event);
     }
 
@@ -179,11 +160,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         end_x_mirim: f64,
         reason: CountdownReason,
     ) {
-        let countdown_event = translate_countdown_started(
-            offense_team_id,
-            end_x_mirim,
-            reason,
-        );
+        let countdown_event = translate_countdown_started(offense_team_id, end_x_mirim, reason);
         self.publish(countdown_event);
     }
 
@@ -239,10 +216,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         self.publish(shift_event);
     }
 
-    pub fn emit_impulse_critical(
-        &mut self,
-        critical: &EngineImpulseCritical,
-    ) {
+    pub fn emit_impulse_critical(&mut self, critical: &EngineImpulseCritical) {
         let critical_event = translate_impulse_critical_reached(critical);
         self.publish(critical_event);
     }

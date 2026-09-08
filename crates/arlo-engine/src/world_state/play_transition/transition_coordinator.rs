@@ -74,10 +74,8 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         }
 
         apply_duel_strain(&mut self.publisher, &self.play_duels);
-        self.publisher.emit_duel_events(
-            &self.execution_outcome.duels,
-            self.pass_phase.artrine.id(),
-        );
+        self.publisher
+            .emit_duel_events(&self.execution_outcome.duels, self.pass_phase.artrine.id());
 
         apply_kinematic_movement_strain(
             &mut self.publisher,
