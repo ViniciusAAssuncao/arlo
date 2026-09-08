@@ -12,8 +12,8 @@ use crate::world_state::constants::{
     HUDDLE_LEADERSHIP_WEIGHT, HUDDLE_MAX_SECONDS, HUDDLE_MIN_SECONDS, HUDDLE_TACTICAL_WEIGHT,
     PITCH_EDGE_MARGIN_MIRIM,
 };
-use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::fatigue_applier::apply_kinematic_movement_strain;
+use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_domain::{AttributeKey, Position as DomainPosition};
 use arlo_events::EventSink;
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
@@ -21,31 +21,30 @@ use std::collections::HashSet;
 use uuid::Uuid;
 
 pub fn derive_and_apply_reorganization(
-    state: &mut MatchState,
+    publisher: &mut EventPublisher<'_, impl EventSink>,
     scrimmage_x_mirim: f64,
     is_post_turnover: bool,
     recovering_player_id: Option<Uuid>,
-    sink: &mut impl EventSink,
 ) -> (Duration, Duration) {
-    let pitch = *state.pitch();
-    let home_lineup = state.home_lineup().clone();
-    let away_lineup = state.away_lineup().clone();
-    let attribute_keys = state.attribute_keys().clone();
+    let pitch = *publisher.state().pitch();
+    let home_lineup = publisher.state().home_lineup().clone();
+    let away_lineup = publisher.state().away_lineup().clone();
+    let attribute_keys = publisher.state().attribute_keys().clone();
 
-    let was_home_offense = state.possession().role().is_offense(state.home_team_id());
+    let was_home_offense = publisher.state().possession().role().is_offense(publisher.state().home_team_id());
     let is_home_offense = if is_post_turnover {
         !was_home_offense
     } else {
         was_home_offense
     };
 
-    let home_instructions = state.home_instructions().clone();
-    let away_instructions = state.away_instructions().clone();
+    let home_instructions = publisher.state().home_instructions().clone();
+    let away_instructions = publisher.state().away_instructions().clone();
 
     let home_ctx = AnchorComputationContext {
-        player_instructions_index: state.instructions_index_for_team(state.home_team_id()),
+        player_instructions_index: publisher.state().instructions_index_for_team(publisher.state().home_team_id()),
         opposing_lineup: Some(&away_lineup),
-        spatial_map: Some(state.spatial_map()),
+        spatial_map: Some(publisher.state().spatial_map()),
     };
     let mut home_targets = compute_dynamic_anchors(
         &pitch,
@@ -59,9 +58,9 @@ pub fn derive_and_apply_reorganization(
     );
 
     let away_ctx = AnchorComputationContext {
-        player_instructions_index: state.instructions_index_for_team(state.away_team_id()),
+        player_instructions_index: publisher.state().instructions_index_for_team(publisher.state().away_team_id()),
         opposing_lineup: Some(&home_lineup),
-        spatial_map: Some(state.spatial_map()),
+        spatial_map: Some(publisher.state().spatial_map()),
     };
     let mut away_targets = compute_dynamic_anchors(
         &pitch,
@@ -76,7 +75,7 @@ pub fn derive_and_apply_reorganization(
 
     let individual_release_tempo = if is_post_turnover {
         recovering_player_id
-            .map(|id| state.player_instructions_for(&id).transition().release_tempo())
+            .map(|id| publisher.state().player_instructions_for(&id).transition().release_tempo())
     } else {
         None
     };
@@ -141,8 +140,8 @@ pub fn derive_and_apply_reorganization(
         }
     }
 
-    let home_fatigue = state.home_fatigue().clone();
-    let away_fatigue = state.away_fatigue().clone();
+    let home_fatigue = publisher.state().home_fatigue().clone();
+    let away_fatigue = publisher.state().away_fatigue().clone();
     let fatigue_lookup = move |id: &Uuid| {
         home_fatigue
             .get(id)
@@ -151,10 +150,10 @@ pub fn derive_and_apply_reorganization(
             .unwrap_or_default()
     };
 
-    let home_team_id = state.home_team_id();
-    let away_team_id = state.away_team_id();
-    let home_instr = state.instructions_index_for_team(home_team_id).clone();
-    let away_instr = state.instructions_index_for_team(away_team_id).clone();
+    let home_team_id = publisher.state().home_team_id();
+    let away_team_id = publisher.state().away_team_id();
+    let home_instr = publisher.state().instructions_index_for_team(home_team_id).clone();
+    let away_instr = publisher.state().instructions_index_for_team(away_team_id).clone();
     let home_ids: HashSet<Uuid> = home_lineup.assignments().iter().map(|a| a.player().id()).collect();
 
     let (offense_instructions, defense_instructions) = if is_home_offense {
@@ -187,7 +186,7 @@ pub fn derive_and_apply_reorganization(
     };
 
     let tick_result = run_spatial_tick_loop_with_context(
-        state.spatial_map_mut(),
+        publisher.state_mut().spatial_map_mut(),
         &movers,
         &attribute_keys,
         MovementContext::DeadBall,
@@ -196,7 +195,7 @@ pub fn derive_and_apply_reorganization(
         &effort_multiplier_for,
     );
 
-    apply_kinematic_movement_strain(state, sink, tick_result.trajectories());
+    apply_kinematic_movement_strain(publisher, tick_result.trajectories());
 
     let offense_lineup = if is_home_offense {
         &home_lineup
