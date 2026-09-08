@@ -4,7 +4,7 @@ use crate::spatial::proximity::calculate_distance;
 use crate::weighting::apply_saturation;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::{Position, MIRIM_TO_METERS};
-use arlo_tactics::TeamInstructions;
+use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use rand::Rng;
 use std::collections::HashMap;
 use std::f64::consts::PI;
@@ -46,9 +46,13 @@ pub fn apply_positioning_drift_with_structure<R: Rng + ?Sized>(
     anchor: Position,
     positioning: f64,
     structure: f64,
+    creative_license: f64,
     rng: &mut R,
 ) -> Position {
-    let radius_mirim = anchor_drift_radius_mirim_with_structure(positioning, structure);
+    let base = anchor_drift_radius_mirim(positioning);
+    let structure_mult = (1.0 - structure).max(0.0);
+    let multiplier = structure_mult.max(creative_license);
+    let radius_mirim = base * multiplier;
     if radius_mirim <= 1e-6 {
         return anchor;
     }
@@ -79,15 +83,18 @@ pub fn get_drifted_attacker_position<R: Rng + ?Sized>(
     spatial_map: &DynamicSpatialMap,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
+    player_instructions: PlayerInstructions,
     rng: &mut R,
 ) -> Option<Position> {
     let anchor = spatial_map.get_position(&attacker.id())?;
     let positioning = extract_attribute_value(attacker, attribute_keys, AttributeKey::Positioning);
     let structure = instructions.in_possession().structure().value();
+    let creative_license = player_instructions.in_possession().creative_license().value();
     Some(apply_positioning_drift_with_structure(
         anchor,
         positioning,
         structure,
+        creative_license,
         rng,
     ))
 }

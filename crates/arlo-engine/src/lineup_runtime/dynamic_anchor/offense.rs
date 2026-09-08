@@ -8,7 +8,7 @@ use crate::team_identity::{
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, FormationSlot, Player, Position, PositionLine, SlotRole};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
-use arlo_tactics::TeamInstructions;
+use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use rand::Rng;
 use std::collections::HashMap;
 use std::f64::consts::PI;
@@ -174,12 +174,15 @@ pub fn calculate_offense_drift_radius_mirim(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
+    player_instructions: PlayerInstructions,
 ) -> f64 {
     let positioning = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
     let structure_val = instructions.in_possession().structure().value();
     let base_radius = anchor_drift_radius_mirim(positioning);
-    let multiplier = (1.0 - structure_val).max(0.0);
-    base_radius * multiplier
+    let team_structure_multiplier = (1.0 - structure_val).max(0.0);
+    let creative_license_val = player_instructions.in_possession().creative_license().value();
+    let effective_multiplier = team_structure_multiplier.max(creative_license_val);
+    base_radius * effective_multiplier
 }
 
 pub fn apply_offensive_positioning_drift<R: Rng + ?Sized>(
@@ -187,9 +190,10 @@ pub fn apply_offensive_positioning_drift<R: Rng + ?Sized>(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
+    player_instructions: PlayerInstructions,
     rng: &mut R,
 ) -> VectorPosition {
-    let radius_mirim = calculate_offense_drift_radius_mirim(player, attribute_keys, instructions);
+    let radius_mirim = calculate_offense_drift_radius_mirim(player, attribute_keys, instructions, player_instructions);
     if radius_mirim <= 1e-6 {
         return anchor;
     }

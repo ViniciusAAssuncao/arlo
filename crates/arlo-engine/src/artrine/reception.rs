@@ -10,14 +10,16 @@ use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
-use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
+use crate::spatial::positioning_drift::{
+    get_drifted_attacker_position, get_drifted_defender_position, nearest_drifted_opponent,
+};
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS};
-use arlo_tactics::PlayerInstructions;
+use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -44,6 +46,7 @@ pub fn resolve_reception<F, R>(
     position_index: &HashMap<Uuid, DomainPosition>,
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    offense_instructions: &TeamInstructions,
     attacking_positive_x: bool,
     context: &DuelContext,
     fatigue_for: &F,
@@ -108,9 +111,21 @@ where
         &receiver_state,
     );
 
-    let receiver_pos_vec = spatial_map
-        .get_position(&receiver_id)
-        .unwrap_or_else(VectorPosition::zero);
+    let receiver_player_instructions = instructions_index
+        .get(&receiver_id)
+        .copied()
+        .unwrap_or_default();
+
+    let receiver_pos_vec = get_drifted_attacker_position(
+        receiver_player,
+        spatial_map,
+        attribute_keys,
+        offense_instructions,
+        receiver_player_instructions,
+        rng,
+    )
+    .or_else(|| spatial_map.get_position(&receiver_id))
+    .unwrap_or_else(VectorPosition::zero);
 
     let close_defenders: Vec<&Player> = defenders
         .iter()

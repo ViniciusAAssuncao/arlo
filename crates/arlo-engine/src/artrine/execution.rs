@@ -9,7 +9,7 @@ use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::Position as VectorPosition;
-use arlo_tactics::PlayerInstructions;
+use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -33,6 +33,7 @@ pub fn execute_artrine_decision<F, R>(
     offense_position_index: &HashMap<Uuid, DomainPosition>,
     offense_role_index: &HashMap<Uuid, SlotRole>,
     offense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    offense_instructions: &TeamInstructions,
     defense_lineup_players: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -91,6 +92,7 @@ where
             offense_position_index,
             offense_role_index,
             offense_instructions_index,
+            offense_instructions,
             defense_lineup_players,
             defense_position_index,
             attribute_keys,
@@ -118,6 +120,7 @@ where
                 offense_position_index,
                 offense_role_index,
                 offense_instructions_index,
+                offense_instructions,
                 defense_lineup_players,
                 defense_position_index,
                 attribute_keys,
