@@ -76,7 +76,7 @@ pub fn is_player_near_ball(
     dist_mirim <= proximity_threshold_mirim
 }
 
-pub fn calculate_pacing_state_with_impulse(
+pub fn calculate_pacing_state_with_effort_and_impulse(
     base_cruise_speed: f64,
     critical_speed: f64,
     raw_max_acceleration: f64,
@@ -87,6 +87,7 @@ pub fn calculate_pacing_state_with_impulse(
     is_near_ball: bool,
     game_state_pressure: &GameStatePressure,
     fatigue_multiplier: f64,
+    effort_multiplier: f64,
 ) -> PacingState {
     let norm_wr = (work_rate.clamp(0.0, 20.0)) / 20.0;
     let norm_det = (determination.clamp(0.0, 20.0)) / 20.0;
@@ -129,7 +130,7 @@ pub fn calculate_pacing_state_with_impulse(
         (1.0, false)
     };
 
-    let effort_scale = (base_effort * urgency_effort * impulse_effort_mod).clamp(0.50, 1.80);
+    let effort_scale = (base_effort * urgency_effort * impulse_effort_mod * effort_multiplier).clamp(0.50, 1.80);
     let paced_speed_val = (base_cruise_speed * effort_scale).clamp(0.5, critical_speed * 1.15);
     let target_cruise_speed = Speed::new(paced_speed_val);
 
@@ -143,6 +144,33 @@ pub fn calculate_pacing_state_with_impulse(
         paced_accel,
         is_conserving,
         is_overridden,
+    )
+}
+
+pub fn calculate_pacing_state_with_impulse(
+    base_cruise_speed: f64,
+    critical_speed: f64,
+    raw_max_acceleration: f64,
+    work_rate: f64,
+    determination: f64,
+    impulse_value: u8,
+    baseline_impulse: f64,
+    is_near_ball: bool,
+    game_state_pressure: &GameStatePressure,
+    fatigue_multiplier: f64,
+) -> PacingState {
+    calculate_pacing_state_with_effort_and_impulse(
+        base_cruise_speed,
+        critical_speed,
+        raw_max_acceleration,
+        work_rate,
+        determination,
+        impulse_value,
+        baseline_impulse,
+        is_near_ball,
+        game_state_pressure,
+        fatigue_multiplier,
+        1.0,
     )
 }
 
@@ -169,13 +197,14 @@ pub fn calculate_pacing_state(
     )
 }
 
-pub fn calculate_player_pacing_state_with_impulse(
+pub fn calculate_player_pacing_state_with_effort_and_impulse(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     is_near_ball: bool,
     game_state_pressure: &GameStatePressure,
     state: &PhysicalState,
     impulse_state: &ImpulseState,
+    effort_multiplier: f64,
     current_time_unix_seconds: i64,
 ) -> PacingState {
     let work_rate = extract_attribute_value(player, attribute_keys, AttributeKey::WorkRate);
@@ -192,7 +221,7 @@ pub fn calculate_player_pacing_state_with_impulse(
     let raw_max_accel = calculate_max_acceleration(accel_attr, agility_attr, str_attr, mass, 1.0);
     let baseline = calculate_player_impulse_baseline(player, attribute_keys);
 
-    calculate_pacing_state_with_impulse(
+    calculate_pacing_state_with_effort_and_impulse(
         base_cruise,
         v_crit,
         raw_max_accel,
@@ -203,6 +232,28 @@ pub fn calculate_player_pacing_state_with_impulse(
         is_near_ball,
         game_state_pressure,
         state.energy(),
+        effort_multiplier,
+    )
+}
+
+pub fn calculate_player_pacing_state_with_impulse(
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    is_near_ball: bool,
+    game_state_pressure: &GameStatePressure,
+    state: &PhysicalState,
+    impulse_state: &ImpulseState,
+    current_time_unix_seconds: i64,
+) -> PacingState {
+    calculate_player_pacing_state_with_effort_and_impulse(
+        player,
+        attribute_keys,
+        is_near_ball,
+        game_state_pressure,
+        state,
+        impulse_state,
+        1.0,
+        current_time_unix_seconds,
     )
 }
 

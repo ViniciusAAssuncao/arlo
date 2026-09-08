@@ -1,6 +1,7 @@
 use crate::lineup_runtime::dynamic_anchor::compute_dynamic_anchors;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
+use crate::team_identity::tempo::huddle_duration_scale;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::fatigue_applier::apply_kinematic_movement_strain;
 use arlo_domain::{AttributeKey, Position as DomainPosition};
@@ -63,6 +64,15 @@ pub fn derive_and_apply_reorganization(
             .unwrap_or_default()
     };
 
+    let (offense_instructions, defense_instructions) = if is_home_offense {
+        (&home_instructions, &away_instructions)
+    } else {
+        (&away_instructions, &home_instructions)
+    };
+
+    let offense_tempo = offense_instructions.in_possession().tempo().value();
+    let defense_pressing = defense_instructions.out_of_possession().pressing_intensity().value();
+
     let tick_result = run_spatial_tick_loop_with_context(
         state.spatial_map_mut(),
         &movers,
@@ -70,6 +80,9 @@ pub fn derive_and_apply_reorganization(
         MovementContext::DeadBall,
         &pitch,
         &fatigue_lookup,
+        offense_tempo,
+        defense_pressing,
+        is_home_offense,
     );
 
     apply_kinematic_movement_strain(state, sink, tick_result.trajectories());
@@ -98,7 +111,9 @@ pub fn derive_and_apply_reorganization(
         (10.0, 10.0)
     };
 
-    let huddle_seconds = (28.0 - (tac * 0.55 + lead * 0.45)).clamp(8.0, 32.0);
+    let base_huddle_seconds = (28.0 - (tac * 0.55 + lead * 0.45)).clamp(8.0, 32.0);
+    let huddle_scale = huddle_duration_scale(offense_instructions.in_possession().tempo());
+    let huddle_seconds = (base_huddle_seconds * huddle_scale).clamp(8.0, 32.0);
 
     (
         Duration::new(tick_result.elapsed_seconds()),

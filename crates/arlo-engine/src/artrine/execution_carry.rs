@@ -46,6 +46,7 @@ pub fn execute_carry<F, R>(
     context: &DuelContext,
     fatigue_for: &F,
     defense_pressing_multiplier: f64,
+    offense_tempo_value: f64,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome
 where
@@ -311,6 +312,9 @@ where
         movers.push((defender, target_pos));
     }
 
+    let defense_pressing_value = (defense_pressing_multiplier - 1.0).max(0.0);
+    let is_home_offense = context.attacker_is_home();
+
     let tick_result = run_spatial_tick_loop_with_context(
         spatial_map,
         &movers,
@@ -318,6 +322,9 @@ where
         MovementContext::LivePlay,
         pitch,
         fatigue_for,
+        offense_tempo_value,
+        defense_pressing_value,
+        is_home_offense,
     );
 
     let end_position = spatial_map

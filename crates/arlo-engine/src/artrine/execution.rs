@@ -46,6 +46,7 @@ pub fn execute_artrine_decision<F, R>(
     context: &DuelContext,
     fatigue_for: &F,
     defense_pressing_multiplier: f64,
+    offense_tempo_value: f64,
     rng: &mut R,
 ) -> EngineResult<ArtrineExecutionOutcome>
 where
@@ -76,6 +77,7 @@ where
             context,
             fatigue_for,
             defense_pressing_multiplier,
+            offense_tempo_value,
             rng,
         ),
         ArtrineDecisionKind::ShortPass | ArtrineDecisionKind::LongLaunch => execute_distribution(

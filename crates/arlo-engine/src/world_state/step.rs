@@ -220,6 +220,8 @@ pub fn step_call_to_action(
         let clock_inst = state.clock().to_instant();
         sink.record(create_envelope(seq, clock_inst, decision_event));
 
+        let offense_instructions = state.instructions_for_team(offense_team_id);
+        let offense_tempo_value = offense_instructions.in_possession().tempo().value();
         let defense_instructions = state.instructions_for_team(defense_team_id);
         let defense_pressing_multiplier = crate::team_identity::pressing::contest_radius_multiplier(
             defense_instructions.out_of_possession().pressing_intensity(),
@@ -258,6 +260,7 @@ pub fn step_call_to_action(
             &context,
             &fatigue_lookup,
             defense_pressing_multiplier,
+            offense_tempo_value,
             &mut execution_rng,
         )?;
 

@@ -1,10 +1,11 @@
 use crate::physical::models::metabolic_power::{
     calculate_desired_cruise_speed, calculate_player_body_mass, calculate_player_critical_speed,
 };
-use crate::physical::systems::degradation::{
-    calculate_effective_player_speed, physical_attribute_modifier,
-};
+use crate::physical::systems::degradation::physical_attribute_modifier;
+use crate::physical::systems::pacing::calculate_player_pacing_state_with_effort_and_impulse;
 use crate::physical::PhysicalState;
+use crate::psychology::state::ImpulseState;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
@@ -15,6 +16,8 @@ use crate::spatial::steering::{
     SpatialNeighbor,
 };
 use crate::spatial::trajectory::{SpatialTrajectory, TickSimulationResult};
+use crate::team_identity::tempo::effort_multiplier_from_value;
+use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
     MAX_OPEN_PLAY_TICKS, SPATIAL_TICK_DURATION_SECONDS, TARGET_ARRIVAL_TOLERANCE_MIRIM,
@@ -37,6 +40,9 @@ pub fn run_spatial_tick_loop(
         MovementContext::LivePlay,
         pitch,
         &|_| PhysicalState::initial(),
+        0.0,
+        0.5,
+        true,
     )
 }
 
@@ -57,6 +63,9 @@ where
         MovementContext::LivePlay,
         pitch,
         fatigue_for,
+        0.0,
+        0.5,
+        true,
     )
 }
 
@@ -67,6 +76,9 @@ pub fn run_spatial_tick_loop_with_context<F>(
     movement_context: MovementContext,
     pitch: &Pitch,
     fatigue_for: &F,
+    offense_tempo_value: f64,
+    defense_pressing_value: f64,
+    is_home_offense: bool,
 ) -> TickSimulationResult
 where
     F: Fn(&Uuid) -> PhysicalState,
@@ -109,8 +121,33 @@ where
         let mass_kg = calculate_player_body_mass(player, attribute_keys);
         let physical_radius = derive_player_physical_radius(player, attribute_keys);
 
+        let is_player_home = spatial_map.is_home_player(&pid);
+        let is_player_offense = is_player_home == is_home_offense;
+        let effort_mult = if is_player_offense {
+            effort_multiplier_from_value(offense_tempo_value)
+        } else {
+            effort_multiplier_from_value(defense_pressing_value)
+        };
+
+        let dist_mirim = calculate_distance_mirim(initial_pos, *target);
+        let is_near_ball = dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM * 4.0;
+        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+        let impulse = ImpulseState::from_baseline(baseline);
+        let pressure = GameStatePressure::default();
+
+        let pacing_state = calculate_player_pacing_state_with_effort_and_impulse(
+            player,
+            attribute_keys,
+            is_near_ball,
+            &pressure,
+            &state,
+            &impulse,
+            effort_mult,
+            0,
+        );
+
         let speed = match movement_context {
-            MovementContext::LivePlay => calculate_effective_player_speed(player, attribute_keys, &state),
+            MovementContext::LivePlay => pacing_state.target_cruise_speed(),
             MovementContext::DeadBall => {
                 let base_cruise = calculate_desired_cruise_speed(critical_speed_m_s, work_rate, positioning);
                 let phys_mod = physical_attribute_modifier(&state);
