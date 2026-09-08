@@ -62,12 +62,19 @@ where
         && dist_to_goal_mirim <= OPEN_PLAY_MAX_FINISH_DISTANCE_MIRIM
     {
         let finish_context = ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+        let assister_id = if artrine_id != receiver_player.id() {
+            Some(artrine_id)
+        } else {
+            None
+        };
+
         let (decision, finish_duel) = resolve_scoring_attempt_with_fatigue(
             receiver_player,
             ctx.goalguard,
             ctx.attribute_keys,
             ctx.offense_team_id,
             artrine_id,
+            assister_id,
             opportunity,
             ctx.drives_in_series,
             total_territory,

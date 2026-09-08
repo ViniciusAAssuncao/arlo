@@ -2,8 +2,9 @@ use crate::artrine::DistributionFlightInfo;
 use crate::match_decision::event_translation::{
     create_envelope, translate_countdown_started, translate_distribution_completed,
     translate_down_advanced, translate_drive_recorded, translate_duel_resolved,
-    translate_out_of_bounds, translate_physical_strain_recorded, translate_reception_resolved,
-    translate_recovery_interval_processed, translate_scoring_decision, translate_turnover,
+    translate_out_of_bounds, translate_physical_strain_recorded, translate_possession_time,
+    translate_reception_resolved, translate_recovery_interval_processed,
+    translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
 use crate::psychology::event_translation::{
@@ -162,6 +163,11 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
     ) {
         let countdown_event = translate_countdown_started(offense_team_id, end_x_mirim, reason);
         self.publish(countdown_event);
+    }
+
+    pub fn emit_possession_time_recorded(&mut self, team_id: Uuid, duration: f64) {
+        let event = translate_possession_time(team_id, duration);
+        self.publish(event);
     }
 
     pub fn emit_physical_strain(

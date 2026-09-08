@@ -6,7 +6,8 @@ use arlo_events::{
     DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent,
     MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded, PitchZone,
-    ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed, Turnover,
+    PossessionTimeRecorded, ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed,
+    Turnover,
 };
 use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
@@ -180,6 +181,10 @@ pub fn translate_down_advanced(
         first_down_achieved,
         scrimmage_x_mirim,
     )
+}
+
+pub fn translate_possession_time(team_id: Uuid, duration_seconds: f64) -> PossessionTimeRecorded {
+    PossessionTimeRecorded::new(team_id, duration_seconds)
 }
 
 pub fn translate_scoring_decision(decision: &ScoringDecision) -> Option<MatchEvent> {

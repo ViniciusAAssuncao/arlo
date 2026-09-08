@@ -87,6 +87,7 @@ where
         start_pos,
         ledger,
         ctx.accumulated_advance_mirim,
+        None,
         rng,
     )
 }
@@ -144,6 +145,12 @@ where
     ledger.record_live(DurationComponentKind::ShotFlight, shot_flight);
 
     let total_advance = ctx.accumulated_advance_mirim + additional_advance;
+    let assister_id = if finisher.id() != artrine.id() {
+        Some(artrine.id())
+    } else {
+        None
+    };
+
     execute_finishing_with_player(
         ctx,
         finisher,
@@ -151,6 +158,7 @@ where
         start_pos,
         ledger,
         total_advance,
+        assister_id,
         rng,
     )
 }
@@ -220,6 +228,7 @@ pub fn execute_finishing_with_player<F, R>(
     start_pos: VectorPosition,
     duration_ledger: DurationLedger,
     total_advance_mirim: f64,
+    assister_id: Option<Uuid>,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome
 where
@@ -252,6 +261,7 @@ where
         ctx.attribute_keys,
         ctx.offense_team_id,
         artrine.id(),
+        assister_id,
         opportunity,
         ctx.drives_in_series,
         total_advance_mirim,

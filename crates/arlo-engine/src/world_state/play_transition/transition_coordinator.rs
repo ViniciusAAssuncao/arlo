@@ -296,6 +296,10 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         self.apply_strains();
         self.process_scoring();
 
+        let live_seconds = self.play_ledger.total_live().value();
+        self.publisher
+            .emit_possession_time_recorded(self.offense_team_id, live_seconds);
+
         let detailed_outcome = self.build_outcome();
         let previous_down = self.publisher.state().possession().down() as u32;
         let transition_result = self.process_impulse(&detailed_outcome);
