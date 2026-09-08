@@ -5,4 +5,4 @@ pub mod scoring_handler;
 pub mod transition_coordinator;
 
 pub use publisher::EventPublisher;
-pub use transition_coordinator::apply_play_transition;
+pub use transition_coordinator::{apply_play_transition, TransitionPipeline};
