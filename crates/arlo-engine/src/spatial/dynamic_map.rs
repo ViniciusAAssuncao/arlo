@@ -1,10 +1,10 @@
 use crate::error::EngineResult;
+use crate::lineup_runtime::lineup::Lineup;
+use crate::lineup_runtime::spatial_anchor::SpatialAnchorMap;
 use crate::spatial::decision_vector::{
     calculate_player_speed, derive_velocity_towards_target, extract_attribute_value,
 };
 use crate::spatial::kinematics::advance_position;
-use crate::tactics::lineup::Lineup;
-use crate::tactics::spatial_anchor::SpatialAnchorMap;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::{Duration, Position, Speed, Velocity};

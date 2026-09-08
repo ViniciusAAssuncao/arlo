@@ -75,8 +75,14 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
         let gravity_factor = 0.70 + 0.30 * ctx.offensive_gravity.min(2.0);
         let risk_multiplier = ctx.risk_profile.risk_multiplier_for_action(ArtrineDecisionKind::ShortPass);
         let game_state_bias = ctx.game_state_pressure.bias_for_decision(ArtrineDecisionKind::ShortPass, ctx.drives_in_series);
+        let team_identity_bias = ctx.team_identity_bias.bias_for(ArtrineDecisionKind::ShortPass);
 
-        (expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5 + (intrinsic_rating * 0.2)
+        (expected_future_value * gravity_factor)
+            * risk_multiplier
+            * game_state_bias
+            * team_identity_bias
+            * 3.5
+            + (intrinsic_rating * 0.2)
     }
 }
 
@@ -152,7 +158,13 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
         let gravity_factor = 0.70 + 0.30 * ctx.offensive_gravity.min(2.0);
         let risk_multiplier = ctx.risk_profile.risk_multiplier_for_action(ArtrineDecisionKind::LongLaunch);
         let game_state_bias = ctx.game_state_pressure.bias_for_decision(ArtrineDecisionKind::LongLaunch, ctx.drives_in_series);
+        let team_identity_bias = ctx.team_identity_bias.bias_for(ArtrineDecisionKind::LongLaunch);
 
-        (expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5 + (intrinsic_rating * 0.2)
+        (expected_future_value * gravity_factor)
+            * risk_multiplier
+            * game_state_bias
+            * team_identity_bias
+            * 3.5
+            + (intrinsic_rating * 0.2)
     }
 }

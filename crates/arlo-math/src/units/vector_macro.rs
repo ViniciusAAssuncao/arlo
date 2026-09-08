@@ -1,6 +1,6 @@
 macro_rules! define_vector_quantity {
     ($name:ident, $magnitude:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize, Default)]
         pub struct $name(pub(crate) crate::units::vector3::Vector3);
 
         impl $name {

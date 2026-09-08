@@ -6,9 +6,29 @@ use crate::domain::sport_constants::{
 };
 use crate::domain::validation::validate_float_range;
 use crate::domain::InvariantViolation;
-use crate::error::{ DomainError, DomainResult };
-use arlo_math::units::{ Length, MIRIM_TO_METERS };
-use serde::{ Deserialize, Serialize };
+use crate::error::{DomainError, DomainResult};
+use arlo_math::units::{Length, MIRIM_TO_METERS};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum PitchZone {
+    FirstZone,
+    SecondZone,
+    Corridor,
+    #[default]
+    Central,
+}
+
+impl PitchZone {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::FirstZone => "FirstZone",
+            Self::SecondZone => "SecondZone",
+            Self::Corridor => "Corridor",
+            Self::Central => "Central",
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct FirstZone {
@@ -48,7 +68,7 @@ impl SecondZone {
             depth_mirim,
             SECOND_ZONE_DEPTH_MIRIM_MIN,
             SECOND_ZONE_DEPTH_MIRIM_MAX,
-            "second_zone_depth_mirim"
+            "second_zone_depth_mirim",
         )?;
         Ok(Self {
             depth: Length::new(depth_mirim * MIRIM_TO_METERS),

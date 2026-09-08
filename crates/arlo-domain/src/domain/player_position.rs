@@ -1,4 +1,5 @@
 use crate::domain::position::Position;
+use crate::domain::sport_constants::{MAX_POSITION_PROFICIENCY, MIN_POSITION_PROFICIENCY};
 use crate::domain::validation::validate_integer_range;
 use crate::error::DomainResult;
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,12 @@ pub struct PlayerPosition {
 
 impl PlayerPosition {
     pub fn new(position: Position, proficiency: i32) -> DomainResult<Self> {
-        validate_integer_range(proficiency, 0, 10, "proficiency")?;
+        validate_integer_range(
+            proficiency,
+            MIN_POSITION_PROFICIENCY,
+            MAX_POSITION_PROFICIENCY,
+            "proficiency",
+        )?;
         Ok(Self {
             position,
             proficiency,
