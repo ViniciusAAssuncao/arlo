@@ -1,5 +1,6 @@
 use crate::lineup_runtime::dynamic_anchor::calculate_defense_attractor_coordinates;
 use crate::lineup_runtime::dynamic_anchor::offense::calculate_offense_attractor_coordinates_for_position;
+use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
 use crate::spatial::decision_vector::extract_attribute_value;
@@ -21,6 +22,7 @@ pub fn decoy_attractor(
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
+    ctx: &AnchorComputationContext,
 ) -> VectorPosition {
     let pitch_length_m = pitch.length().value();
     let pitch_width_m = pitch.width().value();
@@ -46,6 +48,7 @@ pub fn decoy_attractor(
             attacking_positive_x,
             attribute_keys,
             instructions,
+            ctx,
         )
     } else {
         calculate_defense_attractor_coordinates(

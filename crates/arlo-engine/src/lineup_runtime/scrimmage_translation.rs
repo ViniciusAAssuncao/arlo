@@ -1,4 +1,4 @@
-use crate::lineup_runtime::dynamic_anchor::compute_dynamic_anchors;
+use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors, AnchorComputationContext};
 use crate::lineup_runtime::lineup::Lineup;
 use arlo_domain::pitch::Pitch;
 use arlo_math::units::Position;
@@ -13,6 +13,12 @@ pub fn translate_formation_to_scrimmage(
     attacking_positive_x: bool,
     instructions: &TeamInstructions,
 ) -> HashMap<Uuid, Position> {
+    let empty_instructions = HashMap::new();
+    let ctx = AnchorComputationContext {
+        player_instructions_index: &empty_instructions,
+        opposing_lineup: None,
+        spatial_map: None,
+    };
     compute_dynamic_anchors(
         pitch,
         lineup,
@@ -21,5 +27,6 @@ pub fn translate_formation_to_scrimmage(
         attacking_positive_x,
         &HashMap::new(),
         instructions,
+        &ctx,
     )
 }

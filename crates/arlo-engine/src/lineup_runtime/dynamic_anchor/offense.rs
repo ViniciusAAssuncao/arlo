@@ -1,6 +1,10 @@
+use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::positioning_drift::anchor_drift_radius_mirim;
-use crate::team_identity::{depth_from_bipolar, lateral_flank_shift, lateral_spread};
+use crate::team_identity::{
+    depth_from_bipolar, individual_line_depth_offset, lateral_flank_shift, lateral_spread,
+    line_rx_band,
+};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, FormationSlot, Player, Position, PositionLine, SlotRole};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
@@ -19,6 +23,7 @@ pub fn resolve_offense_player_attractor(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
     role_index: &HashMap<Uuid, SlotRole>,
+    ctx: &AnchorComputationContext,
 ) -> VectorPosition {
     if role_index.get(&player.id()) == Some(&SlotRole::FalseArtrine) {
         crate::team_identity::false_artrine::decoy_attractor(
@@ -30,6 +35,7 @@ pub fn resolve_offense_player_attractor(
             attacking_positive_x,
             attribute_keys,
             instructions,
+            ctx,
         )
     } else {
         crate::lineup_runtime::dynamic_anchor::calculate_player_dynamic_attractor(
@@ -41,6 +47,7 @@ pub fn resolve_offense_player_attractor(
             attacking_positive_x,
             attribute_keys,
             instructions,
+            ctx,
         )
     }
 }
@@ -55,6 +62,7 @@ pub fn calculate_offense_attractor_coordinates_for_position(
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
+    ctx: &AnchorComputationContext,
 ) -> (f64, f64) {
     let pitch_length_m = pitch.length().value();
     let pitch_width_m = pitch.width().value();
@@ -117,7 +125,23 @@ pub fn calculate_offense_attractor_coordinates_for_position(
         _ => base_y,
     };
 
-    (base_x + x_shift, y_pos)
+    let positioning_bias = ctx
+        .player_instructions_index
+        .get(&player.id())
+        .copied()
+        .unwrap_or_default()
+        .in_possession()
+        .positioning_bias();
+    let (band_min, band_max) = line_rx_band(target_position.line());
+    let bias_offset = individual_line_depth_offset(
+        positioning_bias.value(),
+        band_min,
+        band_max,
+        pitch_length_m,
+        attacking_positive_x,
+    );
+
+    (base_x + x_shift + bias_offset, y_pos)
 }
 
 pub fn calculate_offense_attractor_coordinates(
@@ -130,6 +154,7 @@ pub fn calculate_offense_attractor_coordinates(
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
+    ctx: &AnchorComputationContext,
 ) -> (f64, f64) {
     calculate_offense_attractor_coordinates_for_position(
         pitch,
@@ -141,6 +166,7 @@ pub fn calculate_offense_attractor_coordinates(
         attacking_positive_x,
         attribute_keys,
         instructions,
+        ctx,
     )
 }
 

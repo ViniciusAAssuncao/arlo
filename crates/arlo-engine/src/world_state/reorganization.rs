@@ -1,4 +1,4 @@
-use crate::lineup_runtime::dynamic_anchor::compute_dynamic_anchors;
+use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors, AnchorComputationContext};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
 use crate::team_identity::tempo::huddle_duration_scale;
@@ -33,6 +33,11 @@ pub fn derive_and_apply_reorganization(
     let home_instructions = state.home_instructions().clone();
     let away_instructions = state.away_instructions().clone();
 
+    let home_ctx = AnchorComputationContext {
+        player_instructions_index: state.instructions_index_for_team(state.home_team_id()),
+        opposing_lineup: None,
+        spatial_map: None,
+    };
     let mut home_targets = compute_dynamic_anchors(
         &pitch,
         &home_lineup,
@@ -41,7 +46,14 @@ pub fn derive_and_apply_reorganization(
         true,
         &attribute_keys,
         &home_instructions,
+        &home_ctx,
     );
+
+    let away_ctx = AnchorComputationContext {
+        player_instructions_index: state.instructions_index_for_team(state.away_team_id()),
+        opposing_lineup: None,
+        spatial_map: None,
+    };
     let mut away_targets = compute_dynamic_anchors(
         &pitch,
         &away_lineup,
@@ -50,6 +62,7 @@ pub fn derive_and_apply_reorganization(
         false,
         &attribute_keys,
         &away_instructions,
+        &away_ctx,
     );
 
     if is_post_turnover {
