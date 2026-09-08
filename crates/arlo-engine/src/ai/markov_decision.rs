@@ -5,6 +5,8 @@ use crate::ai::evaluators::{
     DecisionEvaluationContext, LongLaunchUtilityEvaluator, SelfFinishUtilityEvaluator,
     ShortPassUtilityEvaluator,
 };
+use crate::physical::PhysicalState;
+use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use std::collections::HashMap;
@@ -28,9 +30,12 @@ impl MarkovDecisionEvaluator {
         distance_to_next_artro_mirim: f64,
         pitch_length_mirim: f64,
         offensive_gravity: f64,
+        artrine_physical_state: &PhysicalState,
     ) -> Vec<(ArtrineDecisionKind, f64)> {
-        let risk_profile = RiskProfile::from_player(artrine, attribute_keys);
+        let risk_profile =
+            RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
         let game_state_pressure = GameStatePressure::default();
+        let team_identity_bias = TeamIdentityBias::default();
 
         Self::evaluate_action_utilities_with_context(
             artrine,
@@ -48,6 +53,8 @@ impl MarkovDecisionEvaluator {
             offensive_gravity,
             risk_profile,
             game_state_pressure,
+            team_identity_bias,
+            artrine_physical_state,
         )
     }
 
@@ -67,6 +74,8 @@ impl MarkovDecisionEvaluator {
         offensive_gravity: f64,
         risk_profile: RiskProfile,
         game_state_pressure: GameStatePressure,
+        team_identity_bias: TeamIdentityBias,
+        artrine_physical_state: &PhysicalState,
     ) -> Vec<(ArtrineDecisionKind, f64)> {
         let epv_model = DynamicEpvModel::new(offensive_gravity);
         let current_epv = epv_model.calculate_epa(
@@ -78,6 +87,7 @@ impl MarkovDecisionEvaluator {
 
         let ctx = DecisionEvaluationContext {
             artrine,
+            artrine_physical_state: *artrine_physical_state,
             attribute_keys,
             epv_model,
             current_epv,
@@ -93,6 +103,7 @@ impl MarkovDecisionEvaluator {
             offensive_gravity,
             risk_profile,
             game_state_pressure,
+            team_identity_bias,
         };
 
         let carry_evaluator = CarryUtilityEvaluator;

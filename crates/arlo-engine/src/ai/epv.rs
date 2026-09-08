@@ -29,21 +29,24 @@ impl DynamicEpvModel {
         down: u8,
         remaining_advance_mirim: f64,
     ) -> f64 {
-        let x = normalized_x.max(0.0).min(1.0);
-        let base_field_factor = 1.0 / (1.0 + (-5.2 * (x - 0.52)).exp());
-        let d = (down.max(1).min(4)) as f64;
+        let x = normalized_x.clamp(0.0, 1.0);
+        let base_field_factor = 1.0 / (1.0 + (-5.5 * (x - 0.50)).exp());
+        let d = (down.clamp(1, 4)) as f64;
         let down_factor = ((5.0 - d) / 4.0).powf(0.5);
         let distance_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
 
         let drive_qualification = if drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
             1.0
+        } else if drives_in_series == 2 {
+            0.60 + 0.15 * down_factor
+        } else if drives_in_series == 1 {
+            0.28 + 0.12 * down_factor
         } else {
-            let missing_drives = (GOAL_POINT_REQUIRED_DRIVES - drives_in_series) as f64;
-            (1.0 / (1.0 + missing_drives * 2.8)).min(0.2)
+            0.10 + 0.08 * down_factor
         };
 
         let gravity_effect = 1.0 / (1.0 + (-2.4 * (self.offensive_gravity - 1.0)).exp());
-        let gravity_multiplier = 0.45 + 1.1 * gravity_effect;
+        let gravity_multiplier = 0.50 + 0.90 * gravity_effect;
 
         let raw = base_field_factor
             * down_factor
@@ -61,21 +64,21 @@ impl DynamicEpvModel {
         down: u8,
         remaining_advance_mirim: f64,
     ) -> f64 {
-        let x = normalized_x.max(0.0).min(1.0);
-        let base_field_factor = 1.0 / (1.0 + (-4.0 * (x - 0.4)).exp());
-        let d = (down.max(1).min(4)) as f64;
+        let x = normalized_x.clamp(0.0, 1.0);
+        let base_field_factor = 1.0 / (1.0 + (-4.2 * (x - 0.38)).exp());
+        let d = (down.clamp(1, 4)) as f64;
         let down_factor = ((5.0 - d) / 4.0).powf(0.6);
         let distance_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
 
         let drive_qualification = if drives_in_series >= FIELD_POINT_REQUIRED_DRIVES {
             1.0
         } else {
-            0.35
+            0.30 + 0.15 * down_factor
         };
 
         let p_goal = self.goal_probability(x, drives_in_series, down, remaining_advance_mirim);
         let raw_p_field = base_field_factor * down_factor * distance_factor * drive_qualification;
-        let raw = raw_p_field * (1.0 - p_goal * 0.7);
+        let raw = raw_p_field * (1.0 - p_goal * 0.70);
 
         1.0 - (-raw.max(0.0)).exp()
     }
@@ -86,21 +89,21 @@ impl DynamicEpvModel {
         down: u8,
         remaining_advance_mirim: f64,
     ) -> f64 {
-        let x = normalized_x.max(0.0).min(1.0);
+        let x = normalized_x.clamp(0.0, 1.0);
         let p_scoring_territory = 1.0 / (1.0 + (-4.5 * (x - 0.45)).exp());
         if down >= 4 {
             let dist_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
-            ((1.0 - p_scoring_territory) * (1.0 - 0.35 * dist_factor)).max(0.0).min(1.0)
+            ((1.0 - p_scoring_territory) * (1.0 - 0.35 * dist_factor)).clamp(0.0, 1.0)
         } else {
-            let d_ratio = ((down.max(1) - 1) as f64) / 3.0;
-            (0.04 + 0.12 * (1.0 - x) * d_ratio).max(0.0).min(1.0)
+            let d_ratio = ((down.clamp(1, 4) - 1) as f64) / 3.0;
+            (0.04 + 0.12 * (1.0 - x) * d_ratio).clamp(0.0, 1.0)
         }
     }
 
     pub fn opponent_epa(&self, normalized_x: f64) -> f64 {
-        let opp_x = (1.0 - normalized_x).max(0.0).min(1.0);
+        let opp_x = (1.0 - normalized_x).clamp(0.0, 1.0);
         let opp_model = DynamicEpvModel::new(1.0);
-        let p_goal = opp_model.goal_probability(opp_x, 1, 1, 10.0);
+        let p_goal = opp_model.goal_probability(opp_x, 3, 1, 10.0);
         let p_field = opp_model.field_point_probability(opp_x, 1, 1, 10.0);
         p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
     }
@@ -112,7 +115,7 @@ impl DynamicEpvModel {
         remaining_advance_mirim: f64,
         drives_in_series: u32,
     ) -> f64 {
-        let x = normalized_x.max(0.0).min(1.0);
+        let x = normalized_x.clamp(0.0, 1.0);
         let p_goal = self.goal_probability(x, drives_in_series, down, remaining_advance_mirim);
         let p_field = self.field_point_probability(
             x,
@@ -151,9 +154,9 @@ impl DynamicEpvModel {
             return 0.0;
         }
         let norm_x = if attacking_positive_x {
-            (x_meters / pitch_length_meters).max(0.0).min(1.0)
+            (x_meters / pitch_length_meters).clamp(0.0, 1.0)
         } else {
-            ((pitch_length_meters - x_meters) / pitch_length_meters).max(0.0).min(1.0)
+            ((pitch_length_meters - x_meters) / pitch_length_meters).clamp(0.0, 1.0)
         };
         self.calculate_epa(norm_x, down, remaining_advance_mirim, drives_in_series)
     }

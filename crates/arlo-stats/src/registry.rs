@@ -1,7 +1,8 @@
 use crate::aggregator::StatAggregator;
 use crate::player::{
     PlayerArtrineDecisionAggregator, PlayerDrivesAggregator, PlayerDuelAggregator,
-    PlayerReceivingAggregator, PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
+    PlayerImpulseAggregator, PlayerPhysicalAggregator, PlayerReceivingAggregator,
+    PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
 };
 use crate::snapshot::{IntoSnapshot, PeriodicMatchSnapshot, PlayerMatchSnapshot};
 use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
@@ -28,6 +29,8 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerReceivingAggregator::new());
         registry.register_aggregator(PlayerTouchesAggregator::new());
         registry.register_aggregator(PlayerScoringAttemptsAggregator::new());
+        registry.register_aggregator(PlayerPhysicalAggregator::new());
+        registry.register_aggregator(PlayerImpulseAggregator::new());
         registry
     }
 
@@ -116,6 +119,12 @@ impl AggregatorRegistry {
         if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
+        if let Some(agg) = self.get::<PlayerPhysicalAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerImpulseAggregator>() {
+            ids.extend(agg.all_player_stats().keys().copied());
+        }
         ids
     }
 
@@ -193,6 +202,37 @@ impl AggregatorRegistry {
             snap.artrine_goal_points_generated = ad.goal_points_generated;
             snap.artrine_field_points_generated = ad.field_points_generated;
             snap.artrine_field_goals_generated = ad.field_goals_generated;
+        }
+
+        if let Some(agg) = self.get::<PlayerPhysicalAggregator>() {
+            let p = agg.get_or_default(player_id);
+            snap.end_energy_level = p.end_energy_level;
+            snap.peak_anaerobic_depletion = p.peak_anaerobic_depletion;
+            snap.total_distance_covered = p.total_distance_covered;
+            snap.high_intensity_distance = p.high_intensity_distance;
+            snap.low_intensity_distance = p.low_intensity_distance;
+            snap.metabolic_energy_joules = p.metabolic_energy_joules;
+            snap.peak_speed_meters_per_sec = p.peak_speed_meters_per_sec;
+            snap.intra_match_recovery_amount = p.intra_match_recovery_amount;
+            snap.distance_first_zone = p.distance_first_zone;
+            snap.distance_second_zone = p.distance_second_zone;
+            snap.distance_corridors = p.distance_corridors;
+            snap.distance_central = p.distance_central;
+        }
+
+        if let Some(agg) = self.get::<PlayerImpulseAggregator>() {
+            let imp = agg.get_or_default(player_id);
+            snap.impulse_baseline = imp.baseline;
+            snap.impulse_current = imp.current_value;
+            snap.impulse_min = imp.min_value;
+            snap.impulse_max = imp.max_value;
+            snap.impulse_average = imp.average_value();
+            snap.impulse_shifts_total = imp.shifts_count;
+            snap.impulse_time_below_baseline_seconds = imp.time_below_baseline_seconds;
+            snap.impulse_runs_count = imp.runs_count();
+            snap.impulse_longest_run_seconds = imp.longest_run_duration_seconds();
+            snap.impulse_peak_run_value = imp.peak_run_value();
+            snap.impulse_total_run_intensity = imp.total_integrated_run_intensity();
         }
 
         snap

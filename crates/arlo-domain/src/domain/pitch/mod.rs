@@ -12,4 +12,4 @@ pub use projection::{
     project_ratio, project_ratio_mirrored, project_slot, project_slot_mirrored,
     project_slot_with_direction, ProjectionDirection,
 };
-pub use zone::{FirstZone, SecondZone};
+pub use zone::{FirstZone, PitchZone, SecondZone};

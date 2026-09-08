@@ -6,6 +6,7 @@ members = [
     "crates/arlo-domain",
     "crates/arlo-math",
     "crates/arlo-db",
+    "crates/arlo-tactics",
     "crates/arlo-engine",
     "crates/arlo-formatter",
     "crates/arlo-events",
@@ -35,6 +36,7 @@ tracing     = "0.1"
 arlo-domain    = { path = "crates/arlo-domain" }
 arlo-math      = { path = "crates/arlo-math" }
 arlo-db        = { path = "crates/arlo-db" }
+arlo-tactics   = { path = "crates/arlo-tactics" }
 arlo-engine    = { path = "crates/arlo-engine" }
 arlo-formatter = { path = "crates/arlo-formatter" }
 arlo-runtime   = { path = "crates/arlo-runtime" }

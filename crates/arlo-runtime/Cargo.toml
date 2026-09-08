@@ -13,6 +13,7 @@ arlo-events.workspace = true
 arlo-formatter.workspace = true
 arlo-math.workspace = true
 arlo-stats.workspace = true
+arlo-tactics.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true

@@ -22,6 +22,17 @@ impl DuelKind {
     pub fn logistic_slope(self) -> f64 {
         logistic_slope_for(self)
     }
+
+    pub fn is_contact_duel(&self) -> bool {
+        matches!(
+            self,
+            DuelKind::ArtroBreakthrough
+                | DuelKind::CentralBlock
+                | DuelKind::LateralBlock
+                | DuelKind::BallSecurityCarry
+                | DuelKind::BallSecurityDistribution
+        )
+    }
 }
 
 pub fn logistic_slope_for(kind: DuelKind) -> f64 {

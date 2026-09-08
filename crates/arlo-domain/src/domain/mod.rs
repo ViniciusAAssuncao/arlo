@@ -45,7 +45,7 @@ pub use pitch::{
     artro_rows_for_pitch, project_formation, project_formation_mirrored,
     project_formation_with_direction, project_ratio, project_ratio_mirrored, project_slot,
     project_slot_mirrored, project_slot_with_direction, Artro, ArtroPlacement, ArtroRow,
-    FirstZone, Pitch, PitchCoordinates, ProjectionDirection, SecondZone,
+    FirstZone, Pitch, PitchCoordinates, PitchZone, ProjectionDirection, SecondZone,
 };
 pub use player::{Player, PlayerBuilder};
 pub use player_attribute_value::PlayerAttributeValue;

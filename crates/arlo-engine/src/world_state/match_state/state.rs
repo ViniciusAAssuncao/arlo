@@ -1,0 +1,95 @@
+use crate::possession::PossessionSnapshot;
+use crate::rng::RngProvider;
+use crate::spatial::DynamicSpatialMap;
+use crate::time::RealTimeAccumulator;
+use crate::world_state::clock::MatchClock;
+use crate::world_state::match_state::fatigue::FatigueTracker;
+use crate::world_state::match_state::impulse::ImpulseTracker;
+use crate::world_state::match_state::score::MatchScoreboard;
+use crate::world_state::match_state::teams::TeamRegistry;
+use arlo_domain::pitch::Pitch;
+use arlo_domain::{AttributeKey, MatchFormatRules};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use uuid::Uuid;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MatchState {
+    pub(crate) teams: TeamRegistry,
+    pub(crate) pitch: Pitch,
+    pub(crate) attribute_keys: HashMap<Uuid, AttributeKey>,
+    pub(crate) format_rules: MatchFormatRules,
+    pub(crate) possession: PossessionSnapshot,
+    pub(crate) spatial_map: DynamicSpatialMap,
+    pub(crate) clock: MatchClock,
+    pub(crate) real_time: RealTimeAccumulator,
+    pub(crate) rng_provider: RngProvider,
+    pub(crate) event_sequence: u64,
+    pub(crate) scoreboard: MatchScoreboard,
+    pub(crate) fatigue: FatigueTracker,
+    pub(crate) impulse: ImpulseTracker,
+}
+
+impl MatchState {
+    pub fn pitch(&self) -> &Pitch {
+        &self.pitch
+    }
+
+    pub fn attribute_keys(&self) -> &HashMap<Uuid, AttributeKey> {
+        &self.attribute_keys
+    }
+
+    pub fn format_rules(&self) -> &MatchFormatRules {
+        &self.format_rules
+    }
+
+    pub fn possession(&self) -> &PossessionSnapshot {
+        &self.possession
+    }
+
+    pub fn possession_mut(&mut self) -> &mut PossessionSnapshot {
+        &mut self.possession
+    }
+
+    pub fn spatial_map(&self) -> &DynamicSpatialMap {
+        &self.spatial_map
+    }
+
+    pub fn spatial_map_mut(&mut self) -> &mut DynamicSpatialMap {
+        &mut self.spatial_map
+    }
+
+    pub fn clock(&self) -> &MatchClock {
+        &self.clock
+    }
+
+    pub fn clock_mut(&mut self) -> &mut MatchClock {
+        &mut self.clock
+    }
+
+    pub fn real_time(&self) -> &RealTimeAccumulator {
+        &self.real_time
+    }
+
+    pub fn real_time_mut(&mut self) -> &mut RealTimeAccumulator {
+        &mut self.real_time
+    }
+
+    pub fn rng_provider(&self) -> &RngProvider {
+        &self.rng_provider
+    }
+
+    pub fn event_sequence(&self) -> u64 {
+        self.event_sequence
+    }
+
+    pub fn next_sequence(&mut self) -> u64 {
+        let seq = self.event_sequence;
+        self.event_sequence += 1;
+        seq
+    }
+
+    pub fn is_match_finished(&self) -> bool {
+        self.clock.is_finished()
+    }
+}

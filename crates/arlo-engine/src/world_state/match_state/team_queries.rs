@@ -1,0 +1,103 @@
+use crate::lineup_runtime::Lineup;
+use crate::world_state::match_state::state::MatchState;
+use arlo_domain::{Position as DomainPosition, SlotRole};
+use arlo_tactics::{PlayerInstructions, TeamInstructions};
+use std::collections::HashMap;
+use uuid::Uuid;
+
+impl MatchState {
+    pub fn home_team_id(&self) -> Uuid {
+        self.teams.home_team_id()
+    }
+
+    pub fn away_team_id(&self) -> Uuid {
+        self.teams.away_team_id()
+    }
+
+    pub fn home_lineup(&self) -> &Lineup {
+        self.teams.home_lineup()
+    }
+
+    pub fn away_lineup(&self) -> &Lineup {
+        self.teams.away_lineup()
+    }
+
+    pub fn home_instructions(&self) -> &TeamInstructions {
+        self.teams.home_instructions()
+    }
+
+    pub fn away_instructions(&self) -> &TeamInstructions {
+        self.teams.away_instructions()
+    }
+
+    pub fn instructions_for_team(&self, team_id: Uuid) -> &TeamInstructions {
+        self.teams.instructions_for_team(team_id)
+    }
+
+    pub fn offense_instructions(&self) -> &TeamInstructions {
+        self.instructions_for_team(self.possession.role().offense())
+    }
+
+    pub fn defense_instructions(&self) -> &TeamInstructions {
+        self.instructions_for_team(self.possession.role().defense())
+    }
+
+    pub fn home_offensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        self.teams.home_offensive_position_index()
+    }
+
+    pub fn home_defensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        self.teams.home_defensive_position_index()
+    }
+
+    pub fn away_offensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        self.teams.away_offensive_position_index()
+    }
+
+    pub fn away_defensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        self.teams.away_defensive_position_index()
+    }
+
+    pub fn home_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        self.position_index_for_team(self.teams.home_team_id())
+    }
+
+    pub fn away_position_index(&self) -> &HashMap<Uuid, DomainPosition> {
+        self.position_index_for_team(self.teams.away_team_id())
+    }
+
+    pub fn offensive_position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+        self.teams.offensive_position_index_for_team(team_id)
+    }
+
+    pub fn defensive_position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+        self.teams.defensive_position_index_for_team(team_id)
+    }
+
+    pub fn position_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, DomainPosition> {
+        self.teams.position_index_for_team(
+            team_id,
+            self.possession.role().is_offense(team_id),
+        )
+    }
+
+    pub fn home_role_index(&self) -> &HashMap<Uuid, SlotRole> {
+        self.teams.home_role_index()
+    }
+
+    pub fn away_role_index(&self) -> &HashMap<Uuid, SlotRole> {
+        self.teams.away_role_index()
+    }
+
+    pub fn role_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, SlotRole> {
+        self.teams.role_index_for_team(team_id)
+    }
+
+    pub fn player_instructions_for(&self, player_id: &Uuid) -> PlayerInstructions {
+        self.teams.player_instructions(player_id)
+    }
+
+    pub fn instructions_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, PlayerInstructions> {
+        self.teams.instructions_index_for_team(team_id)
+    }
+}

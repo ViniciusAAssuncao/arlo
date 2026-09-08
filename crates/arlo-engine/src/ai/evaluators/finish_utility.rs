@@ -22,10 +22,10 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
         } else if ctx.drives_in_series >= 1 {
             FIELD_POINT_VALUE as f64
         } else {
-            1.5
+            2.0
         };
 
-        let raw_p = 0.25 + 0.50 * ctx.normalized_proximity + 0.15 * skill_mult;
+        let raw_p = 0.30 + 0.45 * ctx.normalized_proximity + 0.15 * skill_mult;
         let p_goal = ctx.bound_probability(raw_p);
         let v_opp = ctx.epv_model.opponent_epa(ctx.normalized_proximity);
 
@@ -43,7 +43,13 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
         let gravity_factor = 0.70 + 0.30 * ctx.offensive_gravity.min(2.0);
         let risk_multiplier = ctx.risk_profile.risk_multiplier_for_action(ArtrineDecisionKind::SelfFinish);
         let game_state_bias = ctx.game_state_pressure.bias_for_decision(ArtrineDecisionKind::SelfFinish, ctx.drives_in_series);
+        let team_identity_bias = ctx.team_identity_bias.bias_for(ArtrineDecisionKind::SelfFinish);
 
-        (expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5 + (intrinsic_rating * 0.2)
+        (expected_future_value * gravity_factor)
+            * risk_multiplier
+            * game_state_bias
+            * team_identity_bias
+            * 3.5
+            + (intrinsic_rating * 0.2)
     }
 }
