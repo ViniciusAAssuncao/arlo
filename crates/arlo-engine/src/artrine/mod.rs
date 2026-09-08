@@ -1,7 +1,5 @@
 pub mod constants;
-pub mod context_terms;
-pub mod decision_engine;
-pub mod decision_profiles;
+pub mod decision;
 pub mod event_translation;
 pub mod execution;
 pub mod execution_carry;
@@ -13,16 +11,9 @@ pub mod execution_security;
 pub mod logistics;
 pub mod reception;
 pub mod run_after_catch;
-pub mod utility;
 
 pub use constants::*;
-pub use context_terms::*;
-pub use decision_engine::{
-    resolve_artrine_decision, resolve_artrine_decision_with_context,
-    resolve_artrine_decision_with_context_and_impulse, resolve_artrine_decision_with_impulse,
-    ArtrineDecisionResult,
-};
-pub use decision_profiles::*;
+pub use decision::*;
 pub use event_translation::*;
 pub use execution::{execute_artrine_decision, find_goalguard};
 pub use execution_carry::execute_carry;
@@ -36,7 +27,3 @@ pub use execution_security::{resolve_ball_security, SecurityResolutionResult};
 pub use logistics::*;
 pub use reception::{resolve_reception, ReceptionOutcome};
 pub use run_after_catch::{resolve_run_after_catch, RunAfterCatchOutcome};
-pub use utility::{
-    available_decision_kinds, calculate_decision_utilities,
-    calculate_decision_utilities_with_context,
-};

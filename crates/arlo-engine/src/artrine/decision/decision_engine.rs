@@ -1,17 +1,13 @@
 use crate::ai::cognitive::RiskProfile;
-use crate::artrine::utility::{
-    available_decision_kinds, calculate_decision_utilities_with_context,
-};
-use crate::physical::systems::degradation::extract_effective_attribute_value_with_impulse;
+use crate::artrine::decision::available_decisions::available_decision_kinds;
+use crate::artrine::decision::evaluator::calculate_decision_utilities_with_context;
+use crate::artrine::decision::sampler::sample_artrine_decision;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
-use arlo_domain::sport_constants::decision_steepness_with_impulse;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
-use arlo_math::stats::categorical::sample_categorical;
-use arlo_math::stats::contrast::softmax_weights;
 use arlo_math::units::Position as VectorPosition;
 use arlo_math::Probability;
 use rand::Rng;
@@ -240,41 +236,14 @@ pub fn resolve_artrine_decision_with_context_and_impulse<R: Rng + ?Sized>(
         artrine_physical_state,
     );
 
-    if utilities.is_empty() {
-        let default_result = ArtrineDecisionResult::new(
-            ArtrineDecisionKind::SelfCarry,
-            Probability::new_clamped(1.0),
-        );
-        crate::psychology::systems::instrumentation::instrument_artrine_decision(
-            artrine.id(),
-            &default_result,
-        );
-        return default_result;
-    }
-
-    let raw_utilities: Vec<f64> = utilities.iter().map(|(_, u)| *u).collect();
-    let decisions_val = extract_effective_attribute_value_with_impulse(
+    let result = sample_artrine_decision(
         artrine,
         attribute_keys,
-        AttributeKey::Decisions,
+        &utilities,
         artrine_physical_state,
         artrine_impulse_state,
+        rng,
     );
-    let steepness = decision_steepness_with_impulse(decisions_val, artrine_impulse_state.value());
-    let weights = softmax_weights(&raw_utilities, steepness);
-    let total_weight: f64 = weights.iter().sum();
-
-    let selected_index = sample_categorical(&weights, rng).unwrap_or(0);
-    let (chosen_kind, _) = utilities[selected_index];
-
-    let prob_value = if total_weight > 0.0 {
-        weights[selected_index] / total_weight
-    } else {
-        1.0 / (weights.len() as f64)
-    };
-
-    let chosen_probability = Probability::new_clamped(prob_value);
-    let result = ArtrineDecisionResult::new(chosen_kind, chosen_probability);
 
     crate::psychology::systems::instrumentation::instrument_artrine_decision(
         artrine.id(),
