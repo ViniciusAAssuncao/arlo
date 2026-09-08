@@ -2,16 +2,20 @@ use crate::lineup_runtime::dynamic_anchor::compute_dynamic_anchors;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
 use crate::team_identity::tempo::huddle_duration_scale;
+use crate::team_identity::transition::{
+    counter_attack_depth_bias, counter_press_engagement_bias,
+};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::fatigue_applier::apply_kinematic_movement_strain;
 use arlo_domain::{AttributeKey, Position as DomainPosition};
 use arlo_events::EventSink;
-use arlo_math::units::Duration;
+use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use uuid::Uuid;
 
 pub fn derive_and_apply_reorganization(
     state: &mut MatchState,
     scrimmage_x_mirim: f64,
+    is_post_turnover: bool,
     sink: &mut impl EventSink,
 ) -> (Duration, Duration) {
     let pitch = *state.pitch();
@@ -19,11 +23,17 @@ pub fn derive_and_apply_reorganization(
     let away_lineup = state.away_lineup().clone();
     let attribute_keys = state.attribute_keys().clone();
 
-    let is_home_offense = state.possession().role().is_offense(state.home_team_id());
+    let was_home_offense = state.possession().role().is_offense(state.home_team_id());
+    let is_home_offense = if is_post_turnover {
+        !was_home_offense
+    } else {
+        was_home_offense
+    };
+
     let home_instructions = state.home_instructions().clone();
     let away_instructions = state.away_instructions().clone();
 
-    let home_targets = compute_dynamic_anchors(
+    let mut home_targets = compute_dynamic_anchors(
         &pitch,
         &home_lineup,
         scrimmage_x_mirim,
@@ -32,7 +42,7 @@ pub fn derive_and_apply_reorganization(
         &attribute_keys,
         &home_instructions,
     );
-    let away_targets = compute_dynamic_anchors(
+    let mut away_targets = compute_dynamic_anchors(
         &pitch,
         &away_lineup,
         scrimmage_x_mirim,
@@ -41,6 +51,52 @@ pub fn derive_and_apply_reorganization(
         &attribute_keys,
         &away_instructions,
     );
+
+    if is_post_turnover {
+        let pitch_len = pitch.length().value();
+        let min_x = 0.5 * MIRIM_TO_METERS;
+        let max_x = pitch_len - 0.5 * MIRIM_TO_METERS;
+
+        if is_home_offense {
+            let ca_bias = counter_attack_depth_bias(
+                home_instructions.transition().counter_attack_intensity(),
+                pitch_len,
+            );
+            let cp_bias = counter_press_engagement_bias(
+                away_instructions.transition().counter_press_intensity(),
+                away_instructions.regroup_discipline(),
+            );
+            let cp_shift = cp_bias * pitch_len * 0.08;
+
+            for pos in home_targets.values_mut() {
+                let new_x = (pos.raw().0 + ca_bias).clamp(min_x, max_x);
+                *pos = VectorPosition::from_components(new_x, pos.raw().1, pos.raw().2);
+            }
+            for pos in away_targets.values_mut() {
+                let new_x = (pos.raw().0 - cp_shift).clamp(min_x, max_x);
+                *pos = VectorPosition::from_components(new_x, pos.raw().1, pos.raw().2);
+            }
+        } else {
+            let ca_bias = counter_attack_depth_bias(
+                away_instructions.transition().counter_attack_intensity(),
+                pitch_len,
+            );
+            let cp_bias = counter_press_engagement_bias(
+                home_instructions.transition().counter_press_intensity(),
+                home_instructions.regroup_discipline(),
+            );
+            let cp_shift = cp_bias * pitch_len * 0.08;
+
+            for pos in away_targets.values_mut() {
+                let new_x = (pos.raw().0 - ca_bias).clamp(min_x, max_x);
+                *pos = VectorPosition::from_components(new_x, pos.raw().1, pos.raw().2);
+            }
+            for pos in home_targets.values_mut() {
+                let new_x = (pos.raw().0 + cp_shift).clamp(min_x, max_x);
+                *pos = VectorPosition::from_components(new_x, pos.raw().1, pos.raw().2);
+            }
+        }
+    }
 
     let mut movers = Vec::with_capacity(home_lineup.len() + away_lineup.len());
     for assignment in home_lineup.assignments() {
