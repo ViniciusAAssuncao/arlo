@@ -7,9 +7,12 @@ use crate::spatial::proximity::{
     calculate_time_to_direct_intercept, calculate_time_to_moving_intercept,
 };
 use crate::spatial::DynamicSpatialMap;
+use crate::team_identity::pressing::individual_contest_radius_multiplier;
+use arlo_domain::sport_constants::ATTRIBUTE_MAX;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::compute_swept_sphere_intersection;
 use arlo_math::units::{Duration, Length, Position, Speed, Velocity};
+use arlo_tactics::{DepthDiscipline, PlayerInstructions};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -21,6 +24,7 @@ pub fn calculate_defender_tti(
     defender_pos: Position,
     defender_speed: Speed,
     contest_radius: Length,
+    depth_discipline: DepthDiscipline,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> (Option<Duration>, f64) {
     let defender_vel = derive_velocity_towards_target(defender_pos, target_pos, defender_speed);
@@ -45,7 +49,9 @@ pub fn calculate_defender_tti(
 
     let ant = extract_attribute_value(defender, attribute_keys, AttributeKey::Anticipation);
     let pos = extract_attribute_value(defender, attribute_keys, AttributeKey::Positioning);
-    let mental_scale = (1.0 - (ant * 0.015 + pos * 0.015)).clamp(0.35, 1.35);
+    let mental_scale = (1.0
+        - (ant * 0.015 + pos * 0.015 + depth_discipline.value() * 0.015 * ATTRIBUTE_MAX))
+        .clamp(0.35, 1.35);
 
     let effective_tti = match raw_t {
         Some(d) => d.value() * mental_scale,
@@ -60,9 +66,10 @@ pub fn identify_kinematic_lead_defender<'a, F>(
     target_vel: Velocity,
     defenders: &[&'a Player],
     spatial_map: &DynamicSpatialMap,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_for: &F,
-    contest_radius: Length,
+    base_contest_radius: Length,
     max_duration: Option<Duration>,
 ) -> Option<&'a Player>
 where
@@ -81,13 +88,26 @@ where
         let mult = compute_player_fatigue_multiplier(defender, &fatigue, attribute_keys);
         let speed = calculate_player_speed(defender, attribute_keys, mult);
 
+        let instructions = instructions_index
+            .get(&defender.id())
+            .copied()
+            .unwrap_or_default();
+        let engagement_bias = instructions.out_of_possession().engagement_bias();
+        let depth_discipline = instructions.out_of_possession().depth_discipline();
+
+        let radius = Length::new(
+            base_contest_radius.value()
+                * individual_contest_radius_multiplier(1.0, engagement_bias),
+        );
+
         let (raw_t, effective_tti) = calculate_defender_tti(
             defender,
             target_pos,
             target_vel,
             def_pos,
             speed,
-            contest_radius,
+            radius,
+            depth_discipline,
             attribute_keys,
         );
 
@@ -115,9 +135,10 @@ pub fn identify_kinematic_lead_defender_with_drift<'a, F, R>(
     target_vel: Velocity,
     defenders: &[&'a Player],
     spatial_map: &DynamicSpatialMap,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_for: &F,
-    contest_radius: Length,
+    base_contest_radius: Length,
     max_duration: Option<Duration>,
     rng: &mut R,
 ) -> Option<&'a Player>
@@ -140,13 +161,26 @@ where
         let mult = compute_player_fatigue_multiplier(defender, &fatigue, attribute_keys);
         let speed = calculate_player_speed(defender, attribute_keys, mult);
 
+        let instructions = instructions_index
+            .get(&defender.id())
+            .copied()
+            .unwrap_or_default();
+        let engagement_bias = instructions.out_of_possession().engagement_bias();
+        let depth_discipline = instructions.out_of_possession().depth_discipline();
+
+        let radius = Length::new(
+            base_contest_radius.value()
+                * individual_contest_radius_multiplier(1.0, engagement_bias),
+        );
+
         let (raw_t, effective_tti) = calculate_defender_tti(
             defender,
             target_pos,
             target_vel,
             def_pos,
             speed,
-            contest_radius,
+            radius,
+            depth_discipline,
             attribute_keys,
         );
 

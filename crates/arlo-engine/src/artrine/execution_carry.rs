@@ -27,6 +27,7 @@ use arlo_domain::sport_constants::{
 };
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, MIRIM_TO_METERS};
+use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -38,6 +39,7 @@ pub fn execute_carry<F, R>(
     offense_role_index: &HashMap<Uuid, SlotRole>,
     defenders: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
+    defense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     pitch: &Pitch,
     spatial_map: &mut DynamicSpatialMap,
@@ -120,6 +122,7 @@ where
         carrier_vel,
         defenders,
         spatial_map,
+        defense_instructions_index,
         attribute_keys,
         fatigue_for,
         contest_radius,
