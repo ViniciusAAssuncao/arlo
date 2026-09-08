@@ -26,6 +26,7 @@ pub fn hydrate(
             })?;
 
         assignments.push(LineupAssignment::new(
+            assignment.formation_slot_index(),
             slot,
             player.clone(),
             assignment.slot_role(),
