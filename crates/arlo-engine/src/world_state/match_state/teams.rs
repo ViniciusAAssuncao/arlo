@@ -1,6 +1,6 @@
 use crate::lineup_runtime::Lineup;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
-use arlo_tactics::{PlayerInstructions, TeamInstructions};
+use arlo_tactics::{PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -11,8 +11,8 @@ pub struct TeamRegistry {
     away_team_id: Uuid,
     home_lineup: Lineup,
     away_lineup: Lineup,
-    home_instructions: TeamInstructions,
-    away_instructions: TeamInstructions,
+    home_tactical_profile: TeamTacticalProfile,
+    away_tactical_profile: TeamTacticalProfile,
     home_offensive_position_index: HashMap<Uuid, DomainPosition>,
     home_defensive_position_index: HashMap<Uuid, DomainPosition>,
     away_offensive_position_index: HashMap<Uuid, DomainPosition>,
@@ -29,8 +29,8 @@ impl TeamRegistry {
         away_team_id: Uuid,
         home_lineup: Lineup,
         away_lineup: Lineup,
-        home_instructions: TeamInstructions,
-        away_instructions: TeamInstructions,
+        home_tactical_profile: TeamTacticalProfile,
+        away_tactical_profile: TeamTacticalProfile,
     ) -> Self {
         let home_offensive_position_index = home_lineup.offensive_position_index();
         let home_defensive_position_index = home_lineup.defensive_position_index();
@@ -46,8 +46,8 @@ impl TeamRegistry {
             away_team_id,
             home_lineup,
             away_lineup,
-            home_instructions,
-            away_instructions,
+            home_tactical_profile,
+            away_tactical_profile,
             home_offensive_position_index,
             home_defensive_position_index,
             away_offensive_position_index,
@@ -75,20 +75,40 @@ impl TeamRegistry {
         &self.away_lineup
     }
 
+    pub fn home_tactical_profile(&self) -> &TeamTacticalProfile {
+        &self.home_tactical_profile
+    }
+
+    pub fn away_tactical_profile(&self) -> &TeamTacticalProfile {
+        &self.away_tactical_profile
+    }
+
+    pub fn tactical_profile_for_team(&self, team_id: Uuid) -> &TeamTacticalProfile {
+        if team_id == self.home_team_id {
+            &self.home_tactical_profile
+        } else {
+            &self.away_tactical_profile
+        }
+    }
+
+    pub fn activate_tactical_profile(&mut self, team_id: Uuid, profile: TeamTacticalProfile) {
+        if team_id == self.home_team_id {
+            self.home_tactical_profile = profile;
+        } else {
+            self.away_tactical_profile = profile;
+        }
+    }
+
     pub fn home_instructions(&self) -> &TeamInstructions {
-        &self.home_instructions
+        self.home_tactical_profile.instructions()
     }
 
     pub fn away_instructions(&self) -> &TeamInstructions {
-        &self.away_instructions
+        self.away_tactical_profile.instructions()
     }
 
     pub fn instructions_for_team(&self, team_id: Uuid) -> &TeamInstructions {
-        if team_id == self.home_team_id {
-            &self.home_instructions
-        } else {
-            &self.away_instructions
-        }
+        self.tactical_profile_for_team(team_id).instructions()
     }
 
     pub fn home_offensive_position_index(&self) -> &HashMap<Uuid, DomainPosition> {

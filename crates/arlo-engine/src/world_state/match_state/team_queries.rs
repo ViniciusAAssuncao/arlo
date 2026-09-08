@@ -1,7 +1,7 @@
 use crate::lineup_runtime::Lineup;
 use crate::world_state::match_state::state::MatchState;
 use arlo_domain::{Position as DomainPosition, SlotRole};
-use arlo_tactics::{PlayerInstructions, TeamInstructions};
+use arlo_tactics::{PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -20,6 +20,22 @@ impl MatchState {
 
     pub fn away_lineup(&self) -> &Lineup {
         self.teams.away_lineup()
+    }
+
+    pub fn home_tactical_profile(&self) -> &TeamTacticalProfile {
+        self.teams.home_tactical_profile()
+    }
+
+    pub fn away_tactical_profile(&self) -> &TeamTacticalProfile {
+        self.teams.away_tactical_profile()
+    }
+
+    pub fn tactical_profile_for_team(&self, team_id: Uuid) -> &TeamTacticalProfile {
+        self.teams.tactical_profile_for_team(team_id)
+    }
+
+    pub fn activate_tactical_profile(&mut self, team_id: Uuid, profile: TeamTacticalProfile) {
+        self.teams.activate_tactical_profile(team_id, profile);
     }
 
     pub fn home_instructions(&self) -> &TeamInstructions {

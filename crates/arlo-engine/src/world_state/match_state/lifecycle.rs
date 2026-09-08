@@ -13,7 +13,7 @@ use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, Formation, MatchFormatRules, Player};
 use arlo_math::units::Position;
-use arlo_tactics::{TacticalLineup, TeamInstructions};
+use arlo_tactics::{TacticalLineup, TeamTacticalProfile};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -27,8 +27,8 @@ impl MatchState {
         away_formation: &Formation,
         home_roster: &[Player],
         away_roster: &[Player],
-        home_instructions: TeamInstructions,
-        away_instructions: TeamInstructions,
+        home_tactical_profile: TeamTacticalProfile,
+        away_tactical_profile: TeamTacticalProfile,
         pitch: Pitch,
         attribute_keys: HashMap<Uuid, AttributeKey>,
         format_rules: MatchFormatRules,
@@ -53,8 +53,8 @@ impl MatchState {
             away_team_id,
             home_lineup.clone(),
             away_lineup.clone(),
-            home_instructions,
-            away_instructions,
+            home_tactical_profile,
+            away_tactical_profile,
         );
 
         let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &attribute_keys);
