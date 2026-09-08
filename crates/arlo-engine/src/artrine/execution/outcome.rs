@@ -34,3 +34,28 @@ pub struct ArtrineExecutionOutcome {
     pub distribution_flight: Option<DistributionFlightInfo>,
     pub kinematic_trajectories: HashMap<Uuid, SpatialTrajectory>,
 }
+
+impl ArtrineExecutionOutcome {
+    pub fn stopped(
+        end_position: VectorPosition,
+        duels: Vec<AttributedDuelOutcome>,
+        duration_ledger: DurationLedger,
+        turnover: Option<Uuid>,
+        recovering_player_id: Option<Uuid>,
+    ) -> Self {
+        Self {
+            mirins_advanced: 0.0,
+            drives_recorded: 0,
+            drive_row_indices: Vec::new(),
+            turnover,
+            recovering_player_id,
+            scoring_decision: ScoringDecision::NoOpportunity,
+            duration_ledger,
+            end_position,
+            duels,
+            receiver_id: None,
+            distribution_flight: None,
+            kinematic_trajectories: HashMap::new(),
+        }
+    }
+}

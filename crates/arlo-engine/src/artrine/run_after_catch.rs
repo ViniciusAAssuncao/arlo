@@ -2,7 +2,7 @@ use crate::artrine::constants::{
     BLOCK_BONUS_MIN, BLOCK_BONUS_MULTIPLIER, CENTRAL_ZONE_NORMALIZED_Y_FALLBACK,
     CENTRAL_ZONE_NORMALIZED_Y_MAX, CENTRAL_ZONE_NORMALIZED_Y_MIN,
 };
-use crate::artrine::execution_security::resolve_ball_security;
+use crate::artrine::execution::resolve_ball_security;
 use crate::artrine::logistics::{
     collect_drifted_defender_candidates, collect_helper_candidates, collect_swept_participant_ids,
     resolve_primary_lead_defender,
