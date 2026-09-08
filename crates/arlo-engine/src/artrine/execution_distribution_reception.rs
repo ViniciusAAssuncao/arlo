@@ -15,7 +15,7 @@ use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_shot_speed
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
@@ -26,6 +26,7 @@ pub fn execute_post_throw_reception<F, R>(
     artrine: &Player,
     offense_helpers: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
+    offense_role_index: &HashMap<Uuid, SlotRole>,
     defenders: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -148,6 +149,7 @@ where
         receiver_pos_domain,
         &rac_helpers,
         offense_position_index,
+        offense_role_index,
         defenders,
         defense_position_index,
         attribute_keys,

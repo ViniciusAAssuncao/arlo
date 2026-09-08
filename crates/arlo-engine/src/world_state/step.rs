@@ -79,6 +79,9 @@ pub fn step_call_to_action(
     let defense_pos_index = state
         .defensive_position_index_for_team(defense_team_id)
         .clone();
+    let offense_role_index = state
+        .role_index_for_team(offense_team_id)
+        .clone();
 
     let offense_players: Vec<&Player> = offense_lineup.players();
     let defense_players: Vec<&Player> = defense_lineup.players();
@@ -86,6 +89,8 @@ pub fn step_call_to_action(
     let pass_phase = resolve_pass_phase(
         state,
         &offense_players,
+        &offense_pos_index,
+        &offense_role_index,
         &defense_players,
         is_home_offense,
         offense_team_id,
@@ -170,6 +175,7 @@ pub fn step_call_to_action(
             pass_phase.reception_point,
             next_artro_pos,
             &pitch,
+            &offense_role_index,
         );
 
         let game_state_pressure = analyze_match_state(state);
@@ -246,6 +252,7 @@ pub fn step_call_to_action(
             pass_phase.artrine,
             &offense_players,
             &offense_pos_index,
+            &offense_role_index,
             &defense_players,
             &defense_pos_index,
             &attribute_keys,

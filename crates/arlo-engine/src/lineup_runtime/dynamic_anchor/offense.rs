@@ -2,7 +2,7 @@ use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::positioning_drift::anchor_drift_radius_mirim;
 use crate::team_identity::{depth_from_bipolar, lateral_flank_shift, lateral_spread};
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, FormationSlot, Player, Position, PositionLine};
+use arlo_domain::{AttributeKey, FormationSlot, Player, Position, PositionLine, SlotRole};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use arlo_tactics::TeamInstructions;
 use rand::Rng;
@@ -10,10 +10,45 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use uuid::Uuid;
 
-pub fn calculate_offense_attractor_coordinates(
+pub fn resolve_offense_player_attractor(
     pitch: &Pitch,
     player: &Player,
     slot: &FormationSlot,
+    scrimmage_x_mirim: f64,
+    attacking_positive_x: bool,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    role_index: &HashMap<Uuid, SlotRole>,
+) -> VectorPosition {
+    if role_index.get(&player.id()) == Some(&SlotRole::FalseArtrine) {
+        crate::team_identity::false_artrine::decoy_attractor(
+            pitch,
+            player,
+            slot,
+            scrimmage_x_mirim,
+            true,
+            attacking_positive_x,
+            attribute_keys,
+            instructions,
+        )
+    } else {
+        crate::lineup_runtime::dynamic_anchor::calculate_player_dynamic_attractor(
+            pitch,
+            player,
+            slot,
+            scrimmage_x_mirim,
+            true,
+            attacking_positive_x,
+            attribute_keys,
+            instructions,
+        )
+    }
+}
+
+pub fn calculate_offense_attractor_coordinates_for_position(
+    pitch: &Pitch,
+    player: &Player,
+    target_position: Position,
     _scrimmage_x_m: f64,
     base_x: f64,
     base_y: f64,
@@ -23,7 +58,6 @@ pub fn calculate_offense_attractor_coordinates(
 ) -> (f64, f64) {
     let pitch_length_m = pitch.length().value();
     let pitch_width_m = pitch.width().value();
-    let target_position = slot.offensive_position();
 
     let push_distance_m = match target_position.line() {
         PositionLine::DefenseLine => {
@@ -84,6 +118,30 @@ pub fn calculate_offense_attractor_coordinates(
     };
 
     (base_x + x_shift, y_pos)
+}
+
+pub fn calculate_offense_attractor_coordinates(
+    pitch: &Pitch,
+    player: &Player,
+    slot: &FormationSlot,
+    scrimmage_x_m: f64,
+    base_x: f64,
+    base_y: f64,
+    attacking_positive_x: bool,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+) -> (f64, f64) {
+    calculate_offense_attractor_coordinates_for_position(
+        pitch,
+        player,
+        slot.offensive_position(),
+        scrimmage_x_m,
+        base_x,
+        base_y,
+        attacking_positive_x,
+        attribute_keys,
+        instructions,
+    )
 }
 
 pub fn calculate_offense_drift_radius_mirim(

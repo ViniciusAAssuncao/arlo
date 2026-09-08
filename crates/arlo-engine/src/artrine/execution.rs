@@ -7,7 +7,7 @@ use crate::physical::FatigueState;
 use crate::resolution::DuelContext;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::Position as VectorPosition;
 use rand::Rng;
 use std::collections::HashMap;
@@ -30,6 +30,7 @@ pub fn execute_artrine_decision<F, R>(
     artrine: &Player,
     offense_lineup_players: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
+    offense_role_index: &HashMap<Uuid, SlotRole>,
     defense_lineup_players: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -66,6 +67,7 @@ where
             artrine,
             &offense_helpers,
             offense_position_index,
+            offense_role_index,
             defense_lineup_players,
             defense_position_index,
             attribute_keys,
@@ -85,6 +87,7 @@ where
             artrine,
             &offense_helpers,
             offense_position_index,
+            offense_role_index,
             defense_lineup_players,
             defense_position_index,
             attribute_keys,
@@ -110,6 +113,7 @@ where
                 artrine,
                 &offense_helpers,
                 offense_position_index,
+                offense_role_index,
                 defense_lineup_players,
                 defense_position_index,
                 attribute_keys,

@@ -1,6 +1,6 @@
 use crate::artrine::execution_security::resolve_ball_security;
-use crate::physical::FatigueState;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::FatigueState;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
@@ -19,7 +19,7 @@ use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
-use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
+use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
@@ -39,6 +39,7 @@ pub fn resolve_run_after_catch<F, R>(
     receiver_pos_domain: DomainPosition,
     offense_helpers: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
+    offense_role_index: &HashMap<Uuid, SlotRole>,
     defenders: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -54,6 +55,19 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
+    let blocker_subset: Vec<&Player> = {
+        let blockers: Vec<&Player> = offense_helpers
+            .iter()
+            .copied()
+            .filter(|p| offense_role_index.get(&p.id()) == Some(&SlotRole::Blocker))
+            .collect();
+        if blockers.is_empty() {
+            offense_helpers.to_vec()
+        } else {
+            blockers
+        }
+    };
+
     let receiver_pos_vec = spatial_map
         .get_position(&receiver.id())
         .unwrap_or_else(VectorPosition::zero);
@@ -74,21 +88,21 @@ where
 
     let (block_offense_profile, block_defense_profile) = get_duel_profiles(block_duel_kind);
 
-    let lead_blocker = if !offense_helpers.is_empty() {
+    let lead_blocker = if !blocker_subset.is_empty() {
         identify_lead_player_from_index(
-            offense_helpers,
+            &blocker_subset,
             offense_position_index,
             attribute_keys,
             &block_offense_profile,
         )
-        .unwrap_or(offense_helpers[0])
+        .unwrap_or(blocker_subset[0])
     } else {
         receiver
     };
 
-    let blocker_rating = if !offense_helpers.is_empty() {
+    let blocker_rating = if !blocker_subset.is_empty() {
         calculate_side_rating_from_index_with_fatigue(
-            offense_helpers,
+            &blocker_subset,
             offense_position_index,
             attribute_keys,
             &block_offense_profile,
@@ -230,7 +244,7 @@ where
     let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
         receiver,
         receiver_pos_domain,
-        offense_helpers,
+        &blocker_subset,
         offense_position_index,
         attribute_keys,
         &rb_offense_profile,

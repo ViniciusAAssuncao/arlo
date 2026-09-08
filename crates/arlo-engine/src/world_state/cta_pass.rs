@@ -14,9 +14,10 @@ use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::match_state::MatchState;
-use arlo_domain::{Player, Position as DomainPosition};
+use arlo_domain::{Player, Position as DomainPosition, SlotRole};
 use arlo_events::EventSink;
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 pub struct PassPhaseResult<'a> {
@@ -52,6 +53,8 @@ pub fn find_player_by_position<'a>(
 pub fn resolve_pass_phase<'a>(
     state: &mut MatchState,
     offense_players: &[&'a Player],
+    offense_pos_index: &HashMap<Uuid, DomainPosition>,
+    offense_role_index: &HashMap<Uuid, SlotRole>,
     defense_players: &[&'a Player],
     is_home_offense: bool,
     offense_team_id: Uuid,
@@ -106,10 +109,32 @@ pub fn resolve_pass_phase<'a>(
     let mut duel_rng = state
         .rng_provider()
         .indexed_rng_for(RngStream::DuelResolution, seq);
-    let pass_blockers = vec![
+
+    let mut pass_blockers = vec![
         (passer, DomainPosition::Passer),
         (artrine, DomainPosition::Artrine),
     ];
+    let mut attacker_ids = vec![passer.id(), artrine.id()];
+
+    for &player in offense_players {
+        if offense_role_index.get(&player.id()) == Some(&SlotRole::Safeguard) {
+            if !attacker_ids.contains(&player.id()) {
+                let pos = offense_pos_index
+                    .get(&player.id())
+                    .copied()
+                    .unwrap_or_else(|| {
+                        player
+                            .positions()
+                            .first()
+                            .map(|pp| pp.position())
+                            .unwrap_or(DomainPosition::Fullback)
+                    });
+                pass_blockers.push((player, pos));
+                attacker_ids.push(player.id());
+            }
+        }
+    }
+
     let pass_rushers = vec![
         (pass_rusher, DomainPosition::PassRusher),
     ];
@@ -136,7 +161,6 @@ pub fn resolve_pass_phase<'a>(
         &mut duel_rng,
     );
 
-    let attacker_ids = vec![passer.id(), artrine.id()];
     let defender_ids = vec![pass_rusher.id()];
 
     let pass_duel_event = translate_duel_resolved(

@@ -91,6 +91,7 @@ pub fn compute_dynamic_anchors(
 
     let pitch_length_m = pitch.length().value();
     let scrimmage_x_m = (scrimmage_x_mirim * MIRIM_TO_METERS).clamp(0.0, pitch_length_m);
+    let role_index = lineup.role_index();
 
     let mut raw_attractors: Vec<(Uuid, VectorPosition)> = Vec::with_capacity(lineup.len());
     let mut total_x = 0.0;
@@ -98,16 +99,29 @@ pub fn compute_dynamic_anchors(
     for assignment in lineup.assignments() {
         let player = assignment.player();
         let slot = assignment.slot();
-        let attractor = calculate_player_dynamic_attractor(
-            pitch,
-            player,
-            slot,
-            scrimmage_x_mirim,
-            is_offense,
-            attacking_positive_x,
-            attribute_keys,
-            instructions,
-        );
+        let attractor = if is_offense {
+            resolve_offense_player_attractor(
+                pitch,
+                player,
+                slot,
+                scrimmage_x_mirim,
+                attacking_positive_x,
+                attribute_keys,
+                instructions,
+                &role_index,
+            )
+        } else {
+            calculate_player_dynamic_attractor(
+                pitch,
+                player,
+                slot,
+                scrimmage_x_mirim,
+                is_offense,
+                attacking_positive_x,
+                attribute_keys,
+                instructions,
+            )
+        };
         total_x += attractor.raw().0;
         raw_attractors.push((player.id(), attractor));
     }

@@ -25,7 +25,7 @@ use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
 use arlo_domain::sport_constants::{
     DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM, MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM,
 };
-use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
+use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::HashMap;
@@ -35,6 +35,7 @@ pub fn execute_carry<F, R>(
     artrine: &Player,
     offense_helpers: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
+    offense_role_index: &HashMap<Uuid, SlotRole>,
     defenders: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -53,11 +54,24 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
+    let blocker_helpers: Vec<&Player> = {
+        let blockers: Vec<&Player> = offense_helpers
+            .iter()
+            .copied()
+            .filter(|p| offense_role_index.get(&p.id()) == Some(&SlotRole::Blocker))
+            .collect();
+        if blockers.is_empty() {
+            offense_helpers.to_vec()
+        } else {
+            blockers
+        }
+    };
+
     let (offense_profile, defense_profile) = get_duel_profiles(DuelKind::ArtroBreakthrough);
     let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
         artrine,
         DomainPosition::Artrine,
-        offense_helpers,
+        &blocker_helpers,
         offense_position_index,
         attribute_keys,
         &offense_profile,

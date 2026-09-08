@@ -24,7 +24,7 @@ use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::{
     Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS,
 };
@@ -37,6 +37,7 @@ pub fn execute_distribution<F, R>(
     artrine: &Player,
     offense_helpers: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
+    offense_role_index: &HashMap<Uuid, SlotRole>,
     defenders: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -273,6 +274,7 @@ where
         artrine,
         offense_helpers,
         offense_position_index,
+        offense_role_index,
         defenders,
         defense_position_index,
         attribute_keys,

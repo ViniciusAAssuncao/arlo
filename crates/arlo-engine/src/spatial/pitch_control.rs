@@ -1,8 +1,9 @@
 use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
 use crate::spatial::decision_vector::{calculate_player_speed, extract_attribute_value};
 use crate::spatial::DynamicSpatialMap;
+use crate::team_identity::false_artrine::phantom_voronoi_site;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::{AttributeKey, Player, SlotRole};
 use arlo_math::geometry::{
     compute_point_team_control, compute_team_control_fraction, VoronoiRegion, VoronoiSite,
 };
@@ -74,6 +75,7 @@ pub fn calculate_artro_advance_pitch_control<F>(
     start_pos: VectorPosition,
     target_artro_pos: VectorPosition,
     pitch: &Pitch,
+    offense_role_index: &HashMap<Uuid, SlotRole>,
 ) -> f64
 where
     F: Fn(&Uuid) -> FatigueState,
@@ -94,7 +96,23 @@ where
     let y_max = (y_center + half_width).min(pitch.width().value());
 
     let region = VoronoiRegion::new(x_min, x_max, y_min, y_max);
-    calculate_kinematic_pitch_control(&attackers, defenders, spatial_map, attribute_keys, fatigue_for, &region)
+    let mut att_sites = build_team_voronoi_sites(&attackers, spatial_map, attribute_keys, fatigue_for, 0);
+
+    for &helper in helpers {
+        if offense_role_index.get(&helper.id()) == Some(&SlotRole::FalseArtrine) {
+            let phantom = phantom_voronoi_site(
+                helper,
+                spatial_map,
+                attribute_keys,
+                fatigue_for,
+                0,
+            );
+            att_sites.push(phantom);
+        }
+    }
+
+    let def_sites = build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
+    compute_team_control_fraction(&att_sites, &def_sites, &region, 5, 5)
 }
 
 pub fn calculate_point_pitch_control_players<F>(
