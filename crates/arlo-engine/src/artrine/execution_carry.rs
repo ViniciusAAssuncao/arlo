@@ -3,6 +3,10 @@ use crate::artrine::constants::{
 };
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution_security::resolve_ball_security;
+use crate::artrine::logistics::{
+    collect_drifted_defender_candidates, collect_helper_candidates, collect_swept_participant_ids,
+    resolve_primary_lead_defender,
+};
 use crate::match_decision::scoring::ScoringDecision;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
@@ -20,9 +24,8 @@ use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::derive_velocity_towards_target;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
-use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
+use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::{run_spatial_tick_loop_with_context, DynamicSpatialMap, MovementContext};
-use crate::team_identity::marking::resolve_lead_defender_with_marking;
 use crate::team_identity::tempo::effort_multiplier_from_value;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
@@ -30,7 +33,7 @@ use arlo_domain::sport_constants::{
     DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM, MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM,
 };
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
-use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, MIRIM_TO_METERS};
+use arlo_math::units::{Duration, Length, Position as VectorPosition, MIRIM_TO_METERS};
 use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
@@ -124,7 +127,7 @@ where
     let contest_radius = Length::new(
         PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS,
     );
-    let lead_defender = resolve_lead_defender_with_marking(
+    let lead_defender = resolve_primary_lead_defender(
         artrine.id(),
         offense_position_index,
         start_pos,
@@ -137,8 +140,7 @@ where
         contest_radius,
         None,
         rng,
-    )
-    .unwrap_or(defenders[0]);
+    );
 
     let artro_context = context.for_duel_kind(DuelKind::ArtroBreakthrough);
     let raw_artro_duel = resolve_duel_with_fatigue(
@@ -167,53 +169,38 @@ where
             None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
         };
 
-    let helper_candidates: Vec<(&Player, VectorPosition, Speed)> = offense_helpers
-        .iter()
-        .map(|&p| {
-            let pos = spatial_map.get_position(&p.id()).unwrap_or(start_pos);
-            let st = fatigue_for(&p.id());
-            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
-            (p, pos, spd)
-        })
-        .collect();
-
-    let mut artro_attacker_ids = vec![artrine.id()];
-    for id in filter_active_duelists_swept(
+    let helper_candidates = collect_helper_candidates(
+        offense_helpers,
+        spatial_map,
+        attribute_keys,
+        start_pos,
+        fatigue_for,
+    );
+    let artro_attacker_ids = collect_swept_participant_ids(
+        artrine.id(),
         start_pos,
         carrier_vel,
         &helper_candidates,
         contest_radius,
         artro_duration,
-    ) {
-        if !artro_attacker_ids.contains(&id) {
-            artro_attacker_ids.push(id);
-        }
-    }
+    );
 
-    let defender_candidates: Vec<(&Player, VectorPosition, Speed)> = defenders
-        .iter()
-        .map(|&p| {
-            let pos = get_drifted_defender_position(p, spatial_map, attribute_keys, rng)
-                .or_else(|| spatial_map.get_position(&p.id()))
-                .unwrap_or(start_pos);
-            let st = fatigue_for(&p.id());
-            let spd = calculate_effective_player_speed(p, attribute_keys, &st);
-            (p, pos, spd)
-        })
-        .collect();
-
-    let mut artro_defender_ids = vec![lead_defender.id()];
-    for id in filter_active_duelists_swept(
+    let defender_candidates = collect_drifted_defender_candidates(
+        defenders,
+        spatial_map,
+        attribute_keys,
+        start_pos,
+        fatigue_for,
+        rng,
+    );
+    let artro_defender_ids = collect_swept_participant_ids(
+        lead_defender.id(),
         start_pos,
         carrier_vel,
         &defender_candidates,
         contest_radius,
         artro_duration,
-    ) {
-        if !artro_defender_ids.contains(&id) {
-            artro_defender_ids.push(id);
-        }
-    }
+    );
 
     let artro_duel =
         AttributedDuelOutcome::new(raw_artro_duel, artro_attacker_ids, artro_defender_ids);

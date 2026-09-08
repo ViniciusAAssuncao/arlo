@@ -10,6 +10,7 @@ pub mod execution_distribution_reception;
 pub mod execution_finish;
 pub mod execution_outcome;
 pub mod execution_security;
+pub mod logistics;
 pub mod reception;
 pub mod run_after_catch;
 pub mod utility;
@@ -32,6 +33,7 @@ pub use execution_finish::{
 };
 pub use execution_outcome::{ArtrineExecutionOutcome, DistributionFlightInfo};
 pub use execution_security::{resolve_ball_security, SecurityResolutionResult};
+pub use logistics::*;
 pub use reception::{resolve_reception, ReceptionOutcome};
 pub use run_after_catch::{resolve_run_after_catch, RunAfterCatchOutcome};
 pub use utility::{
