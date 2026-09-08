@@ -17,7 +17,8 @@ pub use envelope::{MatchClockInstant, MatchEventEnvelope};
 pub use in_memory_sink::InMemorySink;
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
-    CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent, Turnover,
+    CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent,
+    PossessionTimeRecorded, Turnover,
 };
 pub use psychology::{
     ImpulseCriticalReached, ImpulseEventKind, ImpulseShiftRecorded, PsychologyEvent,
@@ -51,6 +52,7 @@ pub enum MatchEvent {
     RecoveryIntervalProcessed(RecoveryIntervalProcessed),
     ImpulseShiftRecorded(ImpulseShiftRecorded),
     ImpulseCriticalReached(ImpulseCriticalReached),
+    PossessionTimeRecorded(PossessionTimeRecorded),
 }
 
 impl MatchEvent {
@@ -74,6 +76,7 @@ impl MatchEvent {
                 | Self::OutOfBounds(_)
                 | Self::CountdownToSizeStarted(_)
                 | Self::DownAdvanced(_)
+                | Self::PossessionTimeRecorded(_)
         )
     }
 
@@ -123,6 +126,7 @@ impl MatchEvent {
             Self::RecoveryIntervalProcessed(_) => "RecoveryIntervalProcessed",
             Self::ImpulseShiftRecorded(_) => "ImpulseShiftRecorded",
             Self::ImpulseCriticalReached(_) => "ImpulseCriticalReached",
+            Self::PossessionTimeRecorded(_) => "PossessionTimeRecorded",
         }
     }
 }
@@ -241,6 +245,12 @@ impl From<ImpulseCriticalReached> for MatchEvent {
     }
 }
 
+impl From<PossessionTimeRecorded> for MatchEvent {
+    fn from(ev: PossessionTimeRecorded) -> Self {
+        Self::PossessionTimeRecorded(ev)
+    }
+}
+
 impl From<PhysicalEvent> for MatchEvent {
     fn from(ev: PhysicalEvent) -> Self {
         match ev {
@@ -280,6 +290,7 @@ impl From<PossessionEvent> for MatchEvent {
             PossessionEvent::OutOfBounds(e) => Self::OutOfBounds(e),
             PossessionEvent::CountdownToSizeStarted(e) => Self::CountdownToSizeStarted(e),
             PossessionEvent::DownAdvanced(e) => Self::DownAdvanced(e),
+            PossessionEvent::PossessionTimeRecorded(e) => Self::PossessionTimeRecorded(e),
         }
     }
 }

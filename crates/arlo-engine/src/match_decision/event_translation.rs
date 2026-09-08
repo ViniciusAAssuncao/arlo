@@ -126,7 +126,7 @@ pub fn translate_turnover(
     previous_offense: Uuid,
     new_offense: Uuid,
     recovering_player: Option<Uuid>,
-    lost_by_player: Option<Uuid>,
+    lost_by_player_id: Option<Uuid>,
     in_live_play: bool,
     point: Position,
 ) -> Turnover {
@@ -134,7 +134,7 @@ pub fn translate_turnover(
         previous_offense,
         new_offense,
         recovering_player,
-        lost_by_player,
+        lost_by_player_id,
         in_live_play,
         point.raw().0,
         point.raw().1,
@@ -188,12 +188,14 @@ pub fn translate_scoring_decision(decision: &ScoringDecision) -> Option<MatchEve
             team_id,
             scorer_id,
             artrine_id,
+            assister_id,
             drives_completed,
             ..
         } => Some(MatchEvent::GoalPoint(GoalPointScored::new(
             *team_id,
             *scorer_id,
             *artrine_id,
+            *assister_id,
             *drives_completed,
         ))),
         ScoringDecision::FieldPoint {

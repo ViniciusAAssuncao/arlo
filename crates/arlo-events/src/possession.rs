@@ -275,11 +275,35 @@ impl Turnover {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PossessionTimeRecorded {
+    team_id: Uuid,
+    live_duration_seconds: f64,
+}
+
+impl PossessionTimeRecorded {
+    pub fn new(team_id: Uuid, live_duration_seconds: f64) -> Self {
+        Self {
+            team_id,
+            live_duration_seconds,
+        }
+    }
+
+    pub fn team_id(&self) -> Uuid {
+        self.team_id
+    }
+
+    pub fn live_duration_seconds(&self) -> f64 {
+        self.live_duration_seconds
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PossessionEvent {
     CountdownToSizeStarted(CountdownToSizeStarted),
     DownAdvanced(DownAdvanced),
     OutOfBounds(OutOfBounds),
     Turnover(Turnover),
+    PossessionTimeRecorded(PossessionTimeRecorded),
 }
 
 impl From<CountdownToSizeStarted> for PossessionEvent {
@@ -303,5 +327,11 @@ impl From<OutOfBounds> for PossessionEvent {
 impl From<Turnover> for PossessionEvent {
     fn from(event: Turnover) -> Self {
         Self::Turnover(event)
+    }
+}
+
+impl From<PossessionTimeRecorded> for PossessionEvent {
+    fn from(event: PossessionTimeRecorded) -> Self {
+        Self::PossessionTimeRecorded(event)
     }
 }
