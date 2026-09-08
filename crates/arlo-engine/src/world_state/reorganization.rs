@@ -7,6 +7,11 @@ use crate::team_identity::tempo::{
 use crate::team_identity::transition::{
     counter_attack_depth_bias, counter_press_engagement_bias,
 };
+use crate::world_state::constants::{
+    COUNTER_PRESS_SHIFT_PERCENTAGE, DEFAULT_ATTRIBUTE_VALUE, HUDDLE_BASE_MAX_SECONDS,
+    HUDDLE_LEADERSHIP_WEIGHT, HUDDLE_MAX_SECONDS, HUDDLE_MIN_SECONDS, HUDDLE_TACTICAL_WEIGHT,
+    PITCH_EDGE_MARGIN_MIRIM,
+};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::fatigue_applier::apply_kinematic_movement_strain;
 use arlo_domain::{AttributeKey, Position as DomainPosition};
@@ -78,8 +83,8 @@ pub fn derive_and_apply_reorganization(
 
     if is_post_turnover {
         let pitch_len = pitch.length().value();
-        let min_x = 0.5 * MIRIM_TO_METERS;
-        let max_x = pitch_len - 0.5 * MIRIM_TO_METERS;
+        let min_x = PITCH_EDGE_MARGIN_MIRIM * MIRIM_TO_METERS;
+        let max_x = pitch_len - PITCH_EDGE_MARGIN_MIRIM * MIRIM_TO_METERS;
 
         if is_home_offense {
             let ca_bias = counter_attack_depth_bias(
@@ -91,7 +96,7 @@ pub fn derive_and_apply_reorganization(
                 away_instructions.transition().counter_press_intensity(),
                 away_instructions.regroup_discipline(),
             );
-            let cp_shift = cp_bias * pitch_len * 0.08;
+            let cp_shift = cp_bias * pitch_len * COUNTER_PRESS_SHIFT_PERCENTAGE;
 
             for pos in home_targets.values_mut() {
                 let new_x = (pos.raw().0 + ca_bias).clamp(min_x, max_x);
@@ -111,7 +116,7 @@ pub fn derive_and_apply_reorganization(
                 home_instructions.transition().counter_press_intensity(),
                 home_instructions.regroup_discipline(),
             );
-            let cp_shift = cp_bias * pitch_len * 0.08;
+            let cp_shift = cp_bias * pitch_len * COUNTER_PRESS_SHIFT_PERCENTAGE;
 
             for pos in away_targets.values_mut() {
                 let new_x = (pos.raw().0 - ca_bias).clamp(min_x, max_x);
@@ -214,12 +219,13 @@ pub fn derive_and_apply_reorganization(
         let lead = extract_attribute_value(artrine, &attribute_keys, AttributeKey::Leadership);
         (tac, lead)
     } else {
-        (10.0, 10.0)
+        (DEFAULT_ATTRIBUTE_VALUE, DEFAULT_ATTRIBUTE_VALUE)
     };
 
-    let base_huddle_seconds = (28.0 - (tac * 0.55 + lead * 0.45)).clamp(8.0, 32.0);
+    let base_huddle_seconds = (HUDDLE_BASE_MAX_SECONDS - (tac * HUDDLE_TACTICAL_WEIGHT + lead * HUDDLE_LEADERSHIP_WEIGHT))
+        .clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
     let huddle_scale = huddle_duration_scale(offense_instructions.in_possession().tempo());
-    let huddle_seconds = (base_huddle_seconds * huddle_scale).clamp(8.0, 32.0);
+    let huddle_seconds = (base_huddle_seconds * huddle_scale).clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
 
     (
         Duration::new(tick_result.elapsed_seconds()),

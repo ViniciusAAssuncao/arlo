@@ -1,3 +1,4 @@
+use crate::world_state::constants::*;
 use crate::world_state::MatchState;
 use arlo_domain::ArtrineDecisionKind;
 use serde::{Deserialize, Serialize};
@@ -105,8 +106,12 @@ impl GameStatePressure {
     pub fn bias_for_decision(&self, kind: ArtrineDecisionKind, drives_in_series: u32) -> f64 {
         let raw = match kind {
             ArtrineDecisionKind::SelfCarry => {
-                if drives_in_series < 3 {
-                    self.carry_bias * (1.0 + 0.35 * ((3 - drives_in_series) as f64))
+                if drives_in_series < DRIVES_THRESHOLD_FOR_SCORING_OPPORTUNITY {
+                    self.carry_bias
+                        * (1.0
+                            + CARRY_EARLY_DRIVE_BONUS_MULTIPLIER
+                                * ((DRIVES_THRESHOLD_FOR_SCORING_OPPORTUNITY - drives_in_series)
+                                    as f64))
                 } else {
                     self.carry_bias
                 }
@@ -114,21 +119,21 @@ impl GameStatePressure {
             ArtrineDecisionKind::ShortPass => self.short_pass_bias,
             ArtrineDecisionKind::LongLaunch => self.long_launch_bias,
             ArtrineDecisionKind::Cross => {
-                if drives_in_series >= 3 {
+                if drives_in_series >= DRIVES_THRESHOLD_FOR_SCORING_OPPORTUNITY {
                     self.cross_bias * self.goal_point_bias
                 } else {
                     self.cross_bias * self.field_point_bias
                 }
             }
             ArtrineDecisionKind::SelfFinish => {
-                if drives_in_series >= 3 {
+                if drives_in_series >= DRIVES_THRESHOLD_FOR_SCORING_OPPORTUNITY {
                     self.self_finish_bias * self.goal_point_bias
                 } else {
                     self.self_finish_bias * self.field_point_bias
                 }
             }
         };
-        raw.clamp(0.10, 4.00)
+        raw.clamp(MIN_DECISION_BIAS, MAX_DECISION_BIAS)
     }
 }
 
@@ -136,16 +141,16 @@ impl Default for GameStatePressure {
     fn default() -> Self {
         Self {
             score_deficit: 0,
-            total_remaining_seconds: 3600.0,
+            total_remaining_seconds: DEFAULT_TOTAL_REMAINING_SECONDS,
             urgency_index: 0.0,
-            goal_point_bias: 1.0,
-            field_point_bias: 1.0,
-            turnover_aversion_scale: 1.0,
-            long_launch_bias: 1.0,
-            short_pass_bias: 1.0,
-            carry_bias: 1.0,
-            cross_bias: 1.0,
-            self_finish_bias: 1.0,
+            goal_point_bias: DEFAULT_PRESSURE_BIAS,
+            field_point_bias: DEFAULT_PRESSURE_BIAS,
+            turnover_aversion_scale: DEFAULT_PRESSURE_BIAS,
+            long_launch_bias: DEFAULT_PRESSURE_BIAS,
+            short_pass_bias: DEFAULT_PRESSURE_BIAS,
+            carry_bias: DEFAULT_PRESSURE_BIAS,
+            cross_bias: DEFAULT_PRESSURE_BIAS,
+            self_finish_bias: DEFAULT_PRESSURE_BIAS,
         }
     }
 }
@@ -167,26 +172,41 @@ pub fn analyze_game_state(
         rem_in_period
     };
 
-    let time_urgency = 1.0 / (1.0 + (total_remaining_seconds / 360.0).powf(1.4));
+    let time_urgency = 1.0
+        / (1.0
+            + (total_remaining_seconds / URGENCY_TIME_HALF_LIFE_SECONDS).powf(URGENCY_POWER_CURVE));
 
     let urgency_index = if score_deficit > 0 {
-        ((score_deficit as f64) * 0.35 * (0.30 + 0.70 * time_urgency)).clamp(0.0, 5.0)
+        ((score_deficit as f64)
+            * TRAILING_URGENCY_DEFICIT_FACTOR
+            * (TRAILING_URGENCY_BASE_WEIGHT + TRAILING_URGENCY_TIME_WEIGHT * time_urgency))
+            .clamp(0.0, MAX_TRAILING_URGENCY_INDEX)
     } else if score_deficit < 0 {
-        ((-score_deficit as f64) * 0.20 * time_urgency).clamp(0.0, 3.0)
+        ((-score_deficit as f64) * LEADING_URGENCY_DEFICIT_FACTOR * time_urgency)
+            .clamp(0.0, MAX_LEADING_URGENCY_INDEX)
     } else {
-        (0.50 * time_urgency).clamp(0.0, 2.0)
+        (TIED_URGENCY_BASE_FACTOR * time_urgency).clamp(0.0, MAX_TIED_URGENCY_INDEX)
     };
 
-    if score_deficit >= 4 && time_urgency > 0.35 {
-        let intensity = ((time_urgency - 0.35) / 0.65).clamp(0.0, 1.0);
-        let goal_point_bias = (1.0 + 2.20 * intensity).clamp(1.0, 3.50);
-        let field_point_bias = (1.0 - 0.75 * intensity).clamp(0.15, 1.00);
-        let long_launch_bias = (1.0 + 0.70 * intensity).clamp(1.0, 2.20);
-        let cross_bias = (1.0 + 0.90 * intensity).clamp(1.0, 2.40);
-        let self_finish_bias = (1.0 + 0.85 * intensity).clamp(1.0, 2.20);
-        let short_pass_bias = (1.0 - 0.35 * intensity).clamp(0.45, 1.00);
-        let carry_bias = (1.0 - 0.25 * intensity).clamp(0.55, 1.00);
-        let turnover_aversion_scale = (1.0 - 0.45 * intensity).clamp(0.35, 1.00);
+    if score_deficit >= LARGE_DEFICIT_THRESHOLD && time_urgency > URGENCY_THRESHOLD {
+        let intensity =
+            ((time_urgency - URGENCY_THRESHOLD) / URGENCY_INTENSITY_DIVISOR).clamp(0.0, 1.0);
+        let goal_point_bias = (1.0 + LARGE_DEFICIT_GOAL_POINT_SCALE * intensity)
+            .clamp(1.0, LARGE_DEFICIT_GOAL_POINT_MAX);
+        let field_point_bias = (1.0 - LARGE_DEFICIT_FIELD_POINT_SCALE * intensity)
+            .clamp(LARGE_DEFICIT_FIELD_POINT_MIN, 1.00);
+        let long_launch_bias = (1.0 + LARGE_DEFICIT_LONG_LAUNCH_SCALE * intensity)
+            .clamp(1.0, LARGE_DEFICIT_LONG_LAUNCH_MAX);
+        let cross_bias =
+            (1.0 + LARGE_DEFICIT_CROSS_SCALE * intensity).clamp(1.0, LARGE_DEFICIT_CROSS_MAX);
+        let self_finish_bias = (1.0 + LARGE_DEFICIT_SELF_FINISH_SCALE * intensity)
+            .clamp(1.0, LARGE_DEFICIT_SELF_FINISH_MAX);
+        let short_pass_bias = (1.0 - LARGE_DEFICIT_SHORT_PASS_SCALE * intensity)
+            .clamp(LARGE_DEFICIT_SHORT_PASS_MIN, 1.00);
+        let carry_bias = (1.0 - LARGE_DEFICIT_CARRY_SCALE * intensity)
+            .clamp(LARGE_DEFICIT_CARRY_MIN, 1.00);
+        let turnover_aversion_scale = (1.0 - LARGE_DEFICIT_TURNOVER_AVERSION_SCALE * intensity)
+            .clamp(LARGE_DEFICIT_TURNOVER_AVERSION_MIN, 1.00);
 
         GameStatePressure::new(
             score_deficit,
@@ -201,16 +221,28 @@ pub fn analyze_game_state(
             cross_bias,
             self_finish_bias,
         )
-    } else if score_deficit > 0 && score_deficit <= 3 && time_urgency > 0.35 {
-        let intensity = ((time_urgency - 0.35) / 0.65).clamp(0.0, 1.0);
-        let goal_point_bias = (1.0 + 0.80 * intensity).clamp(1.0, 2.00);
-        let field_point_bias = (1.0 + 1.40 * intensity).clamp(1.0, 2.60);
-        let long_launch_bias = (1.0 + 0.20 * intensity).clamp(1.0, 1.40);
-        let cross_bias = (1.0 + 0.70 * intensity).clamp(1.0, 2.00);
-        let self_finish_bias = (1.0 + 0.60 * intensity).clamp(1.0, 1.90);
-        let short_pass_bias = (1.0 + 0.15 * intensity).clamp(1.0, 1.30);
-        let carry_bias = (1.0 + 0.10 * intensity).clamp(1.0, 1.25);
-        let turnover_aversion_scale = (1.0 + 0.35 * intensity).clamp(1.0, 1.80);
+    } else if score_deficit > 0
+        && score_deficit < LARGE_DEFICIT_THRESHOLD
+        && time_urgency > URGENCY_THRESHOLD
+    {
+        let intensity =
+            ((time_urgency - URGENCY_THRESHOLD) / URGENCY_INTENSITY_DIVISOR).clamp(0.0, 1.0);
+        let goal_point_bias = (1.0 + SMALL_DEFICIT_GOAL_POINT_SCALE * intensity)
+            .clamp(1.0, SMALL_DEFICIT_GOAL_POINT_MAX);
+        let field_point_bias = (1.0 + SMALL_DEFICIT_FIELD_POINT_SCALE * intensity)
+            .clamp(1.0, SMALL_DEFICIT_FIELD_POINT_MAX);
+        let long_launch_bias = (1.0 + SMALL_DEFICIT_LONG_LAUNCH_SCALE * intensity)
+            .clamp(1.0, SMALL_DEFICIT_LONG_LAUNCH_MAX);
+        let cross_bias =
+            (1.0 + SMALL_DEFICIT_CROSS_SCALE * intensity).clamp(1.0, SMALL_DEFICIT_CROSS_MAX);
+        let self_finish_bias = (1.0 + SMALL_DEFICIT_SELF_FINISH_SCALE * intensity)
+            .clamp(1.0, SMALL_DEFICIT_SELF_FINISH_MAX);
+        let short_pass_bias = (1.0 + SMALL_DEFICIT_SHORT_PASS_SCALE * intensity)
+            .clamp(1.0, SMALL_DEFICIT_SHORT_PASS_MAX);
+        let carry_bias =
+            (1.0 + SMALL_DEFICIT_CARRY_SCALE * intensity).clamp(1.0, SMALL_DEFICIT_CARRY_MAX);
+        let turnover_aversion_scale = (1.0 + SMALL_DEFICIT_TURNOVER_AVERSION_SCALE * intensity)
+            .clamp(1.0, SMALL_DEFICIT_TURNOVER_AVERSION_MAX);
 
         GameStatePressure::new(
             score_deficit,
@@ -225,16 +257,24 @@ pub fn analyze_game_state(
             cross_bias,
             self_finish_bias,
         )
-    } else if score_deficit < 0 && time_urgency > 0.35 {
-        let intensity = ((time_urgency - 0.35) / 0.65).clamp(0.0, 1.0);
-        let goal_point_bias = (1.0 - 0.35 * intensity).clamp(0.45, 1.00);
+    } else if score_deficit < 0 && time_urgency > URGENCY_THRESHOLD {
+        let intensity =
+            ((time_urgency - URGENCY_THRESHOLD) / URGENCY_INTENSITY_DIVISOR).clamp(0.0, 1.0);
+        let goal_point_bias = (1.0 - LEADING_GOAL_POINT_SCALE * intensity)
+            .clamp(LEADING_GOAL_POINT_MIN, 1.00);
         let field_point_bias = 1.0;
-        let long_launch_bias = (1.0 - 0.55 * intensity).clamp(0.35, 1.00);
-        let cross_bias = (1.0 - 0.45 * intensity).clamp(0.40, 1.00);
-        let self_finish_bias = (1.0 - 0.35 * intensity).clamp(0.50, 1.00);
-        let short_pass_bias = (1.0 + 0.45 * intensity).clamp(1.0, 1.70);
-        let carry_bias = (1.0 + 0.55 * intensity).clamp(1.0, 1.85);
-        let turnover_aversion_scale = (1.0 + 1.10 * intensity).clamp(1.0, 2.60);
+        let long_launch_bias = (1.0 - LEADING_LONG_LAUNCH_SCALE * intensity)
+            .clamp(LEADING_LONG_LAUNCH_MIN, 1.00);
+        let cross_bias =
+            (1.0 - LEADING_CROSS_SCALE * intensity).clamp(LEADING_CROSS_MIN, 1.00);
+        let self_finish_bias = (1.0 - LEADING_SELF_FINISH_SCALE * intensity)
+            .clamp(LEADING_SELF_FINISH_MIN, 1.00);
+        let short_pass_bias = (1.0 + LEADING_SHORT_PASS_SCALE * intensity)
+            .clamp(1.0, LEADING_SHORT_PASS_MAX);
+        let carry_bias =
+            (1.0 + LEADING_CARRY_SCALE * intensity).clamp(1.0, LEADING_CARRY_MAX);
+        let turnover_aversion_scale = (1.0 + LEADING_TURNOVER_AVERSION_SCALE * intensity)
+            .clamp(1.0, LEADING_TURNOVER_AVERSION_MAX);
 
         GameStatePressure::new(
             score_deficit,
@@ -254,14 +294,14 @@ pub fn analyze_game_state(
             score_deficit,
             total_remaining_seconds,
             urgency_index,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
+            DEFAULT_PRESSURE_BIAS,
+            DEFAULT_PRESSURE_BIAS,
+            DEFAULT_PRESSURE_BIAS,
+            DEFAULT_PRESSURE_BIAS,
+            DEFAULT_PRESSURE_BIAS,
+            DEFAULT_PRESSURE_BIAS,
+            DEFAULT_PRESSURE_BIAS,
+            DEFAULT_PRESSURE_BIAS,
         )
     }
 }

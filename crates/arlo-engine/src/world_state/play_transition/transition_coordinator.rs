@@ -2,6 +2,7 @@ use crate::artrine::ArtrineExecutionOutcome;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::time::DurationComponentKind;
+use crate::world_state::constants::IMMEDIATE_CONTROL_THRESHOLD_SECONDS;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::period_resolution::resolve_period_end;
@@ -155,7 +156,7 @@ pub fn apply_play_transition(
     if detailed_outcome.out_of_bounds {
         let was_immediate = detailed_outcome
             .possession_control_seconds
-            .map(|s| s < 0.7)
+            .map(|s| s < IMMEDIATE_CONTROL_THRESHOLD_SECONDS)
             .unwrap_or(false);
         emit_out_of_bounds_event(
             state,
