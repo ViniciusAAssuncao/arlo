@@ -1,4 +1,5 @@
 pub mod artrine_decisions;
+pub mod assists;
 pub mod drives;
 pub mod duel_record;
 pub mod impulse;
@@ -9,6 +10,9 @@ pub mod touches;
 
 pub use artrine_decisions::{
     DecisionKindStats, PlayerArtrineDecisionAggregator, PlayerArtrineDecisionStats,
+};
+pub use assists::{
+    PlayerAssistAggregator, PlayerAssistStats, PlayerAssistsAggregator, PlayerAssistsStats,
 };
 pub use drives::{PlayerDriveStats, PlayerDrivesAggregator};
 pub use duel_record::{DuelKindStats, PlayerDuelAggregator, PlayerDuelStats};
