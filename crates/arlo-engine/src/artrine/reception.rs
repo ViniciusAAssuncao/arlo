@@ -9,12 +9,12 @@ use crate::resolution::group_rating::{
 use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::extract_attribute_value;
-use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{
     get_drifted_attacker_position, get_drifted_defender_position, nearest_drifted_opponent,
 };
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
 use crate::spatial::DynamicSpatialMap;
+use crate::team_identity::marking::resolve_lead_defender_with_marking;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
@@ -156,7 +156,9 @@ where
     );
 
     let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
-    let lead_defender = identify_kinematic_lead_defender_with_drift(
+    let lead_defender = resolve_lead_defender_with_marking(
+        receiver_id,
+        position_index,
         receiver_pos_vec,
         Velocity::zero(),
         active_defenders,

@@ -16,10 +16,10 @@ use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::resolve_duel_with_fatigue;
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::derive_velocity_towards_target;
-use crate::spatial::interception::identify_kinematic_lead_defender_with_drift;
 use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_drifted_opponent};
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
 use crate::spatial::{run_spatial_tick_loop_with_context, DynamicSpatialMap, MovementContext};
+use crate::team_identity::marking::resolve_lead_defender_with_marking;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
 use arlo_domain::sport_constants::{
@@ -117,7 +117,9 @@ where
     let carrier_vel = derive_velocity_towards_target(start_pos, target_carry_pos, artrine_speed);
 
     let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
-    let lead_defender = identify_kinematic_lead_defender_with_drift(
+    let lead_defender = resolve_lead_defender_with_marking(
+        artrine.id(),
+        offense_position_index,
         start_pos,
         carrier_vel,
         defenders,
