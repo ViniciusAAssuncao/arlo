@@ -59,6 +59,7 @@ pub fn resolve_reception<F, R>(
     context: &DuelContext,
     fatigue_for: &F,
     defense_pressing_multiplier: f64,
+    openness_by_player: &HashMap<Uuid, f64>,
     rng: &mut R,
 ) -> ReceptionOutcome
 where
@@ -74,6 +75,7 @@ where
         attribute_keys,
         attacking_positive_x,
         ReceptionRole::OpenPlayReceiver,
+        openness_by_player,
         fatigue_for,
         rng,
     )

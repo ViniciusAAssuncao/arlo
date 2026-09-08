@@ -4,7 +4,7 @@ use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::{Length, MIRIM_TO_METERS};
-use arlo_tactics::{PlayerInstructions, TeamInstructions};
+use arlo_tactics::{PlayerInstructions, RouteAssignment, TeamInstructions};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -31,6 +31,8 @@ pub struct ActionExecutionContext<'a, F> {
     pub defense_position_index: &'a HashMap<Uuid, DomainPosition>,
     pub defense_instructions_index: &'a HashMap<Uuid, PlayerInstructions>,
     pub goalguard: &'a Player,
+    pub openness_by_player: &'a HashMap<Uuid, f64>,
+    pub offense_route_index: &'a HashMap<Uuid, RouteAssignment>,
 }
 
 impl<'a, F> ActionExecutionContext<'a, F>

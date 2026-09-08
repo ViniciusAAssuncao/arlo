@@ -25,6 +25,7 @@ pub fn calculate_player_finishing_weight(
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
+    openness_by_player: &HashMap<Uuid, f64>,
 ) -> f64 {
     calculate_player_target_weight(
         player,
@@ -35,6 +36,7 @@ pub fn calculate_player_finishing_weight(
         attribute_keys,
         attacking_positive_x,
         ReceptionRole::Finisher,
+        openness_by_player,
     )
 }
 
@@ -46,6 +48,7 @@ pub fn select_finisher_with_fatigue<F, R>(
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
+    openness_by_player: &HashMap<Uuid, f64>,
     fatigue_for: &F,
     rng: &mut R,
 ) -> Option<Uuid>
@@ -62,6 +65,7 @@ where
         attribute_keys,
         attacking_positive_x,
         ReceptionRole::Finisher,
+        openness_by_player,
         fatigue_for,
         rng,
     )
@@ -75,6 +79,7 @@ pub fn select_finisher<R: Rng + ?Sized>(
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
+    openness_by_player: &HashMap<Uuid, f64>,
     rng: &mut R,
 ) -> Option<Uuid> {
     select_finisher_with_fatigue(
@@ -85,6 +90,7 @@ pub fn select_finisher<R: Rng + ?Sized>(
         instructions_index,
         attribute_keys,
         attacking_positive_x,
+        openness_by_player,
         &|_| PhysicalState::initial(),
         rng,
     )

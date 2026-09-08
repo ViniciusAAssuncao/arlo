@@ -85,6 +85,7 @@ pub fn calculate_player_target_weight_with_state(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
+    openness_by_player: &HashMap<Uuid, f64>,
     state: &PhysicalState,
 ) -> f64 {
     let base_weight = player_base_reception_weight_with_state(player, attribute_keys, role, state);
@@ -124,7 +125,11 @@ pub fn calculate_player_target_weight_with_state(
             .in_possession()
             .involvement_priority()
             .value();
-    base_weight * proximity_factor * fit_mult * priority_mult
+    let openness = openness_by_player
+        .get(&player.id())
+        .copied()
+        .unwrap_or(1.0);
+    base_weight * proximity_factor * fit_mult * priority_mult * openness
 }
 
 pub fn calculate_player_target_weight(
@@ -136,6 +141,7 @@ pub fn calculate_player_target_weight(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
+    openness_by_player: &HashMap<Uuid, f64>,
 ) -> f64 {
     calculate_player_target_weight_with_state(
         player,
@@ -146,6 +152,7 @@ pub fn calculate_player_target_weight(
         attribute_keys,
         attacking_positive_x,
         role,
+        openness_by_player,
         &PhysicalState::initial(),
     )
 }
@@ -159,6 +166,7 @@ pub fn select_target_with_fatigue<F, R>(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
+    openness_by_player: &HashMap<Uuid, f64>,
     fatigue_for: &F,
     rng: &mut R,
 ) -> Option<Uuid>
@@ -186,6 +194,7 @@ where
                 attribute_keys,
                 attacking_positive_x,
                 role,
+                openness_by_player,
                 &state,
             )
         })
@@ -204,6 +213,7 @@ pub fn select_target<R: Rng + ?Sized>(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
+    openness_by_player: &HashMap<Uuid, f64>,
     rng: &mut R,
 ) -> Option<Uuid> {
     select_target_with_fatigue(
@@ -215,6 +225,7 @@ pub fn select_target<R: Rng + ?Sized>(
         attribute_keys,
         attacking_positive_x,
         role,
+        openness_by_player,
         &|_| PhysicalState::initial(),
         rng,
     )

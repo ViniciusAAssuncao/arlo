@@ -111,6 +111,7 @@ where
         ctx.offense_instructions_index,
         ctx.attribute_keys,
         ctx.attacking_positive_x,
+        ctx.openness_by_player,
         ctx.fatigue_for,
         rng,
     );

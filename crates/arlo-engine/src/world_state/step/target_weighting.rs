@@ -24,6 +24,7 @@ where
     F: Fn(&Uuid) -> FatigueState,
 {
     if context.offense_route_index.is_empty() {
+        let empty_openness = HashMap::new();
         let best_available_target_weight = target_candidates
             .iter()
             .map(|p| {
@@ -37,6 +38,7 @@ where
                     attribute_keys,
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
+                    &empty_openness,
                     &p_state,
                 )
             })
@@ -45,7 +47,7 @@ where
         (
             best_available_target_weight,
             best_available_target_weight,
-            HashMap::new(),
+            empty_openness,
         )
     } else {
         let available_duration = pass_phase.duration_ledger.total_live();
@@ -81,7 +83,7 @@ where
             .iter()
             .map(|p| {
                 let p_state = fatigue_lookup(&p.id());
-                let base_weight = calculate_player_target_weight_with_state(
+                calculate_player_target_weight_with_state(
                     p,
                     state.spatial_map(),
                     state.pitch(),
@@ -90,10 +92,9 @@ where
                     attribute_keys,
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
+                    &openness_by_player,
                     &p_state,
-                );
-                let openness = openness_by_player.get(&p.id()).copied().unwrap_or(1.0);
-                base_weight * openness
+                )
             })
             .fold(0.0_f64, f64::max);
 

@@ -104,6 +104,7 @@ where
         ctx.duel_context,
         ctx.fatigue_for,
         ctx.defense_pressing_multiplier,
+        ctx.openness_by_player,
         rng,
     );
 

@@ -12,7 +12,7 @@ use arlo_domain::{
     ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole,
 };
 use arlo_math::units::Position as VectorPosition;
-use arlo_tactics::{PlayerInstructions, TeamInstructions};
+use arlo_tactics::{PlayerInstructions, RouteAssignment, TeamInstructions};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -55,6 +55,8 @@ pub fn execute_artrine_decision<F, R>(
     fatigue_for: &F,
     defense_pressing_multiplier: f64,
     offense_tempo_value: f64,
+    openness_by_player: &HashMap<Uuid, f64>,
+    offense_route_index: &HashMap<Uuid, RouteAssignment>,
     rng: &mut R,
 ) -> EngineResult<ArtrineExecutionOutcome>
 where
@@ -92,6 +94,8 @@ where
         defense_position_index,
         defense_instructions_index,
         goalguard,
+        openness_by_player,
+        offense_route_index,
     };
 
     let outcome = match decision {

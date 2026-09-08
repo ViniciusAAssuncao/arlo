@@ -85,7 +85,7 @@ pub fn run_decision_phase(
     let artrine_fatigue = fatigue_lookup(&pass_phase.artrine.id());
     let artrine_impulse = state.impulse_for(&pass_phase.artrine.id());
 
-    let (best_available_target_weight, _long_launch_target_weight, _openness_by_player) =
+    let (best_available_target_weight, _long_launch_target_weight, openness_by_player) =
         resolve_decision_target_weights(
             context,
             pass_phase,
@@ -219,6 +219,8 @@ pub fn run_decision_phase(
         &fatigue_lookup,
         defense_pressing_multiplier,
         offense_tempo_value,
+        &openness_by_player,
+        &context.offense_route_index,
         &mut execution_rng,
     )?;
 
