@@ -11,6 +11,25 @@ use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+pub fn build_player_voronoi_site_at<F>(
+    player: &Player,
+    position: VectorPosition,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    fatigue_for: &F,
+    team_id: u8,
+) -> VoronoiSite
+where
+    F: Fn(&Uuid) -> FatigueState,
+{
+    let fatigue = fatigue_for(&player.id());
+    let mult = compute_player_fatigue_multiplier(player, &fatigue, attribute_keys);
+    let speed = calculate_player_speed(player, attribute_keys, mult).value();
+    let ant = extract_attribute_value(player, attribute_keys, AttributeKey::Anticipation);
+    let reaction_time = ((20.0 - ant) * 0.015).max(0.05);
+
+    VoronoiSite::new(position.raw().0, position.raw().1, speed, reaction_time, team_id)
+}
+
 pub fn build_player_voronoi_site<F>(
     player: &Player,
     spatial_map: &DynamicSpatialMap,
@@ -24,13 +43,7 @@ where
     let pos = spatial_map
         .get_position(&player.id())
         .unwrap_or_else(VectorPosition::zero);
-    let fatigue = fatigue_for(&player.id());
-    let mult = compute_player_fatigue_multiplier(player, &fatigue, attribute_keys);
-    let speed = calculate_player_speed(player, attribute_keys, mult).value();
-    let ant = extract_attribute_value(player, attribute_keys, AttributeKey::Anticipation);
-    let reaction_time = ((20.0 - ant) * 0.015).max(0.05);
-
-    VoronoiSite::new(pos.raw().0, pos.raw().1, speed, reaction_time, team_id)
+    build_player_voronoi_site_at(player, pos, attribute_keys, fatigue_for, team_id)
 }
 
 pub fn build_team_voronoi_sites<F>(

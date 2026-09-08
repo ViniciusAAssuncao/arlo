@@ -8,9 +8,6 @@ use crate::artrine::{
 use crate::error::EngineResult;
 use crate::match_decision::event_translation::create_envelope;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::match_decision::target_selection::{
-    calculate_player_target_weight_with_state, ReceptionRole,
-};
 use crate::resolution::DuelContext;
 use crate::rng::RngStream;
 use crate::spatial::{calculate_artro_advance_pitch_control, find_next_artro_position};
@@ -19,6 +16,7 @@ use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
+use crate::world_state::step::target_weighting::resolve_decision_target_weights;
 use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
 use std::collections::HashMap;
@@ -87,23 +85,16 @@ pub fn run_decision_phase(
     let artrine_fatigue = fatigue_lookup(&pass_phase.artrine.id());
     let artrine_impulse = state.impulse_for(&pass_phase.artrine.id());
 
-    let best_available_target_weight = target_candidates
-        .iter()
-        .map(|p| {
-            let p_state = fatigue_lookup(&p.id());
-            calculate_player_target_weight_with_state(
-                p,
-                state.spatial_map(),
-                &pitch,
-                &context.offense_pos_index,
-                &context.offense_instructions_index,
-                &attribute_keys,
-                context.is_home_offense,
-                ReceptionRole::OpenPlayReceiver,
-                &p_state,
-            )
-        })
-        .fold(0.0_f64, f64::max);
+    let (best_available_target_weight, _long_launch_target_weight, _openness_by_player) =
+        resolve_decision_target_weights(
+            context,
+            pass_phase,
+            state,
+            &target_candidates,
+            defense_players,
+            &attribute_keys,
+            &fatigue_lookup,
+        );
 
     let offensive_gravity = calculate_team_max_finishing_gravity_with_fatigue(
         &target_candidates,

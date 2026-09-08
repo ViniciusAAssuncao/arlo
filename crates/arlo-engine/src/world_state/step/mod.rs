@@ -1,10 +1,12 @@
 pub mod decision_phase;
 pub mod play_resolution;
 pub mod setup;
+pub mod target_weighting;
 
 pub use decision_phase::{run_decision_phase, DecisionPhaseResult};
 pub use play_resolution::*;
 pub use setup::{setup_call_to_action_context, CallToActionContext};
+pub use target_weighting::resolve_decision_target_weights;
 
 use crate::error::EngineResult;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
