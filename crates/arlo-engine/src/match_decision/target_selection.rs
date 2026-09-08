@@ -4,6 +4,7 @@ use crate::physical::PhysicalState;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::{AttributeKey, Pitch, Player, Position};
 use arlo_math::stats::sample_categorical;
+use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -56,6 +57,7 @@ pub fn calculate_player_target_weight_with_state(
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
@@ -90,7 +92,15 @@ pub fn calculate_player_target_weight_with_state(
                 .unwrap_or(Position::CenterOffense)
         });
     let fit_mult = calculate_fit_for_position(player, assigned_pos).efficiency_multiplier();
-    base_weight * proximity_factor * fit_mult
+    let priority_mult = 1.0
+        + instructions_index
+            .get(&player.id())
+            .copied()
+            .unwrap_or_default()
+            .in_possession()
+            .involvement_priority()
+            .value();
+    base_weight * proximity_factor * fit_mult * priority_mult
 }
 
 pub fn calculate_player_target_weight(
@@ -98,6 +108,7 @@ pub fn calculate_player_target_weight(
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
@@ -107,6 +118,7 @@ pub fn calculate_player_target_weight(
         spatial_map,
         pitch,
         position_index,
+        instructions_index,
         attribute_keys,
         attacking_positive_x,
         role,
@@ -119,6 +131,7 @@ pub fn select_target_with_fatigue<F, R>(
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
@@ -145,6 +158,7 @@ where
                 spatial_map,
                 pitch,
                 position_index,
+                instructions_index,
                 attribute_keys,
                 attacking_positive_x,
                 role,
@@ -162,6 +176,7 @@ pub fn select_target<R: Rng + ?Sized>(
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
@@ -172,6 +187,7 @@ pub fn select_target<R: Rng + ?Sized>(
         spatial_map,
         pitch,
         position_index,
+        instructions_index,
         attribute_keys,
         attacking_positive_x,
         role,

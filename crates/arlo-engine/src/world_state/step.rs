@@ -82,6 +82,9 @@ pub fn step_call_to_action(
     let offense_role_index = state
         .role_index_for_team(offense_team_id)
         .clone();
+    let offense_instructions_index = state
+        .instructions_index_for_team(offense_team_id)
+        .clone();
 
     let offense_players: Vec<&Player> = offense_lineup.players();
     let defense_players: Vec<&Player> = defense_lineup.players();
@@ -141,6 +144,7 @@ pub fn step_call_to_action(
                     state.spatial_map(),
                     &pitch,
                     &offense_pos_index,
+                    &offense_instructions_index,
                     &attribute_keys,
                     is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
@@ -253,6 +257,7 @@ pub fn step_call_to_action(
             &offense_players,
             &offense_pos_index,
             &offense_role_index,
+            &offense_instructions_index,
             &defense_players,
             &defense_pos_index,
             &attribute_keys,

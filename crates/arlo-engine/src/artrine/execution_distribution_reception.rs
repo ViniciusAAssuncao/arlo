@@ -17,6 +17,7 @@ use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -27,6 +28,7 @@ pub fn execute_post_throw_reception<F, R>(
     offense_helpers: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
     offense_role_index: &HashMap<Uuid, SlotRole>,
+    offense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
     defenders: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -64,6 +66,7 @@ where
         spatial_map,
         offense_position_index,
         defense_position_index,
+        offense_instructions_index,
         attacking_positive_x,
         context,
         fatigue_for,

@@ -1,6 +1,6 @@
-use crate::physical::FatigueState;
 use crate::match_decision::target_selection::{select_target_with_fatigue, ReceptionRole};
 use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
@@ -17,6 +17,7 @@ use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS};
+use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -42,6 +43,7 @@ pub fn resolve_reception<F, R>(
     spatial_map: &DynamicSpatialMap,
     position_index: &HashMap<Uuid, DomainPosition>,
     defense_position_index: &HashMap<Uuid, DomainPosition>,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attacking_positive_x: bool,
     context: &DuelContext,
     fatigue_for: &F,
@@ -57,6 +59,7 @@ where
         spatial_map,
         pitch,
         position_index,
+        instructions_index,
         attribute_keys,
         attacking_positive_x,
         ReceptionRole::OpenPlayReceiver,

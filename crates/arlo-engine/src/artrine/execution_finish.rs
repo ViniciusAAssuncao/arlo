@@ -18,6 +18,7 @@ use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -102,6 +103,7 @@ pub fn execute_cross_finish<F, R>(
     artrine: &Player,
     teammates: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
+    offense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
     goalguard: &Player,
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
@@ -133,6 +135,7 @@ where
         spatial_map,
         pitch,
         offense_position_index,
+        offense_instructions_index,
         attribute_keys,
         attacking_positive_x,
         fatigue_for,

@@ -28,6 +28,7 @@ use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainP
 use arlo_math::units::{
     Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS,
 };
+use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -38,6 +39,7 @@ pub fn execute_distribution<F, R>(
     offense_helpers: &[&Player],
     offense_position_index: &HashMap<Uuid, DomainPosition>,
     offense_role_index: &HashMap<Uuid, SlotRole>,
+    offense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
     defenders: &[&Player],
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -275,6 +277,7 @@ where
         offense_helpers,
         offense_position_index,
         offense_role_index,
+        offense_instructions_index,
         defenders,
         defense_position_index,
         attribute_keys,
