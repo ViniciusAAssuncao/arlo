@@ -1,7 +1,10 @@
 use crate::lineup_runtime::Lineup;
 use crate::world_state::match_state::MatchState;
+use crate::world_state::step::play_resolution::{
+    resolve_decision_emphasis_for_play, resolve_role_index_for_play, resolve_route_index_for_play,
+};
 use arlo_domain::{Player, Position as DomainPosition, SlotRole};
-use arlo_tactics::PlayerInstructions;
+use arlo_tactics::{DecisionEmphasis, PlayCall, PlayerInstructions, RouteAssignment};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -16,6 +19,9 @@ pub struct CallToActionContext {
     pub offense_role_index: HashMap<Uuid, SlotRole>,
     pub offense_instructions_index: HashMap<Uuid, PlayerInstructions>,
     pub defense_instructions_index: HashMap<Uuid, PlayerInstructions>,
+    pub active_play_call: Option<PlayCall>,
+    pub offense_route_index: HashMap<Uuid, RouteAssignment>,
+    pub decision_emphasis: DecisionEmphasis,
 }
 
 impl CallToActionContext {
@@ -28,7 +34,9 @@ impl CallToActionContext {
     }
 }
 
-pub fn setup_call_to_action_context(state: &MatchState) -> CallToActionContext {
+pub fn setup_call_to_action_context(state: &mut MatchState) -> CallToActionContext {
+    let active_play_call = state.resolve_active_play_call_for_offense();
+
     let is_home_offense = state.possession().role().is_offense(state.home_team_id());
     let (offense_team_id, defense_team_id) = if is_home_offense {
         (state.home_team_id(), state.away_team_id())
@@ -48,9 +56,25 @@ pub fn setup_call_to_action_context(state: &MatchState) -> CallToActionContext {
     let defense_pos_index = state
         .defensive_position_index_for_team(defense_team_id)
         .clone();
-    let offense_role_index = state.role_index_for_team(offense_team_id).clone();
+    let base_offense_role_index = state.role_index_for_team(offense_team_id).clone();
     let offense_instructions_index = state.instructions_index_for_team(offense_team_id).clone();
     let defense_instructions_index = state.instructions_index_for_team(defense_team_id).clone();
+
+    let offense_role_index = match &active_play_call {
+        Some(play_call) => resolve_role_index_for_play(
+            &base_offense_role_index,
+            &offense_lineup,
+            play_call.role_overrides(),
+        ),
+        None => base_offense_role_index,
+    };
+
+    let offense_route_index = match &active_play_call {
+        Some(play_call) => resolve_route_index_for_play(&offense_lineup, play_call.routes()),
+        None => HashMap::new(),
+    };
+
+    let decision_emphasis = resolve_decision_emphasis_for_play(active_play_call.as_ref());
 
     CallToActionContext {
         is_home_offense,
@@ -63,5 +87,8 @@ pub fn setup_call_to_action_context(state: &MatchState) -> CallToActionContext {
         offense_role_index,
         offense_instructions_index,
         defense_instructions_index,
+        active_play_call,
+        offense_route_index,
+        decision_emphasis,
     }
 }

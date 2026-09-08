@@ -5,6 +5,7 @@ use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
+use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
@@ -28,6 +29,7 @@ pub struct MatchState {
     pub(crate) scoreboard: MatchScoreboard,
     pub(crate) fatigue: FatigueTracker,
     pub(crate) impulse: ImpulseTracker,
+    pub(crate) play_calling: PlayCallTracker,
 }
 
 impl MatchState {

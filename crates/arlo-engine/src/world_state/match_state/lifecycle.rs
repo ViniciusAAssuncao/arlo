@@ -7,6 +7,7 @@ use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
+use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::state::MatchState;
 use crate::world_state::match_state::teams::TeamRegistry;
@@ -60,6 +61,7 @@ impl MatchState {
         let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &attribute_keys);
         let fatigue = FatigueTracker::new();
         let scoreboard = MatchScoreboard::new();
+        let play_calling = PlayCallTracker::new();
 
         Ok(Self {
             teams,
@@ -75,6 +77,7 @@ impl MatchState {
             scoreboard,
             fatigue,
             impulse,
+            play_calling,
         })
     }
 }
