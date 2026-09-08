@@ -1,5 +1,5 @@
 use crate::error::DbResult;
-use arlo_domain::{Manager, ManagerAttributeValue, Person};
+use arlo_domain::{Manager, ManagerAttributeValue, ManagerTacticalProfile, Person};
 use sqlx::FromRow;
 use uuid::Uuid;
 
@@ -14,11 +14,12 @@ impl ManagerRow {
         &self,
         person: Person,
         attributes: Vec<ManagerAttributeValue>,
+        tactical_profile: Option<ManagerTacticalProfile>,
     ) -> DbResult<Manager> {
         let team_id = match &self.team_id {
             Some(tid) => Some(Uuid::parse_str(tid)?),
             None => None,
         };
-        Manager::new(person, team_id, attributes).map_err(Into::into)
+        Manager::new(person, team_id, attributes, tactical_profile).map_err(Into::into)
     }
 }
