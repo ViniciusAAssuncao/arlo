@@ -51,6 +51,13 @@ pub fn decoy_attractor(
             ctx,
         )
     } else {
+        let marking = ctx
+            .player_instructions_index
+            .get(&player.id())
+            .copied()
+            .unwrap_or_default()
+            .out_of_possession()
+            .marking();
         calculate_defense_attractor_coordinates(
             pitch,
             player,
@@ -61,6 +68,8 @@ pub fn decoy_attractor(
             attacking_positive_x,
             attribute_keys,
             instructions,
+            marking,
+            ctx,
         )
     };
 

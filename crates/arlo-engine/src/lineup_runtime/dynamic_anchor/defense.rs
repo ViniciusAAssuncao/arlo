@@ -1,8 +1,11 @@
+use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::team_identity::depth_from_bipolar;
+use crate::team_identity::marking::resolve_man_marking_target_position;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, FormationSlot, Player, PositionLine};
-use arlo_tactics::TeamInstructions;
+use arlo_math::units::Position as VectorPosition;
+use arlo_tactics::{MarkingAssignment, TeamInstructions};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -16,7 +19,26 @@ pub fn calculate_defense_attractor_coordinates(
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
+    marking: Option<MarkingAssignment>,
+    ctx: &AnchorComputationContext,
 ) -> (f64, f64) {
+    if let Some(MarkingAssignment::Man(target)) = marking {
+        if let (Some(opposing_lineup), Some(spatial_map)) = (ctx.opposing_lineup, ctx.spatial_map) {
+            let opposing_players = opposing_lineup.players();
+            let opposing_pos_index = opposing_lineup.offensive_position_index();
+            let defender_pos = VectorPosition::from_components(base_x, base_y, 0.0);
+            if let Some(man_pos) = resolve_man_marking_target_position(
+                target,
+                &opposing_players,
+                &opposing_pos_index,
+                spatial_map,
+                defender_pos,
+            ) {
+                return (man_pos.raw().0, man_pos.raw().1);
+            }
+        }
+    }
+
     let pitch_length_m = pitch.length().value();
     let pitch_width_m = pitch.width().value();
     let target_position = slot.defensive_position();

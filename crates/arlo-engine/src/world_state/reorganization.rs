@@ -35,8 +35,8 @@ pub fn derive_and_apply_reorganization(
 
     let home_ctx = AnchorComputationContext {
         player_instructions_index: state.instructions_index_for_team(state.home_team_id()),
-        opposing_lineup: None,
-        spatial_map: None,
+        opposing_lineup: Some(&away_lineup),
+        spatial_map: Some(state.spatial_map()),
     };
     let mut home_targets = compute_dynamic_anchors(
         &pitch,
@@ -51,8 +51,8 @@ pub fn derive_and_apply_reorganization(
 
     let away_ctx = AnchorComputationContext {
         player_instructions_index: state.instructions_index_for_team(state.away_team_id()),
-        opposing_lineup: None,
-        spatial_map: None,
+        opposing_lineup: Some(&home_lineup),
+        spatial_map: Some(state.spatial_map()),
     };
     let mut away_targets = compute_dynamic_anchors(
         &pitch,
