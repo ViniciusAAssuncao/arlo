@@ -20,6 +20,7 @@ use crate::spatial::positioning_drift::{get_drifted_defender_position, nearest_d
 use crate::spatial::proximity::{calculate_distance_mirim, filter_active_duelists_swept};
 use crate::spatial::{run_spatial_tick_loop_with_context, DynamicSpatialMap, MovementContext};
 use crate::team_identity::marking::resolve_lead_defender_with_marking;
+use crate::team_identity::tempo::effort_multiplier_from_value;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
 use arlo_domain::sport_constants::{
@@ -29,7 +30,7 @@ use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, MIRIM_TO_METERS};
 use arlo_tactics::PlayerInstructions;
 use rand::Rng;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 pub fn execute_carry<F, R>(
@@ -332,7 +333,16 @@ where
     }
 
     let defense_pressing_value = (defense_pressing_multiplier - 1.0).max(0.0);
-    let is_home_offense = context.attacker_is_home();
+    let offense_ids: HashSet<Uuid> = std::iter::once(artrine.id())
+        .chain(offense_helpers.iter().map(|p| p.id()))
+        .collect();
+    let effort_multiplier_for = |id: &Uuid| {
+        if offense_ids.contains(id) {
+            effort_multiplier_from_value(offense_tempo_value)
+        } else {
+            effort_multiplier_from_value(defense_pressing_value)
+        }
+    };
 
     let tick_result = run_spatial_tick_loop_with_context(
         spatial_map,
@@ -341,9 +351,7 @@ where
         MovementContext::LivePlay,
         pitch,
         fatigue_for,
-        offense_tempo_value,
-        defense_pressing_value,
-        is_home_offense,
+        &effort_multiplier_for,
     );
 
     let end_position = spatial_map

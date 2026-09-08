@@ -202,8 +202,13 @@ pub fn apply_play_transition(
     if transition_result.countdown_to_size_triggered {
         let next_scrimmage_x_mirim =
             next_snapshot.series_state().scrimmage_point().raw().0 / MIRIM_TO_METERS;
-        let (reorg_duration, huddle_duration) =
-            derive_and_apply_reorganization(state, next_scrimmage_x_mirim, is_post_turnover, sink);
+        let (reorg_duration, huddle_duration) = derive_and_apply_reorganization(
+            state,
+            next_scrimmage_x_mirim,
+            is_post_turnover,
+            detailed_outcome.recovering_player_id,
+            sink,
+        );
         play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
         play_ledger.record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
     }

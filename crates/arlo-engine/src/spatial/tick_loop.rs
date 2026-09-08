@@ -16,7 +16,6 @@ use crate::spatial::steering::{
     SpatialNeighbor,
 };
 use crate::spatial::trajectory::{SpatialTrajectory, TickSimulationResult};
-use crate::team_identity::tempo::effort_multiplier_from_value;
 use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
@@ -40,9 +39,7 @@ pub fn run_spatial_tick_loop(
         MovementContext::LivePlay,
         pitch,
         &|_| PhysicalState::initial(),
-        0.0,
-        0.5,
-        true,
+        &|_| 1.0,
     )
 }
 
@@ -63,9 +60,7 @@ where
         MovementContext::LivePlay,
         pitch,
         fatigue_for,
-        0.0,
-        0.5,
-        true,
+        &|_| 1.0,
     )
 }
 
@@ -76,9 +71,7 @@ pub fn run_spatial_tick_loop_with_context<F>(
     movement_context: MovementContext,
     pitch: &Pitch,
     fatigue_for: &F,
-    offense_tempo_value: f64,
-    defense_pressing_value: f64,
-    is_home_offense: bool,
+    effort_multiplier_for: &dyn Fn(&Uuid) -> f64,
 ) -> TickSimulationResult
 where
     F: Fn(&Uuid) -> PhysicalState,
@@ -121,13 +114,7 @@ where
         let mass_kg = calculate_player_body_mass(player, attribute_keys);
         let physical_radius = derive_player_physical_radius(player, attribute_keys);
 
-        let is_player_home = spatial_map.is_home_player(&pid);
-        let is_player_offense = is_player_home == is_home_offense;
-        let effort_mult = if is_player_offense {
-            effort_multiplier_from_value(offense_tempo_value)
-        } else {
-            effort_multiplier_from_value(defense_pressing_value)
-        };
+        let effort_mult = effort_multiplier_for(&pid);
 
         let dist_mirim = calculate_distance_mirim(initial_pos, *target);
         let is_near_ball = dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM * 4.0;

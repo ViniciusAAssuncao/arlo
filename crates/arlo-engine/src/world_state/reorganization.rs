@@ -1,7 +1,9 @@
 use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors, AnchorComputationContext};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
-use crate::team_identity::tempo::huddle_duration_scale;
+use crate::team_identity::tempo::{
+    effort_multiplier_from_value, huddle_duration_scale, individual_transition_effort_multiplier,
+};
 use crate::team_identity::transition::{
     counter_attack_depth_bias, counter_press_engagement_bias,
 };
@@ -10,12 +12,14 @@ use crate::world_state::play_transition::fatigue_applier::apply_kinematic_moveme
 use arlo_domain::{AttributeKey, Position as DomainPosition};
 use arlo_events::EventSink;
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 pub fn derive_and_apply_reorganization(
     state: &mut MatchState,
     scrimmage_x_mirim: f64,
     is_post_turnover: bool,
+    recovering_player_id: Option<Uuid>,
     sink: &mut impl EventSink,
 ) -> (Duration, Duration) {
     let pitch = *state.pitch();
@@ -65,6 +69,13 @@ pub fn derive_and_apply_reorganization(
         &away_ctx,
     );
 
+    let individual_release_tempo = if is_post_turnover {
+        recovering_player_id
+            .map(|id| state.player_instructions_for(&id).transition().release_tempo())
+    } else {
+        None
+    };
+
     if is_post_turnover {
         let pitch_len = pitch.length().value();
         let min_x = 0.5 * MIRIM_TO_METERS;
@@ -74,6 +85,7 @@ pub fn derive_and_apply_reorganization(
             let ca_bias = counter_attack_depth_bias(
                 home_instructions.transition().counter_attack_intensity(),
                 pitch_len,
+                individual_release_tempo,
             );
             let cp_bias = counter_press_engagement_bias(
                 away_instructions.transition().counter_press_intensity(),
@@ -93,6 +105,7 @@ pub fn derive_and_apply_reorganization(
             let ca_bias = counter_attack_depth_bias(
                 away_instructions.transition().counter_attack_intensity(),
                 pitch_len,
+                individual_release_tempo,
             );
             let cp_bias = counter_press_engagement_bias(
                 home_instructions.transition().counter_press_intensity(),
@@ -133,6 +146,12 @@ pub fn derive_and_apply_reorganization(
             .unwrap_or_default()
     };
 
+    let home_team_id = state.home_team_id();
+    let away_team_id = state.away_team_id();
+    let home_instr = state.instructions_index_for_team(home_team_id).clone();
+    let away_instr = state.instructions_index_for_team(away_team_id).clone();
+    let home_ids: HashSet<Uuid> = home_lineup.assignments().iter().map(|a| a.player().id()).collect();
+
     let (offense_instructions, defense_instructions) = if is_home_offense {
         (&home_instructions, &away_instructions)
     } else {
@@ -142,6 +161,26 @@ pub fn derive_and_apply_reorganization(
     let offense_tempo = offense_instructions.in_possession().tempo().value();
     let defense_pressing = defense_instructions.out_of_possession().pressing_intensity().value();
 
+    let effort_multiplier_for = |id: &Uuid| {
+        let is_home = home_ids.contains(id);
+        let is_offense = is_home == is_home_offense;
+        let base_mult = if is_offense {
+            effort_multiplier_from_value(offense_tempo)
+        } else {
+            effort_multiplier_from_value(defense_pressing)
+        };
+        if is_post_turnover {
+            let instr = if is_home {
+                home_instr.get(id).copied().unwrap_or_default()
+            } else {
+                away_instr.get(id).copied().unwrap_or_default()
+            };
+            individual_transition_effort_multiplier(base_mult, instr.transition().transition_urgency())
+        } else {
+            base_mult
+        }
+    };
+
     let tick_result = run_spatial_tick_loop_with_context(
         state.spatial_map_mut(),
         &movers,
@@ -149,9 +188,7 @@ pub fn derive_and_apply_reorganization(
         MovementContext::DeadBall,
         &pitch,
         &fatigue_lookup,
-        offense_tempo,
-        defense_pressing,
-        is_home_offense,
+        &effort_multiplier_for,
     );
 
     apply_kinematic_movement_strain(state, sink, tick_result.trajectories());
