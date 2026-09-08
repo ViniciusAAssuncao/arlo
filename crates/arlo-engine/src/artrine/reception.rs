@@ -1,3 +1,7 @@
+use crate::artrine::constants::{
+    INTERCEPTION_ANTICIPATION_WEIGHT, INTERCEPTION_BASE_THRESHOLD, INTERCEPTION_CLAMP_MAX,
+    INTERCEPTION_CLAMP_MIN, INTERCEPTION_HANDS_DIFF_WEIGHT,
+};
 use crate::match_decision::target_selection::{select_target_with_fatigue, ReceptionRole};
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
@@ -18,7 +22,9 @@ use crate::team_identity::marking::resolve_lead_defender_with_marking;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST_RADIUS_MIRIM};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition};
-use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS};
+use arlo_math::units::{
+    Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS,
+};
 use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use rand::Rng;
 use std::collections::HashMap;
@@ -133,10 +139,7 @@ where
         .copied()
         .filter(|cand| {
             get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
-                .map(|p| {
-                    calculate_distance_mirim(receiver_pos_vec, p)
-                        <= PROXIMITY_CONTEST_RADIUS_MIRIM
-                })
+                .map(|p| calculate_distance_mirim(receiver_pos_vec, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM)
                 .unwrap_or(false)
         })
         .collect();
@@ -155,7 +158,9 @@ where
         fatigue_for,
     );
 
-    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
+    let contest_radius = Length::new(
+        PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS,
+    );
     let lead_defender = resolve_lead_defender_with_marking(
         receiver_id,
         position_index,
@@ -191,11 +196,23 @@ where
     let caught = raw_duel.attacker_won();
 
     let intercepted_by_defender = if !caught {
-        let def_hands = extract_attribute_value(lead_defender, attribute_keys, AttributeKey::HandsReception);
-        let def_ant = extract_attribute_value(lead_defender, attribute_keys, AttributeKey::Anticipation);
-        let att_hands = extract_attribute_value(receiver_player, attribute_keys, AttributeKey::HandsReception);
+        let def_hands = extract_attribute_value(
+            lead_defender,
+            attribute_keys,
+            AttributeKey::HandsReception,
+        );
+        let def_ant =
+            extract_attribute_value(lead_defender, attribute_keys, AttributeKey::Anticipation);
+        let att_hands = extract_attribute_value(
+            receiver_player,
+            attribute_keys,
+            AttributeKey::HandsReception,
+        );
         let hands_diff = def_hands - att_hands;
-        let threshold = -(2.5 - (hands_diff * 0.2 + def_ant * 0.1).clamp(-2.0, 3.0));
+        let threshold = -(INTERCEPTION_BASE_THRESHOLD
+            - (hands_diff * INTERCEPTION_HANDS_DIFF_WEIGHT
+                + def_ant * INTERCEPTION_ANTICIPATION_WEIGHT)
+                .clamp(INTERCEPTION_CLAMP_MIN, INTERCEPTION_CLAMP_MAX));
         if raw_duel.net_advantage() <= threshold {
             Some(lead_defender.id())
         } else {
@@ -205,10 +222,15 @@ where
         None
     };
 
-    let receiver_speed = calculate_effective_player_speed(receiver_player, attribute_keys, &receiver_state);
-    let duration = match
-        nearest_drifted_opponent(receiver_pos_vec, defenders, spatial_map, attribute_keys, rng)
-    {
+    let receiver_speed =
+        calculate_effective_player_speed(receiver_player, attribute_keys, &receiver_state);
+    let duration = match nearest_drifted_opponent(
+        receiver_pos_vec,
+        defenders,
+        spatial_map,
+        attribute_keys,
+        rng,
+    ) {
         Some((d, pos)) => {
             let d_state = fatigue_for(&d.id());
             let d_spd = calculate_effective_player_speed(d, attribute_keys, &d_state);
@@ -242,11 +264,7 @@ where
         }
     }
 
-    let duel = AttributedDuelOutcome::new(
-        raw_duel,
-        vec![receiver_id],
-        active_defender_ids,
-    );
+    let duel = AttributedDuelOutcome::new(raw_duel, vec![receiver_id], active_defender_ids);
 
     ReceptionOutcome {
         receiver: receiver_id,

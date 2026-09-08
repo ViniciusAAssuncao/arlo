@@ -1,3 +1,6 @@
+use crate::artrine::constants::{
+    CARRY_ARTRO_SEARCH_MARGIN_MIRIM, CARRY_FORWARD_TARGET_OFFSET_MIRIM, CARRY_HELPER_OFFSET_FACTOR,
+};
 use crate::artrine::execution_outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution_security::resolve_ball_security;
 use crate::match_decision::scoring::ScoringDecision;
@@ -106,9 +109,10 @@ where
         .unwrap_or(center_y_m);
 
     let forward_x_mirim = if attacking_positive_x {
-        (start_pos.raw().0 / MIRIM_TO_METERS + 10.0).min(pitch.length_mirim())
+        (start_pos.raw().0 / MIRIM_TO_METERS + CARRY_FORWARD_TARGET_OFFSET_MIRIM)
+            .min(pitch.length_mirim())
     } else {
-        (start_pos.raw().0 / MIRIM_TO_METERS - 10.0).max(0.0)
+        (start_pos.raw().0 / MIRIM_TO_METERS - CARRY_FORWARD_TARGET_OFFSET_MIRIM).max(0.0)
     };
     let target_carry_pos = VectorPosition::from_components(
         forward_x_mirim * MIRIM_TO_METERS,
@@ -117,7 +121,9 @@ where
     );
     let carrier_vel = derive_velocity_towards_target(start_pos, target_carry_pos, artrine_speed);
 
-    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
+    let contest_radius = Length::new(
+        PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS,
+    );
     let lead_defender = resolve_lead_defender_with_marking(
         artrine.id(),
         offense_position_index,
@@ -209,11 +215,8 @@ where
         }
     }
 
-    let artro_duel = AttributedDuelOutcome::new(
-        raw_artro_duel,
-        artro_attacker_ids,
-        artro_defender_ids,
-    );
+    let artro_duel =
+        AttributedDuelOutcome::new(raw_artro_duel, artro_attacker_ids, artro_defender_ids);
 
     if !artro_duel.outcome().attacker_won() {
         let mut ledger = DurationLedger::new();
@@ -223,13 +226,18 @@ where
         );
 
         let (close_defenders, closest_def_info) = match nearest_def_opt {
-            Some((d, pos)) if calculate_distance_mirim(start_pos, pos) <= PROXIMITY_CONTEST_RADIUS_MIRIM => {
+            Some((d, pos))
+                if calculate_distance_mirim(start_pos, pos) <= PROXIMITY_CONTEST_RADIUS_MIRIM =>
+            {
                 let list: Vec<&Player> = defenders
                     .iter()
                     .copied()
                     .filter(|cand| {
                         get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
-                            .map(|p| calculate_distance_mirim(start_pos, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM)
+                            .map(|p| {
+                                calculate_distance_mirim(start_pos, p)
+                                    <= PROXIMITY_CONTEST_RADIUS_MIRIM
+                            })
                             .unwrap_or(false)
                     })
                     .collect();
@@ -241,8 +249,11 @@ where
         let (turnover, recovering_player_id, duels) = if !close_defenders.is_empty() {
             if let Some((closest_def, closest_pos)) = closest_def_info {
                 let closest_def_state = fatigue_for(&closest_def.id());
-                let closest_def_speed =
-                    calculate_effective_player_speed(closest_def, attribute_keys, &closest_def_state);
+                let closest_def_speed = calculate_effective_player_speed(
+                    closest_def,
+                    attribute_keys,
+                    &closest_def_state,
+                );
                 let sec_duration = derive_duel_duration(
                     start_pos,
                     artrine_speed,
@@ -302,11 +313,8 @@ where
         (start_x_mirim - raw_advance).max(0.0)
     };
 
-    let target_pos = VectorPosition::from_components(
-        end_x_mirim * MIRIM_TO_METERS,
-        target_channel_y_m,
-        0.0,
-    );
+    let target_pos =
+        VectorPosition::from_components(end_x_mirim * MIRIM_TO_METERS, target_channel_y_m, 0.0);
 
     spatial_map.set_position(artrine.id(), start_pos);
     spatial_map.apply_breakthrough_momentum(
@@ -322,8 +330,13 @@ where
 
     for &helper in offense_helpers {
         if let Some(pos) = spatial_map.get_position(&helper.id()) {
-            let offset_x = if attacking_positive_x { raw_advance * 0.7 * MIRIM_TO_METERS } else { -raw_advance * 0.7 * MIRIM_TO_METERS };
-            let helper_target = VectorPosition::from_components(pos.raw().0 + offset_x, pos.raw().1, 0.0);
+            let offset_x = if attacking_positive_x {
+                raw_advance * CARRY_HELPER_OFFSET_FACTOR * MIRIM_TO_METERS
+            } else {
+                -raw_advance * CARRY_HELPER_OFFSET_FACTOR * MIRIM_TO_METERS
+            };
+            let helper_target =
+                VectorPosition::from_components(pos.raw().0 + offset_x, pos.raw().1, 0.0);
             movers.push((helper, helper_target));
         }
     }
@@ -382,14 +395,15 @@ where
         (end_position.raw().0, start_pos.raw().0)
     };
 
-    let artro_search_margin = 1.5 * MIRIM_TO_METERS;
+    let artro_search_margin = CARRY_ARTRO_SEARCH_MARGIN_MIRIM * MIRIM_TO_METERS;
     for row in &all_rows {
         let rx = row.x().value();
         if rx < min_x - artro_search_margin || rx > max_x + artro_search_margin {
             continue;
         }
         for artro in row.artros() {
-            let drive_result = validate_continuous_trajectory(true_artrine, &segments_to_test, artro, false);
+            let drive_result =
+                validate_continuous_trajectory(true_artrine, &segments_to_test, artro, false);
             if drive_result.is_valid() {
                 if !drive_row_indices.contains(&row.row_index()) {
                     drive_row_indices.push(row.row_index());

@@ -1,5 +1,9 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::markov_decision::MarkovDecisionEvaluator;
+use crate::artrine::constants::{
+    FIELD_POINT_OPPORTUNITY_ADVANCE_BUFFER_MIRIM, OPPORTUNITY_EVALUATION_DEFAULT_RATING,
+    SERIES_MAX_DOWNS, SERIES_TARGET_ADVANCE_MIRIM,
+};
 use crate::match_decision::scoring::{evaluate_scoring_opportunity, ScoringOpportunity};
 use crate::physical::PhysicalState;
 use crate::spatial::proximity::calculate_distance_mirim;
@@ -30,14 +34,16 @@ pub fn available_decision_kinds(
         is_bonus_phase,
         drives_in_current_series,
         accumulated_advance_mirim,
-        10.0,
+        OPPORTUNITY_EVALUATION_DEFAULT_RATING,
     );
 
     let can_cross_or_finish = opportunity != ScoringOpportunity::None
         || is_bonus_phase
         || drives_in_current_series >= GOAL_POINT_REQUIRED_DRIVES
         || (drives_in_current_series >= FIELD_POINT_REQUIRED_DRIVES
-            && accumulated_advance_mirim >= (FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM - 3.0));
+            && accumulated_advance_mirim
+                >= (FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+                    - FIELD_POINT_OPPORTUNITY_ADVANCE_BUFFER_MIRIM));
 
     if can_cross_or_finish {
         kinds.push(ArtrineDecisionKind::Cross);
@@ -113,8 +119,8 @@ pub fn calculate_decision_utilities_with_context(
     team_identity_bias: TeamIdentityBias,
     artrine_physical_state: &PhysicalState,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
-    let down = (4u8).saturating_sub(remaining_downs).max(1);
-    let remaining_advance_mirim = (10.0 - territory_advance_mirim).max(0.0);
+    let down = SERIES_MAX_DOWNS.saturating_sub(remaining_downs).max(1);
+    let remaining_advance_mirim = (SERIES_TARGET_ADVANCE_MIRIM - territory_advance_mirim).max(0.0);
     let distance_to_next_artro_mirim = calculate_distance_mirim(artrine_pos, next_artro_pos);
 
     MarkovDecisionEvaluator::evaluate_action_utilities_with_context(
@@ -123,7 +129,11 @@ pub fn calculate_decision_utilities_with_context(
         available_kinds,
         normalized_proximity,
         drives_in_current_series,
-        if is_last_down { 4 } else { down },
+        if is_last_down {
+            SERIES_MAX_DOWNS
+        } else {
+            down
+        },
         remaining_advance_mirim,
         pass_protection_net_advantage,
         best_available_target_weight,

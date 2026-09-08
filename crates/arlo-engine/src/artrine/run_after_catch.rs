@@ -1,3 +1,7 @@
+use crate::artrine::constants::{
+    BLOCK_BONUS_MIN, BLOCK_BONUS_MULTIPLIER, CENTRAL_ZONE_NORMALIZED_Y_FALLBACK,
+    CENTRAL_ZONE_NORMALIZED_Y_MAX, CENTRAL_ZONE_NORMALIZED_Y_MIN,
+};
 use crate::artrine::execution_security::resolve_ball_security;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
@@ -20,7 +24,9 @@ use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
-use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS};
+use arlo_math::units::{
+    Duration, Length, Position as VectorPosition, Speed, Velocity, MIRIM_TO_METERS,
+};
 use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::HashMap;
@@ -78,10 +84,11 @@ where
     let normalized_y = if total_width > 0.0 {
         (receiver_pos_vec.raw().1 / total_width).clamp(0.0, 1.0)
     } else {
-        0.5
+        CENTRAL_ZONE_NORMALIZED_Y_FALLBACK
     };
 
-    let is_central = (0.25..=0.75).contains(&normalized_y);
+    let is_central =
+        (CENTRAL_ZONE_NORMALIZED_Y_MIN..=CENTRAL_ZONE_NORMALIZED_Y_MAX).contains(&normalized_y);
     let block_duel_kind = if is_central {
         DuelKind::CentralBlock
     } else {
@@ -129,7 +136,9 @@ where
         fatigue_for,
     );
 
-    let contest_radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
+    let contest_radius = Length::new(
+        PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS,
+    );
     let lead_block_defender = resolve_lead_defender_with_marking(
         receiver.id(),
         offense_position_index,
@@ -166,12 +175,17 @@ where
     let blocker_pos = spatial_map
         .get_position(&lead_blocker.id())
         .unwrap_or(receiver_pos_vec);
-    let blocker_spd = calculate_effective_player_speed(lead_blocker, attribute_keys, &lead_blocker_state);
+    let blocker_spd =
+        calculate_effective_player_speed(lead_blocker, attribute_keys, &lead_blocker_state);
 
-    let block_def_pos = get_drifted_defender_position(lead_block_defender, spatial_map, attribute_keys, rng)
-        .unwrap_or(receiver_pos_vec);
-    let block_def_spd =
-        calculate_effective_player_speed(lead_block_defender, attribute_keys, &lead_block_def_state);
+    let block_def_pos =
+        get_drifted_defender_position(lead_block_defender, spatial_map, attribute_keys, rng)
+            .unwrap_or(receiver_pos_vec);
+    let block_def_spd = calculate_effective_player_speed(
+        lead_block_defender,
+        attribute_keys,
+        &lead_block_def_state,
+    );
     let block_duration =
         derive_duel_duration(blocker_pos, blocker_spd, block_def_pos, block_def_spd);
 
@@ -223,11 +237,8 @@ where
         }
     }
 
-    let block_duel = AttributedDuelOutcome::new(
-        raw_block_duel,
-        block_attacker_ids,
-        block_defender_ids,
-    );
+    let block_duel =
+        AttributedDuelOutcome::new(raw_block_duel, block_attacker_ids, block_defender_ids);
 
     if !raw_block_duel.attacker_won() {
         let mut duration_ledger = DurationLedger::new();
@@ -243,7 +254,8 @@ where
         };
     }
 
-    let block_bonus = (raw_block_duel.net_advantage() * 0.35).max(0.5);
+    let block_bonus =
+        (raw_block_duel.net_advantage() * BLOCK_BONUS_MULTIPLIER).max(BLOCK_BONUS_MIN);
     let (rb_offense_profile, rb_defense_profile) = get_duel_profiles(DuelKind::RunBreakthrough);
 
     let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
@@ -297,9 +309,11 @@ where
         rng,
     );
 
-    let rb_def_pos = get_drifted_defender_position(lead_defender, spatial_map, attribute_keys, rng)
-        .unwrap_or(receiver_pos_vec);
-    let rb_def_spd = calculate_effective_player_speed(lead_defender, attribute_keys, &lead_def_state);
+    let rb_def_pos =
+        get_drifted_defender_position(lead_defender, spatial_map, attribute_keys, rng)
+            .unwrap_or(receiver_pos_vec);
+    let rb_def_spd =
+        calculate_effective_player_speed(lead_defender, attribute_keys, &lead_def_state);
 
     let rec_spd = calculate_effective_player_speed(receiver, attribute_keys, &receiver_state);
     let rb_duration = derive_duel_duration(receiver_pos_vec, rec_spd, rb_def_pos, rb_def_spd);
@@ -352,11 +366,7 @@ where
         }
     }
 
-    let rb_duel = AttributedDuelOutcome::new(
-        raw_rb_duel,
-        rb_attacker_ids,
-        rb_defender_ids,
-    );
+    let rb_duel = AttributedDuelOutcome::new(raw_rb_duel, rb_attacker_ids, rb_defender_ids);
 
     let mut duration_ledger = DurationLedger::new();
     duration_ledger.record_live(
@@ -366,7 +376,8 @@ where
 
     if raw_rb_duel.attacker_won() {
         let progression_strategy = AggregateProgressionStrategy::default();
-        let additional_mirins_advanced = progression_strategy.resolve_progression(&raw_rb_duel, rng);
+        let additional_mirins_advanced =
+            progression_strategy.resolve_progression(&raw_rb_duel, rng);
 
         RunAfterCatchOutcome {
             additional_mirins_advanced,
@@ -410,15 +421,19 @@ where
         );
 
         let sec_lead_state = fatigue_for(&sec_lead.id());
-        let sec_def_pos = get_drifted_defender_position(sec_lead, spatial_map, attribute_keys, rng)
-            .unwrap_or(receiver_pos_vec);
-        let sec_def_spd = calculate_effective_player_speed(sec_lead, attribute_keys, &sec_lead_state);
+        let sec_def_pos =
+            get_drifted_defender_position(sec_lead, spatial_map, attribute_keys, rng)
+                .unwrap_or(receiver_pos_vec);
+        let sec_def_spd =
+            calculate_effective_player_speed(sec_lead, attribute_keys, &sec_lead_state);
 
         let rec_spd = calculate_effective_player_speed(receiver, attribute_keys, &receiver_state);
         let sec_duration =
             derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
-        duration_ledger
-            .record_live(DurationComponentKind::BallSecurityEngagement, sec_duration);
+        duration_ledger.record_live(
+            DurationComponentKind::BallSecurityEngagement,
+            sec_duration,
+        );
 
         RunAfterCatchOutcome {
             additional_mirins_advanced: 0.0,
