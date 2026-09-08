@@ -14,8 +14,10 @@ pub mod team_identity;
 pub mod time;
 pub mod weighting;
 pub mod world_state;
+pub mod playmaking;
 
 pub use error::{EngineError, EngineResult};
 pub use psychology::*;
 pub use rng::{derive_sub_seed, derive_sub_seed_indexed, MatchSeed, RngProvider, RngStream};
 pub use time::*;
+pub use playmaking::*;
