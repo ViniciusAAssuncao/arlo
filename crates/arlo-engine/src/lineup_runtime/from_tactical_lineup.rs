@@ -29,6 +29,7 @@ pub fn hydrate(
             slot,
             player.clone(),
             assignment.slot_role(),
+            *assignment.player_instructions(),
         ));
     }
 

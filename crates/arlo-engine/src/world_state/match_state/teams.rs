@@ -1,6 +1,6 @@
 use crate::lineup_runtime::Lineup;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
-use arlo_tactics::TeamInstructions;
+use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -19,6 +19,8 @@ pub struct TeamRegistry {
     away_defensive_position_index: HashMap<Uuid, DomainPosition>,
     home_role_index: HashMap<Uuid, SlotRole>,
     away_role_index: HashMap<Uuid, SlotRole>,
+    home_instructions_index: HashMap<Uuid, PlayerInstructions>,
+    away_instructions_index: HashMap<Uuid, PlayerInstructions>,
 }
 
 impl TeamRegistry {
@@ -36,6 +38,8 @@ impl TeamRegistry {
         let away_defensive_position_index = away_lineup.defensive_position_index();
         let home_role_index = home_lineup.role_index();
         let away_role_index = away_lineup.role_index();
+        let home_instructions_index = home_lineup.instructions_index();
+        let away_instructions_index = away_lineup.instructions_index();
 
         Self {
             home_team_id,
@@ -50,6 +54,8 @@ impl TeamRegistry {
             away_defensive_position_index,
             home_role_index,
             away_role_index,
+            home_instructions_index,
+            away_instructions_index,
         }
     }
 
@@ -143,6 +149,30 @@ impl TeamRegistry {
         } else {
             &self.away_role_index
         }
+    }
+
+    pub fn home_instructions_index(&self) -> &HashMap<Uuid, PlayerInstructions> {
+        &self.home_instructions_index
+    }
+
+    pub fn away_instructions_index(&self) -> &HashMap<Uuid, PlayerInstructions> {
+        &self.away_instructions_index
+    }
+
+    pub fn instructions_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, PlayerInstructions> {
+        if team_id == self.home_team_id {
+            &self.home_instructions_index
+        } else {
+            &self.away_instructions_index
+        }
+    }
+
+    pub fn player_instructions(&self, player_id: &Uuid) -> PlayerInstructions {
+        self.home_instructions_index
+            .get(player_id)
+            .or_else(|| self.away_instructions_index.get(player_id))
+            .copied()
+            .unwrap_or_default()
     }
 
     pub fn is_home_player(&self, player_id: &Uuid) -> bool {

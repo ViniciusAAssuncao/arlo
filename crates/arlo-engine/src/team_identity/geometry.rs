@@ -7,6 +7,22 @@ pub fn depth_from_bipolar(value: f64, pitch_length_m: f64, attacking_positive_x:
     }
 }
 
+pub fn individual_line_depth_offset(
+    bias_value: f64,
+    band_min_ratio: f64,
+    band_max_ratio: f64,
+    pitch_length_m: f64,
+    attacking_positive_x: bool,
+) -> f64 {
+    let band_width_m = (band_max_ratio - band_min_ratio).abs() * pitch_length_m;
+    let magnitude = bias_value.clamp(-1.0, 1.0) * (band_width_m / 2.0);
+    if attacking_positive_x {
+        magnitude
+    } else {
+        -magnitude
+    }
+}
+
 pub fn lateral_spread(width_value: f64, base_y_m: f64, pitch_width_m: f64) -> f64 {
     let clamped_width = width_value.clamp(-1.0, 1.0);
     let center_y = pitch_width_m * 0.5;

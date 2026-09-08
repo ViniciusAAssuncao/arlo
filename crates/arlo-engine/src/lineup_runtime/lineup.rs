@@ -1,6 +1,7 @@
 use crate::error::{EngineError, EngineResult};
 use arlo_domain::sport_constants::TOTAL_PLAYERS_PER_TEAM;
 use arlo_domain::{Formation, FormationSlot, Player, Position, SlotRole};
+use arlo_tactics::PlayerInstructions;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
@@ -10,14 +11,21 @@ pub struct LineupAssignment {
     slot: FormationSlot,
     player: Player,
     slot_role: SlotRole,
+    player_instructions: PlayerInstructions,
 }
 
 impl LineupAssignment {
-    pub fn new(slot: FormationSlot, player: Player, slot_role: SlotRole) -> Self {
+    pub fn new(
+        slot: FormationSlot,
+        player: Player,
+        slot_role: SlotRole,
+        player_instructions: PlayerInstructions,
+    ) -> Self {
         Self {
             slot,
             player,
             slot_role,
+            player_instructions,
         }
     }
 
@@ -31,6 +39,10 @@ impl LineupAssignment {
 
     pub fn slot_role(&self) -> SlotRole {
         self.slot_role
+    }
+
+    pub fn player_instructions(&self) -> PlayerInstructions {
+        self.player_instructions
     }
 }
 
@@ -70,7 +82,14 @@ impl Lineup {
             .iter()
             .copied()
             .zip(players.into_iter())
-            .map(|(slot, player)| LineupAssignment::new(slot, player, SlotRole::Standard))
+            .map(|(slot, player)| {
+                LineupAssignment::new(
+                    slot,
+                    player,
+                    SlotRole::Standard,
+                    PlayerInstructions::default(),
+                )
+            })
             .collect();
 
         Ok(Self {
@@ -132,6 +151,13 @@ impl Lineup {
         self.assignments
             .iter()
             .map(|a| (a.player().id(), a.slot_role()))
+            .collect()
+    }
+
+    pub fn instructions_index(&self) -> HashMap<Uuid, PlayerInstructions> {
+        self.assignments
+            .iter()
+            .map(|a| (a.player().id(), a.player_instructions()))
             .collect()
     }
 

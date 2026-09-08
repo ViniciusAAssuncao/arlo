@@ -19,7 +19,7 @@ use arlo_domain::{
 };
 use arlo_events::ScoringPost;
 use arlo_math::units::Position;
-use arlo_tactics::{TacticalLineup, TeamInstructions};
+use arlo_tactics::{PlayerInstructions, TacticalLineup, TeamInstructions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -187,6 +187,14 @@ impl MatchState {
 
     pub fn role_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, SlotRole> {
         self.teams.role_index_for_team(team_id)
+    }
+
+    pub fn player_instructions_for(&self, player_id: &Uuid) -> PlayerInstructions {
+        self.teams.player_instructions(player_id)
+    }
+
+    pub fn instructions_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, PlayerInstructions> {
+        self.teams.instructions_index_for_team(team_id)
     }
 
     pub fn pitch(&self) -> &Pitch {
