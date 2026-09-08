@@ -8,6 +8,7 @@ use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{AttributeKey, Player, Position};
+use arlo_tactics::DecisionEmphasis;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -24,6 +25,7 @@ pub struct DecisionEvaluationContext<'a> {
     pub remaining_advance_mirim: f64,
     pub pass_protection_net_advantage: f64,
     pub best_available_target_weight: f64,
+    pub long_launch_target_weight: f64,
     pub pitch_control_ahead: f64,
     pub distance_to_next_artro_mirim: f64,
     pub pitch_length_mirim: f64,
@@ -31,11 +33,16 @@ pub struct DecisionEvaluationContext<'a> {
     pub risk_profile: RiskProfile,
     pub game_state_pressure: GameStatePressure,
     pub team_identity_bias: TeamIdentityBias,
+    pub play_call_emphasis: DecisionEmphasis,
 }
 
 impl<'a> DecisionEvaluationContext<'a> {
     pub fn target_quality(&self) -> f64 {
         (self.best_available_target_weight - 8.0) / 10.0
+    }
+
+    pub fn long_launch_target_quality(&self) -> f64 {
+        (self.long_launch_target_weight - 8.0) / 10.0
     }
 
     pub fn pitch_control(&self) -> f64 {

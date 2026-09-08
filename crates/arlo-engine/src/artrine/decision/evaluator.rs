@@ -7,6 +7,7 @@ use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
+use arlo_tactics::DecisionEmphasis;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -21,11 +22,13 @@ pub fn calculate_decision_utilities(
     is_last_down: bool,
     territory_advance_mirim: f64,
     best_available_target_weight: f64,
+    long_launch_target_weight: f64,
     artrine_pos: VectorPosition,
     next_artro_pos: VectorPosition,
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let risk_profile = RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
@@ -43,6 +46,7 @@ pub fn calculate_decision_utilities(
         is_last_down,
         territory_advance_mirim,
         best_available_target_weight,
+        long_launch_target_weight,
         artrine_pos,
         next_artro_pos,
         pitch_control_ahead,
@@ -51,6 +55,7 @@ pub fn calculate_decision_utilities(
         risk_profile,
         game_state_pressure,
         team_identity_bias,
+        play_call_emphasis,
         artrine_physical_state,
     )
 }
@@ -66,6 +71,7 @@ pub fn calculate_decision_utilities_with_context(
     is_last_down: bool,
     territory_advance_mirim: f64,
     best_available_target_weight: f64,
+    long_launch_target_weight: f64,
     artrine_pos: VectorPosition,
     next_artro_pos: VectorPosition,
     pitch_control_ahead: f64,
@@ -74,6 +80,7 @@ pub fn calculate_decision_utilities_with_context(
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
     team_identity_bias: TeamIdentityBias,
+    play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let down = SERIES_MAX_DOWNS.saturating_sub(remaining_downs).max(1);
@@ -90,6 +97,7 @@ pub fn calculate_decision_utilities_with_context(
         remaining_advance_mirim,
         pass_protection_net_advantage,
         best_available_target_weight,
+        long_launch_target_weight,
         pitch_control_ahead,
         distance_to_next_artro_mirim,
         pitch_length_mirim,
@@ -97,6 +105,7 @@ pub fn calculate_decision_utilities_with_context(
         risk_profile,
         game_state_pressure,
         team_identity_bias,
+        play_call_emphasis,
         artrine_physical_state,
     )
 }

@@ -84,13 +84,15 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
         let team_identity_bias = ctx
             .team_identity_bias
             .bias_for(ArtrineDecisionKind::ShortPass);
+        let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.short_pass().value();
 
-        (expected_future_value * gravity_factor)
+        ((expected_future_value * gravity_factor)
             * risk_multiplier
             * game_state_bias
             * team_identity_bias
             * 3.5
-            + (intrinsic_rating * 0.2)
+            + (intrinsic_rating * 0.2))
+            * emphasis_multiplier
     }
 }
 
@@ -106,7 +108,7 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
         let profile = long_launch_profile();
         let intrinsic_rating = ctx.artrine_rating(&profile);
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
-        let target_qual = ctx.target_quality();
+        let target_qual = ctx.long_launch_target_quality();
 
         let adv_mirim = (14.0 + 6.0 * target_qual) * skill_mult;
         let (new_down, new_rem) = if adv_mirim >= ctx.remaining_advance_mirim {
@@ -175,12 +177,14 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
         let team_identity_bias = ctx
             .team_identity_bias
             .bias_for(ArtrineDecisionKind::LongLaunch);
+        let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.long_launch().value();
 
-        (expected_future_value * gravity_factor)
+        ((expected_future_value * gravity_factor)
             * risk_multiplier
             * game_state_bias
             * team_identity_bias
             * 3.5
-            + (intrinsic_rating * 0.2)
+            + (intrinsic_rating * 0.2))
+            * emphasis_multiplier
     }
 }

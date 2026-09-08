@@ -7,6 +7,7 @@ pub const DOWN_PRESSURE_UTILITY_SCALE: f64 = 1.5;
 pub const PRESSURE_READ_UTILITY_SCALE: f64 = 1.8;
 pub const LAST_DOWN_DESPERATION_UTILITY_SCALE: f64 = 3.0;
 pub const MAN_COVERAGE_OPENNESS_PENALTY: f64 = 0.25;
+pub const LAUNCHER_TARGET_WEIGHT_MULTIPLIER: f64 = 1.35;
 
 pub fn decision_steepness_for(decisions_attribute: f64) -> f64 {
     let normalized = (decisions_attribute.clamp(ATTRIBUTE_MIN, ATTRIBUTE_MAX) - ATTRIBUTE_MIN)

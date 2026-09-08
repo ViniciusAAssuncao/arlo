@@ -97,11 +97,14 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
             0.0
         };
 
-        (expected_future_value * gravity_factor + drive_urgency_bonus)
+        let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.self_carry().value();
+
+        ((expected_future_value * gravity_factor + drive_urgency_bonus)
             * risk_multiplier
             * game_state_bias
             * team_identity_bias
             * 3.5
-            + (intrinsic_rating * 0.2)
+            + (intrinsic_rating * 0.2))
+            * emphasis_multiplier
     }
 }

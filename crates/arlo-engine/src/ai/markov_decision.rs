@@ -9,6 +9,7 @@ use crate::physical::PhysicalState;
 use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
+use arlo_tactics::DecisionEmphasis;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -26,10 +27,12 @@ impl MarkovDecisionEvaluator {
         remaining_advance_mirim: f64,
         pass_protection_net_advantage: f64,
         best_available_target_weight: f64,
+        long_launch_target_weight: f64,
         pitch_control_ahead: f64,
         distance_to_next_artro_mirim: f64,
         pitch_length_mirim: f64,
         offensive_gravity: f64,
+        play_call_emphasis: DecisionEmphasis,
         artrine_physical_state: &PhysicalState,
     ) -> Vec<(ArtrineDecisionKind, f64)> {
         let risk_profile =
@@ -47,6 +50,7 @@ impl MarkovDecisionEvaluator {
             remaining_advance_mirim,
             pass_protection_net_advantage,
             best_available_target_weight,
+            long_launch_target_weight,
             pitch_control_ahead,
             distance_to_next_artro_mirim,
             pitch_length_mirim,
@@ -54,6 +58,7 @@ impl MarkovDecisionEvaluator {
             risk_profile,
             game_state_pressure,
             team_identity_bias,
+            play_call_emphasis,
             artrine_physical_state,
         )
     }
@@ -68,6 +73,7 @@ impl MarkovDecisionEvaluator {
         remaining_advance_mirim: f64,
         pass_protection_net_advantage: f64,
         best_available_target_weight: f64,
+        long_launch_target_weight: f64,
         pitch_control_ahead: f64,
         distance_to_next_artro_mirim: f64,
         pitch_length_mirim: f64,
@@ -75,6 +81,7 @@ impl MarkovDecisionEvaluator {
         risk_profile: RiskProfile,
         game_state_pressure: GameStatePressure,
         team_identity_bias: TeamIdentityBias,
+        play_call_emphasis: DecisionEmphasis,
         artrine_physical_state: &PhysicalState,
     ) -> Vec<(ArtrineDecisionKind, f64)> {
         let epv_model = DynamicEpvModel::new(offensive_gravity);
@@ -97,6 +104,7 @@ impl MarkovDecisionEvaluator {
             remaining_advance_mirim,
             pass_protection_net_advantage,
             best_available_target_weight,
+            long_launch_target_weight,
             pitch_control_ahead,
             distance_to_next_artro_mirim,
             pitch_length_mirim,
@@ -104,6 +112,7 @@ impl MarkovDecisionEvaluator {
             risk_profile,
             game_state_pressure,
             team_identity_bias,
+            play_call_emphasis,
         };
 
         let carry_evaluator = CarryUtilityEvaluator;
