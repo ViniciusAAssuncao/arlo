@@ -3,6 +3,7 @@ use crate::ai::markov_decision::MarkovDecisionEvaluator;
 use crate::match_decision::scoring::{evaluate_scoring_opportunity, ScoringOpportunity};
 use crate::physical::PhysicalState;
 use crate::spatial::proximity::calculate_distance_mirim;
+use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::sport_constants::{
     FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM, FIELD_POINT_REQUIRED_DRIVES,
@@ -66,6 +67,7 @@ pub fn calculate_decision_utilities(
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let risk_profile = RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
     let game_state_pressure = GameStatePressure::default();
+    let team_identity_bias = TeamIdentityBias::default();
 
     calculate_decision_utilities_with_context(
         artrine,
@@ -85,6 +87,7 @@ pub fn calculate_decision_utilities(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
+        team_identity_bias,
         artrine_physical_state,
     )
 }
@@ -107,6 +110,7 @@ pub fn calculate_decision_utilities_with_context(
     offensive_gravity: f64,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
+    team_identity_bias: TeamIdentityBias,
     artrine_physical_state: &PhysicalState,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let down = (4u8).saturating_sub(remaining_downs).max(1);
@@ -129,6 +133,7 @@ pub fn calculate_decision_utilities_with_context(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
+        team_identity_bias,
         artrine_physical_state,
     )
 }

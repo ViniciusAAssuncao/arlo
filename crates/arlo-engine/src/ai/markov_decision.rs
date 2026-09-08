@@ -6,6 +6,7 @@ use crate::ai::evaluators::{
     ShortPassUtilityEvaluator,
 };
 use crate::physical::PhysicalState;
+use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use std::collections::HashMap;
@@ -34,6 +35,7 @@ impl MarkovDecisionEvaluator {
         let risk_profile =
             RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
         let game_state_pressure = GameStatePressure::default();
+        let team_identity_bias = TeamIdentityBias::default();
 
         Self::evaluate_action_utilities_with_context(
             artrine,
@@ -51,6 +53,7 @@ impl MarkovDecisionEvaluator {
             offensive_gravity,
             risk_profile,
             game_state_pressure,
+            team_identity_bias,
             artrine_physical_state,
         )
     }
@@ -71,6 +74,7 @@ impl MarkovDecisionEvaluator {
         offensive_gravity: f64,
         risk_profile: RiskProfile,
         game_state_pressure: GameStatePressure,
+        team_identity_bias: TeamIdentityBias,
         artrine_physical_state: &PhysicalState,
     ) -> Vec<(ArtrineDecisionKind, f64)> {
         let epv_model = DynamicEpvModel::new(offensive_gravity);
@@ -99,6 +103,7 @@ impl MarkovDecisionEvaluator {
             offensive_gravity,
             risk_profile,
             game_state_pressure,
+            team_identity_bias,
         };
 
         let carry_evaluator = CarryUtilityEvaluator;

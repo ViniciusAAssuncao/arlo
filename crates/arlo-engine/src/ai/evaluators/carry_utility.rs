@@ -83,6 +83,7 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
         let gravity_factor = 0.70 + 0.30 * ctx.offensive_gravity.min(2.0);
         let risk_multiplier = ctx.risk_profile.risk_multiplier_for_action(ArtrineDecisionKind::SelfCarry);
         let game_state_bias = ctx.game_state_pressure.bias_for_decision(ArtrineDecisionKind::SelfCarry, ctx.drives_in_series);
+        let team_identity_bias = ctx.team_identity_bias.bias_for(ArtrineDecisionKind::SelfCarry);
 
         let drive_urgency_bonus = if ctx.drives_in_series < 3 && artros_crossed > 0 {
             (artros_crossed as f64) * ((3 - ctx.drives_in_series) as f64) * 0.45 * skill_mult
@@ -90,6 +91,11 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
             0.0
         };
 
-        (expected_future_value * gravity_factor + drive_urgency_bonus) * risk_multiplier * game_state_bias * 3.5 + (intrinsic_rating * 0.2)
+        (expected_future_value * gravity_factor + drive_urgency_bonus)
+            * risk_multiplier
+            * game_state_bias
+            * team_identity_bias
+            * 3.5
+            + (intrinsic_rating * 0.2)
     }
 }

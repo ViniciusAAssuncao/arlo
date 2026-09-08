@@ -179,6 +179,7 @@ pub fn step_call_to_action(
             &artrine_fatigue,
             &artrine_impulse,
         );
+        let team_identity_bias = crate::team_identity::derive(state.offense_instructions());
 
         let seq_decision = state.next_sequence();
         let mut decision_rng = state
@@ -203,6 +204,7 @@ pub fn step_call_to_action(
             offensive_gravity.multiplier(),
             risk_profile,
             game_state_pressure,
+            team_identity_bias,
             &artrine_fatigue,
             &artrine_impulse,
             &mut decision_rng,
