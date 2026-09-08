@@ -78,6 +78,7 @@ where
         shot_flight,
     );
 
+    let finish_context = context.for_duel_kind(DuelKind::FinishingAttempt);
     execute_finishing_with_player(
         artrine,
         artrine,
@@ -91,7 +92,7 @@ where
         is_bonus_phase,
         start_pos,
         ledger,
-        context,
+        &finish_context,
         fatigue_for,
         rng,
     )
@@ -186,6 +187,7 @@ where
         shot_flight,
     );
 
+    let finish_context = context.for_duel_kind(DuelKind::FinishingAttempt);
     execute_finishing_with_player(
         finisher,
         artrine,
@@ -199,7 +201,7 @@ where
         is_bonus_phase,
         start_pos,
         ledger,
-        context,
+        &finish_context,
         fatigue_for,
         rng,
     )
@@ -245,6 +247,7 @@ where
         finisher_rating,
     );
 
+    let finish_context = context.for_duel_kind(DuelKind::FinishingAttempt);
     let (scoring_decision, finish_duel) = resolve_scoring_attempt_with_fatigue(
         finisher,
         goalguard,
@@ -256,7 +259,7 @@ where
         accumulated_advance_mirim,
         &finisher_state,
         &goalguard_state,
-        context,
+        &finish_context,
         rng,
     );
 

@@ -102,6 +102,7 @@ where
     let artrine_state = fatigue_for(&artrine.id());
     let lead_def_state = fatigue_for(&lead_defender.id());
 
+    let dist_context = context.for_duel_kind(duel_kind);
     let raw_dist_duel = resolve_duel_with_fatigue(
         duel_kind,
         attacker_rating,
@@ -111,7 +112,7 @@ where
         &artrine_state,
         &lead_def_state,
         attribute_keys,
-        context,
+        &dist_context,
         rng,
     );
 
@@ -219,6 +220,7 @@ where
                 );
                 ledger.record_live(DurationComponentKind::BallSecurityEngagement, sec_duration);
             }
+            let sec_context = context.for_duel_kind(DuelKind::BallSecurityDistribution);
             let sec_result = resolve_ball_security(
                 DuelKind::BallSecurityDistribution,
                 artrine,
@@ -227,7 +229,7 @@ where
                 defense_position_index,
                 attribute_keys,
                 defense_team_id,
-                context,
+                &sec_context,
                 fatigue_for,
                 rng,
             );

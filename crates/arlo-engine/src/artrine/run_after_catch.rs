@@ -130,6 +130,7 @@ where
     let lead_blocker_state = fatigue_for(&lead_blocker.id());
     let lead_block_def_state = fatigue_for(&lead_block_defender.id());
 
+    let block_context = context.for_duel_kind(block_duel_kind);
     let raw_block_duel = resolve_duel_with_fatigue(
         block_duel_kind,
         blocker_rating,
@@ -139,7 +140,7 @@ where
         &lead_blocker_state,
         &lead_block_def_state,
         attribute_keys,
-        context,
+        &block_context,
         rng,
     );
 
@@ -260,6 +261,7 @@ where
     let receiver_state = fatigue_for(&receiver.id());
     let lead_def_state = fatigue_for(&lead_defender.id());
 
+    let rb_context = context.for_duel_kind(DuelKind::RunBreakthrough);
     let raw_rb_duel = resolve_duel_with_fatigue(
         DuelKind::RunBreakthrough,
         attacker_rating,
@@ -269,7 +271,7 @@ where
         &receiver_state,
         &lead_def_state,
         attribute_keys,
-        context,
+        &rb_context,
         rng,
     );
 
@@ -371,6 +373,7 @@ where
             (&defenders[..1], defenders[0])
         };
 
+        let sec_context = context.for_duel_kind(DuelKind::BallSecurityCarry);
         let sec_result = resolve_ball_security(
             DuelKind::BallSecurityCarry,
             receiver,
@@ -379,7 +382,7 @@ where
             defense_position_index,
             attribute_keys,
             defense_team_id,
-            context,
+            &sec_context,
             fatigue_for,
             rng,
         );

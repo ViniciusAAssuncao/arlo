@@ -252,6 +252,7 @@ where
         };
 
         if opportunity != ScoringOpportunity::None && dist_to_goal_mirim <= 50.0 {
+            let finish_context = context.for_duel_kind(DuelKind::FinishingAttempt);
             let (decision, finish_duel) = resolve_scoring_attempt_with_fatigue(
                 &receiver_player,
                 goalguard,
@@ -263,7 +264,7 @@ where
                 total_territory,
                 &receiver_state,
                 &fatigue_for(&goalguard.id()),
-                context,
+                &finish_context,
                 rng,
             );
 

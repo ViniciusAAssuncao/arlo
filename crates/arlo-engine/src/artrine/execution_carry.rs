@@ -113,6 +113,7 @@ where
     )
     .unwrap_or(defenders[0]);
 
+    let artro_context = context.for_duel_kind(DuelKind::ArtroBreakthrough);
     let raw_artro_duel = resolve_duel_with_fatigue(
         DuelKind::ArtroBreakthrough,
         attacker_rating,
@@ -122,7 +123,7 @@ where
         &artrine_state,
         &fatigue_for(&lead_defender.id()),
         attribute_keys,
-        context,
+        &artro_context,
         rng,
     );
 
@@ -232,6 +233,7 @@ where
                     sec_duration,
                 );
             }
+            let sec_context = context.for_duel_kind(DuelKind::BallSecurityCarry);
             let sec_result = resolve_ball_security(
                 DuelKind::BallSecurityCarry,
                 artrine,
@@ -240,7 +242,7 @@ where
                 defense_position_index,
                 attribute_keys,
                 defense_team_id,
-                context,
+                &sec_context,
                 fatigue_for,
                 rng,
             );

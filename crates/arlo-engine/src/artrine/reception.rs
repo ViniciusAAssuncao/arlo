@@ -152,6 +152,7 @@ where
 
     let lead_def_state = fatigue_for(&lead_defender.id());
 
+    let rec_context = context.for_duel_kind(duel_kind);
     let raw_duel = resolve_duel_with_fatigue(
         duel_kind,
         attacker_rating,
@@ -161,7 +162,7 @@ where
         &receiver_state,
         &lead_def_state,
         attribute_keys,
-        context,
+        &rec_context,
         rng,
     );
 

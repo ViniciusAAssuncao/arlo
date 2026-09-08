@@ -94,12 +94,6 @@ pub fn step_call_to_action(
     )?;
 
     let (chosen_decision, execution_outcome) = if pass_phase.pass_completed {
-        let context = if is_home_offense {
-            DuelContext::attacker_home()
-        } else {
-            DuelContext::defender_home()
-        };
-
         let pitch = *state.pitch();
         let attribute_keys = state.attribute_keys().clone();
         let is_bonus_phase = state.possession().is_bonus_phase();
@@ -229,6 +223,13 @@ pub fn step_call_to_action(
         let defense_instructions = state.instructions_for_team(defense_team_id);
         let defense_pressing_multiplier = crate::team_identity::pressing::contest_radius_multiplier(
             defense_instructions.out_of_possession().pressing_intensity(),
+        );
+        let defense_aggression = defense_instructions.out_of_possession().aggression();
+        let aggression_offset = crate::team_identity::aggression::duel_logit_offset(defense_aggression);
+        let context = DuelContext::with_aggression_offset(
+            is_home_offense,
+            !is_home_offense,
+            aggression_offset,
         );
 
         let seq_execution = state.next_sequence();
