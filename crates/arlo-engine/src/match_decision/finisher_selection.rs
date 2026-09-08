@@ -4,7 +4,7 @@ use crate::match_decision::target_selection::{
 };
 use crate::physical::PhysicalState;
 use crate::spatial::DynamicSpatialMap;
-use arlo_domain::{AttributeKey, Pitch, Player, Position};
+use arlo_domain::{AttributeKey, Pitch, Player, Position, SlotRole};
 use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::HashMap;
@@ -37,6 +37,47 @@ pub fn calculate_player_finishing_weight(
         attacking_positive_x,
         ReceptionRole::Finisher,
         openness_by_player,
+    )
+}
+
+pub fn select_finisher_or_kicker<F, R>(
+    candidates: &[&Player],
+    role_index_for_play: &HashMap<Uuid, SlotRole>,
+    is_bonus_phase: bool,
+    spatial_map: &DynamicSpatialMap,
+    pitch: &Pitch,
+    position_index: &HashMap<Uuid, Position>,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attacking_positive_x: bool,
+    openness_by_player: &HashMap<Uuid, f64>,
+    fatigue_for: &F,
+    rng: &mut R,
+) -> Option<Uuid>
+where
+    F: Fn(&Uuid) -> PhysicalState,
+    R: Rng + ?Sized,
+{
+    if is_bonus_phase {
+        if let Some(kicker) = candidates
+            .iter()
+            .find(|p| role_index_for_play.get(&p.id()) == Some(&SlotRole::Kicker))
+        {
+            return Some(kicker.id());
+        }
+    }
+
+    select_finisher_with_fatigue(
+        candidates,
+        spatial_map,
+        pitch,
+        position_index,
+        instructions_index,
+        attribute_keys,
+        attacking_positive_x,
+        openness_by_player,
+        fatigue_for,
+        rng,
     )
 }
 

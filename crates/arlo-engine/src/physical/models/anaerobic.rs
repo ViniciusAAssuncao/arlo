@@ -44,9 +44,10 @@ pub fn calculate_duel_intensity_multiplier(duel_kind: DuelKind) -> f64 {
         DuelKind::PassProtection => 1.7,
         DuelKind::RouteContest | DuelKind::AerialDuel => 1.6,
         DuelKind::BallSecurityCarry | DuelKind::BallSecurityDistribution => 1.5,
-        DuelKind::ShortDistribution | DuelKind::LongDistribution | DuelKind::CrossDistribution => {
-            1.2
-        }
+        DuelKind::ShortDistribution
+        | DuelKind::LongDistribution
+        | DuelKind::CrossDistribution
+        | DuelKind::FieldGoalAttempt => 1.2,
     }
 }
 

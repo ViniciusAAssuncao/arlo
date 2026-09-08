@@ -59,6 +59,10 @@ pub fn get_duel_profiles(kind: DuelKind) -> (DuelProfile, DuelProfile) {
             offense_duels::finishing_attempt_profile(),
             goalkeeping_duels::shot_stopping_profile(),
         ),
+        DuelKind::FieldGoalAttempt => (
+            offense_duels::field_goal_profile(),
+            goalkeeping_duels::shot_stopping_profile(),
+        ),
         DuelKind::ShortDistribution => (
             offense_duels::short_distribution_profile(),
             defense_duels::coverage_profile(),

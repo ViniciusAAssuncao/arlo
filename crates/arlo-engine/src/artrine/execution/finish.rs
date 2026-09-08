@@ -1,7 +1,7 @@
 use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::distribution::execute_distribution;
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
-use crate::match_decision::finisher_selection::select_finisher_with_fatigue;
+use crate::match_decision::finisher_selection::select_finisher_or_kicker;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt_with_fatigue, ScoringDecision,
 };
@@ -103,8 +103,10 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let chosen_finisher_id = select_finisher_with_fatigue(
+    let chosen_finisher_id = select_finisher_or_kicker(
         ctx.offense_helpers,
+        ctx.offense_role_index,
+        ctx.is_bonus_phase,
         spatial_map,
         ctx.pitch,
         ctx.offense_position_index,

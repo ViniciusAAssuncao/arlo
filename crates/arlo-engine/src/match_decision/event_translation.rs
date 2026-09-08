@@ -21,6 +21,7 @@ pub fn translate_duel_kind(kind: EngineDuelKind) -> PublicDuelKind {
         EngineDuelKind::ArtroBreakthrough => PublicDuelKind::ArtroBreakthrough,
         EngineDuelKind::AerialDuel => PublicDuelKind::AerialDuel,
         EngineDuelKind::FinishingAttempt => PublicDuelKind::FinishingAttempt,
+        EngineDuelKind::FieldGoalAttempt => PublicDuelKind::FinishingAttempt,
         EngineDuelKind::ShortDistribution => PublicDuelKind::ShortDistribution,
         EngineDuelKind::LongDistribution => PublicDuelKind::LongDistribution,
         EngineDuelKind::CrossDistribution => PublicDuelKind::CrossDistribution,
