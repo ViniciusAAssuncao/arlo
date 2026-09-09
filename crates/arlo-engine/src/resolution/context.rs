@@ -7,6 +7,7 @@ pub struct DuelContext {
     defender_is_home: bool,
     aggression_logit_offset: f64,
     misdirection_logit_offset: f64,
+    physicality_logit_offset: f64,
 }
 
 impl DuelContext {
@@ -16,6 +17,7 @@ impl DuelContext {
             defender_is_home,
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
+            physicality_logit_offset: 0.0,
         }
     }
 
@@ -29,6 +31,7 @@ impl DuelContext {
             defender_is_home,
             aggression_logit_offset,
             misdirection_logit_offset: 0.0,
+            physicality_logit_offset: 0.0,
         }
     }
 
@@ -37,12 +40,14 @@ impl DuelContext {
         defender_is_home: bool,
         aggression_logit_offset: f64,
         misdirection_logit_offset: f64,
+        physicality_logit_offset: f64,
     ) -> Self {
         Self {
             attacker_is_home,
             defender_is_home,
             aggression_logit_offset,
             misdirection_logit_offset,
+            physicality_logit_offset,
         }
     }
 
@@ -52,6 +57,7 @@ impl DuelContext {
             defender_is_home: false,
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
+            physicality_logit_offset: 0.0,
         }
     }
 
@@ -61,6 +67,7 @@ impl DuelContext {
             defender_is_home: false,
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
+            physicality_logit_offset: 0.0,
         }
     }
 
@@ -70,6 +77,7 @@ impl DuelContext {
             defender_is_home: true,
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
+            physicality_logit_offset: 0.0,
         }
     }
 
@@ -89,6 +97,10 @@ impl DuelContext {
         self.misdirection_logit_offset
     }
 
+    pub fn physicality_logit_offset(&self) -> f64 {
+        self.physicality_logit_offset
+    }
+
     pub fn for_duel_kind(&self, kind: DuelKind) -> Self {
         if kind.is_contact_duel() {
             *self
@@ -98,6 +110,7 @@ impl DuelContext {
                 self.defender_is_home,
                 0.0,
                 self.misdirection_logit_offset,
+                0.0,
             )
         }
     }

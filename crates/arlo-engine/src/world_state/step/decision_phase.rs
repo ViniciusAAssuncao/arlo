@@ -203,6 +203,9 @@ pub fn run_decision_phase(
 
     let offense_instructions = *state.instructions_for_team(context.offense_team_id);
     let offense_tempo_value = offense_instructions.in_possession().tempo().value();
+    let offense_physicality = offense_instructions.in_possession().physicality();
+    let physicality_offset =
+        crate::team_identity::physicality::offensive_contact_logit_offset(offense_physicality);
     let defense_instructions = *state.instructions_for_team(context.defense_team_id);
     let defense_pressing_multiplier = crate::team_identity::pressing::contest_radius_multiplier(
         defense_instructions
@@ -221,6 +224,7 @@ pub fn run_decision_phase(
         !context.is_home_offense,
         aggression_offset,
         misdirection_offset,
+        physicality_offset,
     );
 
     let seq_execution = state.next_sequence();
