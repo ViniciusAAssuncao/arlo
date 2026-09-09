@@ -5,6 +5,7 @@ use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
+use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
 use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::score::MatchScoreboard;
@@ -18,6 +19,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatchState {
     pub(crate) teams: TeamRegistry,
+    pub(crate) home_squad: MatchdaySquad,
+    pub(crate) away_squad: MatchdaySquad,
     pub(crate) pitch: Pitch,
     pub(crate) attribute_keys: HashMap<Uuid, AttributeKey>,
     pub(crate) format_rules: MatchFormatRules,

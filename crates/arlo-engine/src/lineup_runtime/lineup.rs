@@ -140,6 +140,33 @@ impl Lineup {
         })
     }
 
+    pub fn substitute(
+        &self,
+        outgoing_player_id: Uuid,
+        incoming_player: Player,
+    ) -> EngineResult<Self> {
+        let mut found = false;
+        let mut new_assignments = Vec::with_capacity(self.assignments.len());
+        for assignment in &self.assignments {
+            if assignment.player().id() == outgoing_player_id {
+                found = true;
+                new_assignments.push(LineupAssignment::new(
+                    assignment.formation_slot_index(),
+                    *assignment.slot(),
+                    incoming_player.clone(),
+                    assignment.slot_role(),
+                    assignment.player_instructions(),
+                ));
+            } else {
+                new_assignments.push(assignment.clone());
+            }
+        }
+        if !found {
+            return Err(EngineError::PlayerNotFound(outgoing_player_id));
+        }
+        Self::from_assignments(self.formation.clone(), new_assignments)
+    }
+
     pub fn builder(formation: Formation) -> LineupBuilder {
         LineupBuilder::new(formation)
     }

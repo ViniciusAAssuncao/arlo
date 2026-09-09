@@ -17,6 +17,10 @@ impl MatchState {
         self.fatigue.fatigue_for(player_id)
     }
 
+    pub fn substitute_fatigue_player(&mut self, outgoing: Uuid, incoming: Uuid, is_home: bool) {
+        self.fatigue.substitute_player(outgoing, incoming, is_home);
+    }
+
     pub fn record_distance(&mut self, player_id: Uuid, mirim: f64) -> (f64, f64) {
         let is_home = self.teams.is_home_player(&player_id);
         let player = self.teams.find_player(&player_id);

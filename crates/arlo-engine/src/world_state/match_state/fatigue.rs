@@ -31,6 +31,17 @@ impl FatigueTracker {
             .unwrap_or_default()
     }
 
+    pub fn substitute_player(&mut self, _outgoing: Uuid, incoming: Uuid, is_home: bool) {
+        let map = if is_home {
+            &mut self.home_fatigue
+        } else {
+            &mut self.away_fatigue
+        };
+        if !map.contains_key(&incoming) {
+            map.insert(incoming, FatigueState::default());
+        }
+    }
+
     pub fn record_distance(
         &mut self,
         player_id: Uuid,

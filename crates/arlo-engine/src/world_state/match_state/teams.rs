@@ -5,6 +5,22 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+fn compute_lineup_indices(
+    lineup: &Lineup,
+) -> (
+    HashMap<Uuid, DomainPosition>,
+    HashMap<Uuid, DomainPosition>,
+    HashMap<Uuid, SlotRole>,
+    HashMap<Uuid, PlayerInstructions>,
+) {
+    (
+        lineup.offensive_position_index(),
+        lineup.defensive_position_index(),
+        lineup.role_index(),
+        lineup.instructions_index(),
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TeamRegistry {
     home_team_id: Uuid,
@@ -36,14 +52,18 @@ impl TeamRegistry {
         home_manager: Manager,
         away_manager: Manager,
     ) -> Self {
-        let home_offensive_position_index = home_lineup.offensive_position_index();
-        let home_defensive_position_index = home_lineup.defensive_position_index();
-        let away_offensive_position_index = away_lineup.offensive_position_index();
-        let away_defensive_position_index = away_lineup.defensive_position_index();
-        let home_role_index = home_lineup.role_index();
-        let away_role_index = away_lineup.role_index();
-        let home_instructions_index = home_lineup.instructions_index();
-        let away_instructions_index = away_lineup.instructions_index();
+        let (
+            home_offensive_position_index,
+            home_defensive_position_index,
+            home_role_index,
+            home_instructions_index,
+        ) = compute_lineup_indices(&home_lineup);
+        let (
+            away_offensive_position_index,
+            away_defensive_position_index,
+            away_role_index,
+            away_instructions_index,
+        ) = compute_lineup_indices(&away_lineup);
 
         Self {
             home_team_id,
@@ -62,6 +82,23 @@ impl TeamRegistry {
             away_role_index,
             home_instructions_index,
             away_instructions_index,
+        }
+    }
+
+    pub fn replace_lineup(&mut self, team_id: Uuid, new_lineup: Lineup) {
+        let (off_pos, def_pos, role_idx, instr_idx) = compute_lineup_indices(&new_lineup);
+        if team_id == self.home_team_id {
+            self.home_lineup = new_lineup;
+            self.home_offensive_position_index = off_pos;
+            self.home_defensive_position_index = def_pos;
+            self.home_role_index = role_idx;
+            self.home_instructions_index = instr_idx;
+        } else {
+            self.away_lineup = new_lineup;
+            self.away_offensive_position_index = off_pos;
+            self.away_defensive_position_index = def_pos;
+            self.away_role_index = role_idx;
+            self.away_instructions_index = instr_idx;
         }
     }
 

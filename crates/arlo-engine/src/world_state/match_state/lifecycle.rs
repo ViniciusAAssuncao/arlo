@@ -7,6 +7,7 @@ use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
+use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
 use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::score::MatchScoreboard;
@@ -20,24 +21,24 @@ impl MatchState {
         let home_lineup = hydrate(
             &params.home.tactical_lineup,
             &params.home.formation,
-            &params.home.roster
+            &params.home.roster,
         )?;
         let away_lineup = hydrate(
             &params.away.tactical_lineup,
             &params.away.formation,
-            &params.away.roster
+            &params.away.roster,
         )?;
 
         let spatial_map = DynamicSpatialMap::from_pitch(&params.pitch, &home_lineup, &away_lineup)?;
         let initial_scrimmage = Position::from_components(
             params.pitch.length().value() / 2.0,
             params.pitch.width().value() / 2.0,
-            0.0
+            0.0,
         );
         let possession = PossessionSnapshot::opening(
             params.home.team_id,
             params.away.team_id,
-            initial_scrimmage
+            initial_scrimmage,
         );
         let rng_provider = RngProvider::new(params.seed);
         let clock = MatchClock::new(&params.format_rules);
@@ -51,8 +52,11 @@ impl MatchState {
             params.home.tactical_profile,
             params.away.tactical_profile,
             params.home.manager,
-            params.away.manager
+            params.away.manager,
         );
+
+        let home_squad = MatchdaySquad::from_roster_and_lineup(&params.home.roster, &home_lineup);
+        let away_squad = MatchdaySquad::from_roster_and_lineup(&params.away.roster, &away_lineup);
 
         let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &params.attribute_keys);
         let fatigue = FatigueTracker::new();
@@ -62,6 +66,8 @@ impl MatchState {
 
         Ok(Self {
             teams,
+            home_squad,
+            away_squad,
             pitch: params.pitch,
             attribute_keys: params.attribute_keys,
             format_rules: params.format_rules,
