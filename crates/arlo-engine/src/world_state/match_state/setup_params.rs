@@ -1,7 +1,7 @@
 use crate::rng::MatchSeed;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, Formation, Manager, MatchFormatRules, Player};
-use arlo_tactics::{TacticalLineup, TeamTacticalProfile};
+use arlo_tactics::{PlayCall, TacticalLineup, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -15,6 +15,7 @@ pub struct TeamSetupParams {
     pub tactical_profile: TeamTacticalProfile,
     pub manager: Manager,
     pub available_profiles: Vec<TeamTacticalProfile>,
+    pub playbook: Vec<PlayCall>,
 }
 
 impl TeamSetupParams {
@@ -26,6 +27,7 @@ impl TeamSetupParams {
         tactical_profile: TeamTacticalProfile,
         manager: Manager,
         available_profiles: Vec<TeamTacticalProfile>,
+        playbook: Vec<PlayCall>,
     ) -> Self {
         Self {
             team_id,
@@ -35,6 +37,7 @@ impl TeamSetupParams {
             tactical_profile,
             manager,
             available_profiles,
+            playbook,
         }
     }
 }

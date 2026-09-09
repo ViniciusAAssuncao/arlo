@@ -58,6 +58,30 @@ impl PlayCallTracker {
         }
     }
 
+    pub fn has_queued_call(&self, is_home: bool, expected_category: PlayCallCategory) -> bool {
+        let manual_override = if is_home {
+            self.home_manual_override.as_ref()
+        } else {
+            self.away_manual_override.as_ref()
+        };
+
+        if manual_override.is_some() {
+            return true;
+        }
+
+        let (script, cursor) = if is_home {
+            (&self.home_script, self.home_script_cursor)
+        } else {
+            (&self.away_script, self.away_script_cursor)
+        };
+
+        if cursor < script.len() {
+            return script[cursor].category() == expected_category;
+        }
+
+        false
+    }
+
     pub fn resolve_and_consume(
         &mut self,
         is_home: bool,

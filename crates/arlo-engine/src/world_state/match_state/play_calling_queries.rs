@@ -16,6 +16,17 @@ impl MatchState {
         self.play_calling.set_manual_override(is_home, play_call);
     }
 
+    pub fn has_queued_call_for_offense(&self) -> bool {
+        let is_home_offense = self.possession.role().is_offense(self.home_team_id());
+        let expected_category = if self.possession.is_bonus_phase() {
+            PlayCallCategory::BonusPhaseConversion
+        } else {
+            PlayCallCategory::OpenPlay
+        };
+        self.play_calling
+            .has_queued_call(is_home_offense, expected_category)
+    }
+
     pub fn resolve_active_play_call_for_offense(&mut self) -> Option<PlayCall> {
         let is_home_offense = self.possession.role().is_offense(self.home_team_id());
         let expected_category = if self.possession.is_bonus_phase() {

@@ -1,6 +1,6 @@
 use crate::lineup_runtime::Lineup;
 use arlo_domain::{AttributeKey, Manager, Player, Position as DomainPosition, SlotRole};
-use arlo_tactics::{PlayerInstructions, TeamInstructions, TeamTacticalProfile};
+use arlo_tactics::{PlayCall, PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -33,6 +33,8 @@ pub struct TeamRegistry {
     away_manager: Manager,
     home_available_profiles: Vec<TeamTacticalProfile>,
     away_available_profiles: Vec<TeamTacticalProfile>,
+    home_playbook: Vec<PlayCall>,
+    away_playbook: Vec<PlayCall>,
     home_offensive_position_index: HashMap<Uuid, DomainPosition>,
     home_defensive_position_index: HashMap<Uuid, DomainPosition>,
     away_offensive_position_index: HashMap<Uuid, DomainPosition>,
@@ -55,6 +57,8 @@ impl TeamRegistry {
         away_manager: Manager,
         home_available_profiles: Vec<TeamTacticalProfile>,
         away_available_profiles: Vec<TeamTacticalProfile>,
+        home_playbook: Vec<PlayCall>,
+        away_playbook: Vec<PlayCall>,
     ) -> Self {
         let (
             home_offensive_position_index,
@@ -80,6 +84,8 @@ impl TeamRegistry {
             away_manager,
             home_available_profiles,
             away_available_profiles,
+            home_playbook,
+            away_playbook,
             home_offensive_position_index,
             home_defensive_position_index,
             away_offensive_position_index,
@@ -153,6 +159,22 @@ impl TeamRegistry {
             &self.home_available_profiles
         } else {
             &self.away_available_profiles
+        }
+    }
+
+    pub fn home_playbook(&self) -> &[PlayCall] {
+        &self.home_playbook
+    }
+
+    pub fn away_playbook(&self) -> &[PlayCall] {
+        &self.away_playbook
+    }
+
+    pub fn playbook_for_team(&self, team_id: Uuid) -> &[PlayCall] {
+        if team_id == self.home_team_id {
+            &self.home_playbook
+        } else {
+            &self.away_playbook
         }
     }
 
