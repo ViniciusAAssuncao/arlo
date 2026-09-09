@@ -1,4 +1,7 @@
-use crate::instructions::axes::{Directness, FlankBias, Mentality, Structure, Tempo, Width};
+use crate::instructions::axes::{
+    Aeriality, Directness, FlankBias, Mentality, PassingRange, Physicality, ScoringPatience,
+    Structure, Tempo, Width,
+};
 use crate::instructions::derivation::ChannelDistribution;
 use crate::instructions::mentality_defaults::{default_directness, default_tempo, default_width};
 use serde::{Deserialize, Serialize};
@@ -11,6 +14,10 @@ pub struct InPossessionInstructions {
     flank_bias: FlankBias,
     directness: Directness,
     structure: Structure,
+    passing_range: PassingRange,
+    aeriality: Aeriality,
+    physicality: Physicality,
+    scoring_patience: ScoringPatience,
 }
 
 impl InPossessionInstructions {
@@ -21,6 +28,10 @@ impl InPossessionInstructions {
         flank_bias: FlankBias,
         directness: Directness,
         structure: Structure,
+        passing_range: PassingRange,
+        aeriality: Aeriality,
+        physicality: Physicality,
+        scoring_patience: ScoringPatience,
     ) -> Self {
         Self {
             mentality,
@@ -29,6 +40,10 @@ impl InPossessionInstructions {
             flank_bias,
             directness,
             structure,
+            passing_range,
+            aeriality,
+            physicality,
+            scoring_patience,
         }
     }
 
@@ -40,6 +55,10 @@ impl InPossessionInstructions {
             flank_bias: FlankBias::default(),
             directness: default_directness(&mentality),
             structure: Structure::default(),
+            passing_range: PassingRange::default(),
+            aeriality: Aeriality::default(),
+            physicality: Physicality::new_clamped(0.5),
+            scoring_patience: ScoringPatience::new_clamped(0.5),
         }
     }
 
@@ -65,6 +84,22 @@ impl InPossessionInstructions {
 
     pub fn structure(&self) -> Structure {
         self.structure
+    }
+
+    pub fn passing_range(&self) -> PassingRange {
+        self.passing_range
+    }
+
+    pub fn aeriality(&self) -> Aeriality {
+        self.aeriality
+    }
+
+    pub fn physicality(&self) -> Physicality {
+        self.physicality
+    }
+
+    pub fn scoring_patience(&self) -> ScoringPatience {
+        self.scoring_patience
     }
 
     pub fn channel_distribution(&self) -> ChannelDistribution {

@@ -3,7 +3,9 @@ use crate::instructions::builder::TeamInstructionsBuilder;
 use crate::instructions::derivation::{ChannelDistribution, EngagementLine};
 use crate::instructions::in_possession::InPossessionInstructions;
 use crate::instructions::out_of_possession::OutOfPossessionInstructions;
-use crate::instructions::transition::TransitionInstructions;
+use crate::instructions::transition::{PressBlockShape, TransitionInstructions};
+use crate::playcall::decision_emphasis::DecisionEmphasis;
+use crate::playcall::decision_emphasis_defaults::derive_default_decision_emphasis;
 use arlo_math::stats::UnipolarScalar;
 use serde::{Deserialize, Serialize};
 
@@ -53,5 +55,21 @@ impl TeamInstructions {
 
     pub fn regroup_discipline(&self) -> UnipolarScalar {
         self.transition.regroup_discipline()
+    }
+
+    pub fn press_block_shape(&self) -> PressBlockShape {
+        self.transition.press_block_shape()
+    }
+
+    pub fn default_decision_emphasis(&self) -> DecisionEmphasis {
+        derive_default_decision_emphasis(
+            self.in_possession.mentality(),
+            self.in_possession.directness(),
+            self.in_possession.width(),
+            self.in_possession.passing_range(),
+            self.in_possession.aeriality(),
+            self.in_possession.physicality(),
+            self.in_possession.scoring_patience(),
+        )
     }
 }
