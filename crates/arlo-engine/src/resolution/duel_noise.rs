@@ -4,48 +4,10 @@ use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use arlo_domain::sport_constants::{ATTRIBUTE_SATURATION_THRESHOLD, BASE_NOISE_SCALE};
 use arlo_domain::{AttributeKey, Player};
+pub use arlo_math::stats::SkewNormalParams;
 use rand::Rng;
-use rand_distr::{Distribution, SkewNormal};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct SkewNormalParams {
-    pub location: f64,
-    pub scale: f64,
-    pub shape: f64,
-}
-
-impl SkewNormalParams {
-    pub fn new(location: f64, scale: f64, shape: f64) -> Self {
-        Self {
-            location,
-            scale,
-            shape,
-        }
-    }
-
-    pub fn location(&self) -> f64 {
-        self.location
-    }
-
-    pub fn scale(&self) -> f64 {
-        self.scale
-    }
-
-    pub fn shape(&self) -> f64 {
-        self.shape
-    }
-
-    pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> f64 {
-        let scale = if self.scale > 0.0 { self.scale } else { 1e-6 };
-        match SkewNormal::new(self.location, scale, self.shape) {
-            Ok(dist) => dist.sample(rng),
-            Err(_) => self.location,
-        }
-    }
-}
 
 pub fn player_noise_distribution_with_impulse(
     player: &Player,
