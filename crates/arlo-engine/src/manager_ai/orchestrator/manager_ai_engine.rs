@@ -1,7 +1,9 @@
 use crate::manager_ai::challenges::execute_challenge;
 use crate::manager_ai::cognition::{derive_cooldown_seconds, ManagerDecisionKind};
 use crate::manager_ai::context::ManagerDecisionContext;
-use crate::manager_ai::play_calling::{execute_play_call_selection, PlayCallDecisionEngine};
+use crate::manager_ai::play_calling::{
+    execute_play_call_selection, rank_playbook, PlayCallDecisionEngine,
+};
 use crate::manager_ai::substitutions::{execute_substitutions, SubstitutionDecisionEngine};
 use crate::manager_ai::tactical_adjustment::{
     execute_tactical_adjustment_by_id, TacticalAdjustmentDecisionEngine,
@@ -175,6 +177,14 @@ impl ManagerAiEngine {
         last_play_failed: bool,
         rng: &mut R,
     ) {
+        if let Some(last_id) = last_play_call_id {
+            publisher.state_mut().record_play_call_outcome(
+                offense_team_id,
+                last_id,
+                !last_play_failed,
+            );
+        }
+
         if publisher.state().has_queued_call_for_offense() {
             return;
         }
@@ -200,11 +210,25 @@ impl ManagerAiEngine {
             PlayCallCategory::OpenPlay
         };
 
+        let ranked = rank_playbook(&playbook, &situational_ctx, expected_category);
+        if ranked.is_empty() {
+            return;
+        }
+
+        publisher.state_mut().ensure_play_call_beliefs_seeded(
+            offense_team_id,
+            &playbook,
+            &ranked,
+            &context.manager_snapshot,
+        );
+
+        let efficacy_snapshot = publisher.state().play_call_efficacy_snapshot(offense_team_id);
+
         if let Some(selected_play_call) = PlayCallDecisionEngine::select_next(
             &context,
             &playbook,
-            &situational_ctx,
-            expected_category,
+            &ranked,
+            &efficacy_snapshot,
             last_play_call_id,
             last_play_failed,
             rng,
