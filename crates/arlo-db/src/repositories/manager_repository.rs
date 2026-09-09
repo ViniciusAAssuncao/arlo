@@ -44,7 +44,7 @@ async fn assemble_manager(
 
     let profile_row = fetch_optional_by_param::<ManagerTacticalProfileRow>(
         pool,
-        "SELECT id, manager_id, offensive_approach, defensive_approach, rotation_policy, artrine_dependency, flexibility_tendency FROM manager_tactical_profiles WHERE manager_id = ?",
+        "SELECT id, manager_id, offensive_approach, defensive_approach, rotation_policy, artrine_dependency, flexibility_tendency, passing_range_preference, aeriality_preference, structure_preference, physicality_preference, transition_pace_preference, press_block_shape_preference FROM manager_tactical_profiles WHERE manager_id = ?",
         &manager_row.id,
     )
     .await?;

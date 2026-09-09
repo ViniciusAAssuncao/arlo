@@ -1,5 +1,5 @@
 use arlo_domain::{DefensiveApproach, OffensiveApproach};
-use arlo_tactics::{InPossessionInstructions, OutOfPossessionInstructions};
+use arlo_tactics::{InPossessionInstructions, OutOfPossessionInstructions, TransitionInstructions};
 
 fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
     let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
@@ -10,6 +10,13 @@ fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
     } else {
         (dot / (norm_a * norm_b)).clamp(0.0, 1.0)
     }
+}
+
+pub fn scalar_alignment(preferred: f64, actual: f64, range: f64) -> f64 {
+    if range <= 0.0 {
+        return 1.0;
+    }
+    (1.0 - (preferred - actual).abs() / range).clamp(0.0, 1.0)
 }
 
 pub fn offensive_approach_alignment(
@@ -46,4 +53,32 @@ pub fn defensive_approach_alignment(
     let actual = [p, 1.0 - p, l, 1.0 - l];
 
     cosine_similarity(&target, &actual)
+}
+
+pub fn passing_range_alignment(preferred: f64, instructions: &InPossessionInstructions) -> f64 {
+    scalar_alignment(preferred, instructions.passing_range().value(), 2.0)
+}
+
+pub fn aeriality_alignment(preferred: f64, instructions: &InPossessionInstructions) -> f64 {
+    scalar_alignment(preferred, instructions.aeriality().value(), 2.0)
+}
+
+pub fn structure_alignment(preferred: f64, instructions: &InPossessionInstructions) -> f64 {
+    scalar_alignment(preferred, instructions.structure().value(), 2.0)
+}
+
+pub fn physicality_alignment(preferred: f64, instructions: &InPossessionInstructions) -> f64 {
+    scalar_alignment(preferred, instructions.physicality().value(), 1.0)
+}
+
+pub fn transition_pace_alignment(preferred: f64, instructions: &TransitionInstructions) -> f64 {
+    scalar_alignment(
+        preferred,
+        instructions.counter_attack_intensity().value(),
+        1.0,
+    )
+}
+
+pub fn press_block_shape_alignment(preferred: f64, instructions: &TransitionInstructions) -> f64 {
+    scalar_alignment(preferred, instructions.press_block_shape().value(), 1.0)
 }

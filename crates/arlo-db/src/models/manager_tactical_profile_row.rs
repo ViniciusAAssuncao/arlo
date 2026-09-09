@@ -17,6 +17,12 @@ pub struct ManagerTacticalProfileRow {
     pub rotation_policy: String,
     pub artrine_dependency: String,
     pub flexibility_tendency: f64,
+    pub passing_range_preference: f64,
+    pub aeriality_preference: f64,
+    pub structure_preference: f64,
+    pub physicality_preference: f64,
+    pub transition_pace_preference: f64,
+    pub press_block_shape_preference: f64,
 }
 
 impl ManagerTacticalProfileRow {
@@ -44,6 +50,12 @@ impl ManagerTacticalProfileRow {
             rotation_policy,
             artrine_dependency,
             self.flexibility_tendency,
+            self.passing_range_preference,
+            self.aeriality_preference,
+            self.structure_preference,
+            self.physicality_preference,
+            self.transition_pace_preference,
+            self.press_block_shape_preference,
             preferred_formation_ids,
         )
         .map_err(Into::into)

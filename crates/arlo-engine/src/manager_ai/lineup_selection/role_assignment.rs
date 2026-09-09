@@ -5,6 +5,10 @@ use arlo_domain::sport_constants::manager_cognition::{
     DECISION_THRESHOLD_LOGIT_STEEPNESS, SIGNAL_DETECTION_BASE_SENSITIVITY,
     SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
 };
+use arlo_domain::sport_constants::managerial::{
+    BLOCKER_ROLE_BASE_THRESHOLD, BLOCKER_ROLE_PHYSICALITY_ADJUSTMENT,
+    LAUNCHER_PASSING_RANGE_PREFERENCE_WEIGHT,
+};
 use arlo_domain::{ArtrineDependency, AttributeKey, Formation, Player, Position, SlotRole};
 use arlo_tactics::{is_role_eligible_for_position, max_concurrent_count};
 use std::collections::HashMap;
@@ -85,6 +89,19 @@ pub fn assign_roles(
     let strategy_norm = (manager_snapshot.artro_strategy.clamp(0.0, 20.0)) / 20.0;
     let def_org_norm = (manager_snapshot.defense_organization.clamp(0.0, 20.0)) / 20.0;
 
+    let passing_range_pref = manager_snapshot
+        .tactical_profile
+        .as_ref()
+        .map(|p| p.passing_range_preference())
+        .unwrap_or(0.0);
+    let pass_pref_norm = (passing_range_pref.clamp(-1.0, 1.0) + 1.0) / 2.0;
+
+    let physicality_pref = manager_snapshot
+        .tactical_profile
+        .as_ref()
+        .map(|p| p.physicality_preference())
+        .unwrap_or(0.5);
+
     let false_artrine_stimulus =
         ((planning_norm * 0.5 + strategy_norm * 0.5) * dep_modifier_false_artrine).clamp(0.0, 1.0);
     let false_artrine_prob = action_probability(
@@ -133,8 +150,12 @@ pub fn assign_roles(
         }
     }
 
-    let launcher_stimulus =
-        ((planning_norm * 0.7 + strategy_norm * 0.3) * dep_modifier_launcher).clamp(0.0, 1.0);
+    let base_launcher_tactical = planning_norm * 0.7 + strategy_norm * 0.3;
+    let launcher_stimulus = (((base_launcher_tactical
+        * (1.0 - LAUNCHER_PASSING_RANGE_PREFERENCE_WEIGHT))
+        + (pass_pref_norm * LAUNCHER_PASSING_RANGE_PREFERENCE_WEIGHT))
+        * dep_modifier_launcher)
+        .clamp(0.0, 1.0);
     let launcher_prob = action_probability(
         launcher_stimulus,
         manager_snapshot.offense_planning,
@@ -236,13 +257,16 @@ pub fn assign_roles(
         }
     }
 
+    let blocker_threshold = BLOCKER_ROLE_BASE_THRESHOLD
+        - (physicality_pref.clamp(0.0, 1.0) * BLOCKER_ROLE_PHYSICALITY_ADJUSTMENT);
+
     for (idx, player) in assignments {
         if roles.get(&player.id()) == Some(&SlotRole::Standard) {
             let pos = slots.get(*idx).map(|s| s.position()).unwrap_or(Position::Midcenter);
             if is_role_eligible_for_position(SlotRole::Blocker, pos) {
                 let blocking_score =
                     evaluate_candidate_suitability(player, SlotRole::Blocker, attribute_keys);
-                if blocking_score >= 12.0 {
+                if blocking_score >= blocker_threshold {
                     roles.insert(player.id(), SlotRole::Blocker);
                     *role_counts.entry(SlotRole::Blocker).or_insert(0) += 1;
                 }
