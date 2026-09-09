@@ -1,5 +1,5 @@
 use crate::lineup_runtime::Lineup;
-use arlo_domain::{AttributeKey, Player, Position as DomainPosition, SlotRole};
+use arlo_domain::{AttributeKey, Manager, Player, Position as DomainPosition, SlotRole};
 use arlo_tactics::{PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,6 +13,8 @@ pub struct TeamRegistry {
     away_lineup: Lineup,
     home_tactical_profile: TeamTacticalProfile,
     away_tactical_profile: TeamTacticalProfile,
+    home_manager: Manager,
+    away_manager: Manager,
     home_offensive_position_index: HashMap<Uuid, DomainPosition>,
     home_defensive_position_index: HashMap<Uuid, DomainPosition>,
     away_offensive_position_index: HashMap<Uuid, DomainPosition>,
@@ -31,6 +33,8 @@ impl TeamRegistry {
         away_lineup: Lineup,
         home_tactical_profile: TeamTacticalProfile,
         away_tactical_profile: TeamTacticalProfile,
+        home_manager: Manager,
+        away_manager: Manager,
     ) -> Self {
         let home_offensive_position_index = home_lineup.offensive_position_index();
         let home_defensive_position_index = home_lineup.defensive_position_index();
@@ -48,6 +52,8 @@ impl TeamRegistry {
             away_lineup,
             home_tactical_profile,
             away_tactical_profile,
+            home_manager,
+            away_manager,
             home_offensive_position_index,
             home_defensive_position_index,
             away_offensive_position_index,
@@ -81,6 +87,22 @@ impl TeamRegistry {
 
     pub fn away_tactical_profile(&self) -> &TeamTacticalProfile {
         &self.away_tactical_profile
+    }
+
+    pub fn home_manager(&self) -> &Manager {
+        &self.home_manager
+    }
+
+    pub fn away_manager(&self) -> &Manager {
+        &self.away_manager
+    }
+
+    pub fn manager_for_team(&self, team_id: Uuid) -> &Manager {
+        if team_id == self.home_team_id {
+            &self.home_manager
+        } else {
+            &self.away_manager
+        }
     }
 
     pub fn tactical_profile_for_team(&self, team_id: Uuid) -> &TeamTacticalProfile {
