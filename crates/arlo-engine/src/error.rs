@@ -4,6 +4,8 @@ use uuid::Uuid;
 pub enum EngineError {
     #[error(transparent)]
     Domain(#[from] arlo_domain::DomainError),
+    #[error(transparent)]
+    Tactics(#[from] arlo_tactics::TacticsError),
     #[error("Lineup must have exactly {expected} players, found {actual}")]
     InvalidLineupSize { expected: usize, actual: usize },
     #[error("Duplicate player '{0}' in lineup")]
