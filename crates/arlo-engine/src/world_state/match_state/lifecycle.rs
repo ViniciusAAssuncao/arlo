@@ -86,6 +86,7 @@ impl MatchState {
             impulse,
             play_calling,
             officiating,
+            last_play_outcome_summary: None,
         })
     }
 }

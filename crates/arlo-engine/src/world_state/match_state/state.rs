@@ -35,6 +35,7 @@ pub struct MatchState {
     pub(crate) impulse: ImpulseTracker,
     pub(crate) play_calling: PlayCallTracker,
     pub(crate) officiating: OfficiatingTracker,
+    pub(crate) last_play_outcome_summary: Option<(Uuid, bool)>,
 }
 
 impl MatchState {
@@ -98,5 +99,13 @@ impl MatchState {
 
     pub fn is_match_finished(&self) -> bool {
         self.clock.is_finished()
+    }
+
+    pub fn last_play_outcome_summary(&self) -> Option<(Uuid, bool)> {
+        self.last_play_outcome_summary
+    }
+
+    pub fn set_last_play_outcome_summary(&mut self, summary: Option<(Uuid, bool)>) {
+        self.last_play_outcome_summary = summary;
     }
 }

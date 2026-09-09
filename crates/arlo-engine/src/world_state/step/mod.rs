@@ -9,11 +9,13 @@ pub use setup::{setup_call_to_action_context, CallToActionContext};
 pub use target_weighting::resolve_decision_target_weights;
 
 use crate::error::EngineResult;
+use crate::manager_ai::orchestrator::ManagerAiEngine;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::rng::RngStream;
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::match_state::MatchState;
-use crate::world_state::play_transition::apply_play_transition;
+use crate::world_state::play_transition::{apply_play_transition, EventPublisher};
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
 use uuid::Uuid;
@@ -52,7 +54,30 @@ pub fn step_call_to_action(
         return Ok(build_finished_match_outcome(state));
     }
 
+    let (last_play_call_id, last_play_failed) = state
+        .last_play_outcome_summary()
+        .map(|(id, failed)| (Some(id), failed))
+        .unwrap_or((None, false));
+
+    let offense_id = state.possession().offense();
+    let seq = state.next_sequence();
+    let mut ai_rng = state
+        .rng_provider()
+        .indexed_rng_for(RngStream::PlayCallSelection, seq);
+
+    {
+        let mut publisher = EventPublisher::new(state, sink);
+        ManagerAiEngine::on_down_start(
+            &mut publisher,
+            offense_id,
+            last_play_call_id,
+            last_play_failed,
+            &mut ai_rng,
+        );
+    }
+
     let context = setup_call_to_action_context(state);
+    let active_play_call_id = context.active_play_call.as_ref().map(|pc| pc.id());
     let offense_players = context.offense_players();
     let defense_players = context.defense_players();
 
@@ -84,6 +109,7 @@ pub fn step_call_to_action(
         decision_result.execution_outcome,
         context.offense_team_id,
         context.defense_team_id,
+        active_play_call_id,
         sink,
     );
 

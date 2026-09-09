@@ -83,6 +83,10 @@ impl MatchScoreboard {
         self.drives_in_current_series += 1;
     }
 
+    pub fn reverse_drive(&mut self) {
+        self.drives_in_current_series = self.drives_in_current_series.saturating_sub(1);
+    }
+
     pub fn reset_drives(&mut self) {
         self.drives_in_current_series = 0;
     }

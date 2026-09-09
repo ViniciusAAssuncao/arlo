@@ -20,6 +20,10 @@ impl MatchState {
         self.scoreboard.increment_drives();
     }
 
+    pub fn reverse_drive(&mut self) {
+        self.scoreboard.reverse_drive();
+    }
+
     pub fn reset_drives(&mut self) {
         self.scoreboard.reset_drives();
     }

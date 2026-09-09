@@ -1,8 +1,10 @@
 use crate::artrine::ArtrineExecutionOutcome;
+use crate::manager_ai::orchestrator::ManagerAiEngine;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::officiating::{ambiguity_from_duel_outcome, ReviewableCall, ReviewableCallKind};
 use crate::possession::TransitionResult;
 use crate::resolution::AttributedDuelOutcome;
+use crate::rng::RngStream;
 use crate::time::DurationComponentKind;
 use crate::time::DurationLedger;
 use crate::world_state::constants::IMMEDIATE_CONTROL_THRESHOLD_SECONDS;
@@ -33,6 +35,7 @@ pub struct TransitionPipeline<'a, 'b, S: EventSink> {
     execution_outcome: ArtrineExecutionOutcome,
     offense_team_id: Uuid,
     defense_team_id: Uuid,
+    active_play_call_id: Option<Uuid>,
     play_duels: Vec<AttributedDuelOutcome>,
     play_ledger: DurationLedger,
 }
@@ -45,6 +48,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         execution_outcome: ArtrineExecutionOutcome,
         offense_team_id: Uuid,
         defense_team_id: Uuid,
+        active_play_call_id: Option<Uuid>,
         sink: &'a mut S,
     ) -> Self {
         let mut play_duels = Vec::with_capacity(1 + execution_outcome.duels.len());
@@ -60,6 +64,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
             execution_outcome,
             offense_team_id,
             defense_team_id,
+            active_play_call_id,
             play_duels,
             play_ledger,
         }
@@ -273,6 +278,29 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         let is_post_turnover = detailed_outcome.turnover.is_some();
 
         if transition_result.countdown_to_size_triggered {
+            let seq = self.publisher.state_mut().next_sequence();
+            let mut ai_rng = self
+                .publisher
+                .state()
+                .rng_provider()
+                .indexed_rng_for(RngStream::PlayCallSelection, seq);
+
+            let extra_offense = ManagerAiEngine::on_stoppage(
+                &mut self.publisher,
+                self.offense_team_id,
+                &mut ai_rng,
+            );
+            let extra_defense = ManagerAiEngine::on_stoppage(
+                &mut self.publisher,
+                self.defense_team_id,
+                &mut ai_rng,
+            );
+            let extra_total = extra_offense + extra_defense;
+            if extra_total.value() > 0.0 {
+                self.play_ledger
+                    .record_dead_ball(DurationComponentKind::Huddle, extra_total);
+            }
+
             let next_scrimmage_x_mirim =
                 next_snapshot.series_state().scrimmage_point().raw().0 / MIRIM_TO_METERS;
             let (reorg_duration, huddle_duration) = derive_and_apply_reorganization(
@@ -331,6 +359,14 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         let transition_result = self.process_impulse(&detailed_outcome);
 
         self.resolve_turnovers(&detailed_outcome, &transition_result, previous_down);
+
+        let failed = detailed_outcome.turnover.is_some()
+            || !detailed_outcome.pass_completed
+            || detailed_outcome.mirins_advanced <= 0.0;
+        self.publisher
+            .state_mut()
+            .set_last_play_outcome_summary(self.active_play_call_id.map(|id| (id, failed)));
+
         self.handle_dead_ball_and_clock(&detailed_outcome, transition_result);
 
         detailed_outcome
@@ -344,6 +380,7 @@ pub fn apply_play_transition(
     execution_outcome: ArtrineExecutionOutcome,
     offense_team_id: Uuid,
     defense_team_id: Uuid,
+    active_play_call_id: Option<Uuid>,
     sink: &mut impl EventSink,
 ) -> DetailedPlayOutcome {
     TransitionPipeline::new(
@@ -353,8 +390,8 @@ pub fn apply_play_transition(
         execution_outcome,
         offense_team_id,
         defense_team_id,
+        active_play_call_id,
         sink,
     )
     .run()
 }
-
