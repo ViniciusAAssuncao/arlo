@@ -1,3 +1,4 @@
+pub mod ambiguity;
 pub mod bounded;
 pub mod categorical;
 pub mod contrast;
@@ -5,6 +6,7 @@ pub mod noise;
 pub mod probability;
 pub mod similarity;
 
+pub use ambiguity::uncertainty_from_probability;
 pub use bounded::{BipolarScalar, UnipolarScalar};
 pub use categorical::sample_categorical;
 pub use contrast::{

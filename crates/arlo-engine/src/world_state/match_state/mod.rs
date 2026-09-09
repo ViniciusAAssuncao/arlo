@@ -3,6 +3,8 @@ pub mod fatigue_queries;
 pub mod impulse;
 pub mod impulse_queries;
 pub mod lifecycle;
+pub mod officiating;
+pub mod officiating_queries;
 pub mod play_calling;
 pub mod play_calling_queries;
 pub mod score;
@@ -14,6 +16,7 @@ pub mod teams;
 
 pub use fatigue::FatigueTracker;
 pub use impulse::ImpulseTracker;
+pub use officiating::OfficiatingTracker;
 pub use play_calling::PlayCallTracker;
 pub use score::{MatchScoreboard, TeamScore};
 pub use setup_params::{MatchSetupParams, TeamSetupParams};

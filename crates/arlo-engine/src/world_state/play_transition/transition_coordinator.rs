@@ -1,5 +1,6 @@
 use crate::artrine::ArtrineExecutionOutcome;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
+use crate::officiating::{ambiguity_from_duel_outcome, ReviewableCall, ReviewableCallKind};
 use crate::possession::TransitionResult;
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationComponentKind;
@@ -23,6 +24,7 @@ use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_domain::ArtrineDecisionKind;
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
+use arlo_math::Probability;
 use uuid::Uuid;
 
 pub struct TransitionPipeline<'a, 'b, S: EventSink> {
@@ -210,6 +212,30 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
             || is_possession_change
             || transition_result.snapshot.down() == 1;
 
+        if detailed_outcome.turnover.is_some() || detailed_outcome.out_of_bounds {
+            let kind = if detailed_outcome.turnover.is_some() {
+                ReviewableCallKind::TurnoverClassification
+            } else {
+                ReviewableCallKind::OutOfBoundsClassification
+            };
+            let ambiguity = self
+                .play_duels
+                .last()
+                .map(|d| ambiguity_from_duel_outcome(d.outcome()))
+                .unwrap_or_else(|| Probability::new_clamped(0.0));
+            let on_field_favors_offense =
+                detailed_outcome.turnover.is_none() && !is_possession_change;
+            let call = ReviewableCall::new(
+                kind,
+                ambiguity,
+                on_field_favors_offense,
+                on_field_favors_offense,
+            );
+            self.publisher
+                .state_mut()
+                .set_last_reviewable_call(self.offense_team_id, call);
+        }
+
         self.publisher.emit_down_advanced_event(
             previous_down,
             new_down,
@@ -331,3 +357,4 @@ pub fn apply_play_transition(
     )
     .run()
 }
+
