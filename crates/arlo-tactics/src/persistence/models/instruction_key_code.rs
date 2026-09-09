@@ -9,12 +9,17 @@ pub enum InstructionKey {
     FlankBias,
     Directness,
     Structure,
+    PassingRange,
+    Aeriality,
+    Physicality,
+    ScoringPatience,
     DefensiveLineHeight,
     Compactness,
     PressingIntensity,
     Aggression,
     CounterAttackIntensity,
     CounterPressIntensity,
+    PressBlockShape,
 }
 
 pub fn parse_instruction_key(code: &str) -> TacticsResult<InstructionKey> {
@@ -25,12 +30,17 @@ pub fn parse_instruction_key(code: &str) -> TacticsResult<InstructionKey> {
         "flank_bias" => Ok(InstructionKey::FlankBias),
         "directness" => Ok(InstructionKey::Directness),
         "structure" => Ok(InstructionKey::Structure),
+        "passing_range" => Ok(InstructionKey::PassingRange),
+        "aeriality" => Ok(InstructionKey::Aeriality),
+        "physicality" => Ok(InstructionKey::Physicality),
+        "scoring_patience" => Ok(InstructionKey::ScoringPatience),
         "defensive_line_height" => Ok(InstructionKey::DefensiveLineHeight),
         "compactness" => Ok(InstructionKey::Compactness),
         "pressing_intensity" => Ok(InstructionKey::PressingIntensity),
         "aggression" => Ok(InstructionKey::Aggression),
         "counter_attack_intensity" => Ok(InstructionKey::CounterAttackIntensity),
         "counter_press_intensity" => Ok(InstructionKey::CounterPressIntensity),
+        "press_block_shape" => Ok(InstructionKey::PressBlockShape),
         _ => Err(TacticsError::InvalidInstructionKey(format!(
             "Invalid instruction key: {code}"
         ))),
@@ -45,11 +55,16 @@ pub fn instruction_key_to_code(key: InstructionKey) -> &'static str {
         InstructionKey::FlankBias => "flank_bias",
         InstructionKey::Directness => "directness",
         InstructionKey::Structure => "structure",
+        InstructionKey::PassingRange => "passing_range",
+        InstructionKey::Aeriality => "aeriality",
+        InstructionKey::Physicality => "physicality",
+        InstructionKey::ScoringPatience => "scoring_patience",
         InstructionKey::DefensiveLineHeight => "defensive_line_height",
         InstructionKey::Compactness => "compactness",
         InstructionKey::PressingIntensity => "pressing_intensity",
         InstructionKey::Aggression => "aggression",
         InstructionKey::CounterAttackIntensity => "counter_attack_intensity",
         InstructionKey::CounterPressIntensity => "counter_press_intensity",
+        InstructionKey::PressBlockShape => "press_block_shape",
     }
 }

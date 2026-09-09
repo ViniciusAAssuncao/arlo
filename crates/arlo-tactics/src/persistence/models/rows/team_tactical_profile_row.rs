@@ -1,8 +1,10 @@
 use crate::error::TacticsResult;
 use crate::instructions::axes::{
-    Aggression, Compactness, CounterAttackIntensity, CounterPressIntensity, DefensiveLineHeight,
-    Directness, FlankBias, Mentality, PressingIntensity, Structure, Tempo, Width,
+    Aeriality, Aggression, Compactness, CounterAttackIntensity, CounterPressIntensity,
+    DefensiveLineHeight, Directness, FlankBias, Mentality, PassingRange, Physicality,
+    PressingIntensity, ScoringPatience, Structure, Tempo, Width,
 };
+use crate::instructions::transition::PressBlockShape;
 use crate::instructions::{TeamInstructions, TeamTacticalProfile};
 use crate::persistence::models::instruction_key_code::{parse_instruction_key, InstructionKey};
 use crate::persistence::models::rows::play_call_situational_parameter_row::situational_profile_from_pairs;
@@ -76,6 +78,19 @@ impl TeamTacticalProfileRow {
                 InstructionKey::Structure => {
                     builder = builder.with_structure(Structure::new_clamped(row.value));
                 }
+                InstructionKey::PassingRange => {
+                    builder = builder.with_passing_range(PassingRange::new_clamped(row.value));
+                }
+                InstructionKey::Aeriality => {
+                    builder = builder.with_aeriality(Aeriality::new_clamped(row.value));
+                }
+                InstructionKey::Physicality => {
+                    builder = builder.with_physicality(Physicality::new_clamped(row.value));
+                }
+                InstructionKey::ScoringPatience => {
+                    builder =
+                        builder.with_scoring_patience(ScoringPatience::new_clamped(row.value));
+                }
                 InstructionKey::DefensiveLineHeight => {
                     builder = builder
                         .with_defensive_line_height(DefensiveLineHeight::new_clamped(row.value));
@@ -99,6 +114,10 @@ impl TeamTacticalProfileRow {
                     builder = builder.with_counter_press_intensity(
                         CounterPressIntensity::new_clamped(row.value),
                     );
+                }
+                InstructionKey::PressBlockShape => {
+                    builder =
+                        builder.with_press_block_shape(PressBlockShape::new_clamped(row.value));
                 }
             }
         }

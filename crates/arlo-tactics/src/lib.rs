@@ -10,14 +10,15 @@ pub use error::{TacticsError, TacticsResult};
 pub use instructions::{
     default_aggression, default_counter_attack_intensity, default_counter_press_intensity,
     default_defensive_line_height, default_directness, default_pressing_intensity, default_tempo,
-    default_width, Aggression, ChannelDistribution, Compactness, CounterAttackIntensity,
-    CounterPressIntensity, CreativeLicense, DefensiveLineHeight, DepthDiscipline, Directness,
-    EngagementBias, EngagementLine, FlankBias, InPossessionInstructions,
-    InPossessionPlayerInstructions, InvolvementPriority, MarkingAssignment, Mentality,
-    OutOfPossessionInstructions, OutOfPossessionPlayerInstructions, PlayerInstructions,
-    PlayerInstructionsBuilder, PositioningBias, PressingIntensity, ReleaseTempo, Structure,
-    TeamInstructions, TeamInstructionsBuilder, TeamTacticalProfile, Tempo, TransitionInstructions,
-    TransitionPlayerInstructions, TransitionUrgency, Width,
+    default_width, derive_pass_range_tier, nearest_block_notation, Aeriality, Aggression,
+    ChannelDistribution, Compactness, CounterAttackIntensity, CounterPressIntensity,
+    CreativeLicense, DefensiveLineHeight, DepthDiscipline, Directness, EngagementBias,
+    EngagementLine, FlankBias, InPossessionInstructions, InPossessionPlayerInstructions,
+    InvolvementPriority, MarkingAssignment, Mentality, OutOfPossessionInstructions,
+    OutOfPossessionPlayerInstructions, PassRangeTier, PassingRange, Physicality, PlayerInstructions,
+    PlayerInstructionsBuilder, PositioningBias, PressBlockShape, PressingIntensity, ReleaseTempo,
+    ScoringPatience, Structure, TeamInstructions, TeamInstructionsBuilder, TeamTacticalProfile,
+    Tempo, TransitionInstructions, TransitionPlayerInstructions, TransitionUrgency, Width,
 };
 
 pub use lineup::{
@@ -26,10 +27,11 @@ pub use lineup::{
 };
 
 pub use playcall::{
-    derive_distance_urgency, derive_down_pressure, derive_drive_scarcity, derive_scoring_proximity,
-    rank_by_situational_fit, validate_play_call, DecisionEmphasis, HasSituationalProfile,
-    MisdirectionLink, PlayCall, PlayCallBuilder, PlayCallCategory, ReadPriority, RouteAssignment,
-    SituationalContext, SituationalProfile, SITUATIONAL_SIGMA_MAX, SITUATIONAL_SIGMA_MIN,
+    derive_default_decision_emphasis, derive_distance_urgency, derive_down_pressure,
+    derive_drive_scarcity, derive_scoring_proximity, rank_by_situational_fit, validate_play_call,
+    DecisionEmphasis, HasSituationalProfile, MisdirectionLink, PlayCall, PlayCallBuilder,
+    PlayCallCategory, ReadPriority, RouteAssignment, SituationalContext, SituationalProfile,
+    SITUATIONAL_SIGMA_MAX, SITUATIONAL_SIGMA_MIN,
 };
 
 pub use series::{SeriesScript, SeriesScriptBuilder};
