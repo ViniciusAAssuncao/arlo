@@ -1,5 +1,6 @@
 use crate::ai::cognitive::decision_threshold::action_probability;
 use crate::lineup_runtime::Lineup;
+use crate::manager_ai::cognition::derive_manager_decision_noise;
 use crate::manager_ai::context::squad_fatigue_summary::SquadFatigueSummary;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::substitutions::fatigue_trigger::urgency_for_player_with_load_management;
@@ -16,6 +17,7 @@ use arlo_domain::sport_constants::substitution::{
 };
 use arlo_domain::{AttributeKey, RotationPolicy};
 use arlo_events::SubstitutionReason;
+use rand::Rng;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
@@ -29,16 +31,18 @@ pub struct SubstitutionPlan {
 pub struct SubstitutionDecisionEngine;
 
 impl SubstitutionDecisionEngine {
-    pub fn evaluate_plans<F>(
+    pub fn evaluate_plans<F, R>(
         context: &ManagerDecisionContext,
         _squad_fatigue_summary: &SquadFatigueSummary,
         lineup: &Lineup,
         bench: &MatchdaySquad,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
         fatigue_lookup: F,
+        rng: &mut R,
     ) -> Vec<SubstitutionPlan>
     where
         F: Fn(&Uuid) -> FatigueState,
+        R: Rng + ?Sized,
     {
         let rotation_policy = context
             .manager_snapshot
@@ -48,6 +52,7 @@ impl SubstitutionDecisionEngine {
             .unwrap_or(RotationPolicy::Situational);
         let load_management = context.manager_snapshot.load_management;
         let tac_urg = tactical_urgency(context);
+        let noise_params = derive_manager_decision_noise(context.manager_snapshot.discipline);
 
         let mut used_candidates = HashSet::new();
         let mut plans = Vec::new();
@@ -61,8 +66,10 @@ impl SubstitutionDecisionEngine {
                 load_management,
             );
 
-            let combined_urgency = (fat_urg * SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT
+            let noise = noise_params.sample(rng);
+            let combined_urgency = ((fat_urg * SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT
                 + tac_urg * SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT)
+                + noise)
                 .clamp(0.0, 1.0);
 
             let prob = action_probability(
@@ -73,7 +80,7 @@ impl SubstitutionDecisionEngine {
                 DECISION_THRESHOLD_LOGIT_STEEPNESS,
             );
 
-            if prob.value() >= 0.5 {
+            if prob.sample(rng) {
                 let available_candidates: Vec<_> = bench
                     .available_replacements()
                     .filter(|p| !used_candidates.contains(&p.id()))
@@ -104,16 +111,18 @@ impl SubstitutionDecisionEngine {
         plans
     }
 
-    pub fn evaluate<F>(
+    pub fn evaluate<F, R>(
         context: &ManagerDecisionContext,
         squad_fatigue_summary: &SquadFatigueSummary,
         lineup: &Lineup,
         bench: &MatchdaySquad,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
         fatigue_lookup: F,
+        rng: &mut R,
     ) -> Vec<(Uuid, Uuid)>
     where
         F: Fn(&Uuid) -> FatigueState,
+        R: Rng + ?Sized,
     {
         Self::evaluate_plans(
             context,
@@ -122,6 +131,7 @@ impl SubstitutionDecisionEngine {
             bench,
             attribute_keys,
             fatigue_lookup,
+            rng,
         )
         .into_iter()
         .map(|plan| (plan.outgoing_id, plan.incoming_id))

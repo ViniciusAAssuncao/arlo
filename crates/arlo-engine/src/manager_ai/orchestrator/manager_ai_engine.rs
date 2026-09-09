@@ -1,4 +1,5 @@
 use crate::manager_ai::challenges::execute_challenge;
+use crate::manager_ai::cognition::{derive_cooldown_seconds, ManagerDecisionKind};
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::play_calling::{execute_play_call_selection, PlayCallDecisionEngine};
 use crate::manager_ai::substitutions::{execute_substitutions, SubstitutionDecisionEngine};
@@ -25,84 +26,142 @@ impl ManagerAiEngine {
     ) -> Duration {
         let mut extra_dead_ball = Duration::new(0.0);
         let is_home = team_id == publisher.state().home_team_id();
+        let period_duration_seconds = publisher.state().clock().period_duration_seconds();
 
         if let Some((call_team_id, call)) = publisher.state().last_reviewable_call().cloned() {
             if call_team_id == team_id {
                 let context = ManagerDecisionContext::build(publisher.state(), team_id);
-                execute_challenge(publisher, &context, team_id, &call, rng);
+                let challenge_cooldown = derive_cooldown_seconds(
+                    period_duration_seconds,
+                    context.manager_snapshot.challenge_judgment,
+                );
+                if publisher.state().is_decision_ready(
+                    team_id,
+                    ManagerDecisionKind::Challenge,
+                    challenge_cooldown,
+                ) {
+                    execute_challenge(publisher, &context, team_id, &call, rng);
+                }
             }
         }
 
         let context = ManagerDecisionContext::build(publisher.state(), team_id);
 
-        let lineup = if is_home {
-            publisher.state().home_lineup().clone()
-        } else {
-            publisher.state().away_lineup().clone()
-        };
-        let squad = if is_home {
-            publisher.state().home_squad().clone()
-        } else {
-            publisher.state().away_squad().clone()
-        };
-        let attribute_keys = publisher.state().attribute_keys().clone();
-        let home_fatigue = publisher.state().home_fatigue().clone();
-        let away_fatigue = publisher.state().away_fatigue().clone();
-        let fatigue_lookup = |id: &Uuid| {
-            home_fatigue
-                .get(id)
-                .or_else(|| away_fatigue.get(id))
-                .copied()
-                .unwrap_or_default()
-        };
-
-        let plans = SubstitutionDecisionEngine::evaluate_plans(
-            &context,
-            &context.squad_fatigue_summary,
-            &lineup,
-            &squad,
-            &attribute_keys,
-            fatigue_lookup,
+        let sub_cooldown = derive_cooldown_seconds(
+            period_duration_seconds,
+            context.manager_snapshot.in_game_adjustments,
         );
-
-        if !plans.is_empty() {
-            let _ = execute_substitutions(publisher, team_id, &plans);
-        }
-
-        let available_profiles = publisher
-            .state()
-            .available_profiles_for_team(team_id)
-            .to_vec();
-        let active_profile_id = publisher.state().tactical_profile_for_team(team_id).id();
-        let pitch_length_m = publisher.state().pitch().length().value();
-        let scrimmage_x_m = publisher.state().possession().scrimmage_point().raw().0;
-        let normalized_x_to_goal = if is_home {
-            (scrimmage_x_m / pitch_length_m).clamp(0.0, 1.0)
-        } else {
-            ((pitch_length_m - scrimmage_x_m) / pitch_length_m).clamp(0.0, 1.0)
-        };
-        let situational_ctx = build_situational_context(publisher.state(), normalized_x_to_goal);
-
-        if let Some(new_profile_id) = TacticalAdjustmentDecisionEngine::evaluate(
-            &context,
-            &available_profiles,
-            active_profile_id,
-            &situational_ctx,
+        if publisher.state().is_decision_ready(
+            team_id,
+            ManagerDecisionKind::Substitution,
+            sub_cooldown,
         ) {
-            execute_tactical_adjustment_by_id(
-                publisher,
-                team_id,
-                new_profile_id,
-                &available_profiles,
+            let lineup = if is_home {
+                publisher.state().home_lineup().clone()
+            } else {
+                publisher.state().away_lineup().clone()
+            };
+            let squad = if is_home {
+                publisher.state().home_squad().clone()
+            } else {
+                publisher.state().away_squad().clone()
+            };
+            let attribute_keys = publisher.state().attribute_keys().clone();
+            let home_fatigue = publisher.state().home_fatigue().clone();
+            let away_fatigue = publisher.state().away_fatigue().clone();
+            let fatigue_lookup = |id: &Uuid| {
+                home_fatigue
+                    .get(id)
+                    .or_else(|| away_fatigue.get(id))
+                    .copied()
+                    .unwrap_or_default()
+            };
+
+            let plans = SubstitutionDecisionEngine::evaluate_plans(
+                &context,
+                &context.squad_fatigue_summary,
+                &lineup,
+                &squad,
+                &attribute_keys,
+                fatigue_lookup,
+                rng,
             );
+
+            if !plans.is_empty() {
+                if let Ok(executed) = execute_substitutions(publisher, team_id, &plans) {
+                    if executed > 0 {
+                        publisher.state_mut().mark_decision_triggered(
+                            team_id,
+                            ManagerDecisionKind::Substitution,
+                        );
+                    }
+                }
+            }
         }
 
-        let just_conceded = publisher.state().last_action_score_occurred()
-            && publisher.state().last_scoring_team() != Some(team_id);
-        if TimeCallDecisionEngine::evaluate(&context, just_conceded) {
-            let mut ledger = DurationLedger::new();
-            if execute_time_call(publisher, team_id, is_home, &mut ledger) {
-                extra_dead_ball = extra_dead_ball + ledger.total_dead_ball();
+        let tac_cooldown = derive_cooldown_seconds(
+            period_duration_seconds,
+            context.manager_snapshot.adaptability,
+        );
+        if publisher.state().is_decision_ready(
+            team_id,
+            ManagerDecisionKind::TacticalAdjustment,
+            tac_cooldown,
+        ) {
+            let available_profiles = publisher
+                .state()
+                .available_profiles_for_team(team_id)
+                .to_vec();
+            let active_profile_id = publisher.state().tactical_profile_for_team(team_id).id();
+            let pitch_length_m = publisher.state().pitch().length().value();
+            let scrimmage_x_m = publisher.state().possession().scrimmage_point().raw().0;
+            let normalized_x_to_goal = if is_home {
+                (scrimmage_x_m / pitch_length_m).clamp(0.0, 1.0)
+            } else {
+                ((pitch_length_m - scrimmage_x_m) / pitch_length_m).clamp(0.0, 1.0)
+            };
+            let situational_ctx =
+                build_situational_context(publisher.state(), normalized_x_to_goal);
+
+            if let Some(new_profile_id) = TacticalAdjustmentDecisionEngine::evaluate(
+                &context,
+                &available_profiles,
+                active_profile_id,
+                &situational_ctx,
+                rng,
+            ) {
+                if execute_tactical_adjustment_by_id(
+                    publisher,
+                    team_id,
+                    new_profile_id,
+                    &available_profiles,
+                ) {
+                    publisher.state_mut().mark_decision_triggered(
+                        team_id,
+                        ManagerDecisionKind::TacticalAdjustment,
+                    );
+                }
+            }
+        }
+
+        let time_cooldown = derive_cooldown_seconds(
+            period_duration_seconds,
+            context.manager_snapshot.time_call_management,
+        );
+        if publisher
+            .state()
+            .is_decision_ready(team_id, ManagerDecisionKind::TimeCall, time_cooldown)
+        {
+            let just_conceded = publisher.state().last_action_score_occurred()
+                && publisher.state().last_scoring_team() != Some(team_id);
+            if TimeCallDecisionEngine::evaluate(&context, just_conceded, rng) {
+                let mut ledger = DurationLedger::new();
+                if execute_time_call(publisher, team_id, is_home, &mut ledger) {
+                    extra_dead_ball = extra_dead_ball + ledger.total_dead_ball();
+                    publisher
+                        .state_mut()
+                        .mark_decision_triggered(team_id, ManagerDecisionKind::TimeCall);
+                }
             }
         }
 

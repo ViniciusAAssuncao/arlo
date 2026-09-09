@@ -1,7 +1,7 @@
 use crate::manager_ai::context::ManagerDecisionContext;
 use arlo_domain::sport_constants::time_management::{
     TIME_CALL_ENDGAME_RESERVE_BIAS, TIME_CALL_ENDGAME_THRESHOLD_SECONDS,
-    TIME_CALL_FATIGUE_URGENCY_WEIGHT, TIME_CALL_JUST_CONCEDED_BONUS,
+    TIME_CALL_FATIGUE_URGENCY_WEIGHT, TIME_CALL_JUST_CONCEDED_BONUS, TIME_CALL_LEVERAGE_WEIGHT,
     TIME_CALL_MOMENTUM_URGENCY_WEIGHT, TIME_CALL_PRESSURE_WEIGHT,
 };
 
@@ -16,8 +16,14 @@ pub fn compute_urgency(context: &ManagerDecisionContext, just_conceded: bool) ->
     };
 
     let pressure_urgency = context.game_state_pressure.urgency_index() * TIME_CALL_PRESSURE_WEIGHT;
+    let leverage_urgency = context.situational_awareness.leverage() * TIME_CALL_LEVERAGE_WEIGHT;
+    let deficit_delta_adjustment = context.situational_awareness.projected_deficit_delta() * 0.10;
 
-    let mut urgency = fatigue_urgency + momentum_urgency + pressure_urgency;
+    let mut urgency = fatigue_urgency
+        + momentum_urgency
+        + pressure_urgency
+        + leverage_urgency
+        + deficit_delta_adjustment;
 
     if context.remaining_time_calls == 1 {
         let total_rem_seconds = context.game_state_pressure.total_remaining_seconds();
@@ -30,5 +36,5 @@ pub fn compute_urgency(context: &ManagerDecisionContext, just_conceded: bool) ->
         }
     }
 
-    urgency
+    urgency.max(0.0)
 }

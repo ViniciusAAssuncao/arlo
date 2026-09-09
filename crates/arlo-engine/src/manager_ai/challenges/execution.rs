@@ -1,5 +1,6 @@
 use crate::manager_ai::challenges::decision::ChallengeDecisionEngine;
 use crate::manager_ai::challenges::perception::perceives_bad_call;
+use crate::manager_ai::cognition::ManagerDecisionKind;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::officiating::resolution::resolve_true_ruling;
 use crate::officiating::{ReviewableCall, ReviewableCallKind};
@@ -32,7 +33,7 @@ pub fn execute_challenge<R: Rng + ?Sized>(
         rng,
     );
 
-    if !ChallengeDecisionEngine::evaluate(context, call, perceived_bad) {
+    if !ChallengeDecisionEngine::evaluate(context, call, perceived_bad, rng) {
         return false;
     }
 
@@ -45,6 +46,10 @@ pub fn execute_challenge<R: Rng + ?Sized>(
     if !used {
         return false;
     }
+
+    publisher
+        .state_mut()
+        .mark_decision_triggered(team_id, ManagerDecisionKind::Challenge);
 
     if success {
         match call.kind() {
