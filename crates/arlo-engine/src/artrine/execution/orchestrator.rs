@@ -26,6 +26,13 @@ pub fn find_goalguard<'a>(defenders: &[&'a Player]) -> EngineResult<&'a Player> 
                 .iter()
                 .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
         })
+        .or_else(|| {
+            defenders
+                .iter()
+                .copied()
+                .find(|p| p.positions().iter().any(|pos| pos.position() == DomainPosition::Goalguard))
+        })
+        .or_else(|| defenders.first().copied())
         .ok_or_else(|| EngineError::MissingRequiredPosition("Goalguard".to_string()))
 }
 

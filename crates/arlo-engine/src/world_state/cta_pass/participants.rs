@@ -26,6 +26,31 @@ pub fn find_player_by_position<'a>(
                 .iter()
                 .any(|pos| pos.position() == target && pos.proficiency() > 0)
         })
+        .or_else(|| {
+            players
+                .iter()
+                .copied()
+                .find(|p| p.positions().iter().any(|pos| pos.position() == target))
+        })
+        .or_else(|| {
+            players
+                .iter()
+                .copied()
+                .max_by(|a, b| {
+                    let prof_a = a
+                        .positions()
+                        .iter()
+                        .map(|pp| crate::lineup_runtime::position_similarity(pp.position(), target) * (pp.proficiency() as f64))
+                        .fold(0.0_f64, f64::max);
+                    let prof_b = b
+                        .positions()
+                        .iter()
+                        .map(|pp| crate::lineup_runtime::position_similarity(pp.position(), target) * (pp.proficiency() as f64))
+                        .fold(0.0_f64, f64::max);
+                    prof_a.partial_cmp(&prof_b).unwrap_or(std::cmp::Ordering::Equal)
+                })
+        })
+        .or_else(|| players.first().copied())
         .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{target:?}")))
 }
 
@@ -35,8 +60,20 @@ pub fn extract_participants<'a>(
     offense_role_index: &HashMap<Uuid, SlotRole>,
     defense_players: &[&'a Player],
 ) -> EngineResult<PhaseParticipants<'a>> {
-    let passer = find_player_by_position(offense_players, DomainPosition::Passer)?;
-    let artrine = find_player_by_position(offense_players, DomainPosition::Artrine)?;
+    let passer = offense_players
+        .iter()
+        .copied()
+        .find(|p| offense_pos_index.get(&p.id()) == Some(&DomainPosition::Passer))
+        .or_else(|| find_player_by_position(offense_players, DomainPosition::Passer).ok())
+        .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{:?}", DomainPosition::Passer)))?;
+
+    let artrine = offense_players
+        .iter()
+        .copied()
+        .find(|p| offense_pos_index.get(&p.id()) == Some(&DomainPosition::Artrine))
+        .or_else(|| find_player_by_position(offense_players, DomainPosition::Artrine).ok())
+        .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{:?}", DomainPosition::Artrine)))?;
+
     let pass_rusher = find_player_by_position(defense_players, DomainPosition::PassRusher)?;
     let goalguard = find_player_by_position(defense_players, DomainPosition::Goalguard)?;
 
