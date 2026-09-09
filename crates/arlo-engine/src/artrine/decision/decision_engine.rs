@@ -2,41 +2,17 @@ use crate::ai::cognitive::RiskProfile;
 use crate::artrine::decision::available_decisions::available_decision_kinds;
 use crate::artrine::decision::evaluator::calculate_decision_utilities_with_context;
 use crate::artrine::decision::sampler::sample_artrine_decision;
+pub use crate::open_play::CarrierDecisionResult as ArtrineDecisionResult;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::world_state::GameStatePressure;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
+use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
-use arlo_math::Probability;
 use arlo_tactics::{DecisionEmphasis, PassingRange};
 use rand::Rng;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct ArtrineDecisionResult {
-    pub chosen: ArtrineDecisionKind,
-    pub chosen_probability: Probability,
-}
-
-impl ArtrineDecisionResult {
-    pub fn new(chosen: ArtrineDecisionKind, chosen_probability: Probability) -> Self {
-        Self {
-            chosen,
-            chosen_probability,
-        }
-    }
-
-    pub fn chosen(&self) -> ArtrineDecisionKind {
-        self.chosen
-    }
-
-    pub fn chosen_probability(&self) -> Probability {
-        self.chosen_probability
-    }
-}
 
 pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     artrine: &Player,

@@ -18,7 +18,7 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
 
     fn evaluate(&self, ctx: &DecisionEvaluationContext) -> f64 {
         let profile = short_pass_profile();
-        let intrinsic_rating = ctx.artrine_rating(&profile);
+        let intrinsic_rating = ctx.carrier_rating(&profile);
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
         let target_qual = ctx.target_quality();
 
@@ -90,10 +90,12 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
             .game_state_pressure
             .bias_for_decision(ArtrineDecisionKind::ShortPass, ctx.drives_in_series);
         let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.short_pass().value();
+        let tactical_bias = ctx.carrier_tactical_bias(ArtrineDecisionKind::ShortPass);
 
         ((expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5
             + (intrinsic_rating * 0.2))
             * emphasis_multiplier
+            * tactical_bias
     }
 }
 
@@ -107,7 +109,7 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
 
     fn evaluate(&self, ctx: &DecisionEvaluationContext) -> f64 {
         let profile = long_launch_profile();
-        let intrinsic_rating = ctx.artrine_rating(&profile);
+        let intrinsic_rating = ctx.carrier_rating(&profile);
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
         let target_qual = ctx.long_launch_target_quality();
 
@@ -179,9 +181,11 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
             .game_state_pressure
             .bias_for_decision(ArtrineDecisionKind::LongLaunch, ctx.drives_in_series);
         let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.long_launch().value();
+        let tactical_bias = ctx.carrier_tactical_bias(ArtrineDecisionKind::LongLaunch);
 
         ((expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5
             + (intrinsic_rating * 0.2))
             * emphasis_multiplier
+            * tactical_bias
     }
 }

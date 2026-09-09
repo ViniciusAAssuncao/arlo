@@ -6,15 +6,19 @@ use crate::resolution::duel_noise::player_noise_distribution;
 use crate::resolution::duel_profiles::DuelProfile;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::world_state::GameStatePressure;
-use arlo_domain::{AttributeKey, Player, Position};
-use arlo_tactics::{DecisionEmphasis, PassingRange};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position, SlotRole};
+use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
 use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct DecisionEvaluationContext<'a> {
-    pub artrine: &'a Player,
-    pub artrine_physical_state: PhysicalState,
+    pub carrier: &'a Player,
+    pub carrier_position: Position,
+    pub carrier_role: SlotRole,
+    pub carrier_instructions: PlayerInstructions,
+    pub carrier_physical_state: PhysicalState,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
     pub epv_model: DynamicEpvModel,
     pub current_epv: f64,
@@ -28,14 +32,25 @@ pub struct DecisionEvaluationContext<'a> {
     pub pitch_control_ahead: f64,
     pub distance_to_next_artro_mirim: f64,
     pub pitch_length_mirim: f64,
+    pub pitch_width_mirim: f64,
+    pub carrier_pos_vec: VectorPosition,
     pub offensive_gravity: f64,
     pub passing_range: PassingRange,
     pub risk_profile: RiskProfile,
     pub game_state_pressure: GameStatePressure,
     pub play_call_emphasis: DecisionEmphasis,
+    pub is_true_artrine: bool,
 }
 
 impl<'a> DecisionEvaluationContext<'a> {
+    pub fn carrier(&self) -> &'a Player {
+        self.carrier
+    }
+
+    pub fn artrine(&self) -> &'a Player {
+        self.carrier
+    }
+
     pub fn target_quality(&self) -> f64 {
         (self.best_available_target_weight - 8.0) / 10.0
     }
@@ -48,14 +63,18 @@ impl<'a> DecisionEvaluationContext<'a> {
         self.pitch_control_ahead.max(0.0).min(1.0)
     }
 
-    pub fn artrine_rating(&self, profile: &DuelProfile) -> f64 {
+    pub fn carrier_rating(&self, profile: &DuelProfile) -> f64 {
         calculate_player_duel_rating_with_state(
-            self.artrine,
-            Position::Artrine,
+            self.carrier,
+            self.carrier_position,
             self.attribute_keys,
             profile,
-            &self.artrine_physical_state,
+            &self.carrier_physical_state,
         )
+    }
+
+    pub fn artrine_rating(&self, profile: &DuelProfile) -> f64 {
+        self.carrier_rating(profile)
     }
 
     pub fn skill_multiplier(&self, intrinsic_rating: f64) -> f64 {
@@ -64,19 +83,19 @@ impl<'a> DecisionEvaluationContext<'a> {
 
     pub fn consistency(&self) -> f64 {
         extract_effective_attribute_value(
-            self.artrine,
+            self.carrier,
             self.attribute_keys,
             AttributeKey::Consistency,
-            &self.artrine_physical_state,
+            &self.carrier_physical_state,
         )
     }
 
     pub fn probability_bounds(&self) -> (f64, f64) {
         let consistency = self.consistency();
         let noise_params = player_noise_distribution(
-            self.artrine,
+            self.carrier,
             self.attribute_keys,
-            &self.artrine_physical_state,
+            &self.carrier_physical_state,
         );
         let scale = noise_params.scale();
         let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
@@ -90,5 +109,19 @@ impl<'a> DecisionEvaluationContext<'a> {
     pub fn bound_probability(&self, raw_p: f64) -> f64 {
         let (floor, ceiling) = self.probability_bounds();
         raw_p.clamp(floor, ceiling)
+    }
+
+    pub fn carrier_tactical_bias(&self, kind: ArtrineDecisionKind) -> f64 {
+        let center_y_m = (self.pitch_width_mirim * 0.5) * MIRIM_TO_METERS;
+        let dist_from_center_m = (self.carrier_pos_vec.raw().1 - center_y_m).abs();
+        let is_lateral = dist_from_center_m > (self.pitch_width_mirim * 0.20 * MIRIM_TO_METERS);
+        crate::open_play::CarrierTacticalBias::calculate_bias(
+            self.carrier_position,
+            self.carrier_role,
+            &self.carrier_instructions,
+            kind,
+            self.normalized_proximity,
+            is_lateral,
+        )
     }
 }

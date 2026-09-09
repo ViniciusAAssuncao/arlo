@@ -4,9 +4,9 @@ use crate::artrine::constants::{SERIES_MAX_DOWNS, SERIES_TARGET_ADVANCE_MIRIM};
 use crate::physical::PhysicalState;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::world_state::GameStatePressure;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position, SlotRole};
 use arlo_math::units::Position as VectorPosition;
-use arlo_tactics::{DecisionEmphasis, PassingRange};
+use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -86,8 +86,11 @@ pub fn calculate_decision_utilities_with_context(
     let remaining_advance_mirim = (SERIES_TARGET_ADVANCE_MIRIM - territory_advance_mirim).max(0.0);
     let distance_to_next_artro_mirim = calculate_distance_mirim(artrine_pos, next_artro_pos);
 
-    MarkovDecisionEvaluator::evaluate_action_utilities_with_context(
+    MarkovDecisionEvaluator::evaluate_carrier_action_utilities(
         artrine,
+        Position::Artrine,
+        SlotRole::Standard,
+        PlayerInstructions::default(),
         attribute_keys,
         available_kinds,
         normalized_proximity,
@@ -97,14 +100,17 @@ pub fn calculate_decision_utilities_with_context(
         pass_protection_net_advantage,
         best_available_target_weight,
         long_launch_target_weight,
+        artrine_pos,
         pitch_control_ahead,
         distance_to_next_artro_mirim,
         pitch_length_mirim,
+        85.0,
         offensive_gravity,
         passing_range,
         risk_profile,
         game_state_pressure,
         play_call_emphasis,
         artrine_physical_state,
+        true,
     )
 }
