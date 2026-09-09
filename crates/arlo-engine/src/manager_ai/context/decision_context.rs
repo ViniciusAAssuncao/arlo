@@ -1,3 +1,4 @@
+use crate::manager_ai::cognition::SituationalAwareness;
 use crate::manager_ai::context::manager_snapshot::ManagerSnapshot;
 use crate::manager_ai::context::squad_fatigue_summary::SquadFatigueSummary;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
@@ -14,6 +15,7 @@ pub struct ManagerDecisionContext {
     pub squad_fatigue_summary: SquadFatigueSummary,
     pub remaining_time_calls: u32,
     pub remaining_challenges: u32,
+    pub situational_awareness: SituationalAwareness,
 }
 
 impl ManagerDecisionContext {
@@ -34,6 +36,29 @@ impl ManagerDecisionContext {
             squad_fatigue_summary,
             remaining_time_calls,
             remaining_challenges,
+            situational_awareness: SituationalAwareness::default(),
+        }
+    }
+
+    pub fn with_situational_awareness(
+        team_id: Uuid,
+        is_home: bool,
+        game_state_pressure: GameStatePressure,
+        manager_snapshot: ManagerSnapshot,
+        squad_fatigue_summary: SquadFatigueSummary,
+        remaining_time_calls: u32,
+        remaining_challenges: u32,
+        situational_awareness: SituationalAwareness,
+    ) -> Self {
+        Self {
+            team_id,
+            is_home,
+            game_state_pressure,
+            manager_snapshot,
+            squad_fatigue_summary,
+            remaining_time_calls,
+            remaining_challenges,
+            situational_awareness,
         }
     }
 
@@ -59,6 +84,7 @@ impl ManagerDecisionContext {
         } else {
             state.clock().away_challenges()
         };
+        let situational_awareness = SituationalAwareness::build(state, team_id);
 
         Self {
             team_id,
@@ -68,6 +94,7 @@ impl ManagerDecisionContext {
             squad_fatigue_summary,
             remaining_time_calls,
             remaining_challenges,
+            situational_awareness,
         }
     }
 }

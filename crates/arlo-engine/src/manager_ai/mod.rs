@@ -1,4 +1,5 @@
 pub mod challenges;
+pub mod cognition;
 pub mod context;
 pub mod event_translation;
 pub mod lineup_selection;
@@ -8,6 +9,7 @@ pub mod substitutions;
 pub mod tactical_adjustment;
 pub mod time_calls;
 
+pub use cognition::*;
 pub use context::*;
 pub use event_translation::*;
 pub use lineup_selection::*;
