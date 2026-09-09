@@ -3,6 +3,7 @@ use crate::artrine::{
     filter_blocker_helpers,
 };
 use crate::physical::FatigueState;
+use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::resolution::resolver::resolve_duel_with_fatigue;
@@ -38,6 +39,15 @@ pub fn execute_carry_action<F>(
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
     let carrier_pos = loop_state.current_carrier_pos;
+
+    let zone = pitch.zone_at_position(carrier_pos);
+    let current_time = state.clock().seconds_in_period();
+    state.possession_mut().live_sequence_mut().record_touch(
+        current_carrier.id(),
+        TouchActionType::Carry,
+        zone,
+        current_time,
+    );
 
     let target_channel_y_m = compute_carry_target_lane(carrier_pos, &pitch);
     let target_carry_pos = compute_forward_target_pos(

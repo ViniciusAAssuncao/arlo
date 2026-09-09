@@ -3,6 +3,7 @@ use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt_with_fatigue,
 };
 use crate::physical::FatigueState;
+use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::resolution::DuelKind;
@@ -47,6 +48,15 @@ pub fn execute_cross_action<F>(
     let is_bonus_phase = state.possession().is_bonus_phase();
     let carrier_pos = loop_state.current_carrier_pos;
 
+    let zone = pitch.zone_at_position(carrier_pos);
+    let current_time = state.clock().seconds_in_period();
+    state.possession_mut().live_sequence_mut().record_touch(
+        current_carrier.id(),
+        TouchActionType::Cross,
+        zone,
+        current_time,
+    );
+
     let seq_fin = state.next_sequence();
     let mut fin_rng = state
         .rng_provider()
@@ -86,6 +96,14 @@ pub fn execute_cross_action<F>(
         .accumulated_duration_ledger
         .record_live(DurationComponentKind::CrossFlight, cross_flight);
 
+    let fin_zone = pitch.zone_at_position(finisher_pos);
+    state.possession_mut().live_sequence_mut().record_touch(
+        finisher.id(),
+        TouchActionType::FinishingAttempt,
+        fin_zone,
+        current_time + cross_flight.value(),
+    );
+
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
     let fin_rating = calculate_player_duel_rating_with_state(
         finisher,
@@ -112,13 +130,19 @@ pub fn execute_cross_action<F>(
         .rng_provider()
         .indexed_rng_for(RngStream::DuelResolution, seq_duel);
 
+    let assister_id = state
+        .possession()
+        .live_sequence()
+        .primary_assister(finisher.id())
+        .or(Some(current_carrier.id()));
+
     let (score_dec, fin_duel) = resolve_scoring_attempt_with_fatigue(
         finisher,
         goalguard,
         &attribute_keys,
         context.offense_team_id,
         pass_phase.artrine.id(),
-        Some(current_carrier.id()),
+        assister_id,
         opportunity,
         total_drives,
         total_advance,
@@ -146,8 +170,18 @@ pub fn execute_self_finish_action<F>(
 ) where
     F: Fn(&Uuid) -> FatigueState,
 {
+    let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
     let is_bonus_phase = state.possession().is_bonus_phase();
+
+    let zone = pitch.zone_at_position(loop_state.current_carrier_pos);
+    let current_time = state.clock().seconds_in_period();
+    state.possession_mut().live_sequence_mut().record_touch(
+        current_carrier.id(),
+        TouchActionType::FinishingAttempt,
+        zone,
+        current_time,
+    );
 
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
     let fin_rating = calculate_player_duel_rating_with_state(
@@ -175,13 +209,18 @@ pub fn execute_self_finish_action<F>(
         .rng_provider()
         .indexed_rng_for(RngStream::DuelResolution, seq_duel);
 
+    let assister_id = state
+        .possession()
+        .live_sequence()
+        .primary_assister(current_carrier.id());
+
     let (score_dec, fin_duel) = resolve_scoring_attempt_with_fatigue(
         current_carrier,
         goalguard,
         &attribute_keys,
         context.offense_team_id,
         pass_phase.artrine.id(),
-        None,
+        assister_id,
         opportunity,
         total_drives,
         total_advance,

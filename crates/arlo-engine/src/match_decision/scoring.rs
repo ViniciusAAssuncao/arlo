@@ -1,4 +1,5 @@
 use crate::physical::PhysicalState;
+use crate::possession::LiveSequenceTracker;
 use crate::resolution::calculate_player_duel_rating_with_state;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::resolver::resolve_duel_with_fatigue;
@@ -132,6 +133,53 @@ pub fn field_goal_points(post: ScoringPost) -> u32 {
         ScoringPost::Goalpost => FIELD_GOAL_GOALPOST_VALUE as u32,
         ScoringPost::Fieldpost => FIELD_GOAL_FIELDPOST_VALUE as u32,
     }
+}
+
+pub fn extract_assister_from_sequence(
+    live_sequence: &LiveSequenceTracker,
+    finisher_id: Uuid,
+) -> Option<Uuid> {
+    live_sequence.primary_assister(finisher_id)
+}
+
+pub fn extract_assist_tree_from_sequence(
+    live_sequence: &LiveSequenceTracker,
+    finisher_id: Uuid,
+) -> (Option<Uuid>, Option<Uuid>) {
+    live_sequence.assist_chain(finisher_id)
+}
+
+pub fn resolve_scoring_attempt_with_sequence<R: Rng + ?Sized>(
+    finisher: &Player,
+    goalguard: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    team_id: Uuid,
+    artrine_id: Uuid,
+    live_sequence: &LiveSequenceTracker,
+    opportunity: ScoringOpportunity,
+    drives_completed: u32,
+    territory_advance_mirim: f64,
+    finisher_state: &PhysicalState,
+    goalguard_state: &PhysicalState,
+    context: &DuelContext,
+    rng: &mut R,
+) -> (ScoringDecision, AttributedDuelOutcome) {
+    let assister_id = extract_assister_from_sequence(live_sequence, finisher.id());
+    resolve_scoring_attempt_with_fatigue(
+        finisher,
+        goalguard,
+        attribute_keys,
+        team_id,
+        artrine_id,
+        assister_id,
+        opportunity,
+        drives_completed,
+        territory_advance_mirim,
+        finisher_state,
+        goalguard_state,
+        context,
+        rng,
+    )
 }
 
 pub fn resolve_scoring_attempt_with_fatigue<R: Rng + ?Sized>(

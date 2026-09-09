@@ -4,6 +4,7 @@ use crate::match_decision::scoring::{
 };
 use crate::match_decision::target_selection::{select_target_with_fatigue, ReceptionRole};
 use crate::physical::FatigueState;
+use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating_from_index_with_fatigue,
@@ -70,13 +71,28 @@ fn check_distribution_scoring_opportunity<F>(
             .rng_provider()
             .indexed_rng_for(RngStream::DuelResolution, seq_fin);
 
+        let shot_zone = pitch.zone_at_position(loop_state.current_carrier_pos);
+        let current_time = state.clock().seconds_in_period();
+        state.possession_mut().live_sequence_mut().record_touch(
+            receiver_player.id(),
+            TouchActionType::FinishingAttempt,
+            shot_zone,
+            current_time,
+        );
+
+        let assister_id = state
+            .possession()
+            .live_sequence()
+            .primary_assister(receiver_player.id())
+            .or(Some(current_carrier.id()));
+
         let (score_dec, fin_duel) = resolve_scoring_attempt_with_fatigue(
             receiver_player,
             goalguard,
             state.attribute_keys(),
             context.offense_team_id,
             pass_phase.artrine.id(),
-            Some(current_carrier.id()),
+            assister_id,
             opportunity,
             total_drives,
             total_adv,
@@ -108,6 +124,20 @@ pub fn execute_distribution_action<F>(
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
     let carrier_pos = loop_state.current_carrier_pos;
+
+    let action_type = if chosen_decision == ArtrineDecisionKind::ShortPass {
+        TouchActionType::ShortPass
+    } else {
+        TouchActionType::LongLaunch
+    };
+    let zone = pitch.zone_at_position(carrier_pos);
+    let current_time = state.clock().seconds_in_period();
+    state.possession_mut().live_sequence_mut().record_touch(
+        current_carrier.id(),
+        action_type,
+        zone,
+        current_time,
+    );
 
     let carrier_pos_domain = context
         .offense_pos_index
@@ -309,6 +339,14 @@ pub fn execute_distribution_action<F>(
         }
         return;
     }
+
+    let rec_zone = pitch.zone_at_position(rec_pos);
+    state.possession_mut().live_sequence_mut().record_touch(
+        receiver_id,
+        TouchActionType::Reception,
+        rec_zone,
+        current_time + flight_duration.value(),
+    );
 
     loop_state.last_receiver_id = Some(receiver_id);
     loop_state.accumulated_mirins_advanced += throw_advance;

@@ -1,5 +1,6 @@
 use crate::artrine::DistributionFlightInfo;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::possession::LiveSequenceTracker;
 use crate::resolution::{DuelKind as EngineDuelKind, DuelOutcome};
 use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
@@ -233,6 +234,32 @@ pub fn translate_scoring_decision(decision: &ScoringDecision) -> Option<MatchEve
             *attempted_post,
         ))),
         ScoringDecision::NoOpportunity => None,
+    }
+}
+
+pub fn translate_scoring_decision_with_sequence(
+    decision: &ScoringDecision,
+    live_sequence: &LiveSequenceTracker,
+) -> Option<MatchEvent> {
+    match decision {
+        ScoringDecision::GoalPoint {
+            team_id,
+            scorer_id,
+            artrine_id,
+            assister_id,
+            drives_completed,
+            ..
+        } => {
+            let effective_assister = assister_id.or_else(|| live_sequence.primary_assister(*scorer_id));
+            Some(MatchEvent::GoalPoint(GoalPointScored::new(
+                *team_id,
+                *scorer_id,
+                *artrine_id,
+                effective_assister,
+                *drives_completed,
+            )))
+        }
+        _ => translate_scoring_decision(decision),
     }
 }
 

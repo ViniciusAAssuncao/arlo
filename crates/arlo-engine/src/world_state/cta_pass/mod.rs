@@ -7,6 +7,7 @@ pub use kinematics::{calculate_pass_kinematics, PassKinematicsResult};
 pub use participants::{extract_participants, find_player_by_position, PhaseParticipants};
 
 use crate::error::EngineResult;
+use crate::possession::TouchActionType;
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationLedger;
 use crate::world_state::match_state::MatchState;
@@ -66,6 +67,15 @@ pub fn resolve_pass_phase<'a>(
         .get_position(&participants.pass_rusher.id())
         .unwrap_or(scrimmage_point);
 
+    let passer_zone = state.pitch().zone_at_position(passer_pos);
+    let current_time = state.clock().seconds_in_period();
+    state.possession_mut().live_sequence_mut().record_touch(
+        participants.passer.id(),
+        TouchActionType::InitialHandoff,
+        passer_zone,
+        current_time,
+    );
+
     let pass_duel_outcome = resolve_pass_protection_duel(
         state,
         &participants,
@@ -87,6 +97,16 @@ pub fn resolve_pass_phase<'a>(
         pass_rusher_pos,
         sink,
     );
+
+    if kinematics.pass_completed {
+        let artrine_zone = state.pitch().zone_at_position(kinematics.reception_point);
+        state.possession_mut().live_sequence_mut().record_touch(
+            participants.artrine.id(),
+            TouchActionType::Reception,
+            artrine_zone,
+            current_time + kinematics.duration_ledger.total_live().value(),
+        );
+    }
 
     Ok(PassPhaseResult {
         passer: participants.passer,

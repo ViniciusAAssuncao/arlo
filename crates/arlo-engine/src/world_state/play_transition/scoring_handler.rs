@@ -1,5 +1,5 @@
 use crate::match_decision::scoring::ScoringDecision;
-use crate::possession::PossessionSnapshot;
+use crate::possession::{LiveSequenceTracker, PossessionSnapshot};
 use crate::world_state::match_state::MatchState;
 use arlo_domain::{Player, Position as DomainPosition};
 use arlo_math::units::Position as VectorPosition;
@@ -15,6 +15,22 @@ pub fn find_defense_goalguard<'a>(defense_players: &[&'a Player]) -> &'a Player 
                 .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
         })
         .unwrap_or(defense_players[0])
+}
+
+pub fn enrich_scoring_decision_assister(
+    scoring_decision: &mut ScoringDecision,
+    live_sequence: &LiveSequenceTracker,
+) {
+    if let ScoringDecision::GoalPoint {
+        scorer_id,
+        assister_id,
+        ..
+    } = scoring_decision
+    {
+        if assister_id.is_none() {
+            *assister_id = live_sequence.primary_assister(*scorer_id);
+        }
+    }
 }
 
 pub fn publish_scoring_impulse(
@@ -78,5 +94,6 @@ pub fn post_transition_score_reset(
         }
     }
 
+    next_snapshot.live_sequence.clear();
     next_snapshot
 }

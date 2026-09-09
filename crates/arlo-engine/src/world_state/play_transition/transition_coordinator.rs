@@ -20,7 +20,8 @@ use crate::world_state::play_transition::possession_resolver::{
 };
 use crate::world_state::play_transition::publisher::EventPublisher;
 use crate::world_state::play_transition::scoring_handler::{
-    apply_match_score, post_transition_score_reset, publish_scoring_impulse,
+    apply_match_score, enrich_scoring_decision_assister, post_transition_score_reset,
+    publish_scoring_impulse,
 };
 use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_domain::ArtrineDecisionKind;
@@ -91,6 +92,10 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
     }
 
     fn process_scoring(&mut self) {
+        enrich_scoring_decision_assister(
+            &mut self.execution_outcome.scoring_decision,
+            self.publisher.state().possession().live_sequence(),
+        );
         apply_match_score(
             self.publisher.state_mut(),
             self.offense_team_id,
