@@ -17,7 +17,8 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
         let pc = ctx.pitch_control();
 
-        let adv_mirim = (4.0 + 4.0 * pc) * skill_mult;
+        let free_path = ctx.expected_free_path();
+        let adv_mirim = free_path * skill_mult;
         let crosses_artro = adv_mirim >= ctx.distance_to_next_artro_mirim.max(0.5);
         let artros_crossed = if crosses_artro && ctx.is_true_artrine {
             1 + ((adv_mirim - ctx.distance_to_next_artro_mirim).max(0.0) / 3.0).floor() as u32

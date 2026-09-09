@@ -38,6 +38,7 @@ impl MarkovDecisionEvaluator {
         play_call_emphasis: DecisionEmphasis,
         carrier_physical_state: &PhysicalState,
         is_true_artrine: bool,
+        expected_free_path_mirim: f64,
     ) -> Vec<(ArtrineDecisionKind, f64)> {
         CarrierDecisionEvaluator::evaluate_action_utilities(
             carrier,
@@ -65,6 +66,7 @@ impl MarkovDecisionEvaluator {
             play_call_emphasis,
             carrier_physical_state,
             is_true_artrine,
+            expected_free_path_mirim,
         )
     }
 
@@ -161,6 +163,7 @@ impl MarkovDecisionEvaluator {
             play_call_emphasis,
             artrine_physical_state,
             true,
+            0.0,
         )
     }
 }

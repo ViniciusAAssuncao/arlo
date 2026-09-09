@@ -149,3 +149,47 @@ where
         build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
     compute_point_team_control(&att_sites, &def_sites, point.raw().0, point.raw().1)
 }
+
+pub fn query_control_along_vector(
+    attackers: &[VoronoiSite],
+    defenders: &[VoronoiSite],
+    start_pos: VectorPosition,
+    direction: VectorPosition,
+    step_size_meters: f64,
+    max_distance_meters: f64,
+) -> Vec<(f64, f64)> {
+    let dir_raw = direction.raw();
+    let dir_mag = (dir_raw.0 * dir_raw.0 + dir_raw.1 * dir_raw.1).sqrt();
+    if dir_mag <= 1e-9 || max_distance_meters <= 0.0 || step_size_meters <= 0.0 {
+        let c0 =
+            compute_point_team_control(attackers, defenders, start_pos.raw().0, start_pos.raw().1);
+        return vec![(0.0, c0)];
+    }
+
+    let norm_dx = dir_raw.0 / dir_mag;
+    let norm_dy = dir_raw.1 / dir_mag;
+    let steps = (max_distance_meters / step_size_meters).ceil() as usize;
+    let mut samples = Vec::with_capacity(steps + 1);
+
+    for i in 0..=steps {
+        let dist = (i as f64 * step_size_meters).min(max_distance_meters);
+        let qx = start_pos.raw().0 + norm_dx * dist;
+        let qy = start_pos.raw().1 + norm_dy * dist;
+        let control = compute_point_team_control(attackers, defenders, qx, qy);
+        samples.push((dist, control));
+        if dist >= max_distance_meters {
+            break;
+        }
+    }
+
+    samples
+}
+
+pub fn control_at_point(
+    attackers: &[VoronoiSite],
+    defenders: &[VoronoiSite],
+    x: f64,
+    y: f64,
+) -> f64 {
+    compute_point_team_control(attackers, defenders, x, y)
+}

@@ -40,6 +40,7 @@ pub struct DecisionEvaluationContext<'a> {
     pub game_state_pressure: GameStatePressure,
     pub play_call_emphasis: DecisionEmphasis,
     pub is_true_artrine: bool,
+    pub expected_free_path_mirim: f64,
 }
 
 impl<'a> DecisionEvaluationContext<'a> {
@@ -61,6 +62,17 @@ impl<'a> DecisionEvaluationContext<'a> {
 
     pub fn pitch_control(&self) -> f64 {
         self.pitch_control_ahead.max(0.0).min(1.0)
+    }
+
+    pub fn expected_free_path(&self) -> f64 {
+        if self.expected_free_path_mirim > 0.0 {
+            self.expected_free_path_mirim
+        } else {
+            crate::spatial::estimate_free_path_from_pitch_control(
+                self.pitch_control(),
+                ((1.0 - self.normalized_proximity) * self.pitch_length_mirim).max(0.0),
+            )
+        }
     }
 
     pub fn carrier_rating(&self, profile: &DuelProfile) -> f64 {

@@ -1,6 +1,7 @@
 pub mod ball_kinematics;
 pub mod decision_vector;
 pub mod dynamic_map;
+pub mod expected_path;
 pub mod influence;
 pub mod interception;
 pub mod kinematics;
@@ -15,6 +16,7 @@ pub mod trajectory;
 pub use ball_kinematics::*;
 pub use decision_vector::*;
 pub use dynamic_map::DynamicSpatialMap;
+pub use expected_path::*;
 pub use influence::*;
 pub use interception::*;
 pub use kinematics::*;

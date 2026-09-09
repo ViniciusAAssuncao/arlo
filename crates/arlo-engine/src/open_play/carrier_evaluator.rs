@@ -42,6 +42,7 @@ impl CarrierDecisionEvaluator {
         play_call_emphasis: DecisionEmphasis,
         carrier_physical_state: &PhysicalState,
         is_true_artrine: bool,
+        expected_free_path_mirim: f64,
     ) -> Vec<(ArtrineDecisionKind, f64)> {
         let epv_model = DynamicEpvModel::new(offensive_gravity);
         let current_epv = epv_model.calculate_epa(
@@ -78,6 +79,7 @@ impl CarrierDecisionEvaluator {
             game_state_pressure,
             play_call_emphasis,
             is_true_artrine,
+            expected_free_path_mirim,
         };
 
         let carry_evaluator = CarryUtilityEvaluator;

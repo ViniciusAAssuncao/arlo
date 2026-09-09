@@ -2,8 +2,8 @@ use crate::ai::cognitive::RiskProfile;
 use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue;
 use crate::artrine::{
     calculate_normalized_proximity, execute_artrine_decision,
-    resolve_artrine_decision_with_context_and_impulse, translate_artrine_decision_made,
-    ArtrineExecutionOutcome,
+    resolve_artrine_decision_with_context_and_impulse_and_free_path,
+    translate_artrine_decision_made, ArtrineExecutionOutcome,
 };
 use crate::error::EngineResult;
 use crate::match_decision::event_translation::create_envelope;
@@ -14,7 +14,10 @@ use crate::match_decision::target_selection::{
 use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::resolution::DuelContext;
 use crate::rng::RngStream;
-use crate::spatial::{calculate_artro_advance_pitch_control, find_next_artro_position};
+use crate::spatial::{
+    calculate_artro_advance_pitch_control, calculate_player_expected_free_path,
+    find_next_artro_position,
+};
 use crate::time::DurationLedger;
 use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -151,6 +154,17 @@ pub fn run_decision_phase(
         &context.offense_role_index,
     );
 
+    let expected_free_path_mirim = calculate_player_expected_free_path(
+        pass_phase.reception_point,
+        offense_players,
+        defense_players,
+        state.spatial_map(),
+        &attribute_keys,
+        &fatigue_lookup,
+        &pitch,
+        context.is_home_offense,
+    );
+
     let game_state_pressure = analyze_match_state(state);
     let risk_profile = RiskProfile::from_player_with_impulse(
         pass_phase.artrine,
@@ -167,7 +181,7 @@ pub fn run_decision_phase(
         .rng_provider()
         .indexed_rng_for(RngStream::ArtrineDecision, seq_decision);
 
-    let decision_result = resolve_artrine_decision_with_context_and_impulse(
+    let decision_result = resolve_artrine_decision_with_context_and_impulse_and_free_path(
         pass_phase.artrine,
         &attribute_keys,
         normalized_proximity,
@@ -190,6 +204,7 @@ pub fn run_decision_phase(
         context.decision_emphasis,
         &artrine_fatigue,
         &artrine_impulse,
+        expected_free_path_mirim,
         &mut decision_rng,
     );
 
