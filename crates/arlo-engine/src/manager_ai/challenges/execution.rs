@@ -79,12 +79,7 @@ pub fn execute_challenge<R: Rng + ?Sized>(
         publisher.state().clock().away_challenges()
     };
 
-    publisher.emit_challenge_resolved(
-        team_id,
-        call.kind(),
-        success,
-        remaining_challenges_after,
-    );
+    publisher.emit_challenge_resolved(team_id, call.kind(), success, remaining_challenges_after);
 
     publisher.state_mut().clear_last_reviewable_call();
 

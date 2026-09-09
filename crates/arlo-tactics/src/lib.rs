@@ -15,10 +15,11 @@ pub use instructions::{
     CreativeLicense, DefensiveLineHeight, DepthDiscipline, Directness, EngagementBias,
     EngagementLine, FlankBias, InPossessionInstructions, InPossessionPlayerInstructions,
     InvolvementPriority, MarkingAssignment, Mentality, OutOfPossessionInstructions,
-    OutOfPossessionPlayerInstructions, PassRangeTier, PassingRange, Physicality, PlayerInstructions,
-    PlayerInstructionsBuilder, PositioningBias, PressBlockShape, PressingIntensity, ReleaseTempo,
-    ScoringPatience, Structure, TeamInstructions, TeamInstructionsBuilder, TeamTacticalProfile,
-    Tempo, TransitionInstructions, TransitionPlayerInstructions, TransitionUrgency, Width,
+    OutOfPossessionPlayerInstructions, PassRangeTier, PassingRange, Physicality,
+    PlayerInstructions, PlayerInstructionsBuilder, PositioningBias, PressBlockShape,
+    PressingIntensity, ReleaseTempo, ScoringPatience, Structure, TeamInstructions,
+    TeamInstructionsBuilder, TeamTacticalProfile, Tempo, TransitionInstructions,
+    TransitionPlayerInstructions, TransitionUrgency, Width,
 };
 
 pub use lineup::{

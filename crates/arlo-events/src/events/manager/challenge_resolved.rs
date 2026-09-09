@@ -1,4 +1,4 @@
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -31,7 +31,7 @@ impl ChallengeResolved {
         team_id: Uuid,
         call_kind: ReviewableCallKind,
         success: bool,
-        remaining_challenges_after: u32
+        remaining_challenges_after: u32,
     ) -> Self {
         Self {
             team_id,

@@ -92,10 +92,9 @@ impl ManagerAiEngine {
             if !plans.is_empty() {
                 if let Ok(executed) = execute_substitutions(publisher, team_id, &plans) {
                     if executed > 0 {
-                        publisher.state_mut().mark_decision_triggered(
-                            team_id,
-                            ManagerDecisionKind::Substitution,
-                        );
+                        publisher
+                            .state_mut()
+                            .mark_decision_triggered(team_id, ManagerDecisionKind::Substitution);
                     }
                 }
             }
@@ -138,10 +137,9 @@ impl ManagerAiEngine {
                     new_profile_id,
                     &available_profiles,
                 ) {
-                    publisher.state_mut().mark_decision_triggered(
-                        team_id,
-                        ManagerDecisionKind::TacticalAdjustment,
-                    );
+                    publisher
+                        .state_mut()
+                        .mark_decision_triggered(team_id, ManagerDecisionKind::TacticalAdjustment);
                 }
             }
         }
@@ -150,10 +148,11 @@ impl ManagerAiEngine {
             period_duration_seconds,
             context.manager_snapshot.time_call_management,
         );
-        if publisher
-            .state()
-            .is_decision_ready(team_id, ManagerDecisionKind::TimeCall, time_cooldown)
-        {
+        if publisher.state().is_decision_ready(
+            team_id,
+            ManagerDecisionKind::TimeCall,
+            time_cooldown,
+        ) {
             let just_conceded = publisher.state().last_action_score_occurred()
                 && publisher.state().last_scoring_team() != Some(team_id);
             if TimeCallDecisionEngine::evaluate(&context, just_conceded, rng) {
@@ -190,7 +189,10 @@ impl ManagerAiEngine {
         }
 
         let context = ManagerDecisionContext::build(publisher.state(), offense_team_id);
-        let playbook = publisher.state().playbook_for_team(offense_team_id).to_vec();
+        let playbook = publisher
+            .state()
+            .playbook_for_team(offense_team_id)
+            .to_vec();
         if playbook.is_empty() {
             return;
         }
@@ -222,7 +224,9 @@ impl ManagerAiEngine {
             &context.manager_snapshot,
         );
 
-        let efficacy_snapshot = publisher.state().play_call_efficacy_snapshot(offense_team_id);
+        let efficacy_snapshot = publisher
+            .state()
+            .play_call_efficacy_snapshot(offense_team_id);
 
         if let Some(selected_play_call) = PlayCallDecisionEngine::select_next(
             &context,

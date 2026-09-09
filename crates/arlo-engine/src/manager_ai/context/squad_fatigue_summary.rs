@@ -49,8 +49,7 @@ impl SquadFatigueSummary {
         let mean_energy = total_energy / count;
         let mean_w_prime_balance = total_w_prime / count;
 
-        player_w_primes
-            .sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        player_w_primes.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         Self {
             mean_energy,

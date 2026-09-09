@@ -34,9 +34,8 @@ impl PlayCallEfficacyTracker {
         } else {
             &mut self.away
         };
-        *map.entry(play_call_id).or_insert_with(|| {
-            BetaBelief::from_prior_mean_and_strength(prior_mean, prior_strength)
-        })
+        *map.entry(play_call_id)
+            .or_insert_with(|| BetaBelief::from_prior_mean_and_strength(prior_mean, prior_strength))
     }
 
     pub fn record_outcome(
@@ -51,9 +50,9 @@ impl PlayCallEfficacyTracker {
         } else {
             &mut self.away
         };
-        let belief = map.entry(play_call_id).or_insert_with(|| {
-            BetaBelief::from_prior_mean_and_strength(0.5, 2.0)
-        });
+        let belief = map
+            .entry(play_call_id)
+            .or_insert_with(|| BetaBelief::from_prior_mean_and_strength(0.5, 2.0));
         belief.update_with_decay(success, decay_factor);
     }
 

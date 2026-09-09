@@ -37,8 +37,8 @@ impl LineupSelectionEngine {
             .map(|p| p.preferred_formation_ids())
             .unwrap_or(&[]);
 
-        let best_formation = select_best_formation(formations, roster, preferred_ids)
-            .ok_or_else(|| {
+        let best_formation =
+            select_best_formation(formations, roster, preferred_ids).ok_or_else(|| {
                 EngineError::MissingRequiredPosition("no formations available".to_string())
             })?;
 
@@ -63,8 +63,8 @@ impl LineupSelectionEngine {
         let lineup_id = Uuid::new_v4();
         let lineup_name = format!("{} Lineup", manager.person().name());
 
-        let mut builder = TacticalLineup::builder(lineup_id, team_id, lineup_name)
-            .with_formation(best_formation);
+        let mut builder =
+            TacticalLineup::builder(lineup_id, team_id, lineup_name).with_formation(best_formation);
 
         for &(slot_idx, ref player) in &assignments {
             let pid = player.id();

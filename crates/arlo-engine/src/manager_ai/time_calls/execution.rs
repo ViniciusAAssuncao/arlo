@@ -12,8 +12,11 @@ pub fn execute_time_call(
 ) -> bool {
     let used = publisher.state_mut().clock_mut().use_time_call(is_home);
     if used {
-        let duration_seconds =
-            (publisher.state().format_rules().time_call_duration_minutes() * 60) as f64;
+        let duration_seconds = (publisher
+            .state()
+            .format_rules()
+            .time_call_duration_minutes()
+            * 60) as f64;
         let duration = Duration::new(duration_seconds);
         ledger.record_dead_ball(DurationComponentKind::Huddle, duration);
 

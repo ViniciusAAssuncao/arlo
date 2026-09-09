@@ -48,8 +48,7 @@ pub fn derive_and_apply_reorganization(
     let away_instructions = *publisher.state().away_instructions();
 
     let press_reference_pos = if is_post_turnover {
-        recovering_player_id
-            .and_then(|id| publisher.state().spatial_map().get_position(&id))
+        recovering_player_id.and_then(|id| publisher.state().spatial_map().get_position(&id))
     } else {
         None
     };

@@ -1,6 +1,8 @@
 use crate::lineup_runtime::Lineup;
 use arlo_domain::SlotRole;
-use arlo_tactics::{DecisionEmphasis, PlayCall, PlayCallCategory, RouteAssignment, TeamInstructions};
+use arlo_tactics::{
+    DecisionEmphasis, PlayCall, PlayCallCategory, RouteAssignment, TeamInstructions,
+};
 use std::collections::HashMap;
 use uuid::Uuid;
 

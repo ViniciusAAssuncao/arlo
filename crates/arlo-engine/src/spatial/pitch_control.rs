@@ -27,7 +27,13 @@ where
     let ant = extract_attribute_value(player, attribute_keys, AttributeKey::Anticipation);
     let reaction_time = ((20.0 - ant) * 0.015).max(0.05);
 
-    VoronoiSite::new(position.raw().0, position.raw().1, speed, reaction_time, team_id)
+    VoronoiSite::new(
+        position.raw().0,
+        position.raw().1,
+        speed,
+        reaction_time,
+        team_id,
+    )
 }
 
 pub fn build_player_voronoi_site<F>(

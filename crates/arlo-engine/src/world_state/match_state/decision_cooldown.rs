@@ -35,12 +35,7 @@ impl DecisionCooldownTracker {
         }
     }
 
-    pub fn mark_triggered(
-        &mut self,
-        is_home: bool,
-        kind: ManagerDecisionKind,
-        current_time: f64,
-    ) {
+    pub fn mark_triggered(&mut self, is_home: bool, kind: ManagerDecisionKind, current_time: f64) {
         let map = if is_home {
             &mut self.home
         } else {

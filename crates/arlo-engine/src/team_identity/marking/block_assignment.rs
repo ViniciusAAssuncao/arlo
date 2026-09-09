@@ -25,7 +25,10 @@ pub fn eligible_block_marking_defenders<'a>(
                     .map(|pp| pp.position())
                     .unwrap_or(Position::Centerback)
             });
-            matches!(pos.line(), PositionLine::DefenseLine | PositionLine::BackLine)
+            matches!(
+                pos.line(),
+                PositionLine::DefenseLine | PositionLine::BackLine
+            )
         })
         .collect()
 }

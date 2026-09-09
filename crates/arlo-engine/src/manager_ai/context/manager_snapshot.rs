@@ -73,21 +73,15 @@ impl ManagerSnapshot {
             attribute_keys,
             AttributeKey::TacticalKnowledge,
         );
-        let offense_planning = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::OffensePlanning,
-        );
+        let offense_planning =
+            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::OffensePlanning);
         let defense_organization = extract_manager_attribute_value(
             manager,
             attribute_keys,
             AttributeKey::DefenseOrganization,
         );
-        let artro_strategy = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::ArtroStrategy,
-        );
+        let artro_strategy =
+            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::ArtroStrategy);
         let adaptability =
             extract_manager_attribute_value(manager, attribute_keys, AttributeKey::Adaptability);
         let artrine_communication = extract_manager_attribute_value(

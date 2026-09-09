@@ -44,7 +44,8 @@ where
             let d2 = (waypoints.break_point.raw() - waypoints.stem_point.raw()).magnitude();
 
             let fatigue = fatigue_for(&runner.id());
-            let effective_speed = calculate_effective_player_speed(runner, attribute_keys, &fatigue);
+            let effective_speed =
+                calculate_effective_player_speed(runner, attribute_keys, &fatigue);
             let distance_traveled = effective_speed.value() * available_duration.value();
 
             let (final_pos, vel) = if distance_traveled <= 0.0 {
@@ -58,19 +59,23 @@ where
                 let final_pos_raw =
                     start_pos.raw() + (waypoints.stem_point.raw() - start_pos.raw()) * t;
                 let final_pos = VectorPosition::from_raw(final_pos_raw);
-                let vel = derive_velocity_towards_target(final_pos, waypoints.stem_point, effective_speed);
+                let vel = derive_velocity_towards_target(
+                    final_pos,
+                    waypoints.stem_point,
+                    effective_speed,
+                );
                 (final_pos, vel)
             } else if distance_traveled < d1 + d2 {
                 let remaining_d = distance_traveled - d1;
-                let t = if d2 > 1e-6 {
-                    remaining_d / d2
-                } else {
-                    1.0
-                };
+                let t = if d2 > 1e-6 { remaining_d / d2 } else { 1.0 };
                 let final_pos_raw = waypoints.stem_point.raw()
                     + (waypoints.break_point.raw() - waypoints.stem_point.raw()) * t;
                 let final_pos = VectorPosition::from_raw(final_pos_raw);
-                let vel = derive_velocity_towards_target(final_pos, waypoints.break_point, effective_speed);
+                let vel = derive_velocity_towards_target(
+                    final_pos,
+                    waypoints.break_point,
+                    effective_speed,
+                );
                 (final_pos, vel)
             } else {
                 let final_pos = waypoints.break_point;

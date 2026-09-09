@@ -125,10 +125,7 @@ pub fn calculate_player_target_weight_with_state(
             .in_possession()
             .involvement_priority()
             .value();
-    let openness = openness_by_player
-        .get(&player.id())
-        .copied()
-        .unwrap_or(1.0);
+    let openness = openness_by_player.get(&player.id()).copied().unwrap_or(1.0);
     base_weight * proximity_factor * fit_mult * priority_mult * openness
 }
 

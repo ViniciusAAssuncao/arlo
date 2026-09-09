@@ -135,9 +135,7 @@ impl StatAggregator for PlayCallOutcomeAggregator {
                 if let Some(pending) = self.pending_play_call.take() {
                     let mirins = e.mirins_advanced_this_down();
                     let successful = !pending.turnover
-                        && (pending.points_scored > 0
-                            || mirins > 0.0
-                            || e.first_down_achieved());
+                        && (pending.points_scored > 0 || mirins > 0.0 || e.first_down_achieved());
                     self.record_outcome(pending.play_call_id, successful);
                 }
             }

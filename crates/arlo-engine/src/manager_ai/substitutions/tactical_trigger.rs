@@ -12,7 +12,11 @@ pub fn tactical_urgency(context: &ManagerDecisionContext) -> f64 {
     };
 
     let pressure_urgency = (context.game_state_pressure.urgency_index() / 5.0).clamp(0.0, 1.0);
-    let normalized_iga = (context.manager_snapshot.in_game_adjustments.clamp(0.0, 20.0)) / 20.0;
+    let normalized_iga = (context
+        .manager_snapshot
+        .in_game_adjustments
+        .clamp(0.0, 20.0))
+        / 20.0;
     let leverage = context.situational_awareness.leverage();
 
     let raw_urgency = (deficit_factor * SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT)

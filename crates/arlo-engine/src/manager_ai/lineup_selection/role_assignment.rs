@@ -122,7 +122,10 @@ pub fn assign_roles(
                 let candidate = assignments
                     .iter()
                     .filter(|(idx, p)| {
-                        let pos = slots.get(*idx).map(|s| s.position()).unwrap_or(Position::Midcenter);
+                        let pos = slots
+                            .get(*idx)
+                            .map(|s| s.position())
+                            .unwrap_or(Position::Midcenter);
                         roles.get(&p.id()) == Some(&SlotRole::Standard)
                             && is_role_eligible_for_position(SlotRole::FalseArtrine, pos)
                     })
@@ -171,7 +174,10 @@ pub fn assign_roles(
                 let candidate = assignments
                     .iter()
                     .filter(|(idx, p)| {
-                        let pos = slots.get(*idx).map(|s| s.position()).unwrap_or(Position::Midcenter);
+                        let pos = slots
+                            .get(*idx)
+                            .map(|s| s.position())
+                            .unwrap_or(Position::Midcenter);
                         roles.get(&p.id()) == Some(&SlotRole::Standard)
                             && is_role_eligible_for_position(SlotRole::Launcher, pos)
                     })
@@ -208,7 +214,10 @@ pub fn assign_roles(
                 let candidate = assignments
                     .iter()
                     .filter(|(idx, p)| {
-                        let pos = slots.get(*idx).map(|s| s.position()).unwrap_or(Position::Midcenter);
+                        let pos = slots
+                            .get(*idx)
+                            .map(|s| s.position())
+                            .unwrap_or(Position::Midcenter);
                         roles.get(&p.id()) == Some(&SlotRole::Standard)
                             && is_role_eligible_for_position(SlotRole::Safeguard, pos)
                     })
@@ -236,7 +245,10 @@ pub fn assign_roles(
             let candidate = assignments
                 .iter()
                 .filter(|(idx, p)| {
-                    let pos = slots.get(*idx).map(|s| s.position()).unwrap_or(Position::Midcenter);
+                    let pos = slots
+                        .get(*idx)
+                        .map(|s| s.position())
+                        .unwrap_or(Position::Midcenter);
                     roles.get(&p.id()) == Some(&SlotRole::Standard)
                         && is_role_eligible_for_position(SlotRole::Kicker, pos)
                 })
@@ -262,7 +274,10 @@ pub fn assign_roles(
 
     for (idx, player) in assignments {
         if roles.get(&player.id()) == Some(&SlotRole::Standard) {
-            let pos = slots.get(*idx).map(|s| s.position()).unwrap_or(Position::Midcenter);
+            let pos = slots
+                .get(*idx)
+                .map(|s| s.position())
+                .unwrap_or(Position::Midcenter);
             if is_role_eligible_for_position(SlotRole::Blocker, pos) {
                 let blocking_score =
                     evaluate_candidate_suitability(player, SlotRole::Blocker, attribute_keys);

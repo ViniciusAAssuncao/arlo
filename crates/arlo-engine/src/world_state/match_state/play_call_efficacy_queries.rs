@@ -2,8 +2,8 @@ use crate::manager_ai::ManagerSnapshot;
 use crate::team_identity::extract_manager_attribute_value;
 use crate::world_state::match_state::state::MatchState;
 use arlo_domain::sport_constants::{
-    ATTRIBUTE_MAX, BELIEF_EVIDENCE_DECAY_MAX, BELIEF_EVIDENCE_DECAY_MIN,
-    BELIEF_PRIOR_STRENGTH_MAX, BELIEF_PRIOR_STRENGTH_MIN,
+    ATTRIBUTE_MAX, BELIEF_EVIDENCE_DECAY_MAX, BELIEF_EVIDENCE_DECAY_MIN, BELIEF_PRIOR_STRENGTH_MAX,
+    BELIEF_PRIOR_STRENGTH_MIN,
 };
 use arlo_domain::AttributeKey;
 use arlo_math::stats::BetaBelief;
@@ -45,12 +45,7 @@ impl MatchState {
         self.play_call_efficacy.snapshot(is_home)
     }
 
-    pub fn record_play_call_outcome(
-        &mut self,
-        team_id: Uuid,
-        play_call_id: Uuid,
-        success: bool,
-    ) {
+    pub fn record_play_call_outcome(&mut self, team_id: Uuid, play_call_id: Uuid, success: bool) {
         let is_home = team_id == self.teams.home_team_id();
         let manager = self.teams.manager_for_team(team_id);
         let raw_adaptability = extract_manager_attribute_value(

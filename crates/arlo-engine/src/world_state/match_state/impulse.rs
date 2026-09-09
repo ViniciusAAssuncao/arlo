@@ -1,20 +1,17 @@
 use crate::lineup_runtime::Lineup;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::{
-    calculate_player_contextual_baseline,
-    find_active_captain,
+    calculate_player_contextual_baseline, find_active_captain,
 };
 use crate::psychology::systems::dynamics::update_player_impulse_contextual;
 use crate::psychology::systems::event_bus::ImpulseEventBus;
 use crate::psychology::systems::events::{
-    apply_impulse_event_contextual_at,
-    ImpulseEvent,
-    ImpulseShift,
+    apply_impulse_event_contextual_at, ImpulseEvent, ImpulseShift,
 };
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::AttributeKey;
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -29,7 +26,7 @@ impl ImpulseTracker {
     pub fn new(
         home_lineup: &Lineup,
         away_lineup: &Lineup,
-        attribute_keys: &HashMap<Uuid, AttributeKey>
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) -> Self {
         let home_players = home_lineup.players();
         let away_players = away_lineup.players();
@@ -102,7 +99,7 @@ impl ImpulseTracker {
         incoming: Uuid,
         is_home: bool,
         teams: &TeamRegistry,
-        attribute_keys: &HashMap<Uuid, AttributeKey>
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) {
         let captain = if is_home {
             teams.home_captain(attribute_keys)
@@ -110,16 +107,16 @@ impl ImpulseTracker {
             teams.away_captain(attribute_keys)
         };
 
-        let map = if is_home { &mut self.home_impulse } else { &mut self.away_impulse };
+        let map = if is_home {
+            &mut self.home_impulse
+        } else {
+            &mut self.away_impulse
+        };
 
         if !map.contains_key(&incoming) {
             if let Some(player) = teams.find_player(&incoming) {
-                let base = calculate_player_contextual_baseline(
-                    player,
-                    attribute_keys,
-                    captain,
-                    is_home
-                );
+                let base =
+                    calculate_player_contextual_baseline(player, attribute_keys, captain, is_home);
                 map.insert(incoming, ImpulseState::from_baseline(base));
             }
         }
@@ -137,18 +134,20 @@ impl ImpulseTracker {
     pub fn reset_all_to_baseline(
         &mut self,
         teams: &TeamRegistry,
-        attribute_keys: &HashMap<Uuid, AttributeKey>
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) {
         let home_captain = teams.home_captain(attribute_keys);
         let away_captain = teams.away_captain(attribute_keys);
 
         for p in teams.home_lineup().players() {
             let base = calculate_player_contextual_baseline(p, attribute_keys, home_captain, true);
-            self.home_impulse.insert(p.id(), ImpulseState::from_baseline(base));
+            self.home_impulse
+                .insert(p.id(), ImpulseState::from_baseline(base));
         }
         for p in teams.away_lineup().players() {
             let base = calculate_player_contextual_baseline(p, attribute_keys, away_captain, false);
-            self.away_impulse.insert(p.id(), ImpulseState::from_baseline(base));
+            self.away_impulse
+                .insert(p.id(), ImpulseState::from_baseline(base));
         }
     }
 
@@ -157,7 +156,7 @@ impl ImpulseTracker {
         dt_seconds: f64,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
-        attribute_keys: &HashMap<Uuid, AttributeKey>
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) {
         if dt_seconds <= 0.0 {
             return;
@@ -177,7 +176,7 @@ impl ImpulseTracker {
                     &phys,
                     dt_seconds,
                     home_captain,
-                    true
+                    true,
                 );
             }
         }
@@ -192,7 +191,7 @@ impl ImpulseTracker {
                     &phys,
                     dt_seconds,
                     away_captain,
-                    false
+                    false,
                 );
             }
         }
@@ -205,7 +204,7 @@ impl ImpulseTracker {
         timestamp_seconds: f64,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
-        attribute_keys: &HashMap<Uuid, AttributeKey>
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) -> Option<ImpulseShift> {
         let player = teams.find_player(&player_id)?;
         let is_home = teams.is_home_player(&player_id);
@@ -229,7 +228,7 @@ impl ImpulseTracker {
             event,
             timestamp_seconds,
             captain,
-            is_home
+            is_home,
         );
 
         Some(shift)
@@ -240,7 +239,7 @@ impl ImpulseTracker {
         timestamp_seconds: f64,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
-        attribute_keys: &HashMap<Uuid, AttributeKey>
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) -> Vec<(Uuid, ImpulseShift, ImpulseEvent)> {
         let events = self.impulse_bus.drain_events();
         let mut shifts = Vec::with_capacity(events.len());
@@ -253,16 +252,14 @@ impl ImpulseTracker {
                     .map(|p| p.id())
                     .collect();
                 for pid in home_player_ids {
-                    if
-                        let Some(shift) = self.apply_impulse_event(
-                            pid,
-                            &dispatched.event,
-                            timestamp_seconds,
-                            teams,
-                            fatigue,
-                            attribute_keys
-                        )
-                    {
+                    if let Some(shift) = self.apply_impulse_event(
+                        pid,
+                        &dispatched.event,
+                        timestamp_seconds,
+                        teams,
+                        fatigue,
+                        attribute_keys,
+                    ) {
                         shifts.push((pid, shift, dispatched.event));
                     }
                 }
@@ -274,29 +271,25 @@ impl ImpulseTracker {
                     .map(|p| p.id())
                     .collect();
                 for pid in away_player_ids {
-                    if
-                        let Some(shift) = self.apply_impulse_event(
-                            pid,
-                            &dispatched.event,
-                            timestamp_seconds,
-                            teams,
-                            fatigue,
-                            attribute_keys
-                        )
-                    {
+                    if let Some(shift) = self.apply_impulse_event(
+                        pid,
+                        &dispatched.event,
+                        timestamp_seconds,
+                        teams,
+                        fatigue,
+                        attribute_keys,
+                    ) {
                         shifts.push((pid, shift, dispatched.event));
                     }
                 }
-            } else if
-                let Some(shift) = self.apply_impulse_event(
-                    dispatched.target_id,
-                    &dispatched.event,
-                    timestamp_seconds,
-                    teams,
-                    fatigue,
-                    attribute_keys
-                )
-            {
+            } else if let Some(shift) = self.apply_impulse_event(
+                dispatched.target_id,
+                &dispatched.event,
+                timestamp_seconds,
+                teams,
+                fatigue,
+                attribute_keys,
+            ) {
                 shifts.push((dispatched.target_id, shift, dispatched.event));
             }
         }

@@ -1,4 +1,6 @@
-use arlo_domain::sport_constants::{ATTRIBUTE_SATURATION_THRESHOLD, MANAGER_NOISE_DISCIPLINE_SCALE};
+use arlo_domain::sport_constants::{
+    ATTRIBUTE_SATURATION_THRESHOLD, MANAGER_NOISE_DISCIPLINE_SCALE,
+};
 use arlo_math::stats::SkewNormalParams;
 
 pub fn derive_manager_decision_noise(discipline: f64) -> SkewNormalParams {

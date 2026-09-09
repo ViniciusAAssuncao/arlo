@@ -37,7 +37,9 @@ impl TacticalAdjustmentDecisionEngine {
             (raw_score + id_noise + discipline_noise).clamp(0.0, 1.0)
         };
 
-        let active_profile = available_profiles.iter().find(|p| p.id() == active_profile_id);
+        let active_profile = available_profiles
+            .iter()
+            .find(|p| p.id() == active_profile_id);
         let active_score = match active_profile {
             Some(p) => calculate_perceived_score(p, rng),
             None => 0.0,

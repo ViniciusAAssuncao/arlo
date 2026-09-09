@@ -51,10 +51,7 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
             .bias_for_decision(ArtrineDecisionKind::SelfFinish, ctx.drives_in_series);
         let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.self_finish().value();
 
-        ((expected_future_value * gravity_factor)
-            * risk_multiplier
-            * game_state_bias
-            * 3.5
+        ((expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5
             + (intrinsic_rating * 0.2))
             * emphasis_multiplier
     }
