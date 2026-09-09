@@ -74,7 +74,9 @@ pub fn setup_call_to_action_context(state: &mut MatchState) -> CallToActionConte
         None => HashMap::new(),
     };
 
-    let decision_emphasis = resolve_decision_emphasis_for_play(active_play_call.as_ref());
+    let offense_instructions = state.instructions_for_team(offense_team_id);
+    let decision_emphasis =
+        resolve_decision_emphasis_for_play(active_play_call.as_ref(), offense_instructions);
 
     CallToActionContext {
         is_home_offense,

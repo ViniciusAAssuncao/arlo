@@ -5,7 +5,6 @@ use crate::physical::PhysicalState;
 use crate::resolution::duel_noise::player_noise_distribution;
 use crate::resolution::duel_profiles::DuelProfile;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
-use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_tactics::DecisionEmphasis;
@@ -32,7 +31,6 @@ pub struct DecisionEvaluationContext<'a> {
     pub offensive_gravity: f64,
     pub risk_profile: RiskProfile,
     pub game_state_pressure: GameStatePressure,
-    pub team_identity_bias: TeamIdentityBias,
     pub play_call_emphasis: DecisionEmphasis,
 }
 

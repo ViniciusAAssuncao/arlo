@@ -158,7 +158,6 @@ pub fn run_decision_phase(
         &artrine_fatigue,
         &artrine_impulse,
     );
-    let team_identity_bias = crate::team_identity::derive(state.offense_instructions());
 
     let seq_decision = state.next_sequence();
     let mut decision_rng = state
@@ -184,7 +183,6 @@ pub fn run_decision_phase(
         offensive_gravity.multiplier(),
         risk_profile,
         game_state_pressure,
-        team_identity_bias,
         context.decision_emphasis,
         &artrine_fatigue,
         &artrine_impulse,

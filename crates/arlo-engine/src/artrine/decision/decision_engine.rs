@@ -5,7 +5,6 @@ use crate::artrine::decision::sampler::sample_artrine_decision;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
-use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
@@ -115,7 +114,6 @@ pub fn resolve_artrine_decision_with_impulse<R: Rng + ?Sized>(
         artrine_impulse_state,
     );
     let game_state_pressure = GameStatePressure::default();
-    let team_identity_bias = TeamIdentityBias::default();
 
     resolve_artrine_decision_with_context_and_impulse(
         artrine,
@@ -136,7 +134,6 @@ pub fn resolve_artrine_decision_with_impulse<R: Rng + ?Sized>(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
-        team_identity_bias,
         play_call_emphasis,
         artrine_physical_state,
         artrine_impulse_state,
@@ -163,7 +160,6 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
     offensive_gravity: f64,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
-    team_identity_bias: TeamIdentityBias,
     play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
     rng: &mut R,
@@ -189,7 +185,6 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
-        team_identity_bias,
         play_call_emphasis,
         artrine_physical_state,
         &impulse_state,
@@ -216,7 +211,6 @@ pub fn resolve_artrine_decision_with_context_and_impulse<R: Rng + ?Sized>(
     offensive_gravity: f64,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
-    team_identity_bias: TeamIdentityBias,
     play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
     artrine_impulse_state: &ImpulseState,
@@ -248,7 +242,6 @@ pub fn resolve_artrine_decision_with_context_and_impulse<R: Rng + ?Sized>(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
-        team_identity_bias,
         play_call_emphasis,
         artrine_physical_state,
     );

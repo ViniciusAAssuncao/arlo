@@ -3,7 +3,6 @@ use crate::ai::markov_decision::MarkovDecisionEvaluator;
 use crate::artrine::constants::{SERIES_MAX_DOWNS, SERIES_TARGET_ADVANCE_MIRIM};
 use crate::physical::PhysicalState;
 use crate::spatial::proximity::calculate_distance_mirim;
-use crate::team_identity::TeamIdentityBias;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
@@ -33,7 +32,6 @@ pub fn calculate_decision_utilities(
 ) -> Vec<(ArtrineDecisionKind, f64)> {
     let risk_profile = RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
     let game_state_pressure = GameStatePressure::default();
-    let team_identity_bias = TeamIdentityBias::default();
 
     calculate_decision_utilities_with_context(
         artrine,
@@ -54,7 +52,6 @@ pub fn calculate_decision_utilities(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
-        team_identity_bias,
         play_call_emphasis,
         artrine_physical_state,
     )
@@ -79,7 +76,6 @@ pub fn calculate_decision_utilities_with_context(
     offensive_gravity: f64,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
-    team_identity_bias: TeamIdentityBias,
     play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
@@ -104,7 +100,6 @@ pub fn calculate_decision_utilities_with_context(
         offensive_gravity,
         risk_profile,
         game_state_pressure,
-        team_identity_bias,
         play_call_emphasis,
         artrine_physical_state,
     )

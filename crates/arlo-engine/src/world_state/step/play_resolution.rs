@@ -1,6 +1,6 @@
 use crate::lineup_runtime::Lineup;
 use arlo_domain::SlotRole;
-use arlo_tactics::{DecisionEmphasis, PlayCall, PlayCallCategory, RouteAssignment};
+use arlo_tactics::{DecisionEmphasis, PlayCall, PlayCallCategory, RouteAssignment, TeamInstructions};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -31,10 +31,13 @@ pub fn resolve_route_index_for_play(
     map
 }
 
-pub fn resolve_decision_emphasis_for_play(play_call: Option<&PlayCall>) -> DecisionEmphasis {
+pub fn resolve_decision_emphasis_for_play(
+    play_call: Option<&PlayCall>,
+    offense_instructions: &TeamInstructions,
+) -> DecisionEmphasis {
     play_call
         .map(|pc| *pc.decision_emphasis())
-        .unwrap_or_default()
+        .unwrap_or_else(|| offense_instructions.default_decision_emphasis())
 }
 
 pub fn expected_category_for_phase(is_bonus_phase: bool) -> PlayCallCategory {

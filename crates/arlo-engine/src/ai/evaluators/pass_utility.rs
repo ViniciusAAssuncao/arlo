@@ -81,15 +81,11 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
         let game_state_bias = ctx
             .game_state_pressure
             .bias_for_decision(ArtrineDecisionKind::ShortPass, ctx.drives_in_series);
-        let team_identity_bias = ctx
-            .team_identity_bias
-            .bias_for(ArtrineDecisionKind::ShortPass);
         let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.short_pass().value();
 
         ((expected_future_value * gravity_factor)
             * risk_multiplier
             * game_state_bias
-            * team_identity_bias
             * 3.5
             + (intrinsic_rating * 0.2))
             * emphasis_multiplier
@@ -174,15 +170,11 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
         let game_state_bias = ctx
             .game_state_pressure
             .bias_for_decision(ArtrineDecisionKind::LongLaunch, ctx.drives_in_series);
-        let team_identity_bias = ctx
-            .team_identity_bias
-            .bias_for(ArtrineDecisionKind::LongLaunch);
         let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.long_launch().value();
 
         ((expected_future_value * gravity_factor)
             * risk_multiplier
             * game_state_bias
-            * team_identity_bias
             * 3.5
             + (intrinsic_rating * 0.2))
             * emphasis_multiplier
