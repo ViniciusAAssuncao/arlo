@@ -7,7 +7,7 @@ use crate::resolution::duel_profiles::DuelProfile;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{AttributeKey, Player, Position};
-use arlo_tactics::DecisionEmphasis;
+use arlo_tactics::{DecisionEmphasis, PassingRange};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -29,6 +29,7 @@ pub struct DecisionEvaluationContext<'a> {
     pub distance_to_next_artro_mirim: f64,
     pub pitch_length_mirim: f64,
     pub offensive_gravity: f64,
+    pub passing_range: PassingRange,
     pub risk_profile: RiskProfile,
     pub game_state_pressure: GameStatePressure,
     pub play_call_emphasis: DecisionEmphasis,

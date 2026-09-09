@@ -1,6 +1,11 @@
 use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
+use crate::artrine::constants::{
+    EPV_LONG_LAUNCH_ADVANCE_MIRIM, EPV_SHORT_PASS_ADVANCE_MIRIM, LONG_LAUNCH_TARGET_QUALITY_SCALE,
+    SHORT_PASS_TARGET_QUALITY_SCALE,
+};
 use crate::artrine::decision_profiles::{long_launch_profile, short_pass_profile};
+use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -17,7 +22,10 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
         let target_qual = ctx.target_quality();
 
-        let adv_mirim = (6.0 + 3.0 * target_qual) * skill_mult;
+        let adv_mirim = (EPV_SHORT_PASS_ADVANCE_MIRIM
+            * short_pass_advance_multiplier(ctx.passing_range)
+            + SHORT_PASS_TARGET_QUALITY_SCALE * target_qual)
+            * skill_mult;
         let (new_down, new_rem) = if adv_mirim >= ctx.remaining_advance_mirim {
             (1, 10.0)
         } else {
@@ -106,7 +114,10 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
         let target_qual = ctx.long_launch_target_quality();
 
-        let adv_mirim = (14.0 + 6.0 * target_qual) * skill_mult;
+        let adv_mirim = (EPV_LONG_LAUNCH_ADVANCE_MIRIM
+            * long_launch_advance_multiplier(ctx.passing_range)
+            + LONG_LAUNCH_TARGET_QUALITY_SCALE * target_qual)
+            * skill_mult;
         let (new_down, new_rem) = if adv_mirim >= ctx.remaining_advance_mirim {
             (1, 10.0)
         } else {

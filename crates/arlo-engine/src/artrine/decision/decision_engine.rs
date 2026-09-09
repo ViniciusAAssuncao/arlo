@@ -9,7 +9,7 @@ use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
 use arlo_math::Probability;
-use arlo_tactics::DecisionEmphasis;
+use arlo_tactics::{DecisionEmphasis, PassingRange};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -55,6 +55,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    passing_range: PassingRange,
     play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
     rng: &mut R,
@@ -78,6 +79,7 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
         pitch_control_ahead,
         pitch_length_mirim,
         offensive_gravity,
+        passing_range,
         play_call_emphasis,
         artrine_physical_state,
         &impulse_state,
@@ -102,6 +104,7 @@ pub fn resolve_artrine_decision_with_impulse<R: Rng + ?Sized>(
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    passing_range: PassingRange,
     play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
     artrine_impulse_state: &ImpulseState,
@@ -132,6 +135,7 @@ pub fn resolve_artrine_decision_with_impulse<R: Rng + ?Sized>(
         pitch_control_ahead,
         pitch_length_mirim,
         offensive_gravity,
+        passing_range,
         risk_profile,
         game_state_pressure,
         play_call_emphasis,
@@ -158,6 +162,7 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    passing_range: PassingRange,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
     play_call_emphasis: DecisionEmphasis,
@@ -183,6 +188,7 @@ pub fn resolve_artrine_decision_with_context<R: Rng + ?Sized>(
         pitch_control_ahead,
         pitch_length_mirim,
         offensive_gravity,
+        passing_range,
         risk_profile,
         game_state_pressure,
         play_call_emphasis,
@@ -209,6 +215,7 @@ pub fn resolve_artrine_decision_with_context_and_impulse<R: Rng + ?Sized>(
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    passing_range: PassingRange,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
     play_call_emphasis: DecisionEmphasis,
@@ -240,6 +247,7 @@ pub fn resolve_artrine_decision_with_context_and_impulse<R: Rng + ?Sized>(
         pitch_control_ahead,
         pitch_length_mirim,
         offensive_gravity,
+        passing_range,
         risk_profile,
         game_state_pressure,
         play_call_emphasis,

@@ -159,6 +159,9 @@ pub fn run_decision_phase(
         &artrine_impulse,
     );
 
+    let offense_instructions = *state.instructions_for_team(context.offense_team_id);
+    let passing_range = offense_instructions.in_possession().passing_range();
+
     let seq_decision = state.next_sequence();
     let mut decision_rng = state
         .rng_provider()
@@ -181,6 +184,7 @@ pub fn run_decision_phase(
         pitch_control_ahead,
         pitch.length_mirim(),
         offensive_gravity.multiplier(),
+        passing_range,
         risk_profile,
         game_state_pressure,
         context.decision_emphasis,
@@ -201,7 +205,6 @@ pub fn run_decision_phase(
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, decision_event));
 
-    let offense_instructions = *state.instructions_for_team(context.offense_team_id);
     let offense_tempo_value = offense_instructions.in_possession().tempo().value();
     let offense_physicality = offense_instructions.in_possession().physicality();
     let physicality_offset =

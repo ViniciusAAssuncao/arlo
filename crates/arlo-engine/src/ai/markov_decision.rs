@@ -1,14 +1,18 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::epv::DynamicEpvModel;
 use crate::ai::evaluators::{
-    ActionUtilityEvaluator, CarryUtilityEvaluator, CrossUtilityEvaluator,
-    DecisionEvaluationContext, LongLaunchUtilityEvaluator, SelfFinishUtilityEvaluator,
+    ActionUtilityEvaluator,
+    CarryUtilityEvaluator,
+    CrossUtilityEvaluator,
+    DecisionEvaluationContext,
+    LongLaunchUtilityEvaluator,
+    SelfFinishUtilityEvaluator,
     ShortPassUtilityEvaluator,
 };
 use crate::physical::PhysicalState;
 use crate::world_state::GameStatePressure;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
-use arlo_tactics::DecisionEmphasis;
+use arlo_domain::{ ArtrineDecisionKind, AttributeKey, Player };
+use arlo_tactics::{ DecisionEmphasis, PassingRange };
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -31,11 +35,15 @@ impl MarkovDecisionEvaluator {
         distance_to_next_artro_mirim: f64,
         pitch_length_mirim: f64,
         offensive_gravity: f64,
+        passing_range: PassingRange,
         play_call_emphasis: DecisionEmphasis,
-        artrine_physical_state: &PhysicalState,
+        artrine_physical_state: &PhysicalState
     ) -> Vec<(ArtrineDecisionKind, f64)> {
-        let risk_profile =
-            RiskProfile::from_player(artrine, attribute_keys, artrine_physical_state);
+        let risk_profile = RiskProfile::from_player(
+            artrine,
+            attribute_keys,
+            artrine_physical_state
+        );
         let game_state_pressure = GameStatePressure::default();
 
         Self::evaluate_action_utilities_with_context(
@@ -53,10 +61,11 @@ impl MarkovDecisionEvaluator {
             distance_to_next_artro_mirim,
             pitch_length_mirim,
             offensive_gravity,
+            passing_range,
             risk_profile,
             game_state_pressure,
             play_call_emphasis,
-            artrine_physical_state,
+            artrine_physical_state
         )
     }
 
@@ -75,17 +84,18 @@ impl MarkovDecisionEvaluator {
         distance_to_next_artro_mirim: f64,
         pitch_length_mirim: f64,
         offensive_gravity: f64,
+        passing_range: PassingRange,
         risk_profile: RiskProfile,
         game_state_pressure: GameStatePressure,
         play_call_emphasis: DecisionEmphasis,
-        artrine_physical_state: &PhysicalState,
+        artrine_physical_state: &PhysicalState
     ) -> Vec<(ArtrineDecisionKind, f64)> {
         let epv_model = DynamicEpvModel::new(offensive_gravity);
         let current_epv = epv_model.calculate_epa(
             normalized_proximity,
             down,
             remaining_advance_mirim,
-            drives_in_series,
+            drives_in_series
         );
 
         let ctx = DecisionEvaluationContext {
@@ -105,6 +115,7 @@ impl MarkovDecisionEvaluator {
             distance_to_next_artro_mirim,
             pitch_length_mirim,
             offensive_gravity,
+            passing_range,
             risk_profile,
             game_state_pressure,
             play_call_emphasis,

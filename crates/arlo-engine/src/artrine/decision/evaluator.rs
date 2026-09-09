@@ -6,7 +6,7 @@ use crate::spatial::proximity::calculate_distance_mirim;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
-use arlo_tactics::DecisionEmphasis;
+use arlo_tactics::{DecisionEmphasis, PassingRange};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -27,6 +27,7 @@ pub fn calculate_decision_utilities(
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    passing_range: PassingRange,
     play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
 ) -> Vec<(ArtrineDecisionKind, f64)> {
@@ -50,6 +51,7 @@ pub fn calculate_decision_utilities(
         pitch_control_ahead,
         pitch_length_mirim,
         offensive_gravity,
+        passing_range,
         risk_profile,
         game_state_pressure,
         play_call_emphasis,
@@ -74,6 +76,7 @@ pub fn calculate_decision_utilities_with_context(
     pitch_control_ahead: f64,
     pitch_length_mirim: f64,
     offensive_gravity: f64,
+    passing_range: PassingRange,
     risk_profile: RiskProfile,
     game_state_pressure: GameStatePressure,
     play_call_emphasis: DecisionEmphasis,
@@ -98,6 +101,7 @@ pub fn calculate_decision_utilities_with_context(
         distance_to_next_artro_mirim,
         pitch_length_mirim,
         offensive_gravity,
+        passing_range,
         risk_profile,
         game_state_pressure,
         play_call_emphasis,
