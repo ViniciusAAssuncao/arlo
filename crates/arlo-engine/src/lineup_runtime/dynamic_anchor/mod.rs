@@ -6,6 +6,7 @@ pub use offense::*;
 
 use crate::lineup_runtime::lineup::Lineup;
 use crate::spatial::DynamicSpatialMap;
+use crate::team_identity::BlockMarkingRole;
 use arlo_domain::pitch::{project_slot, project_slot_mirrored, Pitch};
 use arlo_domain::{AttributeKey, FormationSlot, Player};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
@@ -19,6 +20,8 @@ pub struct AnchorComputationContext<'a> {
     pub player_instructions_index: &'a HashMap<Uuid, PlayerInstructions>,
     pub opposing_lineup: Option<&'a Lineup>,
     pub spatial_map: Option<&'a DynamicSpatialMap>,
+    pub block_marking_roles: Option<&'a HashMap<Uuid, BlockMarkingRole>>,
+    pub press_reference_pos: Option<VectorPosition>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

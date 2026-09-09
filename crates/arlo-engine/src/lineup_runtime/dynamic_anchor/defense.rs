@@ -2,7 +2,11 @@ use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::team_identity::depth_from_bipolar;
 use crate::team_identity::marking::resolve_man_marking_target_position;
+use crate::team_identity::BlockMarkingRole;
 use arlo_domain::pitch::Pitch;
+use arlo_domain::sport_constants::{
+    BLOCK_MARKING_BITE_TRACKING_BOOST, BLOCK_MARKING_COVER_DISCIPLINE_BOOST,
+};
 use arlo_domain::{AttributeKey, FormationSlot, Player, PositionLine};
 use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::{MarkingAssignment, TeamInstructions};
@@ -36,6 +40,18 @@ pub fn calculate_defense_attractor_coordinates(
             ) {
                 return (man_pos.raw().0, man_pos.raw().1);
             }
+        }
+    }
+
+    let block_role = ctx
+        .block_marking_roles
+        .and_then(|m| m.get(&player.id()).copied());
+
+    if block_role == Some(BlockMarkingRole::Biter) {
+        if let Some(ref_pos) = ctx.press_reference_pos {
+            let x_pos = base_x + (ref_pos.raw().0 - base_x) * BLOCK_MARKING_BITE_TRACKING_BOOST;
+            let y_pos = base_y + (ref_pos.raw().1 - base_y) * BLOCK_MARKING_BITE_TRACKING_BOOST;
+            return (x_pos, y_pos);
         }
     }
 
@@ -84,8 +100,12 @@ pub fn calculate_defense_attractor_coordinates(
     };
 
     let center_y = pitch_width_m * 0.5;
-    let pinch_factor =
+    let mut pinch_factor =
         (1.0 - instructions.out_of_possession().compactness().value()).clamp(0.0, 1.0);
+    if block_role == Some(BlockMarkingRole::Coverer) {
+        pinch_factor =
+            (pinch_factor * (1.0 + BLOCK_MARKING_COVER_DISCIPLINE_BOOST)).clamp(0.0, 1.0);
+    }
     let y_pos = base_y + (center_y - base_y) * pinch_factor;
 
     (x_pos, y_pos)

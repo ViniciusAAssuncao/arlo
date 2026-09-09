@@ -1,5 +1,6 @@
 pub mod ability;
 pub mod artro;
+pub mod block_marking;
 pub mod clock;
 pub mod downs;
 pub mod manager_cognition;
@@ -21,6 +22,7 @@ pub mod timing;
 
 pub use ability::*;
 pub use artro::*;
+pub use block_marking::*;
 pub use clock::*;
 pub use downs::*;
 pub use manager_cognition::*;

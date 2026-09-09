@@ -1,6 +1,10 @@
 use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors, AnchorComputationContext};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
+use crate::team_identity::marking::{
+    derive_block_marking_roles, eligible_block_marking_defenders,
+    extract_manager_artro_strategy_fidelity,
+};
 use crate::team_identity::tempo::{
     effort_multiplier_from_value, huddle_duration_scale, individual_transition_effort_multiplier,
 };
@@ -43,12 +47,77 @@ pub fn derive_and_apply_reorganization(
     let home_instructions = *publisher.state().home_instructions();
     let away_instructions = *publisher.state().away_instructions();
 
+    let press_reference_pos = if is_post_turnover {
+        recovering_player_id
+            .and_then(|id| publisher.state().spatial_map().get_position(&id))
+    } else {
+        None
+    };
+
+    let (home_block_roles, away_block_roles) = if is_post_turnover {
+        if let Some(ref_pos) = press_reference_pos {
+            if is_home_offense {
+                let def_lineup = &away_lineup;
+                let def_manager = publisher.state().away_manager();
+                let def_instructions = &away_instructions;
+                let def_pos_index = publisher
+                    .state()
+                    .defensive_position_index_for_team(publisher.state().away_team_id());
+                let def_players = def_lineup.players();
+                let eligible = eligible_block_marking_defenders(&def_players, def_pos_index);
+                let press_block_shape = def_instructions.transition().press_block_shape();
+                let execution_fidelity =
+                    extract_manager_artro_strategy_fidelity(def_manager, &attribute_keys);
+                let roles = derive_block_marking_roles(
+                    &eligible,
+                    ref_pos,
+                    publisher.state().spatial_map(),
+                    press_block_shape,
+                    &attribute_keys,
+                    execution_fidelity,
+                );
+                (None, Some(roles))
+            } else {
+                let def_lineup = &home_lineup;
+                let def_manager = publisher.state().home_manager();
+                let def_instructions = &home_instructions;
+                let def_pos_index = publisher
+                    .state()
+                    .defensive_position_index_for_team(publisher.state().home_team_id());
+                let def_players = def_lineup.players();
+                let eligible = eligible_block_marking_defenders(&def_players, def_pos_index);
+                let press_block_shape = def_instructions.transition().press_block_shape();
+                let execution_fidelity =
+                    extract_manager_artro_strategy_fidelity(def_manager, &attribute_keys);
+                let roles = derive_block_marking_roles(
+                    &eligible,
+                    ref_pos,
+                    publisher.state().spatial_map(),
+                    press_block_shape,
+                    &attribute_keys,
+                    execution_fidelity,
+                );
+                (Some(roles), None)
+            }
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
+
     let home_ctx = AnchorComputationContext {
         player_instructions_index: publisher
             .state()
             .instructions_index_for_team(publisher.state().home_team_id()),
         opposing_lineup: Some(&away_lineup),
         spatial_map: Some(publisher.state().spatial_map()),
+        block_marking_roles: home_block_roles.as_ref(),
+        press_reference_pos: if !is_home_offense {
+            press_reference_pos
+        } else {
+            None
+        },
     };
     let mut home_targets = compute_dynamic_anchors(
         &pitch,
@@ -67,6 +136,12 @@ pub fn derive_and_apply_reorganization(
             .instructions_index_for_team(publisher.state().away_team_id()),
         opposing_lineup: Some(&home_lineup),
         spatial_map: Some(publisher.state().spatial_map()),
+        block_marking_roles: away_block_roles.as_ref(),
+        press_reference_pos: if is_home_offense {
+            press_reference_pos
+        } else {
+            None
+        },
     };
     let mut away_targets = compute_dynamic_anchors(
         &pitch,
