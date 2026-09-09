@@ -5,10 +5,12 @@ use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
+use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
+use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker;
 use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::setup_params::MatchSetupParams;
@@ -67,6 +69,8 @@ impl MatchState {
         let scoreboard = MatchScoreboard::new();
         let play_calling = PlayCallTracker::new();
         let officiating = OfficiatingTracker::new();
+        let decision_cooldown = DecisionCooldownTracker::new();
+        let play_call_efficacy = PlayCallEfficacyTracker::new();
 
         Ok(Self {
             teams,
@@ -86,6 +90,8 @@ impl MatchState {
             impulse,
             play_calling,
             officiating,
+            decision_cooldown,
+            play_call_efficacy,
             last_play_outcome_summary: None,
         })
     }

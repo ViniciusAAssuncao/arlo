@@ -3,10 +3,12 @@ use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
+use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
+use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker;
 use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::teams::TeamRegistry;
@@ -35,6 +37,8 @@ pub struct MatchState {
     pub(crate) impulse: ImpulseTracker,
     pub(crate) play_calling: PlayCallTracker,
     pub(crate) officiating: OfficiatingTracker,
+    pub(crate) decision_cooldown: DecisionCooldownTracker,
+    pub(crate) play_call_efficacy: PlayCallEfficacyTracker,
     pub(crate) last_play_outcome_summary: Option<(Uuid, bool)>,
 }
 
@@ -99,6 +103,22 @@ impl MatchState {
 
     pub fn is_match_finished(&self) -> bool {
         self.clock.is_finished()
+    }
+
+    pub fn decision_cooldown(&self) -> &DecisionCooldownTracker {
+        &self.decision_cooldown
+    }
+
+    pub fn decision_cooldown_mut(&mut self) -> &mut DecisionCooldownTracker {
+        &mut self.decision_cooldown
+    }
+
+    pub fn play_call_efficacy(&self) -> &PlayCallEfficacyTracker {
+        &self.play_call_efficacy
+    }
+
+    pub fn play_call_efficacy_mut(&mut self) -> &mut PlayCallEfficacyTracker {
+        &mut self.play_call_efficacy
     }
 
     pub fn last_play_outcome_summary(&self) -> Option<(Uuid, bool)> {
