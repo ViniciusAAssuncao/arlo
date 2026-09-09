@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::manager::ManagerDecisionAggregator;
 use crate::player::{
     PlayerArtrineDecisionAggregator, PlayerAssistsAggregator, PlayerDrivesAggregator,
     PlayerDuelAggregator, PlayerImpulseAggregator, PlayerPhysicalAggregator,
@@ -36,6 +37,7 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerImpulseAggregator::new());
         registry.register_aggregator(PlayerAssistsAggregator::new());
         registry.register_aggregator(TeamPossessionAggregator::new());
+        registry.register_aggregator(ManagerDecisionAggregator::new());
         registry
     }
 
@@ -143,6 +145,9 @@ impl AggregatorRegistry {
         }
         if let Some(agg) = self.get::<PlayerImpulseAggregator>() {
             ids.extend(agg.all_team_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<ManagerDecisionAggregator>() {
+            ids.extend(agg.all_logs().keys().copied());
         }
         ids
     }
