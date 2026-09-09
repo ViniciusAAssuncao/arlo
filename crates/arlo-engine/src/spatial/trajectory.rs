@@ -1,4 +1,5 @@
 use crate::physical::models::metabolic_power::calculate_metabolic_work_rate;
+use crate::spatial::live_collisions::LiveCollision;
 use arlo_domain::PitchZone;
 use arlo_math::units::{Duration, Position, Velocity, MIRIM_TO_METERS};
 use serde::{Deserialize, Serialize};
@@ -155,6 +156,7 @@ pub struct TickSimulationResult {
     ticks_executed: u32,
     elapsed_seconds: f64,
     trajectories: HashMap<Uuid, SpatialTrajectory>,
+    interrupted_collision: Option<LiveCollision>,
 }
 
 impl TickSimulationResult {
@@ -167,6 +169,21 @@ impl TickSimulationResult {
             ticks_executed,
             elapsed_seconds,
             trajectories,
+            interrupted_collision: None,
+        }
+    }
+
+    pub fn with_collision(
+        ticks_executed: u32,
+        elapsed_seconds: f64,
+        trajectories: HashMap<Uuid, SpatialTrajectory>,
+        interrupted_collision: Option<LiveCollision>,
+    ) -> Self {
+        Self {
+            ticks_executed,
+            elapsed_seconds,
+            trajectories,
+            interrupted_collision,
         }
     }
 
@@ -184,5 +201,9 @@ impl TickSimulationResult {
 
     pub fn get_trajectory(&self, player_id: &Uuid) -> Option<&SpatialTrajectory> {
         self.trajectories.get(player_id)
+    }
+
+    pub fn interrupted_collision(&self) -> Option<&LiveCollision> {
+        self.interrupted_collision.as_ref()
     }
 }

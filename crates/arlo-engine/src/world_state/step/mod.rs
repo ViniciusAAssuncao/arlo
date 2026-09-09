@@ -1,9 +1,11 @@
 pub mod decision_phase;
+pub mod open_play_loop;
 pub mod play_resolution;
 pub mod setup;
 pub mod target_weighting;
 
 pub use decision_phase::{run_decision_phase, DecisionPhaseResult};
+pub use open_play_loop::run_open_play_loop;
 pub use play_resolution::*;
 pub use setup::{setup_call_to_action_context, CallToActionContext};
 pub use target_weighting::resolve_decision_target_weights;
@@ -13,11 +15,14 @@ use crate::manager_ai::orchestrator::ManagerAiEngine;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::rng::RngStream;
+use crate::time::DurationLedger;
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::{apply_play_transition, EventPublisher};
+use arlo_domain::ArtrineDecisionKind;
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
@@ -93,20 +98,40 @@ pub fn step_call_to_action(
         sink,
     )?;
 
-    let decision_result = run_decision_phase(
-        state,
-        &context,
-        &pass_phase,
-        &offense_players,
-        &defense_players,
-        sink,
-    )?;
+    let (chosen_decision, execution_outcome) = if !pass_phase.pass_completed {
+        (
+            ArtrineDecisionKind::SelfCarry,
+            crate::artrine::ArtrineExecutionOutcome {
+                mirins_advanced: 0.0,
+                drives_recorded: 0,
+                drive_row_indices: Vec::new(),
+                turnover: None,
+                recovering_player_id: None,
+                scoring_decision: ScoringDecision::NoOpportunity,
+                duration_ledger: DurationLedger::new(),
+                end_position: pass_phase.scrimmage_point,
+                duels: Vec::new(),
+                receiver_id: None,
+                distribution_flight: None,
+                kinematic_trajectories: HashMap::new(),
+            },
+        )
+    } else {
+        open_play_loop::run_open_play_loop(
+            state,
+            &context,
+            &pass_phase,
+            &offense_players,
+            &defense_players,
+            sink,
+        )?
+    };
 
     let detailed_outcome = apply_play_transition(
         state,
         pass_phase,
-        decision_result.chosen_decision,
-        decision_result.execution_outcome,
+        chosen_decision,
+        execution_outcome,
         context.offense_team_id,
         context.defense_team_id,
         active_play_call_id,

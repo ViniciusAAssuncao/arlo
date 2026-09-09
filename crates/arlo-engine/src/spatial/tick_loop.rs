@@ -9,6 +9,7 @@ use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
+use crate::spatial::live_collisions::{check_collision, is_severe_contact, CollisionResolution, LiveCollision};
 use crate::spatial::movement_context::MovementContext;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
 use crate::spatial::steering::{
@@ -75,6 +76,36 @@ pub fn run_spatial_tick_loop_with_context<F>(
 ) -> TickSimulationResult
 where
     F: Fn(&Uuid) -> PhysicalState,
+{
+    run_carrier_tick_loop_with_collision(
+        spatial_map,
+        movers,
+        Uuid::nil(),
+        &[],
+        attribute_keys,
+        movement_context,
+        pitch,
+        fatigue_for,
+        effort_multiplier_for,
+        |_, _, _| CollisionResolution::Continue { velocity_mitigation: 1.0 },
+    )
+}
+
+pub fn run_carrier_tick_loop_with_collision<F, C>(
+    spatial_map: &mut DynamicSpatialMap,
+    movers: &[(&Player, Position)],
+    carrier_id: Uuid,
+    defender_ids: &[Uuid],
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    movement_context: MovementContext,
+    pitch: &Pitch,
+    fatigue_for: &F,
+    effort_multiplier_for: &dyn Fn(&Uuid) -> f64,
+    mut collision_callback: C,
+) -> TickSimulationResult
+where
+    F: Fn(&Uuid) -> PhysicalState,
+    C: FnMut(&mut DynamicSpatialMap, &LiveCollision, &mut f64) -> CollisionResolution,
 {
     if movers.is_empty() {
         return TickSimulationResult::new(0, 0.0, HashMap::new());
@@ -255,6 +286,81 @@ where
             } else {
                 spatial_map.set_position(pid, *target);
                 spatial_map.set_velocity(pid, Velocity::zero());
+            }
+        }
+
+        if movement_context == MovementContext::LivePlay && !carrier_id.is_nil() {
+            if let Some(&carrier_pos) = spatial_map.positions().get(&carrier_id) {
+                let carrier_radius = *physical_radii.get(&carrier_id).unwrap_or(&0.55);
+                let carrier_vel = spatial_map.get_velocity(&carrier_id).unwrap_or_else(Velocity::zero);
+
+                let mut contacts = Vec::new();
+                for &def_id in defender_ids {
+                    if let Some(&def_pos) = spatial_map.positions().get(&def_id) {
+                        let def_radius = *physical_radii.get(&def_id).unwrap_or(&0.55);
+                        let def_vel = spatial_map.get_velocity(&def_id).unwrap_or_else(Velocity::zero);
+
+                        if let Some(col) = check_collision(
+                            carrier_id,
+                            carrier_pos,
+                            carrier_vel,
+                            carrier_radius,
+                            def_id,
+                            def_pos,
+                            def_vel,
+                            def_radius,
+                        ) {
+                            contacts.push(col);
+                        }
+                    }
+                }
+
+                if let Some(primary_collision) = contacts.into_iter().max_by(|a, b| {
+                    a.contact_severity
+                        .partial_cmp(&b.contact_severity)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                }) {
+                    if is_severe_contact(&primary_collision) {
+                        let mut carrier_spd = mover_kinematics
+                            .get(&carrier_id)
+                            .map(|m| m.speed.value())
+                            .unwrap_or(0.0);
+
+                        let resolution =
+                            collision_callback(spatial_map, &primary_collision, &mut carrier_spd);
+
+                        if let Some(props) = mover_kinematics.get_mut(&carrier_id) {
+                            props.speed = Speed::new(carrier_spd);
+                        }
+
+                        match resolution {
+                            CollisionResolution::Halt { .. } => {
+                                ticks_executed += 1;
+                                for (player, _) in movers {
+                                    spatial_map.clear_target(&player.id());
+                                }
+                                let elapsed_seconds =
+                                    (ticks_executed as f64) * SPATIAL_TICK_DURATION_SECONDS;
+                                return TickSimulationResult::with_collision(
+                                    ticks_executed,
+                                    elapsed_seconds,
+                                    trajectories,
+                                    Some(primary_collision),
+                                );
+                            }
+                            CollisionResolution::Continue {
+                                velocity_mitigation,
+                            } => {
+                                if let Some(vel) = spatial_map.get_velocity(&carrier_id) {
+                                    spatial_map.set_velocity(
+                                        carrier_id,
+                                        Velocity::from_raw(vel.raw() * velocity_mitigation),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

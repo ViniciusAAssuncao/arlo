@@ -12,6 +12,45 @@ use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+pub fn calculate_velocity_mitigation(kind: DuelKind, attacker_won: bool, net_advantage: f64) -> f64 {
+    let base = match kind {
+        DuelKind::ArtroBreakthrough | DuelKind::RunBreakthrough => {
+            if attacker_won {
+                0.80 + (net_advantage * 0.04)
+            } else {
+                0.25 + (net_advantage * 0.03)
+            }
+        }
+        DuelKind::CentralBlock | DuelKind::LateralBlock => {
+            if attacker_won {
+                0.70 + (net_advantage * 0.03)
+            } else {
+                0.20 + (net_advantage * 0.02)
+            }
+        }
+        DuelKind::BallSecurityCarry | DuelKind::BallSecurityDistribution => {
+            if attacker_won {
+                0.60 + (net_advantage * 0.04)
+            } else {
+                0.00
+            }
+        }
+        _ => {
+            if attacker_won {
+                0.85 + (net_advantage * 0.02)
+            } else {
+                0.35 + (net_advantage * 0.02)
+            }
+        }
+    };
+
+    if attacker_won {
+        base.clamp(0.40, 1.00)
+    } else {
+        base.clamp(0.00, 0.40)
+    }
+}
+
 pub fn resolve_duel_with_fatigue<R: Rng + ?Sized>(
     kind: DuelKind,
     attacker_rating: f64,
@@ -46,14 +85,16 @@ pub fn resolve_duel_with_fatigue<R: Rng + ?Sized>(
 
     let attacker_won = win_prob.sample(rng);
     let net_advantage = attacker_rating - defender_rating;
+    let velocity_mitigation = calculate_velocity_mitigation(kind, attacker_won, net_advantage);
 
-    let outcome = DuelOutcome::new(
+    let outcome = DuelOutcome::with_mitigation(
         kind,
         attacker_won,
         attacker_rating,
         defender_rating,
         win_prob,
         net_advantage,
+        velocity_mitigation,
     );
 
     crate::psychology::systems::instrumentation::instrument_duel_outcome(
