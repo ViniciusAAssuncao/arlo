@@ -1,5 +1,5 @@
 use crate::aggregator::StatAggregator;
-use crate::manager::ManagerDecisionAggregator;
+use crate::manager::{ManagerDecisionAggregator, PlayCallOutcomeAggregator};
 use crate::player::{
     PlayerArtrineDecisionAggregator, PlayerAssistsAggregator, PlayerDrivesAggregator,
     PlayerDuelAggregator, PlayerImpulseAggregator, PlayerPhysicalAggregator,
@@ -38,6 +38,7 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerAssistsAggregator::new());
         registry.register_aggregator(TeamPossessionAggregator::new());
         registry.register_aggregator(ManagerDecisionAggregator::new());
+        registry.register_aggregator(PlayCallOutcomeAggregator::new());
         registry
     }
 
