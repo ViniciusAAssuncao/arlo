@@ -31,6 +31,8 @@ pub struct TeamRegistry {
     away_tactical_profile: TeamTacticalProfile,
     home_manager: Manager,
     away_manager: Manager,
+    home_available_profiles: Vec<TeamTacticalProfile>,
+    away_available_profiles: Vec<TeamTacticalProfile>,
     home_offensive_position_index: HashMap<Uuid, DomainPosition>,
     home_defensive_position_index: HashMap<Uuid, DomainPosition>,
     away_offensive_position_index: HashMap<Uuid, DomainPosition>,
@@ -51,6 +53,8 @@ impl TeamRegistry {
         away_tactical_profile: TeamTacticalProfile,
         home_manager: Manager,
         away_manager: Manager,
+        home_available_profiles: Vec<TeamTacticalProfile>,
+        away_available_profiles: Vec<TeamTacticalProfile>,
     ) -> Self {
         let (
             home_offensive_position_index,
@@ -74,6 +78,8 @@ impl TeamRegistry {
             away_tactical_profile,
             home_manager,
             away_manager,
+            home_available_profiles,
+            away_available_profiles,
             home_offensive_position_index,
             home_defensive_position_index,
             away_offensive_position_index,
@@ -132,6 +138,22 @@ impl TeamRegistry {
 
     pub fn away_manager(&self) -> &Manager {
         &self.away_manager
+    }
+
+    pub fn home_available_profiles(&self) -> &[TeamTacticalProfile] {
+        &self.home_available_profiles
+    }
+
+    pub fn away_available_profiles(&self) -> &[TeamTacticalProfile] {
+        &self.away_available_profiles
+    }
+
+    pub fn available_profiles_for_team(&self, team_id: Uuid) -> &[TeamTacticalProfile] {
+        if team_id == self.home_team_id {
+            &self.home_available_profiles
+        } else {
+            &self.away_available_profiles
+        }
     }
 
     pub fn manager_for_team(&self, team_id: Uuid) -> &Manager {

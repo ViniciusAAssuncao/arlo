@@ -14,6 +14,7 @@ pub struct TeamSetupParams {
     pub roster: Vec<Player>,
     pub tactical_profile: TeamTacticalProfile,
     pub manager: Manager,
+    pub available_profiles: Vec<TeamTacticalProfile>,
 }
 
 impl TeamSetupParams {
@@ -24,6 +25,7 @@ impl TeamSetupParams {
         roster: Vec<Player>,
         tactical_profile: TeamTacticalProfile,
         manager: Manager,
+        available_profiles: Vec<TeamTacticalProfile>,
     ) -> Self {
         Self {
             team_id,
@@ -32,6 +34,7 @@ impl TeamSetupParams {
             roster,
             tactical_profile,
             manager,
+            available_profiles,
         }
     }
 }

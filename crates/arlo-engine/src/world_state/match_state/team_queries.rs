@@ -38,6 +38,18 @@ impl MatchState {
         self.teams.away_manager()
     }
 
+    pub fn home_available_profiles(&self) -> &[TeamTacticalProfile] {
+        self.teams.home_available_profiles()
+    }
+
+    pub fn away_available_profiles(&self) -> &[TeamTacticalProfile] {
+        self.teams.away_available_profiles()
+    }
+
+    pub fn available_profiles_for_team(&self, team_id: Uuid) -> &[TeamTacticalProfile] {
+        self.teams.available_profiles_for_team(team_id)
+    }
+
     pub fn manager_for_team(&self, team_id: Uuid) -> &Manager {
         self.teams.manager_for_team(team_id)
     }

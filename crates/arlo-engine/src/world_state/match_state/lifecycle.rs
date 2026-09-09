@@ -53,6 +53,8 @@ impl MatchState {
             params.away.tactical_profile,
             params.home.manager,
             params.away.manager,
+            params.home.available_profiles,
+            params.away.available_profiles,
         );
 
         let home_squad = MatchdaySquad::from_roster_and_lineup(&params.home.roster, &home_lineup);
