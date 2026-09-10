@@ -18,3 +18,31 @@ rand_chacha.workspace = true
 rand_distr.workspace = true
 serde.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "attribute_extraction"
+path = "src/benches/attribute_extraction.rs"
+harness = false
+
+[[bench]]
+name = "duel_resolution"
+path = "src/benches/duel_resolution.rs"
+harness = false
+
+[[bench]]
+name = "spatial_tick_loop"
+path = "src/benches/spatial_tick_loop.rs"
+harness = false
+
+[[bench]]
+name = "full_play_simulation"
+path = "src/benches/full_play_simulation.rs"
+harness = false
+
+[[bench]]
+name = "lineup_hydration"
+path = "src/benches/lineup_hydration.rs"
+harness = false
