@@ -17,6 +17,8 @@ pub mod score;
 pub mod score_queries;
 pub mod setup_params;
 pub mod state;
+pub mod team_captains;
+pub mod team_position_indices;
 pub mod team_queries;
 pub mod teams;
 
