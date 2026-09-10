@@ -1,9 +1,9 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::{
     calculate_player_critical_speed, calculate_player_max_sprint_speed,
 };
 use crate::physical::state::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::Speed;
@@ -108,16 +108,14 @@ pub fn attribute_degradation_modifier(
 }
 
 pub fn extract_effective_attribute_value_with_impulse(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    table: &PlayerAttributeTable,
     key: AttributeKey,
     state: &PhysicalState,
     impulse_state: &ImpulseState,
+    baseline: f64,
 ) -> f64 {
-    let base_val = extract_attribute_value(player, attribute_keys, key);
-    let concentration =
-        extract_attribute_value(player, attribute_keys, AttributeKey::Concentration);
-    let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+    let base_val = extract_attribute_value(table, key);
+    let concentration = extract_attribute_value(table, AttributeKey::Concentration);
     let modifier = attribute_degradation_modifier_with_impulse(
         key,
         state,
@@ -129,14 +127,12 @@ pub fn extract_effective_attribute_value_with_impulse(
 }
 
 pub fn extract_effective_attribute_value(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    table: &PlayerAttributeTable,
     key: AttributeKey,
     state: &PhysicalState,
 ) -> f64 {
-    let base_val = extract_attribute_value(player, attribute_keys, key);
-    let concentration =
-        extract_attribute_value(player, attribute_keys, AttributeKey::Concentration);
+    let base_val = extract_attribute_value(table, key);
+    let concentration = extract_attribute_value(table, AttributeKey::Concentration);
     let modifier = attribute_degradation_modifier(key, state, concentration);
     (base_val * modifier).clamp(0.0, 20.0)
 }

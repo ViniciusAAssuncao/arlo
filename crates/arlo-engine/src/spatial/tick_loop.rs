@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::{
     calculate_desired_cruise_speed, calculate_player_body_mass, calculate_player_critical_speed,
 };
@@ -136,16 +137,17 @@ where
             .unwrap_or_else(Position::zero);
         trajectories.insert(pid, SpatialTrajectory::new(pid, initial_pos));
 
+        let table = PlayerAttributeTable::from_player(player, attribute_keys);
         let state = fatigue_for(&pid);
         let critical_speed_m_s = calculate_player_critical_speed(player, attribute_keys, 0).value();
-        let work_rate = extract_attribute_value(player, attribute_keys, AttributeKey::WorkRate);
+        let work_rate = extract_attribute_value(&table, AttributeKey::WorkRate);
         let positioning =
-            extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
-        let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
+            extract_attribute_value(&table, AttributeKey::Positioning);
+        let agility = extract_attribute_value(&table, AttributeKey::Agility);
         let acceleration =
-            extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-        let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
-        let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+            extract_attribute_value(&table, AttributeKey::Acceleration);
+        let balance = extract_attribute_value(&table, AttributeKey::Balance);
+        let strength = extract_attribute_value(&table, AttributeKey::Strength);
         let mass_kg = calculate_player_body_mass(player, attribute_keys);
         let physical_radius = derive_player_physical_radius(player, attribute_keys);
 

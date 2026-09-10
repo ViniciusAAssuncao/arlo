@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::state::PhysicalState;
 use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
@@ -15,9 +16,10 @@ pub fn calculate_player_recovery_tau(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let stamina = extract_attribute_value(&table, AttributeKey::Stamina);
     let natural_fitness =
-        extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
+        extract_attribute_value(&table, AttributeKey::NaturalFitness);
     calculate_recovery_tau(stamina, natural_fitness)
 }
 
@@ -42,9 +44,10 @@ pub fn recover_player_physical_state(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     dead_ball_seconds: f64,
 ) {
-    let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let stamina = extract_attribute_value(&table, AttributeKey::Stamina);
     let natural_fitness =
-        extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
+        extract_attribute_value(&table, AttributeKey::NaturalFitness);
     let new_w_prime = recover_w_prime(
         state.w_prime_balance(),
         dead_ball_seconds,

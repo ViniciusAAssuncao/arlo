@@ -18,11 +18,13 @@ pub mod team_identity;
 pub mod time;
 pub mod weighting;
 pub mod world_state;
+pub mod attributes;
 
 pub use error::{EngineError, EngineResult};
 pub use officiating::*;
 pub use open_play::*;
 pub use playmaking::*;
 pub use psychology::*;
+pub use attributes::*;
 pub use rng::{derive_sub_seed, derive_sub_seed_indexed, MatchSeed, RngProvider, RngStream};
 pub use time::*;

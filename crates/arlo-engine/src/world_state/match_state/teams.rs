@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::Lineup;
 use arlo_domain::{AttributeKey, Manager, Player, Position as DomainPosition, SlotRole};
 use arlo_tactics::{PlayCall, PlayerInstructions, TeamInstructions, TeamTacticalProfile};
@@ -43,6 +44,7 @@ pub struct TeamRegistry {
     away_role_index: HashMap<Uuid, SlotRole>,
     home_instructions_index: HashMap<Uuid, PlayerInstructions>,
     away_instructions_index: HashMap<Uuid, PlayerInstructions>,
+    player_attribute_tables: HashMap<Uuid, PlayerAttributeTable>,
 }
 
 impl TeamRegistry {
@@ -59,6 +61,7 @@ impl TeamRegistry {
         away_available_profiles: Vec<TeamTacticalProfile>,
         home_playbook: Vec<PlayCall>,
         away_playbook: Vec<PlayCall>,
+        player_attribute_tables: HashMap<Uuid, PlayerAttributeTable>,
     ) -> Self {
         let (
             home_offensive_position_index,
@@ -94,6 +97,7 @@ impl TeamRegistry {
             away_role_index,
             home_instructions_index,
             away_instructions_index,
+            player_attribute_tables,
         }
     }
 
@@ -112,6 +116,18 @@ impl TeamRegistry {
             self.away_role_index = role_idx;
             self.away_instructions_index = instr_idx;
         }
+    }
+
+    pub fn player_attribute_tables(&self) -> &HashMap<Uuid, PlayerAttributeTable> {
+        &self.player_attribute_tables
+    }
+
+    pub fn player_attribute_table(&self, player_id: &Uuid) -> Option<&PlayerAttributeTable> {
+        self.player_attribute_tables.get(player_id)
+    }
+
+    pub fn insert_player_attribute_table(&mut self, player_id: Uuid, table: PlayerAttributeTable) {
+        self.player_attribute_tables.insert(player_id, table);
     }
 
     pub fn home_team_id(&self) -> Uuid {

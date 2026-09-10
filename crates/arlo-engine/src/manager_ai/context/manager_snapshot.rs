@@ -1,4 +1,4 @@
-use crate::manager_ai::context::manager_attribute_extraction::extract_manager_attribute_value;
+use crate::attributes::ManagerAttributeTable;
 use arlo_domain::sport_constants::managerial::effective_manager_flexibility;
 use arlo_domain::{AttributeKey, Manager, ManagerTacticalProfile};
 use serde::{Deserialize, Serialize};
@@ -68,60 +68,22 @@ impl ManagerSnapshot {
     }
 
     pub fn from_manager(manager: &Manager, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Self {
-        let tactical_knowledge = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::TacticalKnowledge,
-        );
-        let offense_planning =
-            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::OffensePlanning);
-        let defense_organization = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::DefenseOrganization,
-        );
-        let artro_strategy =
-            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::ArtroStrategy);
-        let adaptability =
-            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::Adaptability);
-        let artrine_communication = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::ArtrineCommunication,
-        );
-        let time_call_management = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::TimeCallManagement,
-        );
-        let challenge_judgment = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::ChallengeJudgment,
-        );
-        let in_game_adjustments = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::InGameAdjustments,
-        );
-        let man_management =
-            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::ManManagement);
-        let load_management =
-            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::LoadManagement);
-        let player_development = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::PlayerDevelopment,
-        );
-        let judging_ability =
-            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::JudgingAbility);
-        let judging_potential = extract_manager_attribute_value(
-            manager,
-            attribute_keys,
-            AttributeKey::JudgingPotential,
-        );
-        let discipline =
-            extract_manager_attribute_value(manager, attribute_keys, AttributeKey::Discipline);
+        let table = ManagerAttributeTable::from_manager(manager, attribute_keys);
+        let tactical_knowledge = table.get(AttributeKey::TacticalKnowledge);
+        let offense_planning = table.get(AttributeKey::OffensePlanning);
+        let defense_organization = table.get(AttributeKey::DefenseOrganization);
+        let artro_strategy = table.get(AttributeKey::ArtroStrategy);
+        let adaptability = table.get(AttributeKey::Adaptability);
+        let artrine_communication = table.get(AttributeKey::ArtrineCommunication);
+        let time_call_management = table.get(AttributeKey::TimeCallManagement);
+        let challenge_judgment = table.get(AttributeKey::ChallengeJudgment);
+        let in_game_adjustments = table.get(AttributeKey::InGameAdjustments);
+        let man_management = table.get(AttributeKey::ManManagement);
+        let load_management = table.get(AttributeKey::LoadManagement);
+        let player_development = table.get(AttributeKey::PlayerDevelopment);
+        let judging_ability = table.get(AttributeKey::JudgingAbility);
+        let judging_potential = table.get(AttributeKey::JudgingPotential);
+        let discipline = table.get(AttributeKey::Discipline);
         let tactical_profile = manager.tactical_profile().cloned();
         let flexibility_tendency = tactical_profile
             .as_ref()

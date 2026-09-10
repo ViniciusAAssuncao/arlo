@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::aerobic::calculate_age_degradation;
 use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
@@ -78,7 +79,8 @@ pub fn calculate_player_body_mass(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let strength = extract_attribute_value(&table, AttributeKey::Strength);
     estimate_body_mass(player.height_m(), strength)
 }
 
@@ -86,8 +88,9 @@ pub fn calculate_player_max_sprint_speed(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> Speed {
-    let pace = extract_attribute_value(player, attribute_keys, AttributeKey::Pace);
-    let accel = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let pace = extract_attribute_value(&table, AttributeKey::Pace);
+    let accel = extract_attribute_value(&table, AttributeKey::Acceleration);
     let mass = calculate_player_body_mass(player, attribute_keys);
     let val = calculate_max_sprint_speed(pace, accel, player.height_m(), mass);
     Speed::new(val)
@@ -98,9 +101,10 @@ pub fn calculate_player_critical_speed(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     current_time_unix_seconds: i64,
 ) -> Speed {
-    let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
-    let fitness = extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
-    let pace = extract_attribute_value(player, attribute_keys, AttributeKey::Pace);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let stamina = extract_attribute_value(&table, AttributeKey::Stamina);
+    let fitness = extract_attribute_value(&table, AttributeKey::NaturalFitness);
+    let pace = extract_attribute_value(&table, AttributeKey::Pace);
     let age =
         crate::physical::models::aerobic::calculate_player_age(player, current_time_unix_seconds);
     let val = calculate_critical_speed(stamina, fitness, pace, age);
@@ -111,8 +115,9 @@ pub fn calculate_player_max_w_prime(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
-    let accel = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let strength = extract_attribute_value(&table, AttributeKey::Strength);
+    let accel = extract_attribute_value(&table, AttributeKey::Acceleration);
     let mass = calculate_player_body_mass(player, attribute_keys);
     calculate_max_w_prime(strength, accel, mass)
 }
@@ -122,10 +127,11 @@ pub fn calculate_player_desired_cruise_speed(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     current_time_unix_seconds: i64,
 ) -> Speed {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let v_crit =
         calculate_player_critical_speed(player, attribute_keys, current_time_unix_seconds).value();
-    let work_rate = extract_attribute_value(player, attribute_keys, AttributeKey::WorkRate);
-    let positioning = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
+    let work_rate = extract_attribute_value(&table, AttributeKey::WorkRate);
+    let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
     let val = calculate_desired_cruise_speed(v_crit, work_rate, positioning);
     Speed::new(val)
 }
@@ -135,9 +141,10 @@ pub fn calculate_player_max_acceleration(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_multiplier: f64,
 ) -> f64 {
-    let accel = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-    let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
-    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let accel = extract_attribute_value(&table, AttributeKey::Acceleration);
+    let agility = extract_attribute_value(&table, AttributeKey::Agility);
+    let strength = extract_attribute_value(&table, AttributeKey::Strength);
     let mass = calculate_player_body_mass(player, attribute_keys);
     calculate_max_acceleration(accel, agility, strength, mass, fatigue_multiplier)
 }

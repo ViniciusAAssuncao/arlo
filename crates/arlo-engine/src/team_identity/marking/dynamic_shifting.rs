@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
@@ -34,13 +35,14 @@ pub fn calculate_carrier_defensive_shift(
         (FIRST_ZONE_DEPTH_MIRIM * MIRIM_TO_METERS).min(pitch_length_m)
     };
 
-    let positioning = extract_attribute_value(defender, attribute_keys, AttributeKey::Positioning);
-    let anticipation = extract_attribute_value(defender, attribute_keys, AttributeKey::Anticipation);
-    let decisions = extract_attribute_value(defender, attribute_keys, AttributeKey::Decisions);
+    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
+    let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
+    let anticipation = extract_attribute_value(&table, AttributeKey::Anticipation);
+    let decisions = extract_attribute_value(&table, AttributeKey::Decisions);
     let tactical_knowledge =
-        extract_attribute_value(defender, attribute_keys, AttributeKey::TacticalKnowledge);
+        extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
     let containment =
-        extract_attribute_value(defender, attribute_keys, AttributeKey::DefensiveContainment);
+        extract_attribute_value(&table, AttributeKey::DefensiveContainment);
 
     let tactical_rating = ((positioning * 0.30
         + anticipation * 0.25

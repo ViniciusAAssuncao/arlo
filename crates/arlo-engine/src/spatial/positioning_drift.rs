@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::proximity::calculate_distance;
@@ -74,7 +75,8 @@ pub fn get_drifted_defender_position<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> Option<Position> {
     let anchor = spatial_map.get_position(&defender.id())?;
-    let positioning = extract_attribute_value(defender, attribute_keys, AttributeKey::Positioning);
+    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
+    let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
     Some(apply_positioning_drift(anchor, positioning, rng))
 }
 
@@ -87,7 +89,8 @@ pub fn get_drifted_attacker_position<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> Option<Position> {
     let anchor = spatial_map.get_position(&attacker.id())?;
-    let positioning = extract_attribute_value(attacker, attribute_keys, AttributeKey::Positioning);
+    let table = PlayerAttributeTable::from_player(attacker, attribute_keys);
+    let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
     let structure = instructions.in_possession().structure().value();
     let creative_license = player_instructions
         .in_possession()

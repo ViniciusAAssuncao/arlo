@@ -6,6 +6,7 @@ use crate::artrine::logistics::{
     collect_drifted_defender_candidates, collect_swept_participant_ids,
     resolve_primary_lead_defender,
 };
+use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::target_selection::{select_target_with_fatigue, ReceptionRole};
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
@@ -199,15 +200,11 @@ where
     let caught = raw_duel.attacker_won();
 
     let intercepted_by_defender = if !caught {
-        let def_hands =
-            extract_attribute_value(lead_defender, attribute_keys, AttributeKey::HandsReception);
-        let def_ant =
-            extract_attribute_value(lead_defender, attribute_keys, AttributeKey::Anticipation);
-        let att_hands = extract_attribute_value(
-            receiver_player,
-            attribute_keys,
-            AttributeKey::HandsReception,
-        );
+        let def_table = PlayerAttributeTable::from_player(lead_defender, attribute_keys);
+        let def_hands = extract_attribute_value(&def_table, AttributeKey::HandsReception);
+        let def_ant = extract_attribute_value(&def_table, AttributeKey::Anticipation);
+        let att_table = PlayerAttributeTable::from_player(receiver_player, attribute_keys);
+        let att_hands = extract_attribute_value(&att_table, AttributeKey::HandsReception);
         let hands_diff = def_hands - att_hands;
         let threshold = -(INTERCEPTION_BASE_THRESHOLD
             - (hands_diff * INTERCEPTION_HANDS_DIFF_WEIGHT

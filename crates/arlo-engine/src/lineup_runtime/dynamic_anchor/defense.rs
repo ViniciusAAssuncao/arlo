@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::team_identity::depth_from_bipolar;
@@ -60,11 +61,10 @@ pub fn calculate_defense_attractor_coordinates(
     let pitch_width_m = pitch.width().value();
     let target_position = slot.defensive_position();
 
-    let work_rate = extract_attribute_value(player, attribute_keys, AttributeKey::WorkRate);
-    let tactical_knowledge =
-        extract_attribute_value(player, attribute_keys, AttributeKey::TacticalKnowledge);
-    let determination =
-        extract_attribute_value(player, attribute_keys, AttributeKey::Determination);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let work_rate = extract_attribute_value(&table, AttributeKey::WorkRate);
+    let tactical_knowledge = extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
+    let determination = extract_attribute_value(&table, AttributeKey::Determination);
 
     let tracking_factor = ((work_rate * 0.5 + tactical_knowledge * 0.35 + determination * 0.15)
         / 20.0)

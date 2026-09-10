@@ -1,4 +1,5 @@
 use crate::ai::cognitive::decision_threshold::action_probability;
+use crate::attributes::PlayerAttributeTable;
 use crate::manager_ai::context::ManagerSnapshot;
 use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::sport_constants::manager_cognition::{
@@ -19,36 +20,34 @@ fn evaluate_candidate_suitability(
     role: SlotRole,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     match role {
         SlotRole::FalseArtrine => {
-            let bluff =
-                extract_attribute_value(player, attribute_keys, AttributeKey::FalseArtrineBluff);
-            let tech = extract_attribute_value(player, attribute_keys, AttributeKey::Technique);
-            let flair = extract_attribute_value(player, attribute_keys, AttributeKey::Flair);
+            let bluff = extract_attribute_value(&table, AttributeKey::FalseArtrineBluff);
+            let tech = extract_attribute_value(&table, AttributeKey::Technique);
+            let flair = extract_attribute_value(&table, AttributeKey::Flair);
             bluff * 0.5 + tech * 0.3 + flair * 0.2
         }
         SlotRole::Launcher => {
-            let pass = extract_attribute_value(player, attribute_keys, AttributeKey::Passing);
-            let vision = extract_attribute_value(player, attribute_keys, AttributeKey::Vision);
-            let tech = extract_attribute_value(player, attribute_keys, AttributeKey::Technique);
+            let pass = extract_attribute_value(&table, AttributeKey::Passing);
+            let vision = extract_attribute_value(&table, AttributeKey::Vision);
+            let tech = extract_attribute_value(&table, AttributeKey::Technique);
             pass * 0.5 + vision * 0.3 + tech * 0.2
         }
         SlotRole::Safeguard => {
-            let block =
-                extract_attribute_value(player, attribute_keys, AttributeKey::OffensiveBlocking);
-            let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
-            let pos = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
+            let block = extract_attribute_value(&table, AttributeKey::OffensiveBlocking);
+            let strength = extract_attribute_value(&table, AttributeKey::Strength);
+            let pos = extract_attribute_value(&table, AttributeKey::Positioning);
             block * 0.5 + strength * 0.3 + pos * 0.2
         }
         SlotRole::Kicker => {
-            let kick = extract_attribute_value(player, attribute_keys, AttributeKey::GoalKicking);
-            let finish = extract_attribute_value(player, attribute_keys, AttributeKey::Finishing);
+            let kick = extract_attribute_value(&table, AttributeKey::GoalKicking);
+            let finish = extract_attribute_value(&table, AttributeKey::Finishing);
             kick * 0.6 + finish * 0.4
         }
         SlotRole::Blocker => {
-            let block =
-                extract_attribute_value(player, attribute_keys, AttributeKey::OffensiveBlocking);
-            let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+            let block = extract_attribute_value(&table, AttributeKey::OffensiveBlocking);
+            let strength = extract_attribute_value(&table, AttributeKey::Strength);
             block * 0.6 + strength * 0.4
         }
         SlotRole::Standard => 0.0,

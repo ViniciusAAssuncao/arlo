@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
 use crate::spatial::decision_vector::{calculate_player_speed, extract_attribute_value};
 use crate::spatial::DynamicSpatialMap;
@@ -24,7 +25,8 @@ where
     let fatigue = fatigue_for(&player.id());
     let mult = compute_player_fatigue_multiplier(player, &fatigue, attribute_keys);
     let speed = calculate_player_speed(player, attribute_keys, mult).value();
-    let ant = extract_attribute_value(player, attribute_keys, AttributeKey::Anticipation);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let ant = extract_attribute_value(&table, AttributeKey::Anticipation);
     let reaction_time = ((20.0 - ant) * 0.015).max(0.05);
 
     VoronoiSite::new(

@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
 use crate::spatial::decision_vector::{
     calculate_player_speed, derive_velocity_towards_target, extract_attribute_value,
@@ -46,8 +47,9 @@ pub fn calculate_defender_tti(
         }
     };
 
-    let ant = extract_attribute_value(defender, attribute_keys, AttributeKey::Anticipation);
-    let pos = extract_attribute_value(defender, attribute_keys, AttributeKey::Positioning);
+    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
+    let ant = extract_attribute_value(&table, AttributeKey::Anticipation);
+    let pos = extract_attribute_value(&table, AttributeKey::Positioning);
     let mental_scale = (1.0
         - (ant * 0.015 + pos * 0.015 + depth_discipline.value() * 0.015 * ATTRIBUTE_MAX))
         .clamp(0.35, 1.35);

@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
 use arlo_domain::sport_constants::{
@@ -15,10 +16,11 @@ pub fn calculate_pass_speed_with_state(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     state: &PhysicalState,
 ) -> Speed {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let passing =
-        extract_effective_attribute_value(player, attribute_keys, AttributeKey::Passing, state);
+        extract_effective_attribute_value(&table, AttributeKey::Passing, state);
     let technique =
-        extract_effective_attribute_value(player, attribute_keys, AttributeKey::Technique, state);
+        extract_effective_attribute_value(&table, AttributeKey::Technique, state);
     let speed_val = BASE_THROW_SPEED_METERS_PER_SEC
         + (passing * THROW_SPEED_PASSING_SCALE)
         + (technique * THROW_SPEED_TECHNIQUE_SCALE);
@@ -37,8 +39,9 @@ pub fn calculate_cross_speed_with_state(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     state: &PhysicalState,
 ) -> Speed {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let crossing =
-        extract_effective_attribute_value(player, attribute_keys, AttributeKey::Crossing, state);
+        extract_effective_attribute_value(&table, AttributeKey::Crossing, state);
     let speed_val = BASE_CROSS_SPEED_METERS_PER_SEC + (crossing * CROSS_SPEED_CROSSING_SCALE);
     Speed::new(speed_val)
 }
@@ -55,10 +58,11 @@ pub fn calculate_shot_speed_with_state(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     state: &PhysicalState,
 ) -> Speed {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let finishing =
-        extract_effective_attribute_value(player, attribute_keys, AttributeKey::Finishing, state);
+        extract_effective_attribute_value(&table, AttributeKey::Finishing, state);
     let technique =
-        extract_effective_attribute_value(player, attribute_keys, AttributeKey::Technique, state);
+        extract_effective_attribute_value(&table, AttributeKey::Technique, state);
     let speed_val = BASE_SHOT_SPEED_METERS_PER_SEC
         + (finishing * SHOT_SPEED_FINISHING_SCALE)
         + (technique * SHOT_SPEED_TECHNIQUE_SCALE);

@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::error::EngineResult;
 use crate::lineup_runtime::hydrate;
 use crate::possession::PossessionSnapshot;
@@ -17,6 +18,7 @@ use crate::world_state::match_state::setup_params::MatchSetupParams;
 use crate::world_state::match_state::state::MatchState;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_math::units::Position;
+use std::collections::HashMap;
 
 impl MatchState {
     pub fn new(params: MatchSetupParams) -> EngineResult<Self> {
@@ -46,6 +48,14 @@ impl MatchState {
         let clock = MatchClock::new(&params.format_rules);
         let real_time = RealTimeAccumulator::new();
 
+        let mut player_attribute_tables = HashMap::with_capacity(params.home.roster.len() + params.away.roster.len());
+        for p in params.home.roster.iter().chain(params.away.roster.iter()) {
+            player_attribute_tables.insert(
+                p.id(),
+                PlayerAttributeTable::from_player(p, &params.attribute_keys),
+            );
+        }
+
         let teams = TeamRegistry::new(
             params.home.team_id,
             params.away.team_id,
@@ -59,6 +69,7 @@ impl MatchState {
             params.away.available_profiles,
             params.home.playbook,
             params.away.playbook,
+            player_attribute_tables,
         );
 
         let home_squad = MatchdaySquad::from_roster_and_lineup(&params.home.roster, &home_lineup);

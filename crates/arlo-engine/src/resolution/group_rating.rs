@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
@@ -19,12 +20,13 @@ pub fn calculate_player_duel_rating_with_state(
     profile: &DuelProfile,
     state: &PhysicalState,
 ) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let mut total_weight = 0.0;
     let mut accumulated = 0.0;
 
     for w in profile.weights() {
         if w.weight > 0.0 {
-            let val = extract_effective_attribute_value(player, attribute_keys, w.key, state);
+            let val = extract_effective_attribute_value(&table, w.key, state);
             accumulated += val * w.weight;
             total_weight += w.weight;
         }

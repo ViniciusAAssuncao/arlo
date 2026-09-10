@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors, AnchorComputationContext};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
@@ -315,9 +316,10 @@ pub fn derive_and_apply_reorganization(
         });
 
     let (tac, lead) = if let Some(artrine) = offense_artrine {
+        let table = PlayerAttributeTable::from_player(artrine, &attribute_keys);
         let tac =
-            extract_attribute_value(artrine, &attribute_keys, AttributeKey::TacticalKnowledge);
-        let lead = extract_attribute_value(artrine, &attribute_keys, AttributeKey::Leadership);
+            extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
+        let lead = extract_attribute_value(&table, AttributeKey::Leadership);
         (tac, lead)
     } else {
         (DEFAULT_ATTRIBUTE_VALUE, DEFAULT_ATTRIBUTE_VALUE)

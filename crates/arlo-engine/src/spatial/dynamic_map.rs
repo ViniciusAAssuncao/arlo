@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::error::EngineResult;
 use crate::lineup_runtime::lineup::Lineup;
 use crate::lineup_runtime::spatial_anchor::SpatialAnchorMap;
@@ -131,9 +132,10 @@ impl DynamicSpatialMap {
     ) {
         let pid = player.id();
         if let Some(&current_pos) = self.positions.get(&pid) {
+            let table = PlayerAttributeTable::from_player(player, attribute_keys);
             let base_speed = calculate_player_speed(player, attribute_keys, fatigue_multiplier);
-            let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
-            let pace = extract_attribute_value(player, attribute_keys, AttributeKey::Pace);
+            let balance = extract_attribute_value(&table, AttributeKey::Balance);
+            let pace = extract_attribute_value(&table, AttributeKey::Pace);
             let momentum_boost =
                 ((net_advantage * 0.08) + ((balance - 10.0) * 0.02) + ((pace - 10.0) * 0.02))
                     .clamp(0.0, 0.75);

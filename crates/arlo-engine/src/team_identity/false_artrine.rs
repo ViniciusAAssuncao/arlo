@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::dynamic_anchor::calculate_defense_attractor_coordinates;
 use crate::lineup_runtime::dynamic_anchor::offense::calculate_offense_attractor_coordinates_for_position;
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
@@ -99,9 +100,9 @@ where
         .unwrap_or_else(VectorPosition::zero);
     let fatigue = fatigue_for(&false_artrine.id());
     let speed = calculate_effective_player_speed(false_artrine, attribute_keys, &fatigue).value();
+    let table = PlayerAttributeTable::from_player(false_artrine, attribute_keys);
     let bluff = extract_attribute_value(
-        false_artrine,
-        attribute_keys,
+        &table,
         AttributeKey::FalseArtrineBluff,
     );
     let reaction_time = ((20.0 - bluff) * 0.015).max(0.05);

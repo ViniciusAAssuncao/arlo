@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::proximity::calculate_distance;
@@ -8,8 +9,9 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 pub fn defender_variance(defender: &Player, attribute_keys: &HashMap<Uuid, AttributeKey>) -> f64 {
-    let accel = extract_attribute_value(defender, attribute_keys, AttributeKey::Acceleration);
-    let pace = extract_attribute_value(defender, attribute_keys, AttributeKey::Pace);
+    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
+    let accel = extract_attribute_value(&table, AttributeKey::Acceleration);
+    let pace = extract_attribute_value(&table, AttributeKey::Pace);
     2.0 + (0.35 * pace) + (0.35 * accel)
 }
 

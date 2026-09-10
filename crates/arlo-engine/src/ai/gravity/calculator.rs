@@ -1,4 +1,5 @@
 use crate::ai::gravity::model::OffensiveGravity;
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
@@ -21,96 +22,58 @@ pub fn calculate_player_offensive_gravity_with_state(
     zone_factor: f64,
     state: &PhysicalState,
 ) -> OffensiveGravity {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+
     let finishing_attrs = [
         (
-            extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Finishing,
-                state,
-            ),
+            extract_effective_attribute_value(&table, AttributeKey::Finishing, state),
             5.0,
         ),
         (
-            extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Composure,
-                state,
-            ),
+            extract_effective_attribute_value(&table, AttributeKey::Composure, state),
             4.0,
         ),
         (
-            extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Anticipation,
-                state,
-            ),
+            extract_effective_attribute_value(&table, AttributeKey::Anticipation, state),
             3.5,
         ),
         (
-            extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Technique,
-                state,
-            ),
+            extract_effective_attribute_value(&table, AttributeKey::Technique, state),
             3.5,
         ),
         (
-            extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Positioning,
-                state,
-            ),
+            extract_effective_attribute_value(&table, AttributeKey::Positioning, state),
             3.0,
         ),
         (
-            extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Decisions,
-                state,
-            ),
+            extract_effective_attribute_value(&table, AttributeKey::Decisions, state),
             2.5,
         ),
     ];
 
     let creation_attrs = [
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Passing, state),
+            extract_effective_attribute_value(&table, AttributeKey::Passing, state),
             4.5,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Vision, state),
+            extract_effective_attribute_value(&table, AttributeKey::Vision, state),
             4.5,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Flair, state),
+            extract_effective_attribute_value(&table, AttributeKey::Flair, state),
             3.5,
         ),
         (
-            extract_effective_attribute_value(player, attribute_keys, AttributeKey::Agility, state),
+            extract_effective_attribute_value(&table, AttributeKey::Agility, state),
             3.0,
         ),
         (
-            extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Acceleration,
-                state,
-            ),
+            extract_effective_attribute_value(&table, AttributeKey::Acceleration, state),
             3.0,
         ),
         (
-            extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::ArloControl,
-                state,
-            ),
+            extract_effective_attribute_value(&table, AttributeKey::ArloControl, state),
             3.0,
         ),
     ];

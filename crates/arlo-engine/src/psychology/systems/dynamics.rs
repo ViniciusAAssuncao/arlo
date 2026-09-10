@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
@@ -24,9 +25,10 @@ pub fn calculate_player_impulse_recovery_tau(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let stamina = extract_attribute_value(&table, AttributeKey::Stamina);
     let natural_fitness =
-        extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
+        extract_attribute_value(&table, AttributeKey::NaturalFitness);
     calculate_impulse_recovery_tau(stamina, natural_fitness)
 }
 

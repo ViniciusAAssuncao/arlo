@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::weighting::apply_saturation;
 use arlo_domain::{AttributeKey, Player};
@@ -29,8 +30,9 @@ pub fn derive_player_arrival_radius(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_multiplier: f64,
 ) -> f64 {
-    let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
-    let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let agility = extract_attribute_value(&table, AttributeKey::Agility);
+    let balance = extract_attribute_value(&table, AttributeKey::Balance);
     derive_arrival_slowing_radius(current_speed, agility, balance, fatigue_multiplier)
 }
 
@@ -38,9 +40,10 @@ pub fn derive_player_physical_radius(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let height = player.height_m().clamp(1.4, 2.3);
     let strength =
-        extract_attribute_value(player, attribute_keys, AttributeKey::Strength).clamp(0.0, 20.0);
+        extract_attribute_value(&table, AttributeKey::Strength).clamp(0.0, 20.0);
     height * (0.22 + 0.008 * strength)
 }
 

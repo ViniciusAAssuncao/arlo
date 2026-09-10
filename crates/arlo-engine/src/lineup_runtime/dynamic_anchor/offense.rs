@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::positioning_drift::anchor_drift_radius_mirim;
@@ -69,12 +70,11 @@ pub fn calculate_offense_attractor_coordinates_for_position(
 
     let push_distance_m = match target_position.line() {
         PositionLine::DefenseLine => {
+            let table = PlayerAttributeTable::from_player(player, attribute_keys);
             let tactical_knowledge =
-                extract_attribute_value(player, attribute_keys, AttributeKey::TacticalKnowledge);
-            let positioning =
-                extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
-            let anticipation =
-                extract_attribute_value(player, attribute_keys, AttributeKey::Anticipation);
+                extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
+            let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
+            let anticipation = extract_attribute_value(&table, AttributeKey::Anticipation);
 
             let push_factor =
                 ((tactical_knowledge * 0.45 + positioning * 0.35 + anticipation * 0.2) / 20.0)
@@ -164,7 +164,8 @@ pub fn calculate_offense_drift_radius_mirim(
     instructions: &TeamInstructions,
     player_instructions: PlayerInstructions,
 ) -> f64 {
-    let positioning = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
     let structure_val = instructions.in_possession().structure().value();
     let base_radius = anchor_drift_radius_mirim(positioning);
     let team_structure_multiplier = (1.0 - structure_val).max(0.0);

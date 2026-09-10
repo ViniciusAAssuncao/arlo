@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::weighting::{calculate_weighted_saturated_average, AttributeWeight};
 use arlo_domain::sport_constants::{
@@ -41,10 +42,11 @@ pub fn calculate_player_impulse_baseline_with_profile(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     profile: &ImpulseBaselineProfile,
 ) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let mut items = Vec::with_capacity(profile.weights().len());
     for w in profile.weights() {
         if w.weight > 0.0 {
-            let val = extract_attribute_value(player, attribute_keys, w.key);
+            let val = extract_attribute_value(&table, w.key);
             items.push((val, w.weight));
         }
     }
@@ -92,8 +94,10 @@ pub fn find_active_captain<'a>(
     }
 
     players.iter().copied().max_by(|a, b| {
-        let lead_a = extract_attribute_value(a, attribute_keys, AttributeKey::Leadership);
-        let lead_b = extract_attribute_value(b, attribute_keys, AttributeKey::Leadership);
+        let table_a = PlayerAttributeTable::from_player(a, attribute_keys);
+        let table_b = PlayerAttributeTable::from_player(b, attribute_keys);
+        let lead_a = extract_attribute_value(&table_a, AttributeKey::Leadership);
+        let lead_b = extract_attribute_value(&table_b, AttributeKey::Leadership);
         lead_a
             .partial_cmp(&lead_b)
             .unwrap_or(std::cmp::Ordering::Equal)
@@ -104,12 +108,13 @@ pub fn calculate_captaincy_influence(
     captain: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let leadership = extract_attribute_value(captain, attribute_keys, AttributeKey::Leadership);
+    let table = PlayerAttributeTable::from_player(captain, attribute_keys);
+    let leadership = extract_attribute_value(&table, AttributeKey::Leadership);
     let communication =
-        extract_attribute_value(captain, attribute_keys, AttributeKey::Communication);
+        extract_attribute_value(&table, AttributeKey::Communication);
     let determination =
-        extract_attribute_value(captain, attribute_keys, AttributeKey::Determination);
-    let teamwork = extract_attribute_value(captain, attribute_keys, AttributeKey::Teamwork);
+        extract_attribute_value(&table, AttributeKey::Determination);
+    let teamwork = extract_attribute_value(&table, AttributeKey::Teamwork);
 
     let composite =
         (leadership * 0.40 + communication * 0.25 + determination * 0.20 + teamwork * 0.15) / 20.0;

@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::state::PhysicalState;
 use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
@@ -55,9 +56,10 @@ pub fn calculate_player_aerobic_energy(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     current_time_unix_seconds: i64,
 ) -> f64 {
-    let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let stamina = extract_attribute_value(&table, AttributeKey::Stamina);
     let natural_fitness =
-        extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
+        extract_attribute_value(&table, AttributeKey::NaturalFitness);
     let age_years = calculate_player_age(player, current_time_unix_seconds);
     calculate_aerobic_energy_decay(
         cumulative_distance_mirim,

@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::{
     calculate_physical_exhaustion, extract_effective_attribute_value_with_impulse,
 };
@@ -61,33 +62,36 @@ impl RiskProfile {
         physical_state: &PhysicalState,
         impulse_state: &ImpulseState,
     ) -> Self {
+        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+        let table = PlayerAttributeTable::from_player(player, attribute_keys);
+
         let flair = extract_effective_attribute_value_with_impulse(
-            player,
-            attribute_keys,
+            &table,
             AttributeKey::Flair,
             physical_state,
             impulse_state,
+            baseline,
         );
         let bravery = extract_effective_attribute_value_with_impulse(
-            player,
-            attribute_keys,
+            &table,
             AttributeKey::Bravery,
             physical_state,
             impulse_state,
+            baseline,
         );
         let vision = extract_effective_attribute_value_with_impulse(
-            player,
-            attribute_keys,
+            &table,
             AttributeKey::Vision,
             physical_state,
             impulse_state,
+            baseline,
         );
         let decisions = extract_effective_attribute_value_with_impulse(
-            player,
-            attribute_keys,
+            &table,
             AttributeKey::Decisions,
             physical_state,
             impulse_state,
+            baseline,
         );
 
         let norm_flair = (flair.clamp(0.0, 20.0)) / 10.0;
@@ -103,7 +107,6 @@ impl RiskProfile {
             + 0.20 * norm_vision
             + 0.15 * norm_decisions;
 
-        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
         let impulse_delta = impulse_state.accumulator() - baseline;
         let norm_impulse_delta = impulse_delta / 50.0;
 

@@ -1,5 +1,6 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::epv::DynamicEpvModel;
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
 use crate::resolution::duel_noise::player_noise_distribution;
@@ -94,9 +95,9 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn consistency(&self) -> f64 {
+        let table = PlayerAttributeTable::from_player(self.carrier, self.attribute_keys);
         extract_effective_attribute_value(
-            self.carrier,
-            self.attribute_keys,
+            &table,
             AttributeKey::Consistency,
             &self.carrier_physical_state,
         )

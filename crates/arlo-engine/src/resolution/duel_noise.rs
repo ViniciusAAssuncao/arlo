@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::extract_effective_attribute_value_with_impulse;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
@@ -15,40 +16,41 @@ pub fn player_noise_distribution_with_impulse(
     physical_state: &PhysicalState,
     impulse_state: &ImpulseState,
 ) -> SkewNormalParams {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let baseline = calculate_player_impulse_baseline(player, attribute_keys);
     let consistency = extract_effective_attribute_value_with_impulse(
-        player,
-        attribute_keys,
+        &table,
         AttributeKey::Consistency,
         physical_state,
         impulse_state,
+        baseline,
     );
     let technique = extract_effective_attribute_value_with_impulse(
-        player,
-        attribute_keys,
+        &table,
         AttributeKey::Technique,
         physical_state,
         impulse_state,
+        baseline,
     );
     let flair = extract_effective_attribute_value_with_impulse(
-        player,
-        attribute_keys,
+        &table,
         AttributeKey::Flair,
         physical_state,
         impulse_state,
+        baseline,
     );
     let composure = extract_effective_attribute_value_with_impulse(
-        player,
-        attribute_keys,
+        &table,
         AttributeKey::Composure,
         physical_state,
         impulse_state,
+        baseline,
     );
 
     let fatigue_noise_scale = 1.0
         + (1.0 - physical_state.energy()) * 0.60
         + (1.0 - physical_state.w_prime_balance()) * 0.40;
 
-    let baseline = calculate_player_impulse_baseline(player, attribute_keys);
     let depression_from_impulse = if impulse_state.accumulator() < baseline {
         let deficit = baseline - impulse_state.accumulator();
         (2.0 / (1.0 + (-0.06 * deficit).exp()) - 1.0).clamp(0.0, 0.60)

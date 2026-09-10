@@ -1,4 +1,5 @@
-use crate::spatial::decision_vector::extract_attribute_value;
+use crate::attributes::ManagerAttributeTable;
+use crate::spatial::decision_vector::extract_attribute_value_from_player;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
 use crate::team_identity::marking::block_marking_role::BlockMarkingRole;
@@ -33,30 +34,12 @@ pub fn eligible_block_marking_defenders<'a>(
         .collect()
 }
 
-pub fn extract_manager_attribute_value(
-    manager: &Manager,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    target: AttributeKey,
-) -> f64 {
-    let target_id = attribute_keys
-        .iter()
-        .find_map(|(id, &key)| if key == target { Some(*id) } else { None });
-
-    if let Some(target_id) = target_id {
-        for attr in manager.attributes() {
-            if attr.attribute_definition_id() == target_id {
-                return attr.value() as f64;
-            }
-        }
-    }
-    10.0
-}
-
 pub fn extract_manager_artro_strategy_fidelity(
     manager: &Manager,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let raw = extract_manager_attribute_value(manager, attribute_keys, AttributeKey::ArtroStrategy);
+    let table = ManagerAttributeTable::from_manager(manager, attribute_keys);
+    let raw = table.get(AttributeKey::ArtroStrategy);
     (raw / ATTRIBUTE_MAX).clamp(0.0, 1.0)
 }
 
@@ -85,8 +68,11 @@ pub fn derive_block_marking_roles(
             .unwrap_or(reference_pos);
         let dist_mirim = calculate_distance_mirim(def_pos, reference_pos);
         let proximity_score = 1.0 / (1.0 + dist_mirim);
-        let aggression_val =
-            extract_attribute_value(defender, attribute_keys, AttributeKey::ControlledAggression);
+        let aggression_val = extract_attribute_value_from_player(
+            defender,
+            attribute_keys,
+            AttributeKey::ControlledAggression,
+        );
         let norm_aggression = (aggression_val / ATTRIBUTE_MAX).clamp(0.0, 1.0);
 
         let raw_score = proximity_score * BLOCK_MARKING_PROXIMITY_WEIGHT

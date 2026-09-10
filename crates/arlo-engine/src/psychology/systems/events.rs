@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::{
     calculate_physical_exhaustion, extract_effective_attribute_value,
 };
@@ -227,27 +228,24 @@ pub fn apply_impulse_event_contextual_at(
     let is_positive = event.kind().is_positive();
     let sign = if is_positive { 1.0 } else { -1.0 };
 
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let determination = extract_effective_attribute_value(
-        player,
-        attribute_keys,
+        &table,
         AttributeKey::Determination,
         physical_state,
     );
     let bravery = extract_effective_attribute_value(
-        player,
-        attribute_keys,
+        &table,
         AttributeKey::Bravery,
         physical_state,
     );
     let composure = extract_effective_attribute_value(
-        player,
-        attribute_keys,
+        &table,
         AttributeKey::Composure,
         physical_state,
     );
     let consistency = extract_effective_attribute_value(
-        player,
-        attribute_keys,
+        &table,
         AttributeKey::Consistency,
         physical_state,
     );

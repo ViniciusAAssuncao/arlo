@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
@@ -22,23 +23,21 @@ pub fn player_base_reception_weight_with_state(
     role: ReceptionRole,
     state: &PhysicalState,
 ) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     match role {
         ReceptionRole::OpenPlayReceiver => {
             let hands = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                &table,
                 AttributeKey::HandsReception,
                 state,
             );
             let ant = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                &table,
                 AttributeKey::Anticipation,
                 state,
             );
             let pos = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                &table,
                 AttributeKey::Positioning,
                 state,
             );
@@ -46,20 +45,17 @@ pub fn player_base_reception_weight_with_state(
         }
         ReceptionRole::Finisher => {
             let finishing = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                &table,
                 AttributeKey::Finishing,
                 state,
             );
             let technique = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                &table,
                 AttributeKey::Technique,
                 state,
             );
             let composure = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                &table,
                 AttributeKey::Composure,
                 state,
             );
