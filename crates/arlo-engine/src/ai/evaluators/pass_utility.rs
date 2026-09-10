@@ -37,7 +37,7 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
             ctx.epv_model
                 .calculate_epa(new_norm_x, new_down, new_rem, ctx.drives_in_series);
         let epv_fail = if ctx.down >= 4 && ctx.remaining_advance_mirim > 0.0 {
-            -ctx.epv_model.opponent_epa(ctx.normalized_proximity)
+            -ctx.opponent_epa()
         } else {
             ctx.epv_model.calculate_epa(
                 ctx.normalized_proximity,
@@ -46,7 +46,7 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
                 ctx.drives_in_series,
             )
         };
-        let epv_to = -ctx.epv_model.opponent_epa(ctx.normalized_proximity);
+        let epv_to = -ctx.opponent_epa();
 
         let delta_succ = epv_success - ctx.current_epv;
         let delta_fail = epv_fail - ctx.current_epv;
@@ -128,7 +128,7 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
             ctx.epv_model
                 .calculate_epa(new_norm_x, new_down, new_rem, ctx.drives_in_series);
         let epv_fail = if ctx.down >= 4 && ctx.remaining_advance_mirim > 0.0 {
-            -ctx.epv_model.opponent_epa(ctx.normalized_proximity)
+            -ctx.opponent_epa()
         } else {
             ctx.epv_model.calculate_epa(
                 ctx.normalized_proximity,
@@ -137,7 +137,7 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
                 ctx.drives_in_series,
             )
         };
-        let epv_to = -ctx.epv_model.opponent_epa(ctx.normalized_proximity);
+        let epv_to = -ctx.opponent_epa();
 
         let delta_succ = epv_success - ctx.current_epv;
         let delta_fail = epv_fail - ctx.current_epv;

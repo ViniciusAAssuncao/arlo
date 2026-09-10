@@ -51,17 +51,17 @@ pub fn calculate_decision_utilities(
         drives_in_current_series,
     );
 
-    let ctx = DecisionEvaluationContext {
-        carrier: artrine,
-        carrier_position: Position::Artrine,
-        carrier_role: SlotRole::Standard,
-        carrier_instructions: PlayerInstructions::default(),
-        carrier_physical_state: *artrine_physical_state,
+    let ctx = DecisionEvaluationContext::new(
+        artrine,
+        Position::Artrine,
+        SlotRole::Standard,
+        PlayerInstructions::default(),
+        *artrine_physical_state,
         attribute_keys,
         epv_model,
         current_epv,
         normalized_proximity,
-        drives_in_series: drives_in_current_series,
+        drives_in_current_series,
         down,
         remaining_advance_mirim,
         pass_protection_net_advantage,
@@ -70,16 +70,16 @@ pub fn calculate_decision_utilities(
         pitch_control_ahead,
         distance_to_next_artro_mirim,
         pitch_length_mirim,
-        pitch_width_mirim: 85.0,
-        carrier_pos_vec: artrine_pos,
+        85.0,
+        artrine_pos,
         offensive_gravity,
         passing_range,
         risk_profile,
         game_state_pressure,
         play_call_emphasis,
-        is_true_artrine: true,
+        true,
         expected_free_path_mirim,
-    };
+    );
 
     CarrierDecisionEvaluator::evaluate_action_utilities(&ctx, available_kinds)
 }

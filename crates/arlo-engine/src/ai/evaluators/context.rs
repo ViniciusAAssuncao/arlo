@@ -42,9 +42,102 @@ pub struct DecisionEvaluationContext<'a> {
     pub play_call_emphasis: DecisionEmphasis,
     pub is_true_artrine: bool,
     pub expected_free_path_mirim: f64,
+    pub opponent_epa_at_proximity: f64,
+    pub cached_probability_bounds: (f64, f64),
 }
 
 impl<'a> DecisionEvaluationContext<'a> {
+    pub fn new(
+        carrier: &'a Player,
+        carrier_position: Position,
+        carrier_role: SlotRole,
+        carrier_instructions: PlayerInstructions,
+        carrier_physical_state: PhysicalState,
+        attribute_keys: &'a HashMap<Uuid, AttributeKey>,
+        epv_model: DynamicEpvModel,
+        current_epv: f64,
+        normalized_proximity: f64,
+        drives_in_series: u32,
+        down: u8,
+        remaining_advance_mirim: f64,
+        pass_protection_net_advantage: f64,
+        best_available_target_weight: f64,
+        long_launch_target_weight: f64,
+        pitch_control_ahead: f64,
+        distance_to_next_artro_mirim: f64,
+        pitch_length_mirim: f64,
+        pitch_width_mirim: f64,
+        carrier_pos_vec: VectorPosition,
+        offensive_gravity: f64,
+        passing_range: PassingRange,
+        risk_profile: RiskProfile,
+        game_state_pressure: GameStatePressure,
+        play_call_emphasis: DecisionEmphasis,
+        is_true_artrine: bool,
+        expected_free_path_mirim: f64,
+    ) -> Self {
+        let opponent_epa_at_proximity = epv_model.opponent_epa(normalized_proximity);
+        let cached_probability_bounds =
+            Self::calculate_probability_bounds(carrier, attribute_keys, &carrier_physical_state);
+
+        Self {
+            carrier,
+            carrier_position,
+            carrier_role,
+            carrier_instructions,
+            carrier_physical_state,
+            attribute_keys,
+            epv_model,
+            current_epv,
+            normalized_proximity,
+            drives_in_series,
+            down,
+            remaining_advance_mirim,
+            pass_protection_net_advantage,
+            best_available_target_weight,
+            long_launch_target_weight,
+            pitch_control_ahead,
+            distance_to_next_artro_mirim,
+            pitch_length_mirim,
+            pitch_width_mirim,
+            carrier_pos_vec,
+            offensive_gravity,
+            passing_range,
+            risk_profile,
+            game_state_pressure,
+            play_call_emphasis,
+            is_true_artrine,
+            expected_free_path_mirim,
+            opponent_epa_at_proximity,
+            cached_probability_bounds,
+        }
+    }
+
+    pub fn calculate_probability_bounds(
+        carrier: &Player,
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        physical_state: &PhysicalState,
+    ) -> (f64, f64) {
+        let table = PlayerAttributeTable::from_player(carrier, attribute_keys);
+        let consistency = extract_effective_attribute_value(
+            &table,
+            AttributeKey::Consistency,
+            physical_state,
+        );
+        let noise_params = player_noise_distribution(
+            carrier,
+            attribute_keys,
+            physical_state,
+        );
+        let scale = noise_params.scale();
+        let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
+        let floor =
+            (0.001 + 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.0001, 0.15);
+        let ceiling =
+            (0.999 - 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.85, 0.9999);
+        (floor, ceiling)
+    }
+
     pub fn carrier(&self) -> &'a Player {
         self.carrier
     }
@@ -104,24 +197,16 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn probability_bounds(&self) -> (f64, f64) {
-        let consistency = self.consistency();
-        let noise_params = player_noise_distribution(
-            self.carrier,
-            self.attribute_keys,
-            &self.carrier_physical_state,
-        );
-        let scale = noise_params.scale();
-        let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
-        let floor =
-            (0.001 + 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.0001, 0.15);
-        let ceiling =
-            (0.999 - 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.85, 0.9999);
-        (floor, ceiling)
+        self.cached_probability_bounds
     }
 
     pub fn bound_probability(&self, raw_p: f64) -> f64 {
         let (floor, ceiling) = self.probability_bounds();
         raw_p.clamp(floor, ceiling)
+    }
+
+    pub fn opponent_epa(&self) -> f64 {
+        self.opponent_epa_at_proximity
     }
 
     pub fn carrier_tactical_bias(&self, kind: ArtrineDecisionKind) -> f64 {

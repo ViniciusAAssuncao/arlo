@@ -40,7 +40,7 @@ impl ActionUtilityEvaluator for CrossUtilityEvaluator {
                 * (0.80 + 0.25 * lateral_ratio);
         let p_goal = ctx.bound_probability(raw_p);
 
-        let v_opp = ctx.epv_model.opponent_epa(ctx.normalized_proximity);
+        let v_opp = ctx.opponent_epa();
 
         let delta_succ = value - ctx.current_epv;
         let delta_to = -v_opp - ctx.current_epv;
