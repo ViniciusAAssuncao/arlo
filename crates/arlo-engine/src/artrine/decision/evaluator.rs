@@ -9,6 +9,7 @@ use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position, SlotRole};
 use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -35,7 +36,7 @@ pub fn calculate_decision_utilities(
     play_call_emphasis: DecisionEmphasis,
     artrine_physical_state: &PhysicalState,
     expected_free_path_mirim: f64,
-) -> Vec<(ArtrineDecisionKind, f64)> {
+) -> SmallVec<[(ArtrineDecisionKind, f64); 5]> {
     let down = if is_last_down {
         SERIES_MAX_DOWNS
     } else {

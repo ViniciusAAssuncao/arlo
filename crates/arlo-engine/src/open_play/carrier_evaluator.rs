@@ -3,6 +3,7 @@ use crate::ai::evaluators::{
     LongLaunchUtilityEvaluator, SelfFinishUtilityEvaluator, ShortPassUtilityEvaluator,
 };
 use arlo_domain::ArtrineDecisionKind;
+use smallvec::SmallVec;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CarrierDecisionEvaluator;
@@ -11,14 +12,14 @@ impl CarrierDecisionEvaluator {
     pub fn evaluate_action_utilities(
         ctx: &DecisionEvaluationContext<'_>,
         available_kinds: &[ArtrineDecisionKind],
-    ) -> Vec<(ArtrineDecisionKind, f64)> {
+    ) -> SmallVec<[(ArtrineDecisionKind, f64); 5]> {
         let carry_evaluator = CarryUtilityEvaluator;
         let short_pass_evaluator = ShortPassUtilityEvaluator;
         let long_launch_evaluator = LongLaunchUtilityEvaluator;
         let cross_evaluator = CrossUtilityEvaluator;
         let finish_evaluator = SelfFinishUtilityEvaluator;
 
-        let mut results = Vec::with_capacity(available_kinds.len());
+        let mut results = SmallVec::with_capacity(available_kinds.len());
 
         for &kind in available_kinds {
             let utility = match kind {

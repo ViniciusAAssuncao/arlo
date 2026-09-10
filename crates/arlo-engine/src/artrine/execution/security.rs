@@ -17,6 +17,7 @@ use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_math::units::{Position as VectorPosition, Speed};
 use rand::Rng;
+use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -86,8 +87,8 @@ where
     );
     let raw_outcome = resolve_duel(req, rng);
 
-    let attacker_ids = vec![ball_carrier.id()];
-    let defender_ids = defenders.iter().map(|p| p.id()).collect();
+    let attacker_ids = smallvec![ball_carrier.id()];
+    let defender_ids: SmallVec<[Uuid; 4]> = defenders.iter().map(|p| p.id()).collect();
     let duel_outcome = AttributedDuelOutcome::new(raw_outcome, attacker_ids, defender_ids);
 
     if raw_outcome.attacker_won() {

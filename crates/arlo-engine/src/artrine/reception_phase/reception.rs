@@ -29,6 +29,7 @@ use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainP
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Velocity, MIRIM_TO_METERS};
 use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use rand::Rng;
+use smallvec::smallvec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -252,7 +253,7 @@ where
         duration,
     );
 
-    let duel = AttributedDuelOutcome::new(raw_duel, vec![receiver_id], active_defender_ids);
+    let duel = AttributedDuelOutcome::new(raw_duel, smallvec![receiver_id], active_defender_ids);
 
     ReceptionOutcome {
         receiver: receiver_id,

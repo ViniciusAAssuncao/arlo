@@ -8,6 +8,7 @@ use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Speed, Velocity};
 use arlo_tactics::PlayerInstructions;
 use rand::Rng;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -64,8 +65,9 @@ pub fn collect_swept_participant_ids(
     candidates: &[(&Player, VectorPosition, Speed)],
     contest_radius: Length,
     duration: Duration,
-) -> Vec<Uuid> {
-    let mut ids = vec![lead_id];
+) -> SmallVec<[Uuid; 4]> {
+    let mut ids = SmallVec::new();
+    ids.push(lead_id);
     for id in filter_active_duelists_swept(
         origin_pos,
         carrier_vel,

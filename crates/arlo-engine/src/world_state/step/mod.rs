@@ -20,6 +20,7 @@ use crate::world_state::play_transition::{apply_play_transition, EventPublisher}
 use arlo_domain::ArtrineDecisionKind;
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -102,7 +103,7 @@ pub fn step_call_to_action(
             crate::artrine::ArtrineExecutionOutcome {
                 mirins_advanced: 0.0,
                 drives_recorded: 0,
-                drive_row_indices: Vec::new(),
+                drive_row_indices: SmallVec::new(),
                 turnover: None,
                 recovering_player_id: None,
                 scoring_decision: ScoringDecision::NoOpportunity,

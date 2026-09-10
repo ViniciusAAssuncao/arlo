@@ -21,6 +21,7 @@ use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use smallvec::smallvec;
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -184,8 +185,8 @@ pub fn execute_carry_action(
 
         let attributed = AttributedDuelOutcome::new(
             duel_raw,
-            vec![current_carrier.id()],
-            vec![def_player.id()],
+            smallvec![current_carrier.id()],
+            smallvec![def_player.id()],
         );
         local_duels.push(attributed);
 
@@ -234,8 +235,8 @@ pub fn execute_carry_action(
 
             let sec_attr = AttributedDuelOutcome::new(
                 sec_raw,
-                vec![current_carrier.id()],
-                vec![def_player.id()],
+                smallvec![current_carrier.id()],
+                smallvec![def_player.id()],
             );
             local_duels.push(sec_attr);
 

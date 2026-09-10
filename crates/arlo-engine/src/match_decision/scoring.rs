@@ -13,6 +13,7 @@ use arlo_domain::{AttributeKey, Player, Position};
 use arlo_events::ScoringPost;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use smallvec::smallvec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -306,8 +307,8 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
 
     let outcome = AttributedDuelOutcome::new(
         raw_outcome,
-        vec![request.finisher.id()],
-        vec![request.goalguard.id()],
+        smallvec![request.finisher.id()],
+        smallvec![request.goalguard.id()],
     );
 
     crate::psychology::systems::instrumentation::instrument_scoring_attempt(

@@ -11,6 +11,7 @@ use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -58,7 +59,7 @@ fn handle_failed_reception(
     ArtrineExecutionOutcome {
         mirins_advanced: 0.0,
         drives_recorded: 0,
-        drive_row_indices: Vec::new(),
+        drive_row_indices: SmallVec::new(),
         turnover,
         recovering_player_id,
         scoring_decision: ScoringDecision::NoOpportunity,
@@ -205,7 +206,7 @@ where
         return ArtrineExecutionOutcome {
             mirins_advanced,
             drives_recorded: 0,
-            drive_row_indices: Vec::new(),
+            drive_row_indices: SmallVec::new(),
             turnover: rac_outcome.turnover,
             recovering_player_id: rac_outcome.recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
@@ -243,7 +244,7 @@ where
     ArtrineExecutionOutcome {
         mirins_advanced,
         drives_recorded: 0,
-        drive_row_indices: Vec::new(),
+        drive_row_indices: SmallVec::new(),
         turnover,
         recovering_player_id,
         scoring_decision,

@@ -10,6 +10,7 @@ use arlo_math::stats::contrast::softmax_weights;
 use arlo_math::Probability;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -51,7 +52,7 @@ pub fn sample_carrier_decision<R: Rng + ?Sized>(
         );
     }
 
-    let raw_utilities: Vec<f64> = utilities.iter().map(|(_, u)| *u).collect();
+    let raw_utilities: SmallVec<[f64; 5]> = utilities.iter().map(|(_, u)| *u).collect();
     let table = PlayerAttributeTable::from_player(carrier, attribute_keys);
     let baseline = calculate_player_impulse_baseline(carrier, attribute_keys);
     let decisions_val = extract_effective_attribute_value_with_impulse(

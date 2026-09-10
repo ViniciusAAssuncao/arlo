@@ -85,8 +85,8 @@ pub fn resolve_pass_protection_duel(
 
     let pass_duel_event = translate_duel_resolved(
         &raw_pass_duel,
-        participants.attacker_ids.clone(),
-        participants.defender_ids.clone(),
+        participants.attacker_ids.to_vec(),
+        participants.defender_ids.to_vec(),
     );
     let seq = state.next_sequence();
     let clock_inst = state.clock().to_instant();

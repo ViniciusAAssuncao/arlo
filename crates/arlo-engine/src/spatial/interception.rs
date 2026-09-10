@@ -15,6 +15,7 @@ use arlo_math::compute_swept_sphere_intersection;
 use arlo_math::units::{Duration, Length, Position, Speed, Velocity};
 use arlo_tactics::{DepthDiscipline, PlayerInstructions};
 use rand::Rng;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -212,7 +213,7 @@ pub fn filter_kinematic_active_duelists(
     candidates: &[(&Player, Position, Speed)],
     contest_radius: Length,
     max_duration: Duration,
-) -> Vec<Uuid> {
+) -> SmallVec<[Uuid; 4]> {
     candidates
         .iter()
         .filter(|(_, pos, speed)| {

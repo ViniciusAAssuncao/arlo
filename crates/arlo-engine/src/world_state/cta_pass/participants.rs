@@ -1,6 +1,7 @@
 use crate::error::{EngineError, EngineResult};
 use crate::lineup_runtime::find_player_by_position;
 use arlo_domain::{Player, Position as DomainPosition, SlotRole};
+use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -11,8 +12,8 @@ pub struct PhaseParticipants<'a> {
     pub goalguard: &'a Player,
     pub pass_blockers: Vec<(&'a Player, DomainPosition)>,
     pub pass_rushers: Vec<(&'a Player, DomainPosition)>,
-    pub attacker_ids: Vec<Uuid>,
-    pub defender_ids: Vec<Uuid>,
+    pub attacker_ids: SmallVec<[Uuid; 4]>,
+    pub defender_ids: SmallVec<[Uuid; 4]>,
 }
 
 pub fn extract_participants<'a>(
@@ -46,7 +47,7 @@ pub fn extract_participants<'a>(
         (passer, DomainPosition::Passer),
         (artrine, DomainPosition::Artrine),
     ];
-    let mut attacker_ids = vec![passer.id(), artrine.id()];
+    let mut attacker_ids: SmallVec<[Uuid; 4]> = smallvec![passer.id(), artrine.id()];
 
     for &player in offense_players {
         if offense_role_index.get(&player.id()) == Some(&SlotRole::Safeguard)
@@ -68,7 +69,7 @@ pub fn extract_participants<'a>(
     }
 
     let pass_rushers = vec![(pass_rusher, DomainPosition::PassRusher)];
-    let defender_ids = vec![pass_rusher.id()];
+    let defender_ids: SmallVec<[Uuid; 4]> = smallvec![pass_rusher.id()];
 
     Ok(PhaseParticipants {
         passer,

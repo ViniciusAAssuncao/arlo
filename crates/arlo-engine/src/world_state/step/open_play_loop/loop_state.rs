@@ -5,6 +5,7 @@ use crate::spatial::SpatialTrajectory;
 use crate::time::DurationLedger;
 use arlo_domain::ArtrineDecisionKind;
 use arlo_math::units::Position as VectorPosition;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -13,7 +14,7 @@ pub struct OpenPlayLoopState {
     pub current_carrier_pos: VectorPosition,
     pub accumulated_mirins_advanced: f64,
     pub accumulated_drives_recorded: u32,
-    pub accumulated_drive_row_indices: Vec<usize>,
+    pub accumulated_drive_row_indices: SmallVec<[usize; 4]>,
     pub accumulated_duels: Vec<AttributedDuelOutcome>,
     pub accumulated_duration_ledger: DurationLedger,
     pub accumulated_trajectories: HashMap<Uuid, SpatialTrajectory>,
@@ -34,7 +35,7 @@ impl OpenPlayLoopState {
             current_carrier_pos: reception_point,
             accumulated_mirins_advanced: 0.0,
             accumulated_drives_recorded: 0,
-            accumulated_drive_row_indices: Vec::new(),
+            accumulated_drive_row_indices: SmallVec::new(),
             accumulated_duels: Vec::new(),
             accumulated_duration_ledger: DurationLedger::new(),
             accumulated_trajectories: HashMap::new(),

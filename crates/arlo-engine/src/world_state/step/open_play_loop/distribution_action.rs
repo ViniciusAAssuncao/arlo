@@ -25,6 +25,7 @@ use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Velocity, MIRIM_TO_METERS};
+use smallvec::smallvec;
 use uuid::Uuid;
 
 const OPEN_PLAY_MAX_FINISH_DISTANCE_MIRIM: f64 = 50.0;
@@ -215,8 +216,8 @@ pub fn execute_distribution_action(
 
     let throw_duel = AttributedDuelOutcome::new(
         raw_throw_duel,
-        vec![current_carrier.id()],
-        vec![lead_defender.id()],
+        smallvec![current_carrier.id()],
+        smallvec![lead_defender.id()],
     );
     loop_state.accumulated_duels.push(throw_duel);
 
@@ -315,8 +316,8 @@ pub fn execute_distribution_action(
 
     let rec_attributed = AttributedDuelOutcome::new(
         raw_rec_duel,
-        vec![receiver_id],
-        vec![lead_defender.id()],
+        smallvec![receiver_id],
+        smallvec![lead_defender.id()],
     );
     loop_state.accumulated_duels.push(rec_attributed);
 
