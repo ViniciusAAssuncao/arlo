@@ -5,10 +5,10 @@ use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution::security::resolve_proximity_ball_security;
 use crate::artrine::logistics::{
-    collect_drifted_defender_candidates, collect_helper_candidates, collect_swept_participant_ids,
-    resolve_primary_lead_defender,
+    collect_drifted_defender_candidates_from_tables, collect_helper_candidates_from_tables, collect_swept_participant_ids,
+    resolve_primary_lead_defender_from_tables,
 };
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
@@ -18,7 +18,7 @@ use crate::resolution::group_rating::{
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::spatial::decision_vector::derive_velocity_towards_target;
-use crate::spatial::positioning_drift::nearest_drifted_opponent;
+use crate::spatial::positioning_drift::nearest_drifted_opponent_from_tables;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
@@ -72,8 +72,11 @@ where
     );
 
     let artrine_state = ctx.fatigue(&artrine.id());
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let carrier_table = ctx.attribute_tables.get(&artrine.id()).unwrap_or(&DEFAULT_TABLE);
+
     let artrine_speed =
-        calculate_effective_player_speed(artrine, ctx.attribute_keys, &artrine_state);
+        calculate_effective_player_speed_from_table(artrine, carrier_table, &artrine_state);
     let target_channel_y_m = compute_carry_target_lane(start_pos, ctx.pitch);
     let target_carry_pos = compute_forward_target_pos(
         start_pos,
@@ -84,7 +87,7 @@ where
     let carrier_vel = derive_velocity_towards_target(start_pos, target_carry_pos, artrine_speed);
     let contest_radius = ctx.contest_radius();
 
-    let lead_defender = resolve_primary_lead_defender(
+    let lead_defender = resolve_primary_lead_defender_from_tables(
         artrine.id(),
         ctx.offense_position_index,
         start_pos,
@@ -92,7 +95,7 @@ where
         ctx.defenders,
         spatial_map,
         ctx.defense_instructions_index,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.fatigue_for,
         contest_radius,
         None,
@@ -100,7 +103,6 @@ where
     );
 
     let artro_context = ctx.duel_context.for_duel_kind(DuelKind::ArtroBreakthrough);
-    let attacker_table = ctx.attribute_tables.get(&artrine.id());
     let defender_table = ctx.attribute_tables.get(&lead_defender.id());
     let req = DuelResolutionRequest::with_states(
         DuelKind::ArtroBreakthrough,
@@ -113,19 +115,20 @@ where
         ctx.attribute_keys,
         &artro_context,
     )
-    .with_tables(attacker_table, defender_table);
+    .with_tables(Some(carrier_table), defender_table);
     let raw_artro_duel = resolve_duel(req, rng);
 
-    let (artro_duration, nearest_def_opt) = match nearest_drifted_opponent(
+    let (artro_duration, nearest_def_opt) = match nearest_drifted_opponent_from_tables(
         start_pos,
         ctx.defenders,
         spatial_map,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         rng,
     ) {
         Some((d, pos)) => {
             let d_state = ctx.fatigue(&d.id());
-            let d_spd = calculate_effective_player_speed(d, ctx.attribute_keys, &d_state);
+            let d_table = ctx.attribute_tables.get(&d.id()).unwrap_or(&DEFAULT_TABLE);
+            let d_spd = calculate_effective_player_speed_from_table(d, d_table, &d_state);
             (
                 derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
                 Some((d, pos)),
@@ -134,10 +137,10 @@ where
         None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
     };
 
-    let helper_candidates = collect_helper_candidates(
+    let helper_candidates = collect_helper_candidates_from_tables(
         ctx.offense_helpers,
         spatial_map,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         start_pos,
         ctx.fatigue_for,
     );
@@ -150,10 +153,10 @@ where
         artro_duration,
     );
 
-    let defender_candidates = collect_drifted_defender_candidates(
+    let defender_candidates = collect_drifted_defender_candidates_from_tables(
         ctx.defenders,
         spatial_map,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         start_pos,
         ctx.fatigue_for,
         rng,

@@ -24,6 +24,17 @@ pub fn derive_arrival_slowing_radius(
     stopping_dist.max(0.35)
 }
 
+pub fn derive_player_arrival_radius_from_table(
+    _player: &Player,
+    table: &PlayerAttributeTable,
+    current_speed: f64,
+    fatigue_multiplier: f64,
+) -> f64 {
+    let agility = extract_attribute_value(table, AttributeKey::Agility);
+    let balance = extract_attribute_value(table, AttributeKey::Balance);
+    derive_arrival_slowing_radius(current_speed, agility, balance, fatigue_multiplier)
+}
+
 pub fn derive_player_arrival_radius(
     player: &Player,
     current_speed: f64,
@@ -31,9 +42,17 @@ pub fn derive_player_arrival_radius(
     fatigue_multiplier: f64,
 ) -> f64 {
     let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    let agility = extract_attribute_value(&table, AttributeKey::Agility);
-    let balance = extract_attribute_value(&table, AttributeKey::Balance);
-    derive_arrival_slowing_radius(current_speed, agility, balance, fatigue_multiplier)
+    derive_player_arrival_radius_from_table(player, &table, current_speed, fatigue_multiplier)
+}
+
+pub fn derive_player_physical_radius_from_table(
+    player: &Player,
+    table: &PlayerAttributeTable,
+) -> f64 {
+    let height = player.height_m().clamp(1.4, 2.3);
+    let strength =
+        extract_attribute_value(table, AttributeKey::Strength).clamp(0.0, 20.0);
+    height * (0.22 + 0.008 * strength)
 }
 
 pub fn derive_player_physical_radius(
@@ -41,10 +60,7 @@ pub fn derive_player_physical_radius(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
     let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    let height = player.height_m().clamp(1.4, 2.3);
-    let strength =
-        extract_attribute_value(&table, AttributeKey::Strength).clamp(0.0, 20.0);
-    height * (0.22 + 0.008 * strength)
+    derive_player_physical_radius_from_table(player, &table)
 }
 
 pub fn derive_dynamic_separation_radius(

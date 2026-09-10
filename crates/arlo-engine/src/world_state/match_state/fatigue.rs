@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
 use arlo_domain::{AttributeKey, Player};
 use serde::{Deserialize, Serialize};
@@ -72,6 +73,31 @@ impl FatigueTracker {
         }
     }
 
+    pub fn record_distance_from_table(
+        &mut self,
+        player_id: Uuid,
+        mirim: f64,
+        is_home: bool,
+        player: Option<&Player>,
+        table: Option<&PlayerAttributeTable>,
+    ) -> (f64, f64) {
+        let fatigue = if is_home {
+            self.home_fatigue.entry(player_id).or_default()
+        } else {
+            self.away_fatigue.entry(player_id).or_default()
+        };
+        fatigue.add_distance(mirim);
+        if let (Some(p), Some(t)) = (player, table) {
+            crate::physical::models::aerobic::update_physical_state_aerobic_from_table(
+                fatigue,
+                p,
+                t,
+                0,
+            );
+        }
+        (fatigue.energy(), fatigue.w_prime_balance())
+    }
+
     pub fn record_distance(
         &mut self,
         player_id: Uuid,
@@ -95,6 +121,48 @@ impl FatigueTracker {
             );
         }
         (fatigue.energy(), fatigue.w_prime_balance())
+    }
+
+    pub fn apply_duel_anaerobic_cost_from_table(
+        &mut self,
+        player_id: Uuid,
+        duration_seconds: f64,
+        intensity: f64,
+        is_home: bool,
+        player: Option<&Player>,
+        table: Option<&PlayerAttributeTable>,
+    ) -> (f64, f64) {
+        if let (Some(p), Some(t)) = (player, table) {
+            let max_w = crate::physical::models::metabolic_power::calculate_player_max_w_prime_from_table(
+                p,
+                t,
+            );
+            let crit_speed =
+                crate::physical::models::metabolic_power::calculate_player_critical_speed_from_table(
+                    p,
+                    t,
+                    0,
+                )
+                .value();
+            let cost = crate::physical::models::anaerobic::calculate_player_anaerobic_cost_from_table(
+                p,
+                t,
+                duration_seconds,
+                crit_speed + 2.0,
+                crit_speed,
+                intensity,
+            );
+            let fatigue = if is_home {
+                self.home_fatigue.entry(player_id).or_default()
+            } else {
+                self.away_fatigue.entry(player_id).or_default()
+            };
+            crate::physical::models::anaerobic::apply_anaerobic_cost_to_state(fatigue, cost, max_w);
+            (fatigue.energy(), fatigue.w_prime_balance())
+        } else {
+            let fatigue = self.fatigue_for(&player_id);
+            (fatigue.energy(), fatigue.w_prime_balance())
+        }
     }
 
     pub fn apply_duel_anaerobic_cost(
@@ -137,6 +205,38 @@ impl FatigueTracker {
             let fatigue = self.fatigue_for(&player_id);
             (fatigue.energy(), fatigue.w_prime_balance())
         }
+    }
+
+    pub fn apply_dead_ball_recovery_from_tables(
+        &mut self,
+        dead_ball_seconds: f64,
+        home_players: &[&Player],
+        away_players: &[&Player],
+        attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
+    ) -> Vec<(Uuid, f64, f64)> {
+        let mut previous_balances = HashMap::new();
+        for p in home_players.iter().chain(away_players.iter()) {
+            previous_balances.insert(p.id(), self.fatigue_for(&p.id()).w_prime_balance());
+        }
+
+        crate::physical::systems::recovery::apply_intra_match_recovery_from_tables(
+            &mut self.home_fatigue,
+            &mut self.away_fatigue,
+            home_players,
+            away_players,
+            attribute_tables,
+            dead_ball_seconds,
+        );
+
+        let mut results = Vec::new();
+        for p in home_players.iter().chain(away_players.iter()) {
+            let pid = p.id();
+            let new_bal = self.fatigue_for(&pid).w_prime_balance();
+            let old_bal = previous_balances.get(&pid).copied().unwrap_or(1.0);
+            let recovery_amount = (new_bal - old_bal).max(0.0);
+            results.push((pid, recovery_amount, new_bal));
+        }
+        results
     }
 
     pub fn apply_dead_ball_recovery(

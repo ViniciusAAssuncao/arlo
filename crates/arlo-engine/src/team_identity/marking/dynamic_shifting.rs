@@ -9,15 +9,15 @@ use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn calculate_carrier_defensive_shift(
-    defender: &Player,
+pub fn calculate_carrier_defensive_shift_from_table(
+    _defender: &Player,
+    table: &PlayerAttributeTable,
     defender_pos: VectorPosition,
     carrier_pos: VectorPosition,
     carrier_gravity_mult: f64,
     assigned_position: Position,
     pitch: &Pitch,
     attacking_positive_x: bool,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> VectorPosition {
     let pitch_length_m = pitch.length().value();
     let pitch_width_m = pitch.width().value();
@@ -35,14 +35,13 @@ pub fn calculate_carrier_defensive_shift(
         (FIRST_ZONE_DEPTH_MIRIM * MIRIM_TO_METERS).min(pitch_length_m)
     };
 
-    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
-    let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
-    let anticipation = extract_attribute_value(&table, AttributeKey::Anticipation);
-    let decisions = extract_attribute_value(&table, AttributeKey::Decisions);
+    let positioning = extract_attribute_value(table, AttributeKey::Positioning);
+    let anticipation = extract_attribute_value(table, AttributeKey::Anticipation);
+    let decisions = extract_attribute_value(table, AttributeKey::Decisions);
     let tactical_knowledge =
-        extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
+        extract_attribute_value(table, AttributeKey::TacticalKnowledge);
     let containment =
-        extract_attribute_value(&table, AttributeKey::DefensiveContainment);
+        extract_attribute_value(table, AttributeKey::DefensiveContainment);
 
     let tactical_rating = ((positioning * 0.30
         + anticipation * 0.25
@@ -130,17 +129,41 @@ pub fn calculate_carrier_defensive_shift(
     )
 }
 
-pub fn recalibrate_defenders_for_carrier(
+pub fn calculate_carrier_defensive_shift(
+    defender: &Player,
+    defender_pos: VectorPosition,
+    carrier_pos: VectorPosition,
+    carrier_gravity_mult: f64,
+    assigned_position: Position,
+    pitch: &Pitch,
+    attacking_positive_x: bool,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+) -> VectorPosition {
+    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
+    calculate_carrier_defensive_shift_from_table(
+        defender,
+        &table,
+        defender_pos,
+        carrier_pos,
+        carrier_gravity_mult,
+        assigned_position,
+        pitch,
+        attacking_positive_x,
+    )
+}
+
+pub fn recalibrate_defenders_for_carrier_from_tables(
     defenders: &[&Player],
     defender_positions: &HashMap<Uuid, Position>,
     spatial_map: &DynamicSpatialMap,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     carrier_pos: VectorPosition,
     carrier_gravity_mult: f64,
     pitch: &Pitch,
     attacking_positive_x: bool,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> HashMap<Uuid, VectorPosition> {
     let mut shifted_anchors = HashMap::with_capacity(defenders.len());
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
 
     for &defender in defenders {
         let def_pos = spatial_map
@@ -158,19 +181,47 @@ pub fn recalibrate_defenders_for_carrier(
                     .unwrap_or(Position::Centerback)
             });
 
-        let shifted = calculate_carrier_defensive_shift(
+        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_TABLE);
+
+        let shifted = calculate_carrier_defensive_shift_from_table(
             defender,
+            table,
             def_pos,
             carrier_pos,
             carrier_gravity_mult,
             pos_role,
             pitch,
             attacking_positive_x,
-            attribute_keys,
         );
 
         shifted_anchors.insert(defender.id(), shifted);
     }
 
     shifted_anchors
+}
+
+pub fn recalibrate_defenders_for_carrier(
+    defenders: &[&Player],
+    defender_positions: &HashMap<Uuid, Position>,
+    spatial_map: &DynamicSpatialMap,
+    carrier_pos: VectorPosition,
+    carrier_gravity_mult: f64,
+    pitch: &Pitch,
+    attacking_positive_x: bool,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+) -> HashMap<Uuid, VectorPosition> {
+    let mut attribute_tables = HashMap::with_capacity(defenders.len());
+    for d in defenders {
+        attribute_tables.insert(d.id(), PlayerAttributeTable::from_player(d, attribute_keys));
+    }
+    recalibrate_defenders_for_carrier_from_tables(
+        defenders,
+        defender_positions,
+        spatial_map,
+        &attribute_tables,
+        carrier_pos,
+        carrier_gravity_mult,
+        pitch,
+        attacking_positive_x,
+    )
 }

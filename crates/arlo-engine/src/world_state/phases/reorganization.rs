@@ -1,10 +1,10 @@
 use crate::attributes::PlayerAttributeTable;
-use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors, AnchorComputationContext};
+use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors_from_tables, AnchorComputationContext};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
 use crate::team_identity::marking::{
-    derive_block_marking_roles, eligible_block_marking_defenders,
-    extract_manager_artro_strategy_fidelity,
+    derive_block_marking_roles_from_tables, eligible_block_marking_defenders,
+    extract_manager_artro_strategy_fidelity_from_table,
 };
 use crate::team_identity::tempo::{
     effort_multiplier_from_value, huddle_duration_scale, individual_transition_effort_multiplier,
@@ -32,7 +32,7 @@ pub fn derive_and_apply_reorganization(
     let pitch = *publisher.state().pitch();
     let home_lineup = publisher.state().home_lineup_arc();
     let away_lineup = publisher.state().away_lineup_arc();
-    let attribute_keys = publisher.state().attribute_keys().clone();
+    let player_attribute_tables = publisher.state().teams.player_attribute_tables().clone();
 
     let was_home_offense = publisher
         .state()
@@ -58,7 +58,7 @@ pub fn derive_and_apply_reorganization(
         if let Some(ref_pos) = press_reference_pos {
             if is_home_offense {
                 let def_lineup = &away_lineup;
-                let def_manager = publisher.state().away_manager();
+                let def_manager_table = publisher.state().teams.away_manager_table();
                 let def_instructions = &away_instructions;
                 let def_pos_index = publisher
                     .state()
@@ -69,19 +69,19 @@ pub fn derive_and_apply_reorganization(
                 let eligible = eligible_block_marking_defenders(&player_refs, def_pos_index);
                 let press_block_shape = def_instructions.transition().press_block_shape();
                 let execution_fidelity =
-                    extract_manager_artro_strategy_fidelity(def_manager, &attribute_keys);
-                let roles = derive_block_marking_roles(
+                    extract_manager_artro_strategy_fidelity_from_table(def_manager_table);
+                let roles = derive_block_marking_roles_from_tables(
                     &eligible,
                     ref_pos,
                     publisher.state().spatial_map(),
                     press_block_shape,
-                    &attribute_keys,
+                    &player_attribute_tables,
                     execution_fidelity,
                 );
                 (None, Some(roles))
             } else {
                 let def_lineup = &home_lineup;
-                let def_manager = publisher.state().home_manager();
+                let def_manager_table = publisher.state().teams.home_manager_table();
                 let def_instructions = &home_instructions;
                 let def_pos_index = publisher
                     .state()
@@ -92,13 +92,13 @@ pub fn derive_and_apply_reorganization(
                 let eligible = eligible_block_marking_defenders(&player_refs, def_pos_index);
                 let press_block_shape = def_instructions.transition().press_block_shape();
                 let execution_fidelity =
-                    extract_manager_artro_strategy_fidelity(def_manager, &attribute_keys);
-                let roles = derive_block_marking_roles(
+                    extract_manager_artro_strategy_fidelity_from_table(def_manager_table);
+                let roles = derive_block_marking_roles_from_tables(
                     &eligible,
                     ref_pos,
                     publisher.state().spatial_map(),
                     press_block_shape,
-                    &attribute_keys,
+                    &player_attribute_tables,
                     execution_fidelity,
                 );
                 (Some(roles), None)
@@ -122,14 +122,15 @@ pub fn derive_and_apply_reorganization(
         } else {
             None
         },
+        attribute_tables: Some(&player_attribute_tables),
     };
-    let mut home_targets = compute_dynamic_anchors(
+    let mut home_targets = compute_dynamic_anchors_from_tables(
         &pitch,
         &home_lineup,
+        &player_attribute_tables,
         scrimmage_x_mirim,
         is_home_offense,
         true,
-        &attribute_keys,
         &home_instructions,
         &home_ctx,
     );
@@ -146,14 +147,15 @@ pub fn derive_and_apply_reorganization(
         } else {
             None
         },
+        attribute_tables: Some(&player_attribute_tables),
     };
-    let mut away_targets = compute_dynamic_anchors(
+    let mut away_targets = compute_dynamic_anchors_from_tables(
         &pitch,
         &away_lineup,
+        &player_attribute_tables,
         scrimmage_x_mirim,
         !is_home_offense,
         false,
-        &attribute_keys,
         &away_instructions,
         &away_ctx,
     );
@@ -286,7 +288,7 @@ pub fn derive_and_apply_reorganization(
     let tick_result = run_spatial_tick_loop_with_context(
         &mut state.spatial_map,
         &movers,
-        &attribute_keys,
+        &player_attribute_tables,
         MovementContext::DeadBall,
         &pitch,
         &|id| fatigue_lookup.get(id),
@@ -312,9 +314,10 @@ pub fn derive_and_apply_reorganization(
         });
 
     let (tac, lead) = if let Some(artrine) = offense_artrine {
-        let table = PlayerAttributeTable::from_player(artrine, &attribute_keys);
-        let tac = extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
-        let lead = extract_attribute_value(&table, AttributeKey::Leadership);
+        static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+        let table = player_attribute_tables.get(&artrine.id()).unwrap_or(&DEFAULT_TABLE);
+        let tac = extract_attribute_value(table, AttributeKey::TacticalKnowledge);
+        let lead = extract_attribute_value(table, AttributeKey::Leadership);
         (tac, lead)
     } else {
         (DEFAULT_ATTRIBUTE_VALUE, DEFAULT_ATTRIBUTE_VALUE)

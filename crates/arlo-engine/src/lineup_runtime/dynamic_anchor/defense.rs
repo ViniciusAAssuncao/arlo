@@ -2,7 +2,7 @@ use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::team_identity::depth_from_bipolar;
-use crate::team_identity::marking::dynamic_shifting::calculate_carrier_defensive_shift;
+use crate::team_identity::marking::dynamic_shifting::calculate_carrier_defensive_shift_from_table;
 use crate::team_identity::marking::resolve_man_marking_target_position;
 use crate::team_identity::BlockMarkingRole;
 use arlo_domain::pitch::Pitch;
@@ -15,15 +15,15 @@ use arlo_tactics::{MarkingAssignment, TeamInstructions};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn calculate_defense_attractor_coordinates(
+pub fn calculate_defense_attractor_coordinates_from_table(
     pitch: &Pitch,
     player: &Player,
+    table: &PlayerAttributeTable,
     slot: &FormationSlot,
     _scrimmage_x_m: f64,
     base_x: f64,
     base_y: f64,
     attacking_positive_x: bool,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
     marking: Option<MarkingAssignment>,
     ctx: &AnchorComputationContext,
@@ -65,10 +65,9 @@ pub fn calculate_defense_attractor_coordinates(
     let pitch_width_m = pitch.width().value();
     let target_position = slot.defensive_position();
 
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    let work_rate = extract_attribute_value(&table, AttributeKey::WorkRate);
-    let tactical_knowledge = extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
-    let determination = extract_attribute_value(&table, AttributeKey::Determination);
+    let work_rate = extract_attribute_value(table, AttributeKey::WorkRate);
+    let tactical_knowledge = extract_attribute_value(table, AttributeKey::TacticalKnowledge);
+    let determination = extract_attribute_value(table, AttributeKey::Determination);
 
     let tracking_factor = ((work_rate * 0.5 + tactical_knowledge * 0.35 + determination * 0.15)
         / 20.0)
@@ -114,18 +113,59 @@ pub fn calculate_defense_attractor_coordinates(
     let y_pos = base_y + (center_y - base_y) * pinch_factor;
 
     if let Some(ref_pos) = ctx.press_reference_pos {
-        let shifted = calculate_carrier_defensive_shift(
+        let shifted = calculate_carrier_defensive_shift_from_table(
             player,
+            table,
             VectorPosition::from_components(x_pos, y_pos, 0.0),
             ref_pos,
             1.0,
             target_position,
             pitch,
             attacking_positive_x,
-            attribute_keys,
         );
         return (shifted.raw().0, shifted.raw().1);
     }
 
     (x_pos, y_pos)
+}
+
+pub fn calculate_defense_attractor_coordinates(
+    pitch: &Pitch,
+    player: &Player,
+    slot: &FormationSlot,
+    scrimmage_x_m: f64,
+    base_x: f64,
+    base_y: f64,
+    attacking_positive_x: bool,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    marking: Option<MarkingAssignment>,
+    ctx: &AnchorComputationContext,
+) -> (f64, f64) {
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+    let table = ctx
+        .attribute_tables
+        .and_then(|m| m.get(&player.id()))
+        .cloned()
+        .unwrap_or_else(|| {
+            if attribute_keys.is_empty() {
+                DEFAULT_TABLE
+            } else {
+                PlayerAttributeTable::from_player(player, attribute_keys)
+            }
+        });
+
+    calculate_defense_attractor_coordinates_from_table(
+        pitch,
+        player,
+        &table,
+        slot,
+        scrimmage_x_m,
+        base_x,
+        base_y,
+        attacking_positive_x,
+        instructions,
+        marking,
+        ctx,
+    )
 }

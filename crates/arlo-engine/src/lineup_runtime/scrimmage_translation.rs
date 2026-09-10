@@ -20,6 +20,7 @@ pub fn translate_formation_to_scrimmage(
         spatial_map: None,
         block_marking_roles: None,
         press_reference_pos: None,
+        attribute_tables: None,
     };
     compute_dynamic_anchors(
         pitch,

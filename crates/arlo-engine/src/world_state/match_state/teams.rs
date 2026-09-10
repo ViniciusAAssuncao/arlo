@@ -1,6 +1,6 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{ManagerAttributeTable, PlayerAttributeTable};
 use crate::lineup_runtime::Lineup;
-use arlo_domain::{AttributeKey, Manager, Player, Position as DomainPosition, SlotRole};
+use arlo_domain::{AttributeKey, CaptaincyRole, Manager, Player, Position as DomainPosition, SlotRole};
 use arlo_tactics::{PlayCall, PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -46,6 +46,8 @@ pub struct TeamRegistry {
     home_instructions_index: Arc<HashMap<Uuid, PlayerInstructions>>,
     away_instructions_index: Arc<HashMap<Uuid, PlayerInstructions>>,
     player_attribute_tables: HashMap<Uuid, PlayerAttributeTable>,
+    home_manager_table: ManagerAttributeTable,
+    away_manager_table: ManagerAttributeTable,
 }
 
 impl TeamRegistry {
@@ -63,6 +65,8 @@ impl TeamRegistry {
         home_playbook: Vec<PlayCall>,
         away_playbook: Vec<PlayCall>,
         player_attribute_tables: HashMap<Uuid, PlayerAttributeTable>,
+        home_manager_table: ManagerAttributeTable,
+        away_manager_table: ManagerAttributeTable,
     ) -> Self {
         let (
             home_offensive_position_index,
@@ -99,6 +103,8 @@ impl TeamRegistry {
             home_instructions_index,
             away_instructions_index,
             player_attribute_tables,
+            home_manager_table,
+            away_manager_table,
         }
     }
 
@@ -129,6 +135,22 @@ impl TeamRegistry {
 
     pub fn insert_player_attribute_table(&mut self, player_id: Uuid, table: PlayerAttributeTable) {
         self.player_attribute_tables.insert(player_id, table);
+    }
+
+    pub fn home_manager_table(&self) -> &ManagerAttributeTable {
+        &self.home_manager_table
+    }
+
+    pub fn away_manager_table(&self) -> &ManagerAttributeTable {
+        &self.away_manager_table
+    }
+
+    pub fn manager_attribute_table(&self, team_id: Uuid) -> &ManagerAttributeTable {
+        if team_id == self.home_team_id {
+            &self.home_manager_table
+        } else {
+            &self.away_manager_table
+        }
     }
 
     pub fn home_team_id(&self) -> Uuid {
@@ -433,6 +455,38 @@ impl TeamRegistry {
             .chain(self.away_lineup.assignments().iter())
             .map(|a| a.player())
             .find(|p| p.id() == *player_id)
+    }
+
+    pub fn home_captain_id(&self) -> Option<Uuid> {
+        self.home_lineup
+            .assignments()
+            .iter()
+            .find(|a| a.player().captaincy_role() == Some(CaptaincyRole::Captain))
+            .map(|a| a.player().id())
+            .or_else(|| {
+                self.home_lineup
+                    .assignments()
+                    .iter()
+                    .find(|a| a.player().captaincy_role() == Some(CaptaincyRole::ViceCaptain))
+                    .map(|a| a.player().id())
+            })
+            .or_else(|| self.home_lineup.assignments().first().map(|a| a.player().id()))
+    }
+
+    pub fn away_captain_id(&self) -> Option<Uuid> {
+        self.away_lineup
+            .assignments()
+            .iter()
+            .find(|a| a.player().captaincy_role() == Some(CaptaincyRole::Captain))
+            .map(|a| a.player().id())
+            .or_else(|| {
+                self.away_lineup
+                    .assignments()
+                    .iter()
+                    .find(|a| a.player().captaincy_role() == Some(CaptaincyRole::ViceCaptain))
+                    .map(|a| a.player().id())
+            })
+            .or_else(|| self.away_lineup.assignments().first().map(|a| a.player().id()))
     }
 
     pub fn home_captain<'a>(

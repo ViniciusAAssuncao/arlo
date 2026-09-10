@@ -1,4 +1,3 @@
-use crate::attributes::ManagerAttributeTable;
 use crate::manager_ai::ManagerSnapshot;
 use crate::world_state::match_state::state::MatchState;
 use arlo_domain::sport_constants::{
@@ -47,8 +46,7 @@ impl MatchState {
 
     pub fn record_play_call_outcome(&mut self, team_id: Uuid, play_call_id: Uuid, success: bool) {
         let is_home = team_id == self.teams.home_team_id();
-        let manager = self.teams.manager_for_team(team_id);
-        let manager_table = ManagerAttributeTable::from_manager(manager, &self.attribute_keys);
+        let manager_table = self.teams.manager_attribute_table(team_id);
         let raw_adaptability = manager_table.get(AttributeKey::Adaptability);
         let norm_adaptability = (raw_adaptability / ATTRIBUTE_MAX).clamp(0.0, 1.0);
         let decay_factor = BELIEF_EVIDENCE_DECAY_MAX

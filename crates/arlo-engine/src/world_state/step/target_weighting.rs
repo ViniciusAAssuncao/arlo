@@ -1,5 +1,5 @@
-use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
-use crate::playmaking::routes::simulate_route_development;
+use crate::match_decision::target_selection::{calculate_player_target_weight_from_table, ReceptionRole};
+use crate::playmaking::routes::simulate_route_development_from_tables;
 use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -14,21 +14,25 @@ pub fn resolve_decision_target_weights(
     state: &mut MatchState,
     target_candidates: &[&Player],
     defenders: &[&Player],
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    _attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> (f64, f64, HashMap<Uuid, f64>) {
+    let tables = state.teams.player_attribute_tables().clone();
+
     if context.offense_route_index.is_empty() {
         let empty_openness = HashMap::new();
+        static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
         let best_available_target_weight = target_candidates
             .iter()
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
-                calculate_player_target_weight(
+                let table = tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+                calculate_player_target_weight_from_table(
                     p,
+                    table,
                     state.spatial_map(),
                     state.pitch(),
                     &context.offense_pos_index,
                     &context.offense_instructions_index,
-                    attribute_keys,
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &empty_openness,
@@ -57,7 +61,7 @@ pub fn resolve_decision_target_weights(
 
         let pitch = *state.pitch();
         let fatigue_tracker = state.fatigue.clone();
-        let openness_by_player = simulate_route_development(
+        let openness_by_player = simulate_route_development_from_tables(
             &pitch,
             context.is_home_offense,
             &offense_route_runners,
@@ -66,24 +70,26 @@ pub fn resolve_decision_target_weights(
             defenders,
             &context.defense_pos_index,
             &context.defense_instructions_index,
-            attribute_keys,
+            &tables,
             &mut state.spatial_map,
             &|id| fatigue_tracker.fatigue_for(id),
             available_duration,
             &mut drift_rng,
         );
 
+        static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
         let best_available_target_weight = target_candidates
             .iter()
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
-                calculate_player_target_weight(
+                let table = tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+                calculate_player_target_weight_from_table(
                     p,
+                    table,
                     state.spatial_map(),
                     state.pitch(),
                     &context.offense_pos_index,
                     &context.offense_instructions_index,
-                    attribute_keys,
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &openness_by_player,

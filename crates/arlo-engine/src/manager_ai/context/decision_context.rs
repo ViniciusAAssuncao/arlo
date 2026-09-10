@@ -66,7 +66,8 @@ impl ManagerDecisionContext {
         let is_home = team_id == state.home_team_id();
         let game_state_pressure = analyze_match_state(state);
         let manager = state.manager_for_team(team_id);
-        let manager_snapshot = ManagerSnapshot::from_manager(manager, state.attribute_keys());
+        let manager_table = state.manager_attribute_table_for(team_id);
+        let manager_snapshot = ManagerSnapshot::from_table(manager, manager_table);
         let lineup = if is_home {
             state.home_lineup()
         } else {

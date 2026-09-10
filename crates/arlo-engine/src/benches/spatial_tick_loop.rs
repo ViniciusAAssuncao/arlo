@@ -3,6 +3,7 @@ use arlo_domain::{
     AttributeCategory, AttributeDefinition, AttributeKey, AttributeTarget, CaptaincyRole,
     Formation, FormationSlot, Player, PlayerAttributeValue, PlayerPosition, Position,
 };
+use arlo_engine::attributes::PlayerAttributeTable;
 use arlo_engine::lineup_runtime::Lineup;
 use arlo_engine::physical::PhysicalState;
 use arlo_engine::spatial::movement_context::MovementContext;
@@ -78,7 +79,7 @@ fn setup_spatial_benchmark() -> (
     DynamicSpatialMap,
     Vec<Player>,
     Vec<(Uuid, VectorPosition)>,
-    HashMap<Uuid, AttributeKey>,
+    HashMap<Uuid, PlayerAttributeTable>,
 ) {
     let pitch = Pitch::from_mirim(145.0, 85.0).unwrap();
     let mut attribute_keys = HashMap::new();
@@ -151,6 +152,7 @@ fn setup_spatial_benchmark() -> (
     let mut away_players = Vec::new();
     let mut players = Vec::new();
     let mut targets = Vec::new();
+    let mut attribute_tables = HashMap::new();
 
     for (i, &pos) in positions_list.iter().enumerate() {
         let home_id = Uuid::new_v4();
@@ -158,6 +160,9 @@ fn setup_spatial_benchmark() -> (
 
         let home_p = create_player(home_id, &format!("Home_{i}"), pos, &attribute_keys);
         let away_p = create_player(away_id, &format!("Away_{i}"), pos, &attribute_keys);
+
+        attribute_tables.insert(home_id, PlayerAttributeTable::from_player(&home_p, &attribute_keys));
+        attribute_tables.insert(away_id, PlayerAttributeTable::from_player(&away_p, &attribute_keys));
 
         let initial_home = VectorPosition::from_components((20.0 + (i as f64) * 5.0) * MIRIM_TO_METERS, (10.0 + (i as f64) * 4.0) * MIRIM_TO_METERS, 0.0);
         let initial_away = VectorPosition::from_components((100.0 - (i as f64) * 5.0) * MIRIM_TO_METERS, (10.0 + (i as f64) * 4.0) * MIRIM_TO_METERS, 0.0);
@@ -183,11 +188,11 @@ fn setup_spatial_benchmark() -> (
         spatial_map.set_position(*id, VectorPosition::from_components(target.raw().0 - 10.0 * MIRIM_TO_METERS, target.raw().1, 0.0));
     }
 
-    (pitch, spatial_map, players, targets, attribute_keys)
+    (pitch, spatial_map, players, targets, attribute_tables)
 }
 
 fn bench_spatial_tick_loop(c: &mut Criterion) {
-    let (pitch, base_spatial_map, players, targets, attribute_keys) = setup_spatial_benchmark();
+    let (pitch, base_spatial_map, players, targets, attribute_tables) = setup_spatial_benchmark();
     let fatigue_state = PhysicalState::initial();
     let fatigue_lookup = |_id: &Uuid| fatigue_state;
     let effort_lookup = |_id: &Uuid| 1.0;
@@ -237,7 +242,7 @@ fn bench_spatial_tick_loop(c: &mut Criterion) {
             run_spatial_tick_loop_with_context(
                 black_box(&mut map),
                 black_box(&movers),
-                black_box(&attribute_keys),
+                black_box(&attribute_tables),
                 black_box(MovementContext::LivePlay),
                 black_box(&pitch),
                 black_box(&fatigue_lookup),

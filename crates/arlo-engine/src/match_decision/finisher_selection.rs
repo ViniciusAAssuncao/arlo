@@ -1,5 +1,6 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::target_selection::{
-    calculate_player_target_weight, player_base_reception_weight, select_target, ReceptionRole,
+    calculate_player_target_weight, calculate_player_target_weight_from_table, player_base_reception_weight, player_base_reception_weight_from_table, select_target_from_tables, ReceptionRole,
 };
 use crate::physical::PhysicalState;
 use crate::spatial::DynamicSpatialMap;
@@ -9,12 +10,44 @@ use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+pub fn player_base_finishing_weight_from_table(
+    table: &PlayerAttributeTable,
+    state: Option<&PhysicalState>,
+) -> f64 {
+    player_base_reception_weight_from_table(table, ReceptionRole::Finisher, state)
+}
+
 pub fn player_base_finishing_weight(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     state: Option<&PhysicalState>,
 ) -> f64 {
     player_base_reception_weight(player, attribute_keys, ReceptionRole::Finisher, state)
+}
+
+pub fn calculate_player_finishing_weight_from_table(
+    player: &Player,
+    table: &PlayerAttributeTable,
+    spatial_map: &DynamicSpatialMap,
+    pitch: &Pitch,
+    position_index: &HashMap<Uuid, Position>,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    attacking_positive_x: bool,
+    openness_by_player: &HashMap<Uuid, f64>,
+    state: Option<&PhysicalState>,
+) -> f64 {
+    calculate_player_target_weight_from_table(
+        player,
+        table,
+        spatial_map,
+        pitch,
+        position_index,
+        instructions_index,
+        attacking_positive_x,
+        ReceptionRole::Finisher,
+        openness_by_player,
+        state,
+    )
 }
 
 pub fn calculate_player_finishing_weight(
@@ -42,7 +75,7 @@ pub fn calculate_player_finishing_weight(
     )
 }
 
-pub fn select_finisher<F, R>(
+pub fn select_finisher_from_tables<F, R>(
     candidates: &[&Player],
     role_index_for_play: Option<&HashMap<Uuid, SlotRole>>,
     is_bonus_phase: bool,
@@ -50,7 +83,7 @@ pub fn select_finisher<F, R>(
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     attacking_positive_x: bool,
     openness_by_player: &HashMap<Uuid, f64>,
     fatigue_for: Option<&F>,
@@ -71,15 +104,53 @@ where
         }
     }
 
-    select_target(
+    select_target_from_tables(
         candidates,
         spatial_map,
         pitch,
         position_index,
         instructions_index,
-        attribute_keys,
+        attribute_tables,
         attacking_positive_x,
         ReceptionRole::Finisher,
+        openness_by_player,
+        fatigue_for,
+        rng,
+    )
+}
+
+pub fn select_finisher<F, R>(
+    candidates: &[&Player],
+    role_index_for_play: Option<&HashMap<Uuid, SlotRole>>,
+    is_bonus_phase: bool,
+    spatial_map: &DynamicSpatialMap,
+    pitch: &Pitch,
+    position_index: &HashMap<Uuid, Position>,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attacking_positive_x: bool,
+    openness_by_player: &HashMap<Uuid, f64>,
+    fatigue_for: Option<&F>,
+    rng: &mut R,
+) -> Option<Uuid>
+where
+    F: Fn(&Uuid) -> PhysicalState,
+    R: Rng + ?Sized,
+{
+    let mut attribute_tables = HashMap::with_capacity(candidates.len());
+    for p in candidates {
+        attribute_tables.insert(p.id(), PlayerAttributeTable::from_player(p, attribute_keys));
+    }
+    select_finisher_from_tables(
+        candidates,
+        role_index_for_play,
+        is_bonus_phase,
+        spatial_map,
+        pitch,
+        position_index,
+        instructions_index,
+        &attribute_tables,
+        attacking_positive_x,
         openness_by_player,
         fatigue_for,
         rng,

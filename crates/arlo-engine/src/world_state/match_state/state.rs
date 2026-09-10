@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{ManagerAttributeTable, PlayerAttributeTable};
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
@@ -47,6 +47,10 @@ impl MatchState {
     pub fn attribute_table_for(&self, player_id: &Uuid) -> &PlayerAttributeTable {
         static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
         self.teams.player_attribute_table(player_id).unwrap_or(&DEFAULT_TABLE)
+    }
+
+    pub fn manager_attribute_table_for(&self, team_id: Uuid) -> &ManagerAttributeTable {
+        self.teams.manager_attribute_table(team_id)
     }
 
     pub fn pitch(&self) -> &Pitch {

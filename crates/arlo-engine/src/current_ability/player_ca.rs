@@ -1,12 +1,13 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::caching::position_profile_cache::get_position_profile;
 use crate::current_ability::calculator::calculate_current_ability;
 use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn calculate_player_ca(
+pub fn calculate_player_ca_from_table(
     player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    table: &PlayerAttributeTable,
 ) -> Option<i32> {
     let best_position = player
         .positions()
@@ -17,13 +18,19 @@ pub fn calculate_player_ca(
 
     let mut attributes_and_weights = Vec::with_capacity(profile.weights.len());
 
-    for attr in player.attributes() {
-        if let Some(&key) = attribute_keys.get(&attr.attribute_definition_id()) {
-            if let Some(weight) = profile.dense_weights[key.index()] {
-                attributes_and_weights.push((attr.value() as f64, weight));
-            }
+    for w in &profile.weights {
+        if w.weight > 0.0 {
+            attributes_and_weights.push((table.get(w.key), w.weight));
         }
     }
 
     Some(calculate_current_ability(&attributes_and_weights))
+}
+
+pub fn calculate_player_ca(
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+) -> Option<i32> {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    calculate_player_ca_from_table(player, &table)
 }

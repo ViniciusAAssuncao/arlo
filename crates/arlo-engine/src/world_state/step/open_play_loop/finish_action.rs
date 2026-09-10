@@ -1,5 +1,5 @@
 use crate::lineup_runtime::find_goalguard;
-use crate::match_decision::finisher_selection::select_finisher;
+use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest,
 };
@@ -8,7 +8,8 @@ use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::DuelKind;
 use crate::rng::RngStream;
-use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_cross_speed};
+use crate::spatial::ball_kinematics::calculate_cross_speed_from_table;
+use crate::spatial::ball_kinematics::ball_flight_duration;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -47,7 +48,7 @@ pub fn execute_cross_action(
         .rng_provider()
         .indexed_rng_for(RngStream::FinisherSelection, seq_fin);
 
-    let chosen_finisher_id = select_finisher(
+    let chosen_finisher_id = select_finisher_from_tables(
         &iter_ctx.target_candidates,
         Some(&context.offense_role_index),
         is_bonus_phase,
@@ -55,7 +56,7 @@ pub fn execute_cross_action(
         &pitch,
         &context.offense_pos_index,
         &context.offense_instructions_index,
-        &attribute_keys,
+        state.teams.player_attribute_tables(),
         context.is_home_offense,
         &iter_ctx.openness_by_player,
         Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
@@ -66,9 +67,12 @@ pub fn execute_cross_action(
         .and_then(|fid| iter_ctx.target_candidates.iter().copied().find(|p| p.id() == fid))
         .unwrap_or(current_carrier);
 
-    let cross_speed = calculate_cross_speed(
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let carrier_table = state.teams.player_attribute_tables().get(&current_carrier.id()).unwrap_or(&DEFAULT_TABLE);
+
+    let cross_speed = calculate_cross_speed_from_table(
         current_carrier,
-        &attribute_keys,
+        carrier_table,
         &state.fatigue_lookup().get(&current_carrier.id()),
     );
     let finisher_pos = state

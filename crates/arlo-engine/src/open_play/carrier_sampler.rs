@@ -2,7 +2,7 @@ use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::extract_effective_attribute_value_with_impulse;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
 use arlo_domain::sport_constants::decision_steepness_with_impulse;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::stats::categorical::sample_categorical;
@@ -37,9 +37,9 @@ impl CarrierDecisionResult {
     }
 }
 
-pub fn sample_carrier_decision<R: Rng + ?Sized>(
-    carrier: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+pub fn sample_carrier_decision_from_table<R: Rng + ?Sized>(
+    _carrier: &Player,
+    table: &PlayerAttributeTable,
     utilities: &[(ArtrineDecisionKind, f64)],
     carrier_physical_state: &PhysicalState,
     carrier_impulse_state: &ImpulseState,
@@ -53,10 +53,10 @@ pub fn sample_carrier_decision<R: Rng + ?Sized>(
     }
 
     let raw_utilities: SmallVec<[f64; 5]> = utilities.iter().map(|(_, u)| *u).collect();
-    let table = PlayerAttributeTable::from_player(carrier, attribute_keys);
-    let baseline = calculate_player_impulse_baseline(carrier, attribute_keys);
+    let profile = crate::caching::impulse_baseline_profile();
+    let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
     let decisions_val = extract_effective_attribute_value_with_impulse(
-        &table,
+        table,
         AttributeKey::Decisions,
         carrier_physical_state,
         carrier_impulse_state,
@@ -77,4 +77,23 @@ pub fn sample_carrier_decision<R: Rng + ?Sized>(
 
     let chosen_probability = Probability::new_clamped(prob_value);
     CarrierDecisionResult::new(chosen_kind, chosen_probability)
+}
+
+pub fn sample_carrier_decision<R: Rng + ?Sized>(
+    carrier: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    utilities: &[(ArtrineDecisionKind, f64)],
+    carrier_physical_state: &PhysicalState,
+    carrier_impulse_state: &ImpulseState,
+    rng: &mut R,
+) -> CarrierDecisionResult {
+    let table = PlayerAttributeTable::from_player(carrier, attribute_keys);
+    sample_carrier_decision_from_table(
+        carrier,
+        &table,
+        utilities,
+        carrier_physical_state,
+        carrier_impulse_state,
+        rng,
+    )
 }

@@ -5,7 +5,7 @@ use crate::physical::systems::degradation::{
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::{
-    calculate_captaincy_influence, calculate_player_contextual_baseline,
+    calculate_captaincy_influence, calculate_player_contextual_baseline_from_table,
 };
 use crate::psychology::systems::dynamics::fatigue_depression;
 use arlo_domain::sport_constants::{
@@ -30,7 +30,7 @@ pub enum ImpulseEventKind {
     TurnoverWon,
     SeriesSuccess,
     SeriesFailure,
-    MilestoneStreak,
+MilestoneStreak,
     BigPlayCompleted,
     BigPlayAllowed,
 }
@@ -196,6 +196,19 @@ pub fn calculate_loss_aversion_lambda(
     base_lambda.clamp(1.1, 3.8)
 }
 
+pub fn calculate_contextual_loss_aversion_lambda_from_table(
+    table: &PlayerAttributeTable,
+    exhaustion: f64,
+    captain_influence: f64,
+) -> f64 {
+    let composure = extract_effective_attribute_value(table, AttributeKey::Composure, &PhysicalState::initial());
+    let determination = extract_effective_attribute_value(table, AttributeKey::Determination, &PhysicalState::initial());
+    let bravery = extract_effective_attribute_value(table, AttributeKey::Bravery, &PhysicalState::initial());
+    let base_lambda = calculate_loss_aversion_lambda(composure, determination, bravery, exhaustion);
+    let captain_modifier = captain_influence * CAPTAINCY_LOSS_AVERSION_BUFFER;
+    (base_lambda - captain_modifier).clamp(1.1, 3.8)
+}
+
 pub fn calculate_contextual_loss_aversion_lambda(
     composure: f64,
     determination: f64,
@@ -215,37 +228,37 @@ pub fn calculate_contextual_loss_aversion_lambda(
     (base_lambda - captain_modifier).clamp(1.1, 3.8)
 }
 
-pub fn apply_impulse_event_contextual_at(
+pub fn apply_impulse_event_contextual_from_table_at(
     state: &mut ImpulseState,
     player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    table: &PlayerAttributeTable,
     physical_state: &PhysicalState,
     event: &ImpulseEvent,
     timestamp_seconds: f64,
-    captain: Option<&Player>,
+    captain_influence: f64,
+    is_captain: bool,
     is_home: bool,
 ) -> ImpulseShift {
     let is_positive = event.kind().is_positive();
     let sign = if is_positive { 1.0 } else { -1.0 };
 
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let determination = extract_effective_attribute_value(
-        &table,
+        table,
         AttributeKey::Determination,
         physical_state,
     );
     let bravery = extract_effective_attribute_value(
-        &table,
+        table,
         AttributeKey::Bravery,
         physical_state,
     );
     let composure = extract_effective_attribute_value(
-        &table,
+        table,
         AttributeKey::Composure,
         physical_state,
     );
     let consistency = extract_effective_attribute_value(
-        &table,
+        table,
         AttributeKey::Consistency,
         physical_state,
     );
@@ -265,16 +278,17 @@ pub fn apply_impulse_event_contextual_at(
     let raw_stimulus = ALPHA_SURPRISAL_WEIGHT * surprisal_norm + BETA_EPV_WEIGHT * epv_norm;
     let base_magnitude = reaction_scale * raw_stimulus;
 
-    let effective_lambda = calculate_contextual_loss_aversion_lambda(
-        composure,
-        determination,
-        bravery,
-        exhaustion,
-        captain,
-        attribute_keys,
-    );
+    let base_lambda = calculate_loss_aversion_lambda(composure, determination, bravery, exhaustion);
+    let captain_modifier = captain_influence * CAPTAINCY_LOSS_AVERSION_BUFFER;
+    let effective_lambda = (base_lambda - captain_modifier).clamp(1.1, 3.8);
 
-    let baseline = calculate_player_contextual_baseline(player, attribute_keys, captain, is_home);
+    let baseline = calculate_player_contextual_baseline_from_table(
+        player,
+        table,
+        captain_influence,
+        is_captain,
+        is_home,
+    );
     let base_floor = impulse_floor_for_baseline(baseline);
     let fatigue_dep = fatigue_depression(physical_state);
     let effective_floor = (base_floor * fatigue_dep).clamp(0.0, baseline);
@@ -315,6 +329,37 @@ pub fn apply_impulse_event_contextual_at(
         new_accumulator,
         momentum_multiplier,
         effective_lambda,
+    )
+}
+
+pub fn apply_impulse_event_contextual_at(
+    state: &mut ImpulseState,
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    physical_state: &PhysicalState,
+    event: &ImpulseEvent,
+    timestamp_seconds: f64,
+    captain: Option<&Player>,
+    is_home: bool,
+) -> ImpulseShift {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let (captain_influence, is_captain) = match captain {
+        Some(cap) => (
+            calculate_captaincy_influence(cap, attribute_keys),
+            cap.id() == player.id(),
+        ),
+        None => (0.0, false),
+    };
+    apply_impulse_event_contextual_from_table_at(
+        state,
+        player,
+        &table,
+        physical_state,
+        event,
+        timestamp_seconds,
+        captain_influence,
+        is_captain,
+        is_home,
     )
 }
 

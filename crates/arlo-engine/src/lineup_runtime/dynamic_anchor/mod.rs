@@ -4,6 +4,7 @@ pub mod offense;
 pub use defense::*;
 pub use offense::*;
 
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::lineup::Lineup;
 use crate::spatial::DynamicSpatialMap;
 use crate::team_identity::BlockMarkingRole;
@@ -22,19 +23,20 @@ pub struct AnchorComputationContext<'a> {
     pub spatial_map: Option<&'a DynamicSpatialMap>,
     pub block_marking_roles: Option<&'a HashMap<Uuid, BlockMarkingRole>>,
     pub press_reference_pos: Option<VectorPosition>,
+    pub attribute_tables: Option<&'a HashMap<Uuid, PlayerAttributeTable>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DynamicAnchorManager;
 
-pub fn calculate_player_dynamic_attractor(
+pub fn calculate_player_dynamic_attractor_from_table(
     pitch: &Pitch,
     player: &Player,
+    table: &PlayerAttributeTable,
     slot: &FormationSlot,
     scrimmage_x_mirim: f64,
     is_offense: bool,
     attacking_positive_x: bool,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
     ctx: &AnchorComputationContext,
 ) -> VectorPosition {
@@ -52,15 +54,15 @@ pub fn calculate_player_dynamic_attractor(
     let base_y = base_coord.y_meters();
 
     let (adjusted_x, adjusted_y) = if is_offense {
-        calculate_offense_attractor_coordinates(
+        calculate_offense_attractor_coordinates_for_position_from_table(
             pitch,
             player,
-            slot,
+            table,
+            slot.offensive_position(),
             scrimmage_x_m,
             base_x,
             base_y,
             attacking_positive_x,
-            attribute_keys,
             instructions,
             ctx,
         )
@@ -72,15 +74,15 @@ pub fn calculate_player_dynamic_attractor(
             .unwrap_or_default()
             .out_of_possession()
             .marking();
-        calculate_defense_attractor_coordinates(
+        calculate_defense_attractor_coordinates_from_table(
             pitch,
             player,
+            table,
             slot,
             scrimmage_x_m,
             base_x,
             base_y,
             attacking_positive_x,
-            attribute_keys,
             instructions,
             marking,
             ctx,
@@ -98,13 +100,50 @@ pub fn calculate_player_dynamic_attractor(
     VectorPosition::from_components(clamped_x, clamped_y, 0.0)
 }
 
-pub fn compute_dynamic_anchors(
+pub fn calculate_player_dynamic_attractor(
     pitch: &Pitch,
-    lineup: &Lineup,
+    player: &Player,
+    slot: &FormationSlot,
     scrimmage_x_mirim: f64,
     is_offense: bool,
     attacking_positive_x: bool,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    ctx: &AnchorComputationContext,
+) -> VectorPosition {
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+    let table = ctx
+        .attribute_tables
+        .and_then(|m| m.get(&player.id()))
+        .cloned()
+        .unwrap_or_else(|| {
+            if attribute_keys.is_empty() {
+                DEFAULT_TABLE
+            } else {
+                PlayerAttributeTable::from_player(player, attribute_keys)
+            }
+        });
+
+    calculate_player_dynamic_attractor_from_table(
+        pitch,
+        player,
+        &table,
+        slot,
+        scrimmage_x_mirim,
+        is_offense,
+        attacking_positive_x,
+        instructions,
+        ctx,
+    )
+}
+
+pub fn compute_dynamic_anchors_from_tables(
+    pitch: &Pitch,
+    lineup: &Lineup,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
+    scrimmage_x_mirim: f64,
+    is_offense: bool,
+    attacking_positive_x: bool,
     instructions: &TeamInstructions,
     ctx: &AnchorComputationContext,
 ) -> HashMap<Uuid, VectorPosition> {
@@ -112,6 +151,7 @@ pub fn compute_dynamic_anchors(
         return HashMap::new();
     }
 
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     let pitch_length_m = pitch.length().value();
     let scrimmage_x_m = (scrimmage_x_mirim * MIRIM_TO_METERS).clamp(0.0, pitch_length_m);
     let role_index = lineup.role_index();
@@ -119,30 +159,34 @@ pub fn compute_dynamic_anchors(
     let mut raw_attractors: Vec<(Uuid, VectorPosition)> = Vec::with_capacity(lineup.len());
     let mut total_x = 0.0;
 
+    let empty_keys = HashMap::new();
+
     for assignment in lineup.assignments() {
         let player = assignment.player();
         let slot = assignment.slot();
+        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_TABLE);
         let attractor = if is_offense {
-            resolve_offense_player_attractor(
+            resolve_offense_player_attractor_from_table(
                 pitch,
                 player,
+                table,
                 slot,
                 scrimmage_x_mirim,
                 attacking_positive_x,
-                attribute_keys,
+                &empty_keys,
                 instructions,
                 &role_index,
                 ctx,
             )
         } else {
-            calculate_player_dynamic_attractor(
+            calculate_player_dynamic_attractor_from_table(
                 pitch,
                 player,
+                table,
                 slot,
                 scrimmage_x_mirim,
                 is_offense,
                 attacking_positive_x,
-                attribute_keys,
                 instructions,
                 ctx,
             )
@@ -184,6 +228,47 @@ pub fn compute_dynamic_anchors(
     }
 
     result
+}
+
+pub fn compute_dynamic_anchors(
+    pitch: &Pitch,
+    lineup: &Lineup,
+    scrimmage_x_mirim: f64,
+    is_offense: bool,
+    attacking_positive_x: bool,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    ctx: &AnchorComputationContext,
+) -> HashMap<Uuid, VectorPosition> {
+    if let Some(tables) = ctx.attribute_tables {
+        return compute_dynamic_anchors_from_tables(
+            pitch,
+            lineup,
+            tables,
+            scrimmage_x_mirim,
+            is_offense,
+            attacking_positive_x,
+            instructions,
+            ctx,
+        );
+    }
+
+    let mut tables = HashMap::with_capacity(lineup.len());
+    for assignment in lineup.assignments() {
+        let pid = assignment.player().id();
+        tables.insert(pid, PlayerAttributeTable::from_player(assignment.player(), attribute_keys));
+    }
+
+    compute_dynamic_anchors_from_tables(
+        pitch,
+        lineup,
+        &tables,
+        scrimmage_x_mirim,
+        is_offense,
+        attacking_positive_x,
+        instructions,
+        ctx,
+    )
 }
 
 pub fn translate_dynamic_formation_to_scrimmage(

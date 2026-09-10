@@ -13,7 +13,7 @@ use crate::spatial::{
     run_carrier_tick_loop_with_collision, CollisionResolution, DynamicSpatialMap, LiveCollision,
     MovementContext,
 };
-use crate::team_identity::marking::recalibrate_defenders_for_carrier;
+use crate::team_identity::marking::recalibrate_defenders_for_carrier_from_tables;
 use crate::team_identity::tempo::effort_multiplier_from_value;
 use crate::time::DurationComponentKind;
 use crate::world_state::match_state::MatchState;
@@ -79,15 +79,15 @@ pub fn execute_carry_action(
         }
     }
 
-    let def_targets = recalibrate_defenders_for_carrier(
+    let def_targets = recalibrate_defenders_for_carrier_from_tables(
         defense_players,
         &context.defense_pos_index,
         state.spatial_map(),
+        state.teams.player_attribute_tables(),
         carrier_pos,
         iter_ctx.offensive_gravity_mult,
         &pitch,
         context.is_home_offense,
-        &attribute_keys,
     );
 
     for &defender in defense_players {
@@ -269,7 +269,7 @@ pub fn execute_carry_action(
         &movers,
         current_carrier.id(),
         &def_ids,
-        &attribute_keys,
+        state.teams.player_attribute_tables(),
         MovementContext::LivePlay,
         &pitch,
         &|id| fatigue_tracker.fatigue_for(id),

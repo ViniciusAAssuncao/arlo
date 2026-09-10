@@ -112,17 +112,13 @@ pub fn find_active_captain<'a>(
     })
 }
 
-pub fn calculate_captaincy_influence(
-    captain: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+pub fn calculate_captaincy_influence_from_table(
+    table: &PlayerAttributeTable,
 ) -> f64 {
-    let table = PlayerAttributeTable::from_player(captain, attribute_keys);
-    let leadership = extract_attribute_value(&table, AttributeKey::Leadership);
-    let communication =
-        extract_attribute_value(&table, AttributeKey::Communication);
-    let determination =
-        extract_attribute_value(&table, AttributeKey::Determination);
-    let teamwork = extract_attribute_value(&table, AttributeKey::Teamwork);
+    let leadership = extract_attribute_value(table, AttributeKey::Leadership);
+    let communication = extract_attribute_value(table, AttributeKey::Communication);
+    let determination = extract_attribute_value(table, AttributeKey::Determination);
+    let teamwork = extract_attribute_value(table, AttributeKey::Teamwork);
 
     let composite =
         (leadership * 0.40 + communication * 0.25 + determination * 0.20 + teamwork * 0.15) / 20.0;
@@ -131,24 +127,28 @@ pub fn calculate_captaincy_influence(
     delta.clamp(-1.0, 1.0)
 }
 
-pub fn calculate_player_contextual_baseline(
-    player: &Player,
+pub fn calculate_captaincy_influence(
+    captain: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
-    captain: Option<&Player>,
+) -> f64 {
+    let table = PlayerAttributeTable::from_player(captain, attribute_keys);
+    calculate_captaincy_influence_from_table(&table)
+}
+
+pub fn calculate_player_contextual_baseline_from_table(
+    _player: &Player,
+    table: &PlayerAttributeTable,
+    captain_influence: f64,
+    is_captain: bool,
     is_home: bool,
 ) -> f64 {
-    let base = calculate_player_impulse_baseline(player, attribute_keys);
+    let profile = impulse_baseline_profile();
+    let base = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
 
-    let captain_boost = match captain {
-        Some(cap) if cap.id() == player.id() => {
-            let influence = calculate_captaincy_influence(cap, attribute_keys);
-            influence * MAX_CAPTAINCY_BASELINE_BOOST * 0.50
-        }
-        Some(cap) => {
-            let influence = calculate_captaincy_influence(cap, attribute_keys);
-            influence * MAX_CAPTAINCY_BASELINE_BOOST
-        }
-        None => 0.0,
+    let captain_boost = if is_captain {
+        captain_influence * MAX_CAPTAINCY_BASELINE_BOOST * 0.50
+    } else {
+        captain_influence * MAX_CAPTAINCY_BASELINE_BOOST
     };
 
     let home_boost = if is_home {
@@ -158,4 +158,18 @@ pub fn calculate_player_contextual_baseline(
     };
 
     (base + captain_boost + home_boost).clamp(5.0, 98.0)
+}
+
+pub fn calculate_player_contextual_baseline(
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    captain: Option<&Player>,
+    is_home: bool,
+) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let (influence, is_cap) = match captain {
+        Some(cap) => (calculate_captaincy_influence(cap, attribute_keys), cap.id() == player.id()),
+        None => (0.0, false),
+    };
+    calculate_player_contextual_baseline_from_table(player, &table, influence, is_cap, is_home)
 }

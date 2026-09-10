@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{AttributeKeyIndex, ManagerAttributeTable, PlayerAttributeTable};
 use crate::error::EngineResult;
 use crate::lineup_runtime::hydrate;
 use crate::possession::PossessionSnapshot;
@@ -48,13 +48,17 @@ impl MatchState {
         let clock = MatchClock::new(&params.format_rules);
         let real_time = RealTimeAccumulator::new();
 
+        let key_index = AttributeKeyIndex::from_map(&params.attribute_keys);
         let mut player_attribute_tables = HashMap::with_capacity(params.home.roster.len() + params.away.roster.len());
         for p in params.home.roster.iter().chain(params.away.roster.iter()) {
             player_attribute_tables.insert(
                 p.id(),
-                PlayerAttributeTable::from_player(p, &params.attribute_keys),
+                PlayerAttributeTable::from_player_with_index(p, &key_index),
             );
         }
+
+        let home_manager_table = ManagerAttributeTable::from_manager_with_index(&params.home.manager, &key_index);
+        let away_manager_table = ManagerAttributeTable::from_manager_with_index(&params.away.manager, &key_index);
 
         let teams = TeamRegistry::new(
             params.home.team_id,
@@ -70,6 +74,8 @@ impl MatchState {
             params.home.playbook,
             params.away.playbook,
             player_attribute_tables,
+            home_manager_table,
+            away_manager_table,
         );
 
         let home_squad = MatchdaySquad::from_roster_and_lineup(&params.home.roster, &home_lineup);

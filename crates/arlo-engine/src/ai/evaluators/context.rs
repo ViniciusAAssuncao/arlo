@@ -3,9 +3,11 @@ use crate::ai::epv::DynamicEpvModel;
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
-use crate::resolution::duel_noise::player_noise_distribution;
+use crate::psychology::state::ImpulseState;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
+use crate::resolution::duel_noise::player_noise_distribution_from_table_with_impulse;
 use crate::resolution::duel_profiles::DuelProfile;
-use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position, SlotRole};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
@@ -16,6 +18,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct DecisionEvaluationContext<'a> {
     pub carrier: &'a Player,
+    pub carrier_table: &'a PlayerAttributeTable,
     pub carrier_position: Position,
     pub carrier_role: SlotRole,
     pub carrier_instructions: PlayerInstructions,
@@ -49,6 +52,7 @@ pub struct DecisionEvaluationContext<'a> {
 impl<'a> DecisionEvaluationContext<'a> {
     pub fn new(
         carrier: &'a Player,
+        carrier_table: &'a PlayerAttributeTable,
         carrier_position: Position,
         carrier_role: SlotRole,
         carrier_instructions: PlayerInstructions,
@@ -78,10 +82,11 @@ impl<'a> DecisionEvaluationContext<'a> {
     ) -> Self {
         let opponent_epa_at_proximity = epv_model.opponent_epa(normalized_proximity);
         let cached_probability_bounds =
-            Self::calculate_probability_bounds(carrier, attribute_keys, &carrier_physical_state);
+            Self::calculate_probability_bounds_from_table(carrier, carrier_table, &carrier_physical_state);
 
         Self {
             carrier,
+            carrier_table,
             carrier_position,
             carrier_role,
             carrier_instructions,
@@ -113,21 +118,25 @@ impl<'a> DecisionEvaluationContext<'a> {
         }
     }
 
-    pub fn calculate_probability_bounds(
+    pub fn calculate_probability_bounds_from_table(
         carrier: &Player,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        table: &PlayerAttributeTable,
         physical_state: &PhysicalState,
     ) -> (f64, f64) {
-        let table = PlayerAttributeTable::from_player(carrier, attribute_keys);
         let consistency = extract_effective_attribute_value(
-            &table,
+            table,
             AttributeKey::Consistency,
             physical_state,
         );
-        let noise_params = player_noise_distribution(
+        let profile = crate::caching::impulse_baseline_profile();
+        let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
+        let impulse_state = ImpulseState::from_baseline(baseline);
+        let noise_params = player_noise_distribution_from_table_with_impulse(
             carrier,
-            attribute_keys,
+            table,
             physical_state,
+            &impulse_state,
+            baseline,
         );
         let scale = noise_params.scale();
         let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
@@ -138,8 +147,21 @@ impl<'a> DecisionEvaluationContext<'a> {
         (floor, ceiling)
     }
 
+    pub fn calculate_probability_bounds(
+        carrier: &Player,
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        physical_state: &PhysicalState,
+    ) -> (f64, f64) {
+        let table = PlayerAttributeTable::from_player(carrier, attribute_keys);
+        Self::calculate_probability_bounds_from_table(carrier, &table, physical_state)
+    }
+
     pub fn carrier(&self) -> &'a Player {
         self.carrier
+    }
+
+    pub fn carrier_table(&self) -> &'a PlayerAttributeTable {
+        self.carrier_table
     }
 
     pub fn artrine(&self) -> &'a Player {
@@ -170,10 +192,10 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn carrier_rating(&self, profile: &DuelProfile) -> f64 {
-        calculate_player_duel_rating_with_state(
+        calculate_player_duel_rating_from_table(
             self.carrier,
             self.carrier_position,
-            self.attribute_keys,
+            self.carrier_table,
             profile,
             &self.carrier_physical_state,
         )
@@ -188,9 +210,8 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn consistency(&self) -> f64 {
-        let table = PlayerAttributeTable::from_player(self.carrier, self.attribute_keys);
         extract_effective_attribute_value(
-            &table,
+            self.carrier_table,
             AttributeKey::Consistency,
             &self.carrier_physical_state,
         )

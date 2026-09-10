@@ -1,12 +1,12 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::{
-    calculate_desired_cruise_speed, calculate_player_body_mass, calculate_player_critical_speed,
+    calculate_desired_cruise_speed, calculate_player_body_mass_from_table, calculate_player_critical_speed_from_table,
 };
 use crate::physical::systems::degradation::physical_attribute_modifier;
-use crate::physical::systems::pacing::calculate_player_pacing_state;
+use crate::physical::systems::pacing::calculate_player_pacing_state_from_table;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
@@ -16,7 +16,7 @@ use crate::spatial::live_collisions::{
 use crate::spatial::movement_context::MovementContext;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
 use crate::spatial::steering::{
-    calculate_dynamic_boid_steering_velocity_with_context, derive_player_physical_radius,
+    calculate_dynamic_boid_steering_velocity_with_context, derive_player_physical_radius_from_table,
     SpatialNeighbor,
 };
 use crate::spatial::trajectory::{SpatialTrajectory, TickSimulationResult};
@@ -33,13 +33,13 @@ use uuid::Uuid;
 pub fn run_spatial_tick_loop(
     spatial_map: &mut DynamicSpatialMap,
     movers: &[(&Player, Position)],
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     pitch: &Pitch,
 ) -> TickSimulationResult {
     run_spatial_tick_loop_with_context(
         spatial_map,
         movers,
-        attribute_keys,
+        attribute_tables,
         MovementContext::LivePlay,
         pitch,
         &|_| PhysicalState::initial(),
@@ -50,7 +50,7 @@ pub fn run_spatial_tick_loop(
 pub fn run_spatial_tick_loop_with_fatigue<F>(
     spatial_map: &mut DynamicSpatialMap,
     movers: &[(&Player, Position)],
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     pitch: &Pitch,
     fatigue_for: &F,
 ) -> TickSimulationResult
@@ -60,7 +60,7 @@ where
     run_spatial_tick_loop_with_context(
         spatial_map,
         movers,
-        attribute_keys,
+        attribute_tables,
         MovementContext::LivePlay,
         pitch,
         fatigue_for,
@@ -71,7 +71,7 @@ where
 pub fn run_spatial_tick_loop_with_context<F>(
     spatial_map: &mut DynamicSpatialMap,
     movers: &[(&Player, Position)],
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     movement_context: MovementContext,
     pitch: &Pitch,
     fatigue_for: &F,
@@ -85,7 +85,7 @@ where
         movers,
         Uuid::nil(),
         &[],
-        attribute_keys,
+        attribute_tables,
         movement_context,
         pitch,
         fatigue_for,
@@ -101,7 +101,7 @@ pub fn run_carrier_tick_loop_with_collision<F, C>(
     movers: &[(&Player, Position)],
     carrier_id: Uuid,
     defender_ids: &[Uuid],
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     movement_context: MovementContext,
     pitch: &Pitch,
     fatigue_for: &F,
@@ -132,6 +132,7 @@ where
     }
 
     let mut mover_kinematics = HashMap::with_capacity(movers.len());
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
 
     for (player, target) in movers {
         let pid = player.id();
@@ -141,29 +142,30 @@ where
             .unwrap_or_else(Position::zero);
         trajectories.insert(pid, SpatialTrajectory::new(pid, initial_pos));
 
-        let table = PlayerAttributeTable::from_player(player, attribute_keys);
+        let table = attribute_tables.get(&pid).unwrap_or(&DEFAULT_TABLE);
         let state = fatigue_for(&pid);
-        let critical_speed_m_s = calculate_player_critical_speed(player, attribute_keys, 0).value();
-        let work_rate = extract_attribute_value(&table, AttributeKey::WorkRate);
-        let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
-        let agility = extract_attribute_value(&table, AttributeKey::Agility);
-        let acceleration = extract_attribute_value(&table, AttributeKey::Acceleration);
-        let balance = extract_attribute_value(&table, AttributeKey::Balance);
-        let strength = extract_attribute_value(&table, AttributeKey::Strength);
-        let mass_kg = calculate_player_body_mass(player, attribute_keys);
-        let physical_radius = derive_player_physical_radius(player, attribute_keys);
+        let critical_speed_m_s = calculate_player_critical_speed_from_table(player, table, 0).value();
+        let work_rate = extract_attribute_value(table, AttributeKey::WorkRate);
+        let positioning = extract_attribute_value(table, AttributeKey::Positioning);
+        let agility = extract_attribute_value(table, AttributeKey::Agility);
+        let acceleration = extract_attribute_value(table, AttributeKey::Acceleration);
+        let balance = extract_attribute_value(table, AttributeKey::Balance);
+        let strength = extract_attribute_value(table, AttributeKey::Strength);
+        let mass_kg = calculate_player_body_mass_from_table(player, table);
+        let physical_radius = derive_player_physical_radius_from_table(player, table);
 
         let effort_mult = effort_multiplier_for(&pid);
 
         let dist_mirim = calculate_distance_mirim(initial_pos, *target);
         let is_near_ball = dist_mirim <= TARGET_ARRIVAL_TOLERANCE_MIRIM * 4.0;
-        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+        let profile = crate::caching::impulse_baseline_profile();
+        let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
         let impulse = ImpulseState::from_baseline(baseline);
         let pressure = GameStatePressure::default();
 
-        let pacing_state = calculate_player_pacing_state(
+        let pacing_state = calculate_player_pacing_state_from_table(
             player,
-            attribute_keys,
+            table,
             is_near_ball,
             &pressure,
             &state,

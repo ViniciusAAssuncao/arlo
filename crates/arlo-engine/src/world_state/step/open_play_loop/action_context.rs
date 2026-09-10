@@ -1,11 +1,11 @@
 use crate::ai::cognitive::RiskProfile;
-use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue;
+use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue_from_tables;
 use crate::artrine::calculate_normalized_proximity;
-use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
+use crate::match_decision::target_selection::{calculate_player_target_weight_from_table, ReceptionRole};
 use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::resolution::DuelContext;
 use crate::spatial::{
-    calculate_artro_advance_pitch_control, calculate_player_expected_free_path,
+    calculate_artro_advance_pitch_control_from_tables, calculate_player_expected_free_path_from_tables,
     find_next_artro_position,
 };
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
@@ -74,13 +74,14 @@ impl<'a> OpenPlayIterationContext<'a> {
             .iter()
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
-                let base_weight = calculate_player_target_weight(
+                let table = state.attribute_table_for(&p.id());
+                let base_weight = calculate_player_target_weight_from_table(
                     p,
+                    table,
                     state.spatial_map(),
                     &pitch,
                     &context.offense_pos_index,
                     &context.offense_instructions_index,
-                    &attribute_keys,
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &openness_by_player,
@@ -94,12 +95,12 @@ impl<'a> OpenPlayIterationContext<'a> {
             })
             .fold(0.0_f64, f64::max);
 
-        let offensive_gravity = calculate_team_max_finishing_gravity_with_fatigue(
+        let offensive_gravity = calculate_team_max_finishing_gravity_with_fatigue_from_tables(
             &target_candidates,
+            state.teams.player_attribute_tables(),
             &context.offense_pos_index,
             state.spatial_map(),
             &pitch,
-            &attribute_keys,
             context.is_home_offense,
             &|id| state.fatigue_lookup().get(id),
         );
@@ -107,12 +108,12 @@ impl<'a> OpenPlayIterationContext<'a> {
         let next_artro_pos =
             find_next_artro_position(carrier_pos, &pitch, context.is_home_offense);
 
-        let pitch_control_ahead = calculate_artro_advance_pitch_control(
+        let pitch_control_ahead = calculate_artro_advance_pitch_control_from_tables(
             current_carrier,
             &target_candidates,
             defense_players,
             state.spatial_map(),
-            &attribute_keys,
+            state.teams.player_attribute_tables(),
             &|id| state.fatigue_lookup().get(id),
             carrier_pos,
             next_artro_pos,
@@ -120,12 +121,12 @@ impl<'a> OpenPlayIterationContext<'a> {
             &context.offense_role_index,
         );
 
-        let expected_free_path_mirim = calculate_player_expected_free_path(
+        let expected_free_path_mirim = calculate_player_expected_free_path_from_tables(
             carrier_pos,
             offense_players,
             defense_players,
             state.spatial_map(),
-            &attribute_keys,
+            state.teams.player_attribute_tables(),
             &|id| state.fatigue_lookup().get(id),
             &pitch,
             context.is_home_offense,
@@ -134,9 +135,9 @@ impl<'a> OpenPlayIterationContext<'a> {
         let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
         let carrier_impulse = state.impulse_for(&current_carrier.id());
         let game_state_pressure = analyze_match_state(state);
-        let risk_profile = RiskProfile::from_player_with_impulse(
+        let risk_profile = RiskProfile::from_table_with_impulse(
             current_carrier,
-            &attribute_keys,
+            state.attribute_table_for(&current_carrier.id()),
             &carrier_fatigue,
             &carrier_impulse,
         );

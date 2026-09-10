@@ -2,11 +2,11 @@ use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
 use crate::artrine::execution::security::resolve_proximity_ball_security;
 use crate::artrine::logistics::{
-    collect_drifted_defender_candidates, collect_helper_candidates, collect_swept_participant_ids,
-    resolve_primary_lead_defender,
+    collect_drifted_defender_candidates_from_tables, collect_helper_candidates_from_tables, collect_swept_participant_ids,
+    resolve_primary_lead_defender_from_tables,
 };
 use crate::artrine::reception_phase::distribution_reception::execute_post_throw_reception;
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
@@ -18,9 +18,9 @@ use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::spatial::ball_kinematics::{
-    ball_flight_duration, calculate_cross_speed, calculate_pass_speed,
+    ball_flight_duration, calculate_cross_speed_from_table, calculate_pass_speed_from_table,
 };
-use crate::spatial::positioning_drift::nearest_drifted_opponent;
+use crate::spatial::positioning_drift::nearest_drifted_opponent_from_tables;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
@@ -79,7 +79,7 @@ where
     );
 
     let contest_radius = ctx.contest_radius();
-    let lead_defender = resolve_primary_lead_defender(
+    let lead_defender = resolve_primary_lead_defender_from_tables(
         artrine.id(),
         ctx.offense_position_index,
         start_pos,
@@ -87,7 +87,7 @@ where
         ctx.defenders,
         spatial_map,
         ctx.defense_instructions_index,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.fatigue_for,
         contest_radius,
         None,
@@ -114,19 +114,22 @@ where
     .with_tables(attacker_table, defender_table);
     let raw_dist_duel = resolve_duel(req, rng);
 
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let safe_attacker_table = attacker_table.unwrap_or(&DEFAULT_TABLE);
     let artrine_speed =
-        calculate_effective_player_speed(artrine, ctx.attribute_keys, &artrine_state);
+        calculate_effective_player_speed_from_table(artrine, safe_attacker_table, &artrine_state);
 
-    let (dist_duration, nearest_def_opt) = match nearest_drifted_opponent(
+    let (dist_duration, nearest_def_opt) = match nearest_drifted_opponent_from_tables(
         start_pos,
         ctx.defenders,
         spatial_map,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         rng,
     ) {
         Some((d, pos)) => {
             let d_state = ctx.fatigue(&d.id());
-            let d_spd = calculate_effective_player_speed(d, ctx.attribute_keys, &d_state);
+            let d_table = ctx.attribute_tables.get(&d.id()).unwrap_or(&DEFAULT_TABLE);
+            let d_spd = calculate_effective_player_speed_from_table(d, d_table, &d_state);
             (
                 derive_duel_duration(start_pos, artrine_speed, pos, d_spd),
                 Some((d, pos)),
@@ -135,10 +138,10 @@ where
         None => (Duration::new(MINIMUM_ENGAGEMENT_SECONDS), None),
     };
 
-    let helper_candidates = collect_helper_candidates(
+    let helper_candidates = collect_helper_candidates_from_tables(
         ctx.offense_helpers,
         spatial_map,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         start_pos,
         ctx.fatigue_for,
     );
@@ -151,10 +154,10 @@ where
         dist_duration,
     );
 
-    let defender_candidates = collect_drifted_defender_candidates(
+    let defender_candidates = collect_drifted_defender_candidates_from_tables(
         ctx.defenders,
         spatial_map,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         start_pos,
         ctx.fatigue_for,
         rng,
@@ -238,9 +241,12 @@ where
     let throw_advance = progression_strategy.resolve_progression(dist_duel.outcome(), rng);
     let artrine_state = ctx.fatigue(&artrine.id());
 
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let table = ctx.attribute_tables.get(&artrine.id()).unwrap_or(&DEFAULT_TABLE);
+
     let ball_speed = match decision_kind {
-        ArtrineDecisionKind::Cross => calculate_cross_speed(artrine, ctx.attribute_keys, &artrine_state),
-        _ => calculate_pass_speed(artrine, ctx.attribute_keys, &artrine_state),
+        ArtrineDecisionKind::Cross => calculate_cross_speed_from_table(artrine, table, &artrine_state),
+        _ => calculate_pass_speed_from_table(artrine, table, &artrine_state),
     };
     let flight_duration = ball_flight_duration(throw_advance, ball_speed);
     (throw_advance, flight_duration)

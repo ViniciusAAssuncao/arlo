@@ -1,11 +1,11 @@
 use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::distribution::execute_distribution;
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
-use crate::match_decision::finisher_selection::select_finisher;
+use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
 };
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
@@ -14,7 +14,7 @@ use crate::resolution::group_rating::{
 };
 use crate::resolution::DuelKind;
 use crate::spatial::ball_kinematics::{
-    ball_flight_duration, calculate_cross_speed, calculate_shot_speed,
+    ball_flight_duration, calculate_cross_speed_from_table, calculate_shot_speed_from_table,
 };
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
@@ -42,14 +42,18 @@ where
     let finisher_state = ctx.fatigue(&finisher.id());
     let goalguard_state = ctx.fatigue(&ctx.goalguard.id());
 
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let finisher_table = ctx.attribute_tables.get(&finisher.id()).unwrap_or(&DEFAULT_TABLE);
+    let goalguard_table = ctx.attribute_tables.get(&ctx.goalguard.id()).unwrap_or(&DEFAULT_TABLE);
+
     let finisher_speed =
-        calculate_effective_player_speed(finisher, ctx.attribute_keys, &finisher_state);
+        calculate_effective_player_speed_from_table(finisher, finisher_table, &finisher_state);
     let goalguard_speed =
-        calculate_effective_player_speed(ctx.goalguard, ctx.attribute_keys, &goalguard_state);
+        calculate_effective_player_speed_from_table(ctx.goalguard, goalguard_table, &goalguard_state);
     let finishing_duration =
         derive_duel_duration(finisher_pos, finisher_speed, goalguard_pos, goalguard_speed);
 
-    let shot_speed = calculate_shot_speed(finisher, ctx.attribute_keys, &finisher_state);
+    let shot_speed = calculate_shot_speed_from_table(finisher, finisher_table, &finisher_state);
     let finisher_x_mirim = finisher_pos.raw().0 / MIRIM_TO_METERS;
     let dist_to_goal_mirim = if ctx.attacking_positive_x {
         (ctx.pitch.length_mirim() - finisher_x_mirim).max(0.0)
@@ -107,7 +111,7 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let chosen_finisher_id = select_finisher(
+    let chosen_finisher_id = select_finisher_from_tables(
         ctx.offense_helpers,
         Some(ctx.offense_role_index),
         ctx.is_bonus_phase,
@@ -115,10 +119,10 @@ where
         ctx.pitch,
         ctx.offense_position_index,
         ctx.offense_instructions_index,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.attacking_positive_x,
         ctx.openness_by_player,
-        Some(ctx.fatigue_for),
+        Some(&|id: &Uuid| ctx.fatigue(id)),
         rng,
     );
 
@@ -133,7 +137,9 @@ where
         .unwrap_or(start_pos);
 
     let cross_dist_mirim = calculate_distance_mirim(artrine_pos, finisher_pos);
-    let cross_speed = calculate_cross_speed(artrine, ctx.attribute_keys, &artrine_state);
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let carrier_table = ctx.attribute_tables.get(&artrine.id()).unwrap_or(&DEFAULT_TABLE);
+    let cross_speed = calculate_cross_speed_from_table(artrine, carrier_table, &artrine_state);
     let cross_flight = ball_flight_duration(cross_dist_mirim, cross_speed);
 
     let (finishing_duration, shot_flight) =

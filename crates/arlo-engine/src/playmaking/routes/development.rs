@@ -1,9 +1,10 @@
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::attributes::PlayerAttributeTable;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::playmaking::routes::geometry::resolve_route_waypoints;
 use crate::spatial::decision_vector::derive_velocity_towards_target;
-use crate::spatial::pitch_control::{build_player_voronoi_site, build_player_voronoi_site_at};
-use crate::spatial::positioning_drift::get_drifted_defender_position;
+use crate::spatial::pitch_control::{build_player_voronoi_site_at_from_table, build_player_voronoi_site_from_table};
+use crate::spatial::positioning_drift::get_drifted_defender_position_from_table;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::MAN_COVERAGE_OPENNESS_PENALTY;
@@ -15,7 +16,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn simulate_route_development<F, R>(
+pub fn simulate_route_development_from_tables<F, R>(
     pitch: &Pitch,
     attacking_positive_x: bool,
     offense_route_runners: &[&Player],
@@ -24,7 +25,7 @@ pub fn simulate_route_development<F, R>(
     defenders: &[&Player],
     _defense_position_index: &HashMap<Uuid, Position>,
     defense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     spatial_map: &mut DynamicSpatialMap,
     fatigue_for: &F,
     available_duration: Duration,
@@ -34,6 +35,8 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+
     for runner in offense_route_runners {
         if let Some(route) = route_index.get(&runner.id()) {
             let start_pos = spatial_map
@@ -44,8 +47,9 @@ where
             let d2 = (waypoints.break_point.raw() - waypoints.stem_point.raw()).magnitude();
 
             let fatigue = fatigue_for(&runner.id());
+            let table = attribute_tables.get(&runner.id()).unwrap_or(&DEFAULT_TABLE);
             let effective_speed =
-                calculate_effective_player_speed(runner, attribute_keys, &fatigue);
+                calculate_effective_player_speed_from_table(runner, table, &fatigue);
             let distance_traveled = effective_speed.value() * available_duration.value();
 
             let (final_pos, vel) = if distance_traveled <= 0.0 {
@@ -94,10 +98,11 @@ where
 
     let mut att_sites = Vec::with_capacity(offense_route_runners.len());
     for runner in offense_route_runners {
-        att_sites.push(build_player_voronoi_site(
+        let table = attribute_tables.get(&runner.id()).unwrap_or(&DEFAULT_TABLE);
+        att_sites.push(build_player_voronoi_site_from_table(
             runner,
+            table,
             spatial_map,
-            attribute_keys,
             fatigue_for,
             0,
         ));
@@ -105,13 +110,14 @@ where
 
     let mut def_sites = Vec::with_capacity(defenders.len());
     for def in defenders {
-        let def_pos = get_drifted_defender_position(def, spatial_map, attribute_keys, rng)
+        let table = attribute_tables.get(&def.id()).unwrap_or(&DEFAULT_TABLE);
+        let def_pos = get_drifted_defender_position_from_table(def, table, spatial_map, rng)
             .or_else(|| spatial_map.get_position(&def.id()))
             .unwrap_or_else(VectorPosition::zero);
-        def_sites.push(build_player_voronoi_site_at(
+        def_sites.push(build_player_voronoi_site_at_from_table(
             def,
+            table,
             def_pos,
-            attribute_keys,
             fatigue_for,
             1,
         ));
@@ -156,4 +162,48 @@ where
     }
 
     openness_map
+}
+
+pub fn simulate_route_development<F, R>(
+    pitch: &Pitch,
+    attacking_positive_x: bool,
+    offense_route_runners: &[&Player],
+    route_index: &HashMap<Uuid, RouteAssignment>,
+    offense_position_index: &HashMap<Uuid, Position>,
+    defenders: &[&Player],
+    _defense_position_index: &HashMap<Uuid, Position>,
+    defense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    spatial_map: &mut DynamicSpatialMap,
+    fatigue_for: &F,
+    available_duration: Duration,
+    rng: &mut R,
+) -> HashMap<Uuid, f64>
+where
+    F: Fn(&Uuid) -> FatigueState,
+    R: Rng + ?Sized,
+{
+    let mut attribute_tables = HashMap::new();
+    for r in offense_route_runners {
+        attribute_tables.insert(r.id(), PlayerAttributeTable::from_player(r, attribute_keys));
+    }
+    for d in defenders {
+        attribute_tables.insert(d.id(), PlayerAttributeTable::from_player(d, attribute_keys));
+    }
+
+    simulate_route_development_from_tables(
+        pitch,
+        attacking_positive_x,
+        offense_route_runners,
+        route_index,
+        offense_position_index,
+        defenders,
+        _defense_position_index,
+        defense_instructions_index,
+        &attribute_tables,
+        spatial_map,
+        fatigue_for,
+        available_duration,
+        rng,
+    )
 }

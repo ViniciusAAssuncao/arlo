@@ -1,23 +1,74 @@
 use crate::attributes::PlayerAttributeTable;
-use crate::physical::{compute_player_fatigue_multiplier, FatigueState};
+use crate::physical::{ compute_player_fatigue_multiplier, FatigueState };
 use crate::spatial::decision_vector::{
-    calculate_player_speed, derive_velocity_towards_target, extract_attribute_value,
+    calculate_player_speed,
+    derive_velocity_towards_target,
+    extract_attribute_value,
 };
-use crate::spatial::positioning_drift::get_drifted_defender_position;
+use crate::spatial::positioning_drift::get_drifted_defender_position_from_table;
 use crate::spatial::proximity::{
-    calculate_time_to_direct_intercept, calculate_time_to_moving_intercept,
+    calculate_time_to_direct_intercept,
+    calculate_time_to_moving_intercept,
 };
 use crate::spatial::DynamicSpatialMap;
 use crate::team_identity::pressing::individual_contest_radius_multiplier;
 use arlo_domain::sport_constants::ATTRIBUTE_MAX;
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::{ AttributeKey, Player };
 use arlo_math::compute_swept_sphere_intersection;
-use arlo_math::units::{Duration, Length, Position, Speed, Velocity};
-use arlo_tactics::{DepthDiscipline, PlayerInstructions};
+use arlo_math::units::{ Duration, Length, Position, Speed, Velocity };
+use arlo_tactics::{ DepthDiscipline, PlayerInstructions };
 use rand::Rng;
 use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
+
+pub fn calculate_defender_tti_from_table(
+    _defender: &Player,
+    table: &PlayerAttributeTable,
+    target_pos: Position,
+    target_vel: Velocity,
+    defender_pos: Position,
+    defender_speed: Speed,
+    contest_radius: Length,
+    depth_discipline: DepthDiscipline
+) -> (Option<Duration>, f64) {
+    let defender_vel = derive_velocity_towards_target(defender_pos, target_pos, defender_speed);
+    let swept_t = compute_swept_sphere_intersection(
+        target_pos,
+        target_vel,
+        defender_pos,
+        defender_vel,
+        contest_radius
+    );
+
+    let raw_t = match swept_t {
+        Some(d) => Some(d),
+        None => {
+            calculate_time_to_moving_intercept(
+                defender_pos,
+                defender_speed,
+                target_pos,
+                target_vel
+            ).or_else(|| {
+                calculate_time_to_direct_intercept(defender_pos, defender_speed, target_pos)
+            })
+        }
+    };
+
+    let ant = extract_attribute_value(table, AttributeKey::Anticipation);
+    let pos = extract_attribute_value(table, AttributeKey::Positioning);
+    let mental_scale = (
+        1.0 -
+        (ant * 0.015 + pos * 0.015 + depth_discipline.value() * 0.015 * ATTRIBUTE_MAX)
+    ).clamp(0.35, 1.35);
+
+    let effective_tti = match raw_t {
+        Some(d) => d.value() * mental_scale,
+        None => f64::INFINITY,
+    };
+
+    (raw_t, effective_tti)
+}
 
 pub fn calculate_defender_tti(
     defender: &Player,
@@ -27,40 +78,19 @@ pub fn calculate_defender_tti(
     defender_speed: Speed,
     contest_radius: Length,
     depth_discipline: DepthDiscipline,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>
 ) -> (Option<Duration>, f64) {
-    let defender_vel = derive_velocity_towards_target(defender_pos, target_pos, defender_speed);
-    let swept_t = compute_swept_sphere_intersection(
+    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
+    calculate_defender_tti_from_table(
+        defender,
+        &table,
         target_pos,
         target_vel,
         defender_pos,
-        defender_vel,
+        defender_speed,
         contest_radius,
-    );
-
-    let raw_t = match swept_t {
-        Some(d) => Some(d),
-        None => {
-            calculate_time_to_moving_intercept(defender_pos, defender_speed, target_pos, target_vel)
-                .or_else(|| {
-                    calculate_time_to_direct_intercept(defender_pos, defender_speed, target_pos)
-                })
-        }
-    };
-
-    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
-    let ant = extract_attribute_value(&table, AttributeKey::Anticipation);
-    let pos = extract_attribute_value(&table, AttributeKey::Positioning);
-    let mental_scale = (1.0
-        - (ant * 0.015 + pos * 0.015 + depth_discipline.value() * 0.015 * ATTRIBUTE_MAX))
-        .clamp(0.35, 1.35);
-
-    let effective_tti = match raw_t {
-        Some(d) => d.value() * mental_scale,
-        None => f64::INFINITY,
-    };
-
-    (raw_t, effective_tti)
+        depth_discipline
+    )
 }
 
 pub fn identify_kinematic_lead_defender<'a, F>(
@@ -72,10 +102,9 @@ pub fn identify_kinematic_lead_defender<'a, F>(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_for: &F,
     base_contest_radius: Length,
-    max_duration: Option<Duration>,
+    max_duration: Option<Duration>
 ) -> Option<&'a Player>
-where
-    F: Fn(&Uuid) -> FatigueState,
+    where F: Fn(&Uuid) -> FatigueState
 {
     if defenders.is_empty() {
         return None;
@@ -85,23 +114,17 @@ where
     let mut min_effective_tti = f64::INFINITY;
 
     for &defender in defenders {
-        let def_pos = spatial_map
-            .get_position(&defender.id())
-            .unwrap_or(target_pos);
+        let def_pos = spatial_map.get_position(&defender.id()).unwrap_or(target_pos);
         let fatigue = fatigue_for(&defender.id());
         let mult = compute_player_fatigue_multiplier(defender, &fatigue, attribute_keys);
         let speed = calculate_player_speed(defender, attribute_keys, mult);
 
-        let instructions = instructions_index
-            .get(&defender.id())
-            .copied()
-            .unwrap_or_default();
+        let instructions = instructions_index.get(&defender.id()).copied().unwrap_or_default();
         let engagement_bias = instructions.out_of_possession().engagement_bias();
         let depth_discipline = instructions.out_of_possession().depth_discipline();
 
         let radius = Length::new(
-            base_contest_radius.value()
-                * individual_contest_radius_multiplier(1.0, engagement_bias),
+            base_contest_radius.value() * individual_contest_radius_multiplier(1.0, engagement_bias)
         );
 
         let (raw_t, effective_tti) = calculate_defender_tti(
@@ -112,7 +135,89 @@ where
             speed,
             radius,
             depth_discipline,
-            attribute_keys,
+            attribute_keys
+        );
+
+        if let Some(max_d) = max_duration {
+            if let Some(t) = raw_t {
+                if t.value() > max_d.value() {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+        }
+
+        if effective_tti < min_effective_tti {
+            min_effective_tti = effective_tti;
+            best_defender = Some(defender);
+        }
+    }
+
+    best_defender.or_else(|| defenders.first().copied())
+}
+
+pub fn identify_kinematic_lead_defender_with_drift_from_tables<'a, F, R>(
+    target_pos: Position,
+    target_vel: Velocity,
+    defenders: &[&'a Player],
+    spatial_map: &DynamicSpatialMap,
+    instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
+    fatigue_for: &F,
+    base_contest_radius: Length,
+    max_duration: Option<Duration>,
+    rng: &mut R
+)
+    -> Option<&'a Player>
+    where F: Fn(&Uuid) -> FatigueState, R: Rng + ?Sized
+{
+    if defenders.is_empty() {
+        return None;
+    }
+
+    let mut best_defender: Option<&'a Player> = None;
+    let mut min_effective_tti = f64::INFINITY;
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+
+    for &defender in defenders {
+        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_TABLE);
+        let def_pos = get_drifted_defender_position_from_table(defender, table, spatial_map, rng)
+            .or_else(|| spatial_map.get_position(&defender.id()))
+            .unwrap_or(target_pos);
+        let fatigue = fatigue_for(&defender.id());
+
+        let stamina = extract_attribute_value(table, AttributeKey::Stamina);
+        let natural_fitness = extract_attribute_value(table, AttributeKey::NaturalFitness);
+        let mult = crate::physical::models::energy_model::fatigue_multiplier(
+            &fatigue,
+            stamina,
+            natural_fitness
+        );
+        let speed =
+            crate::physical::systems::degradation::calculate_effective_player_speed_from_table(
+                defender,
+                table,
+                &crate::physical::PhysicalState::with_energy(mult)
+            );
+
+        let instructions = instructions_index.get(&defender.id()).copied().unwrap_or_default();
+        let engagement_bias = instructions.out_of_possession().engagement_bias();
+        let depth_discipline = instructions.out_of_possession().depth_discipline();
+
+        let radius = Length::new(
+            base_contest_radius.value() * individual_contest_radius_multiplier(1.0, engagement_bias)
+        );
+
+        let (raw_t, effective_tti) = calculate_defender_tti_from_table(
+            defender,
+            table,
+            target_pos,
+            target_vel,
+            def_pos,
+            speed,
+            radius,
+            depth_discipline
         );
 
         if let Some(max_d) = max_duration {
@@ -144,67 +249,27 @@ pub fn identify_kinematic_lead_defender_with_drift<'a, F, R>(
     fatigue_for: &F,
     base_contest_radius: Length,
     max_duration: Option<Duration>,
-    rng: &mut R,
-) -> Option<&'a Player>
-where
-    F: Fn(&Uuid) -> FatigueState,
-    R: Rng + ?Sized,
+    rng: &mut R
+)
+    -> Option<&'a Player>
+    where F: Fn(&Uuid) -> FatigueState, R: Rng + ?Sized
 {
-    if defenders.is_empty() {
-        return None;
+    let mut attribute_tables = HashMap::with_capacity(defenders.len());
+    for d in defenders {
+        attribute_tables.insert(d.id(), PlayerAttributeTable::from_player(d, attribute_keys));
     }
-
-    let mut best_defender: Option<&'a Player> = None;
-    let mut min_effective_tti = f64::INFINITY;
-
-    for &defender in defenders {
-        let def_pos = get_drifted_defender_position(defender, spatial_map, attribute_keys, rng)
-            .or_else(|| spatial_map.get_position(&defender.id()))
-            .unwrap_or(target_pos);
-        let fatigue = fatigue_for(&defender.id());
-        let mult = compute_player_fatigue_multiplier(defender, &fatigue, attribute_keys);
-        let speed = calculate_player_speed(defender, attribute_keys, mult);
-
-        let instructions = instructions_index
-            .get(&defender.id())
-            .copied()
-            .unwrap_or_default();
-        let engagement_bias = instructions.out_of_possession().engagement_bias();
-        let depth_discipline = instructions.out_of_possession().depth_discipline();
-
-        let radius = Length::new(
-            base_contest_radius.value()
-                * individual_contest_radius_multiplier(1.0, engagement_bias),
-        );
-
-        let (raw_t, effective_tti) = calculate_defender_tti(
-            defender,
-            target_pos,
-            target_vel,
-            def_pos,
-            speed,
-            radius,
-            depth_discipline,
-            attribute_keys,
-        );
-
-        if let Some(max_d) = max_duration {
-            if let Some(t) = raw_t {
-                if t.value() > max_d.value() {
-                    continue;
-                }
-            } else {
-                continue;
-            }
-        }
-
-        if effective_tti < min_effective_tti {
-            min_effective_tti = effective_tti;
-            best_defender = Some(defender);
-        }
-    }
-
-    best_defender.or_else(|| defenders.first().copied())
+    identify_kinematic_lead_defender_with_drift_from_tables(
+        target_pos,
+        target_vel,
+        defenders,
+        spatial_map,
+        instructions_index,
+        &attribute_tables,
+        fatigue_for,
+        base_contest_radius,
+        max_duration,
+        rng
+    )
 }
 
 pub fn filter_kinematic_active_duelists(
@@ -212,14 +277,20 @@ pub fn filter_kinematic_active_duelists(
     target_vel: Velocity,
     candidates: &[(&Player, Position, Speed)],
     contest_radius: Length,
-    max_duration: Duration,
+    max_duration: Duration
 ) -> SmallVec<[Uuid; 4]> {
     candidates
         .iter()
         .filter(|(_, pos, speed)| {
             let vel = derive_velocity_towards_target(*pos, target_pos, *speed);
-            if let Some(t) =
-                compute_swept_sphere_intersection(target_pos, target_vel, *pos, vel, contest_radius)
+            if
+                let Some(t) = compute_swept_sphere_intersection(
+                    target_pos,
+                    target_vel,
+                    *pos,
+                    vel,
+                    contest_radius
+                )
             {
                 t.value() <= max_duration.value()
             } else {

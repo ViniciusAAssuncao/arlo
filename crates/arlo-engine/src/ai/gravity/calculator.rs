@@ -15,65 +15,63 @@ use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn calculate_player_offensive_gravity_with_state(
+pub fn calculate_player_offensive_gravity_with_state_from_table(
     player: &Player,
+    table: &PlayerAttributeTable,
     assigned_position: Position,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
     zone_factor: f64,
     state: &PhysicalState,
 ) -> OffensiveGravity {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-
     let finishing_attrs = [
         (
-            extract_effective_attribute_value(&table, AttributeKey::Finishing, state),
+            extract_effective_attribute_value(table, AttributeKey::Finishing, state),
             5.0,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Composure, state),
+            extract_effective_attribute_value(table, AttributeKey::Composure, state),
             4.0,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Anticipation, state),
+            extract_effective_attribute_value(table, AttributeKey::Anticipation, state),
             3.5,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Technique, state),
+            extract_effective_attribute_value(table, AttributeKey::Technique, state),
             3.5,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Positioning, state),
+            extract_effective_attribute_value(table, AttributeKey::Positioning, state),
             3.0,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Decisions, state),
+            extract_effective_attribute_value(table, AttributeKey::Decisions, state),
             2.5,
         ),
     ];
 
     let creation_attrs = [
         (
-            extract_effective_attribute_value(&table, AttributeKey::Passing, state),
+            extract_effective_attribute_value(table, AttributeKey::Passing, state),
             4.5,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Vision, state),
+            extract_effective_attribute_value(table, AttributeKey::Vision, state),
             4.5,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Flair, state),
+            extract_effective_attribute_value(table, AttributeKey::Flair, state),
             3.5,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Agility, state),
+            extract_effective_attribute_value(table, AttributeKey::Agility, state),
             3.0,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::Acceleration, state),
+            extract_effective_attribute_value(table, AttributeKey::Acceleration, state),
             3.0,
         ),
         (
-            extract_effective_attribute_value(&table, AttributeKey::ArloControl, state),
+            extract_effective_attribute_value(table, AttributeKey::ArloControl, state),
             3.0,
         ),
     ];
@@ -112,6 +110,23 @@ pub fn calculate_player_offensive_gravity_with_state(
     let multiplier = (raw_curve * zone_factor).clamp(0.5, 2.0);
 
     OffensiveGravity::new(multiplier, finishing_threat, creation_threat, zone_factor)
+}
+
+pub fn calculate_player_offensive_gravity_with_state(
+    player: &Player,
+    assigned_position: Position,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    zone_factor: f64,
+    state: &PhysicalState,
+) -> OffensiveGravity {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    calculate_player_offensive_gravity_with_state_from_table(
+        player,
+        &table,
+        assigned_position,
+        zone_factor,
+        state,
+    )
 }
 
 pub fn calculate_player_offensive_gravity(
@@ -156,6 +171,62 @@ pub fn calculate_zone_factor(
     } else {
         1.00
     }
+}
+
+pub fn calculate_team_max_finishing_gravity_with_fatigue_from_tables<F>(
+    players: &[&Player],
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
+    position_index: &HashMap<Uuid, Position>,
+    spatial_map: &DynamicSpatialMap,
+    pitch: &Pitch,
+    attacking_positive_x: bool,
+    fatigue_for: &F,
+) -> OffensiveGravity
+where
+    F: Fn(&Uuid) -> PhysicalState,
+{
+    if players.is_empty() {
+        return OffensiveGravity::default();
+    }
+
+    let mut best_gravity = OffensiveGravity::default();
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+
+    for &player in players {
+        let assigned_pos = position_index
+            .get(&player.id())
+            .copied()
+            .unwrap_or_else(|| {
+                player
+                    .positions()
+                    .first()
+                    .map(|pp| pp.position())
+                    .unwrap_or(Position::CenterOffense)
+            });
+
+        let player_vec_pos = spatial_map
+            .get_position(&player.id())
+            .unwrap_or_else(VectorPosition::zero);
+
+        let zone_factor = calculate_zone_factor(player_vec_pos, pitch, attacking_positive_x);
+        let state = fatigue_for(&player.id());
+
+        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_TABLE);
+
+        let grav = calculate_player_offensive_gravity_with_state_from_table(
+            player,
+            table,
+            assigned_pos,
+            zone_factor,
+            &state,
+        );
+
+        if grav.multiplier() > best_gravity.multiplier() {
+            best_gravity = grav;
+        }
+    }
+
+    best_gravity
 }
 
 pub fn calculate_team_max_finishing_gravity_with_fatigue<F>(

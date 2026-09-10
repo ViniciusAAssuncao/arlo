@@ -3,13 +3,13 @@ use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
     ScoringOpportunity,
 };
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
-use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_shot_speed};
+use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_shot_speed_from_table};
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::{Player, Position as DomainPosition};
@@ -96,11 +96,15 @@ where
 
         let (decision, finish_duel) = resolve_scoring_attempt(req, rng);
 
+        static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+        let safe_finisher_table = finisher_table.unwrap_or(&DEFAULT_TABLE);
+        let safe_gg_table = goalguard_table.unwrap_or(&DEFAULT_TABLE);
+
         let finisher_spd =
-            calculate_effective_player_speed(receiver_player, ctx.attribute_keys, &receiver_state);
-        let goalguard_spd = calculate_effective_player_speed(
+            calculate_effective_player_speed_from_table(receiver_player, safe_finisher_table, &receiver_state);
+        let goalguard_spd = calculate_effective_player_speed_from_table(
             ctx.goalguard,
-            ctx.attribute_keys,
+            safe_gg_table,
             &ctx.fatigue(&ctx.goalguard.id()),
         );
         let goalguard_pos = spatial_map
@@ -108,7 +112,7 @@ where
             .unwrap_or(end_position);
         let finish_dur =
             derive_duel_duration(end_position, finisher_spd, goalguard_pos, goalguard_spd);
-        let shot_spd = calculate_shot_speed(receiver_player, ctx.attribute_keys, &receiver_state);
+        let shot_spd = calculate_shot_speed_from_table(receiver_player, safe_finisher_table, &receiver_state);
         let shot_flight = ball_flight_duration(dist_to_goal_mirim, shot_spd);
 
         ledger.record_live(DurationComponentKind::FinishingEngagement, finish_dur);

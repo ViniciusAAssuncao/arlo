@@ -1,11 +1,12 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::artrine::decision::available_decisions::available_decision_kinds;
-use crate::artrine::decision::evaluator::calculate_decision_utilities;
-use crate::artrine::decision::sampler::sample_artrine_decision;
+use crate::artrine::decision::evaluator::calculate_decision_utilities_from_table;
+use crate::artrine::decision::sampler::sample_artrine_decision_from_table;
+use crate::attributes::PlayerAttributeTable;
 pub use crate::open_play::CarrierDecisionResult as ArtrineDecisionResult;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::Position as VectorPosition;
@@ -17,6 +18,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct ArtrineDecisionRequest<'a> {
     pub artrine: &'a Player,
+    pub artrine_table: PlayerAttributeTable,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
     pub normalized_proximity: f64,
     pub drives_in_current_series: u32,
@@ -63,17 +65,20 @@ impl<'a> ArtrineDecisionRequest<'a> {
         play_call_emphasis: DecisionEmphasis,
         artrine_physical_state: PhysicalState,
     ) -> Self {
-        let baseline = calculate_player_impulse_baseline(artrine, attribute_keys);
+        let artrine_table = PlayerAttributeTable::from_player(artrine, attribute_keys);
+        let profile = crate::caching::impulse_baseline_profile();
+        let baseline = calculate_player_impulse_baseline_from_table_with_profile(&artrine_table, profile);
         let artrine_impulse_state = ImpulseState::from_baseline(baseline);
-        let risk_profile = RiskProfile::from_player_with_impulse(
+        let risk_profile = RiskProfile::from_table_with_impulse(
             artrine,
-            attribute_keys,
+            &artrine_table,
             &artrine_physical_state,
             &artrine_impulse_state,
         );
         let game_state_pressure = GameStatePressure::default();
         Self {
             artrine,
+            artrine_table,
             attribute_keys,
             normalized_proximity,
             drives_in_current_series,
@@ -99,10 +104,21 @@ impl<'a> ArtrineDecisionRequest<'a> {
         }
     }
 
-    pub fn with_impulse_state(mut self, impulse_state: ImpulseState) -> Self {
-        self.risk_profile = RiskProfile::from_player_with_impulse(
+    pub fn with_table(mut self, table: PlayerAttributeTable) -> Self {
+        self.artrine_table = table;
+        self.risk_profile = RiskProfile::from_table_with_impulse(
             self.artrine,
-            self.attribute_keys,
+            &self.artrine_table,
+            &self.artrine_physical_state,
+            &self.artrine_impulse_state,
+        );
+        self
+    }
+
+    pub fn with_impulse_state(mut self, impulse_state: ImpulseState) -> Self {
+        self.risk_profile = RiskProfile::from_table_with_impulse(
+            self.artrine,
+            &self.artrine_table,
             &self.artrine_physical_state,
             &impulse_state,
         );
@@ -137,8 +153,9 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
         request.is_bonus_phase,
     );
 
-    let utilities = calculate_decision_utilities(
+    let utilities = calculate_decision_utilities_from_table(
         request.artrine,
+        &request.artrine_table,
         request.attribute_keys,
         &available_kinds,
         request.normalized_proximity,
@@ -162,9 +179,9 @@ pub fn resolve_artrine_decision<R: Rng + ?Sized>(
         request.expected_free_path_mirim,
     );
 
-    let result = sample_artrine_decision(
+    let result = sample_artrine_decision_from_table(
         request.artrine,
-        request.attribute_keys,
+        &request.artrine_table,
         &utilities,
         &request.artrine_physical_state,
         &request.artrine_impulse_state,

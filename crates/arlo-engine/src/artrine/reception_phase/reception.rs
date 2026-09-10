@@ -3,12 +3,12 @@ use crate::artrine::constants::{
     INTERCEPTION_CLAMP_MIN, INTERCEPTION_HANDS_DIFF_WEIGHT,
 };
 use crate::artrine::logistics::{
-    collect_drifted_defender_candidates, collect_swept_participant_ids,
-    resolve_primary_lead_defender,
+    collect_drifted_defender_candidates_from_tables, collect_swept_participant_ids,
+    resolve_primary_lead_defender_from_tables,
 };
 use crate::attributes::PlayerAttributeTable;
-use crate::match_decision::target_selection::{select_target, ReceptionRole};
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::match_decision::target_selection::{select_target_from_tables, ReceptionRole};
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
@@ -20,7 +20,7 @@ use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::positioning_drift::{
-    get_drifted_attacker_position, get_drifted_defender_position, nearest_drifted_opponent,
+    get_drifted_attacker_position_from_table, get_drifted_defender_position_from_table, nearest_drifted_opponent_from_tables,
 };
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
@@ -70,13 +70,13 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let receiver_id = select_target(
+    let receiver_id = select_target_from_tables(
         candidates,
         spatial_map,
         pitch,
         position_index,
         instructions_index,
-        attribute_keys,
+        attribute_tables,
         attacking_positive_x,
         ReceptionRole::OpenPlayReceiver,
         openness_by_player,
@@ -139,10 +139,13 @@ where
         .copied()
         .unwrap_or_default();
 
-    let receiver_pos_vec = get_drifted_attacker_position(
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+    let safe_receiver_table = attribute_tables.get(&receiver_id).unwrap_or(&DEFAULT_TABLE);
+
+    let receiver_pos_vec = get_drifted_attacker_position_from_table(
         receiver_player,
+        safe_receiver_table,
         spatial_map,
-        attribute_keys,
         offense_instructions,
         receiver_player_instructions,
         rng,
@@ -154,7 +157,8 @@ where
         .iter()
         .copied()
         .filter(|cand| {
-            get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
+            let def_table = attribute_tables.get(&cand.id()).unwrap_or(&DEFAULT_TABLE);
+            get_drifted_defender_position_from_table(*cand, def_table, spatial_map, rng)
                 .map(|p| {
                     calculate_distance_mirim(receiver_pos_vec, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM
                 })
@@ -178,7 +182,7 @@ where
 
     let contest_radius =
         Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
-    let lead_defender = resolve_primary_lead_defender(
+    let lead_defender = resolve_primary_lead_defender_from_tables(
         receiver_id,
         position_index,
         receiver_pos_vec,
@@ -186,7 +190,7 @@ where
         active_defenders,
         spatial_map,
         defense_instructions_index,
-        attribute_keys,
+        attribute_tables,
         fatigue_for,
         contest_radius,
         None,
@@ -241,26 +245,27 @@ where
     };
 
     let receiver_speed =
-        calculate_effective_player_speed(receiver_player, attribute_keys, &receiver_state);
-    let duration = match nearest_drifted_opponent(
+        calculate_effective_player_speed_from_table(receiver_player, safe_receiver_table, &receiver_state);
+    let duration = match nearest_drifted_opponent_from_tables(
         receiver_pos_vec,
         defenders,
         spatial_map,
-        attribute_keys,
+        attribute_tables,
         rng,
     ) {
         Some((d, pos)) => {
             let d_state = fatigue_for(&d.id());
-            let d_spd = calculate_effective_player_speed(d, attribute_keys, &d_state);
+            let d_table = attribute_tables.get(&d.id()).unwrap_or(&DEFAULT_TABLE);
+            let d_spd = calculate_effective_player_speed_from_table(d, d_table, &d_state);
             derive_duel_duration(receiver_pos_vec, receiver_speed, pos, d_spd)
         }
         None => Duration::new(MINIMUM_ENGAGEMENT_SECONDS),
     };
 
-    let defender_candidates = collect_drifted_defender_candidates(
+    let defender_candidates = collect_drifted_defender_candidates_from_tables(
         active_defenders,
         spatial_map,
-        attribute_keys,
+        attribute_tables,
         receiver_pos_vec,
         fatigue_for,
         rng,

@@ -166,6 +166,7 @@ fn bench_lineup_hydration(c: &mut Criterion) {
         spatial_map: None,
         block_marking_roles: None,
         press_reference_pos: None,
+        attribute_tables: None,
     };
 
     let lineup = hydrate(&tactical_lineup, &formation, &roster).unwrap();

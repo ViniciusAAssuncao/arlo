@@ -67,8 +67,7 @@ impl ManagerSnapshot {
         }
     }
 
-    pub fn from_manager(manager: &Manager, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Self {
-        let table = ManagerAttributeTable::from_manager(manager, attribute_keys);
+    pub fn from_table(manager: &Manager, table: &ManagerAttributeTable) -> Self {
         let tactical_knowledge = table.get(AttributeKey::TacticalKnowledge);
         let offense_planning = table.get(AttributeKey::OffensePlanning);
         let defense_organization = table.get(AttributeKey::DefenseOrganization);
@@ -111,5 +110,10 @@ impl ManagerSnapshot {
             tactical_profile,
             effective_flexibility,
         }
+    }
+
+    pub fn from_manager(manager: &Manager, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Self {
+        let table = ManagerAttributeTable::from_manager(manager, attribute_keys);
+        Self::from_table(manager, &table)
     }
 }

@@ -1,12 +1,14 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::Lineup;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::{
-    calculate_player_contextual_baseline, find_active_captain,
+    calculate_captaincy_influence_from_table, calculate_player_contextual_baseline,
+    find_active_captain,
 };
-use crate::psychology::systems::dynamics::update_player_impulse_contextual;
+use crate::psychology::systems::dynamics::update_player_impulse_contextual_from_table;
 use crate::psychology::systems::event_bus::ImpulseEventBus;
 use crate::psychology::systems::events::{
-    apply_impulse_event_contextual_at, ImpulseEvent, ImpulseShift,
+    apply_impulse_event_contextual_from_table_at, ImpulseEvent, ImpulseShift,
 };
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::teams::TeamRegistry;
@@ -166,27 +168,40 @@ impl ImpulseTracker {
         dt_seconds: f64,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        _attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) {
         if dt_seconds <= 0.0 {
             return;
         }
 
-        let home_captain = teams.home_captain(attribute_keys);
-        let away_captain = teams.away_captain(attribute_keys);
+        static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+        let home_captain_id = teams.home_captain_id();
+        let home_captain_influence = home_captain_id
+            .and_then(|id| teams.player_attribute_table(&id))
+            .map(calculate_captaincy_influence_from_table)
+            .unwrap_or(0.0);
+
+        let away_captain_id = teams.away_captain_id();
+        let away_captain_influence = away_captain_id
+            .and_then(|id| teams.player_attribute_table(&id))
+            .map(calculate_captaincy_influence_from_table)
+            .unwrap_or(0.0);
 
         for a in teams.home_lineup().assignments() {
             let player = a.player();
             let pid = player.id();
             let phys = fatigue.fatigue_for(&pid);
+            let table = teams.player_attribute_table(&pid).unwrap_or(&DEFAULT_TABLE);
+            let is_captain = Some(pid) == home_captain_id;
             if let Some(state) = self.home_impulse.get_mut(&pid) {
-                update_player_impulse_contextual(
+                update_player_impulse_contextual_from_table(
                     state,
                     player,
-                    attribute_keys,
+                    table,
                     &phys,
                     dt_seconds,
-                    home_captain,
+                    home_captain_influence,
+                    is_captain,
                     true,
                 );
             }
@@ -195,14 +210,17 @@ impl ImpulseTracker {
             let player = a.player();
             let pid = player.id();
             let phys = fatigue.fatigue_for(&pid);
+            let table = teams.player_attribute_table(&pid).unwrap_or(&DEFAULT_TABLE);
+            let is_captain = Some(pid) == away_captain_id;
             if let Some(state) = self.away_impulse.get_mut(&pid) {
-                update_player_impulse_contextual(
+                update_player_impulse_contextual_from_table(
                     state,
                     player,
-                    attribute_keys,
+                    table,
                     &phys,
                     dt_seconds,
-                    away_captain,
+                    away_captain_influence,
+                    is_captain,
                     false,
                 );
             }
@@ -216,15 +234,22 @@ impl ImpulseTracker {
         timestamp_seconds: f64,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        _attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) -> Option<ImpulseShift> {
         let player = teams.find_player(&player_id)?;
         let is_home = teams.is_home_player(&player_id);
-        let captain = if is_home {
-            teams.home_captain(attribute_keys)
+        static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+        let table = teams.player_attribute_table(&player_id).unwrap_or(&DEFAULT_TABLE);
+        let captain_id = if is_home {
+            teams.home_captain_id()
         } else {
-            teams.away_captain(attribute_keys)
+            teams.away_captain_id()
         };
+        let captain_influence = captain_id
+            .and_then(|id| teams.player_attribute_table(&id))
+            .map(calculate_captaincy_influence_from_table)
+            .unwrap_or(0.0);
+        let is_captain = Some(player_id) == captain_id;
         let physical_state = fatigue.fatigue_for(&player_id);
         let impulse = if is_home {
             self.home_impulse.entry(player_id).or_default()
@@ -232,14 +257,15 @@ impl ImpulseTracker {
             self.away_impulse.entry(player_id).or_default()
         };
 
-        let shift = apply_impulse_event_contextual_at(
+        let shift = apply_impulse_event_contextual_from_table_at(
             impulse,
             player,
-            attribute_keys,
+            table,
             &physical_state,
             event,
             timestamp_seconds,
-            captain,
+            captain_influence,
+            is_captain,
             is_home,
         );
 

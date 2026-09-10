@@ -1,7 +1,7 @@
 use crate::match_decision::event_translation::{create_envelope, translate_pass_completed};
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
+use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed_from_table};
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::cta_pass::participants::PhaseParticipants;
@@ -27,14 +27,17 @@ pub fn calculate_pass_kinematics(
 ) -> PassKinematicsResult {
     let passer_state = state.fatigue_for(&participants.passer.id());
     let pass_rusher_state = state.fatigue_for(&participants.pass_rusher.id());
-    let passer_speed = calculate_effective_player_speed(
+    let passer_table = state.attribute_table_for(&participants.passer.id());
+    let pass_rusher_table = state.attribute_table_for(&participants.pass_rusher.id());
+
+    let passer_speed = calculate_effective_player_speed_from_table(
         participants.passer,
-        state.attribute_keys(),
+        passer_table,
         &passer_state,
     );
-    let pass_rusher_speed = calculate_effective_player_speed(
+    let pass_rusher_speed = calculate_effective_player_speed_from_table(
         participants.pass_rusher,
-        state.attribute_keys(),
+        pass_rusher_table,
         &pass_rusher_state,
     );
     let pass_protection_duration =
@@ -53,7 +56,7 @@ pub fn calculate_pass_kinematics(
 
     if pass_completed {
         let pass_speed =
-            calculate_pass_speed(participants.passer, state.attribute_keys(), &passer_state);
+            calculate_pass_speed_from_table(participants.passer, passer_table, &passer_state);
         let flight_duration = ball_flight_duration(pass_distance_mirim, pass_speed);
         duration_ledger.record_live(DurationComponentKind::InitialHandoffFlight, flight_duration);
 

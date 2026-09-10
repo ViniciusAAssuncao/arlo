@@ -68,15 +68,14 @@ impl ManagerAiEngine {
             } else {
                 publisher.state().away_squad().clone()
             };
-            let attribute_keys = publisher.state().attribute_keys().clone();
             let fatigue_lookup = publisher.state().fatigue_lookup();
 
-            let plans = SubstitutionDecisionEngine::evaluate_plans(
+            let plans = SubstitutionDecisionEngine::evaluate_plans_from_tables(
                 &context,
                 &context.squad_fatigue_summary,
                 &lineup,
                 &squad,
-                &attribute_keys,
+                publisher.state().teams.player_attribute_tables(),
                 |id| fatigue_lookup.get(id),
                 rng,
             );
