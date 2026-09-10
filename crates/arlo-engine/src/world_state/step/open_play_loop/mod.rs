@@ -9,7 +9,7 @@ pub use action_context::OpenPlayIterationContext;
 pub use carry_action::execute_carry_action;
 pub use decision_selection::select_carrier_decision;
 pub use distribution_action::execute_distribution_action;
-pub use finish_action::{execute_cross_action, execute_self_finish_action, find_defense_goalguard};
+pub use finish_action::{execute_cross_action, execute_self_finish_action};
 pub use loop_state::OpenPlayLoopState;
 
 use crate::artrine::ArtrineExecutionOutcome;

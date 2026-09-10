@@ -1,3 +1,4 @@
+use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::finisher_selection::select_finisher;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest,
@@ -17,18 +18,6 @@ use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{Player, Position as DomainPosition};
 use uuid::Uuid;
-
-pub fn find_defense_goalguard<'a>(defense_players: &[&'a Player]) -> &'a Player {
-    defense_players
-        .iter()
-        .copied()
-        .find(|p| {
-            p.positions()
-                .iter()
-                .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
-        })
-        .unwrap_or(defense_players[0])
-}
 
 pub fn execute_cross_action(
     state: &mut MatchState,
@@ -120,7 +109,10 @@ pub fn execute_cross_action(
         fin_rating,
     );
 
-    let goalguard = find_defense_goalguard(defense_players);
+    let goalguard = match find_goalguard(defense_players) {
+        Ok(g) => g,
+        Err(_) => return,
+    };
     let seq_duel = state.next_sequence();
     let mut duel_rng = state
         .rng_provider()
@@ -199,7 +191,10 @@ pub fn execute_self_finish_action(
         fin_rating,
     );
 
-    let goalguard = find_defense_goalguard(defense_players);
+    let goalguard = match find_goalguard(defense_players) {
+        Ok(g) => g,
+        Err(_) => return,
+    };
     let seq_duel = state.next_sequence();
     let mut duel_rng = state
         .rng_provider()

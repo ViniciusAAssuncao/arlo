@@ -1,21 +1,10 @@
+use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::{LiveSequenceTracker, PossessionSnapshot};
 use crate::world_state::match_state::MatchState;
-use arlo_domain::{Player, Position as DomainPosition};
+use arlo_domain::Player;
 use arlo_math::units::Position as VectorPosition;
 use uuid::Uuid;
-
-pub fn find_defense_goalguard<'a>(defense_players: &[&'a Player]) -> &'a Player {
-    defense_players
-        .iter()
-        .copied()
-        .find(|p| {
-            p.positions()
-                .iter()
-                .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
-        })
-        .unwrap_or(defense_players[0])
-}
 
 pub fn enrich_scoring_decision_assister(
     scoring_decision: &mut ScoringDecision,
@@ -41,7 +30,10 @@ pub fn publish_scoring_impulse(
     offense_players: &[&Player],
 ) {
     if scoring_decision.is_scored() || matches!(scoring_decision, ScoringDecision::Missed { .. }) {
-        let goalguard = find_defense_goalguard(defense_players);
+        let goalguard = match find_goalguard(defense_players) {
+            Ok(g) => g,
+            Err(_) => return,
+        };
         state.impulse_bus_mut().publish_scoring_decision(
             scoring_decision,
             finisher_id,

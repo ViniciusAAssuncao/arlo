@@ -1,4 +1,5 @@
 use crate::artrine::{resolve_primary_lead_defender, DistributionFlightInfo};
+use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest,
     ScoringOpportunity,
@@ -19,7 +20,6 @@ use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
-use crate::world_state::step::open_play_loop::finish_action::find_defense_goalguard;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
@@ -62,7 +62,10 @@ fn check_distribution_scoring_opportunity(
     if opportunity != ScoringOpportunity::None
         && dist_to_goal_mirim <= OPEN_PLAY_MAX_FINISH_DISTANCE_MIRIM
     {
-        let goalguard = find_defense_goalguard(defense_players);
+        let goalguard = match find_goalguard(defense_players) {
+            Ok(g) => g,
+            Err(_) => return,
+        };
         let seq_fin = state.next_sequence();
         let mut fin_rng = state
             .rng_provider()

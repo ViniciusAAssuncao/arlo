@@ -3,7 +3,8 @@ use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::distribution::execute_distribution;
 use crate::artrine::execution::finish::{execute_cross_pipeline, execute_self_finish};
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
-use crate::error::{EngineError, EngineResult};
+use crate::error::EngineResult;
+use crate::lineup_runtime::find_goalguard;
 use crate::physical::FatigueState;
 use crate::resolution::DuelContext;
 use crate::spatial::DynamicSpatialMap;
@@ -16,26 +17,6 @@ use arlo_tactics::{PlayerInstructions, RouteAssignment, TeamInstructions};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
-
-pub fn find_goalguard<'a>(defenders: &[&'a Player]) -> EngineResult<&'a Player> {
-    defenders
-        .iter()
-        .copied()
-        .find(|p| {
-            p.positions()
-                .iter()
-                .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
-        })
-        .or_else(|| {
-            defenders.iter().copied().find(|p| {
-                p.positions()
-                    .iter()
-                    .any(|pos| pos.position() == DomainPosition::Goalguard)
-            })
-        })
-        .or_else(|| defenders.first().copied())
-        .ok_or_else(|| EngineError::MissingRequiredPosition("Goalguard".to_string()))
-}
 
 pub fn execute_artrine_decision<F, R>(
     decision: ArtrineDecisionKind,

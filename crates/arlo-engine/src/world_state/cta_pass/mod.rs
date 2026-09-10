@@ -2,9 +2,10 @@ pub mod duel_resolution;
 pub mod kinematics;
 pub mod participants;
 
+pub use crate::lineup_runtime::find_player_by_position;
 pub use duel_resolution::resolve_pass_protection_duel;
 pub use kinematics::{calculate_pass_kinematics, PassKinematicsResult};
-pub use participants::{extract_participants, find_player_by_position, PhaseParticipants};
+pub use participants::{extract_participants, PhaseParticipants};
 
 use crate::error::EngineResult;
 use crate::possession::TouchActionType;

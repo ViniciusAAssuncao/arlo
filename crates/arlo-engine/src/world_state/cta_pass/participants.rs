@@ -1,4 +1,5 @@
 use crate::error::{EngineError, EngineResult};
+use crate::lineup_runtime::find_player_by_position;
 use arlo_domain::{Player, Position as DomainPosition, SlotRole};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -12,51 +13,6 @@ pub struct PhaseParticipants<'a> {
     pub pass_rushers: Vec<(&'a Player, DomainPosition)>,
     pub attacker_ids: Vec<Uuid>,
     pub defender_ids: Vec<Uuid>,
-}
-
-pub fn find_player_by_position<'a>(
-    players: &[&'a Player],
-    target: DomainPosition,
-) -> EngineResult<&'a Player> {
-    players
-        .iter()
-        .copied()
-        .find(|p| {
-            p.positions()
-                .iter()
-                .any(|pos| pos.position() == target && pos.proficiency() > 0)
-        })
-        .or_else(|| {
-            players
-                .iter()
-                .copied()
-                .find(|p| p.positions().iter().any(|pos| pos.position() == target))
-        })
-        .or_else(|| {
-            players.iter().copied().max_by(|a, b| {
-                let prof_a = a
-                    .positions()
-                    .iter()
-                    .map(|pp| {
-                        crate::lineup_runtime::position_similarity(pp.position(), target)
-                            * (pp.proficiency() as f64)
-                    })
-                    .fold(0.0_f64, f64::max);
-                let prof_b = b
-                    .positions()
-                    .iter()
-                    .map(|pp| {
-                        crate::lineup_runtime::position_similarity(pp.position(), target)
-                            * (pp.proficiency() as f64)
-                    })
-                    .fold(0.0_f64, f64::max);
-                prof_a
-                    .partial_cmp(&prof_b)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-        })
-        .or_else(|| players.first().copied())
-        .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{target:?}")))
 }
 
 pub fn extract_participants<'a>(
