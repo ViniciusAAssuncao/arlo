@@ -21,7 +21,7 @@ pub mod team_queries;
 pub mod teams;
 
 pub use decision_cooldown::DecisionCooldownTracker;
-pub use fatigue::FatigueTracker;
+pub use fatigue::{FatigueLookup, FatigueTracker};
 pub use impulse::ImpulseTracker;
 pub use matchday_squad::MatchdaySquad;
 pub use officiating::OfficiatingTracker;

@@ -69,15 +69,7 @@ impl ManagerAiEngine {
                 publisher.state().away_squad().clone()
             };
             let attribute_keys = publisher.state().attribute_keys().clone();
-            let home_fatigue = publisher.state().home_fatigue().clone();
-            let away_fatigue = publisher.state().away_fatigue().clone();
-            let fatigue_lookup = |id: &Uuid| {
-                home_fatigue
-                    .get(id)
-                    .or_else(|| away_fatigue.get(id))
-                    .copied()
-                    .unwrap_or_default()
-            };
+            let fatigue_lookup = publisher.state().fatigue_lookup();
 
             let plans = SubstitutionDecisionEngine::evaluate_plans(
                 &context,
@@ -85,7 +77,7 @@ impl ManagerAiEngine {
                 &lineup,
                 &squad,
                 &attribute_keys,
-                fatigue_lookup,
+                |id| fatigue_lookup.get(id),
                 rng,
             );
 

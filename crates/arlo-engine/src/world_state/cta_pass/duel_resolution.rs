@@ -52,15 +52,8 @@ pub fn resolve_pass_protection_duel(
         .rng_provider()
         .indexed_rng_for(RngStream::DuelResolution, seq);
 
-    let home_fatigue = state.home_fatigue().clone();
-    let away_fatigue = state.away_fatigue().clone();
-    let fatigue_lookup = move |id: &Uuid| {
-        home_fatigue
-            .get(id)
-            .or_else(|| away_fatigue.get(id))
-            .copied()
-            .unwrap_or_default()
-    };
+    let fatigue_lookup = state.fatigue_lookup();
+    let fatigue_fn = |id: &Uuid| fatigue_lookup.get(id);
 
     let pass_blocker_players: Vec<_> = participants.pass_blockers.iter().map(|(p, _)| *p).collect();
     let pass_blocker_map: HashMap<Uuid, Position> = participants
@@ -80,10 +73,10 @@ pub fn resolve_pass_protection_duel(
         DuelKind::PassProtection,
         participants.passer,
         RatingParticipants::from_slice_with_index(&pass_blocker_players, &pass_blocker_map)
-            .with_fatigue(&fatigue_lookup),
+            .with_fatigue(&fatigue_fn),
         participants.pass_rusher,
         RatingParticipants::from_slice_with_index(&pass_rusher_players, &pass_rusher_map)
-            .with_fatigue(&fatigue_lookup),
+            .with_fatigue(&fatigue_fn),
         state.attribute_keys(),
         &context,
     );

@@ -6,7 +6,6 @@ use crate::artrine::{
 };
 use crate::match_decision::event_translation::create_envelope;
 use crate::open_play::{sample_carrier_decision, CarrierDecisionEvaluator};
-use crate::physical::FatigueState;
 use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -16,21 +15,16 @@ use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition, SlotRole};
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
-use uuid::Uuid;
 
-pub fn select_carrier_decision<F, S: EventSink>(
+pub fn select_carrier_decision<S: EventSink>(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
     pass_phase: &PassPhaseResult<'_>,
     loop_state: &OpenPlayLoopState,
     current_carrier: &Player,
-    fatigue_lookup: &F,
     sink: &mut S,
-) -> ArtrineDecisionKind
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
+) -> ArtrineDecisionKind {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
     let is_bonus_phase = state.possession().is_bonus_phase();
@@ -42,7 +36,8 @@ where
         + loop_state.accumulated_mirins_advanced;
     let remaining_downs = state.possession().series_state().remaining_downs();
 
-    let carrier_fatigue = fatigue_lookup(&current_carrier.id());
+    let fatigue_lookup = state.fatigue.lookup();
+    let carrier_fatigue = fatigue_lookup.get(&current_carrier.id());
     let carrier_impulse = state.impulse_for(&current_carrier.id());
 
     let offense_instructions = *state.instructions_for_team(context.offense_team_id);

@@ -1,5 +1,4 @@
 use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
-use crate::physical::FatigueState;
 use crate::playmaking::routes::simulate_route_development;
 use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -9,24 +8,20 @@ use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn resolve_decision_target_weights<F>(
+pub fn resolve_decision_target_weights(
     context: &CallToActionContext,
     pass_phase: &PassPhaseResult<'_>,
     state: &mut MatchState,
     target_candidates: &[&Player],
     defenders: &[&Player],
     attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_lookup: &F,
-) -> (f64, f64, HashMap<Uuid, f64>)
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
+) -> (f64, f64, HashMap<Uuid, f64>) {
     if context.offense_route_index.is_empty() {
         let empty_openness = HashMap::new();
         let best_available_target_weight = target_candidates
             .iter()
             .map(|p| {
-                let p_state = fatigue_lookup(&p.id());
+                let p_state = state.fatigue_lookup().get(&p.id());
                 calculate_player_target_weight(
                     p,
                     state.spatial_map(),
@@ -61,6 +56,7 @@ where
             .collect();
 
         let pitch = *state.pitch();
+        let fatigue_tracker = state.fatigue.clone();
         let openness_by_player = simulate_route_development(
             &pitch,
             context.is_home_offense,
@@ -71,8 +67,8 @@ where
             &context.defense_pos_index,
             &context.defense_instructions_index,
             attribute_keys,
-            state.spatial_map_mut(),
-            fatigue_lookup,
+            &mut state.spatial_map,
+            &|id| fatigue_tracker.fatigue_for(id),
             available_duration,
             &mut drift_rng,
         );
@@ -80,7 +76,7 @@ where
         let best_available_target_weight = target_candidates
             .iter()
             .map(|p| {
-                let p_state = fatigue_lookup(&p.id());
+                let p_state = state.fatigue_lookup().get(&p.id());
                 calculate_player_target_weight(
                     p,
                     state.spatial_map(),

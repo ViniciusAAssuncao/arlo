@@ -2,7 +2,6 @@ use crate::match_decision::finisher_selection::select_finisher;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest,
 };
-use crate::physical::FatigueState;
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
@@ -31,7 +30,7 @@ pub fn find_defense_goalguard<'a>(defense_players: &[&'a Player]) -> &'a Player 
         .unwrap_or(defense_players[0])
 }
 
-pub fn execute_cross_action<F>(
+pub fn execute_cross_action(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -39,10 +38,7 @@ pub fn execute_cross_action<F>(
     loop_state: &mut OpenPlayLoopState,
     current_carrier: &Player,
     defense_players: &[&Player],
-    fatigue_lookup: &F,
-) where
-    F: Fn(&Uuid) -> FatigueState,
-{
+) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
     let is_bonus_phase = state.possession().is_bonus_phase();
@@ -73,7 +69,7 @@ pub fn execute_cross_action<F>(
         &attribute_keys,
         context.is_home_offense,
         &iter_ctx.openness_by_player,
-        Some(fatigue_lookup),
+        Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
         &mut fin_rng,
     );
 
@@ -81,8 +77,11 @@ pub fn execute_cross_action<F>(
         .and_then(|fid| iter_ctx.target_candidates.iter().copied().find(|p| p.id() == fid))
         .unwrap_or(current_carrier);
 
-    let cross_speed =
-        calculate_cross_speed(current_carrier, &attribute_keys, &fatigue_lookup(&current_carrier.id()));
+    let cross_speed = calculate_cross_speed(
+        current_carrier,
+        &attribute_keys,
+        &state.fatigue_lookup().get(&current_carrier.id()),
+    );
     let finisher_pos = state
         .spatial_map()
         .get_position(&finisher.id())
@@ -107,7 +106,7 @@ pub fn execute_cross_action<F>(
         DomainPosition::CenterOffense,
         &attribute_keys,
         att_prof,
-        &fatigue_lookup(&finisher.id()),
+        &state.fatigue_lookup().get(&finisher.id()),
     );
 
     let total_drives = state.drives_in_current_series() + loop_state.accumulated_drives_recorded;
@@ -134,6 +133,8 @@ pub fn execute_cross_action<F>(
         .or(Some(current_carrier.id()));
 
     let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+    let fin_fatigue = state.fatigue_lookup().get(&finisher.id());
+    let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
     let req = ScoringAttemptRequest::new(
         finisher,
         goalguard,
@@ -146,7 +147,7 @@ pub fn execute_cross_action<F>(
         total_advance,
         &finish_context,
     )
-    .with_fatigue(fatigue_lookup(&finisher.id()), fatigue_lookup(&goalguard.id()));
+    .with_fatigue(fin_fatigue, gg_fatigue);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut duel_rng);
 
@@ -156,7 +157,7 @@ pub fn execute_cross_action<F>(
     loop_state.ball_in_play = false;
 }
 
-pub fn execute_self_finish_action<F>(
+pub fn execute_self_finish_action(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -164,10 +165,7 @@ pub fn execute_self_finish_action<F>(
     loop_state: &mut OpenPlayLoopState,
     current_carrier: &Player,
     defense_players: &[&Player],
-    fatigue_lookup: &F,
-) where
-    F: Fn(&Uuid) -> FatigueState,
-{
+) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
     let is_bonus_phase = state.possession().is_bonus_phase();
@@ -187,7 +185,7 @@ pub fn execute_self_finish_action<F>(
         DomainPosition::CenterOffense,
         &attribute_keys,
         att_prof,
-        &fatigue_lookup(&current_carrier.id()),
+        &state.fatigue_lookup().get(&current_carrier.id()),
     );
 
     let total_drives = state.drives_in_current_series() + loop_state.accumulated_drives_recorded;
@@ -213,6 +211,8 @@ pub fn execute_self_finish_action<F>(
         .primary_assister(current_carrier.id());
 
     let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+    let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
+    let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
     let req = ScoringAttemptRequest::new(
         current_carrier,
         goalguard,
@@ -225,10 +225,7 @@ pub fn execute_self_finish_action<F>(
         total_advance,
         &finish_context,
     )
-    .with_fatigue(
-        fatigue_lookup(&current_carrier.id()),
-        fatigue_lookup(&goalguard.id()),
-    );
+    .with_fatigue(carrier_fatigue, gg_fatigue);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut duel_rng);
 

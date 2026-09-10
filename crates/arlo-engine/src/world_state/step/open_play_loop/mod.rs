@@ -19,7 +19,6 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
-use uuid::Uuid;
 
 const MAX_LIVE_ACTION_ITERATIONS: usize = 16;
 
@@ -50,16 +49,6 @@ pub fn run_open_play_loop(
 
         let is_true_artrine = loop_state.current_carrier_id == pass_phase.artrine.id();
 
-        let home_fatigue = state.home_fatigue().clone();
-        let away_fatigue = state.away_fatigue().clone();
-        let fatigue_lookup = |id: &Uuid| {
-            home_fatigue
-                .get(id)
-                .or_else(|| away_fatigue.get(id))
-                .copied()
-                .unwrap_or_default()
-        };
-
         let iter_ctx = OpenPlayIterationContext::build(
             state,
             context,
@@ -68,7 +57,6 @@ pub fn run_open_play_loop(
             current_carrier,
             offense_players,
             defense_players,
-            &fatigue_lookup,
         );
 
         let chosen_decision = select_carrier_decision(
@@ -78,7 +66,6 @@ pub fn run_open_play_loop(
             pass_phase,
             &loop_state,
             current_carrier,
-            &fatigue_lookup,
             sink,
         );
 
@@ -95,7 +82,6 @@ pub fn run_open_play_loop(
                     &mut loop_state,
                     current_carrier,
                     defense_players,
-                    &fatigue_lookup,
                     is_true_artrine,
                 );
             }
@@ -109,7 +95,6 @@ pub fn run_open_play_loop(
                     current_carrier,
                     defense_players,
                     chosen_decision,
-                    &fatigue_lookup,
                 );
             }
             ArtrineDecisionKind::Cross => {
@@ -121,7 +106,6 @@ pub fn run_open_play_loop(
                     &mut loop_state,
                     current_carrier,
                     defense_players,
-                    &fatigue_lookup,
                 );
             }
             ArtrineDecisionKind::SelfFinish => {
@@ -133,7 +117,6 @@ pub fn run_open_play_loop(
                     &mut loop_state,
                     current_carrier,
                     defense_players,
-                    &fatigue_lookup,
                 );
             }
         }

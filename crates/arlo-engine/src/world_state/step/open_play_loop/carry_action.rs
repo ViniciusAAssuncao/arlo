@@ -2,7 +2,6 @@ use crate::artrine::{
     compute_carry_target_lane, compute_forward_target_pos, detect_drive_crossings,
     filter_blocker_helpers,
 };
-use crate::physical::FatigueState;
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
@@ -25,18 +24,15 @@ use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use std::collections::HashSet;
 use uuid::Uuid;
 
-pub fn execute_carry_action<F>(
+pub fn execute_carry_action(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
     loop_state: &mut OpenPlayLoopState,
     current_carrier: &Player,
     defense_players: &[&Player],
-    fatigue_lookup: &F,
     is_true_artrine: bool,
-) where
-    F: Fn(&Uuid) -> FatigueState,
-{
+) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
     let carrier_pos = loop_state.current_carrier_pos;
@@ -141,6 +137,7 @@ pub fn execute_carry_action<F>(
     let defense_team_id = context.defense_team_id;
     let defense_pos_index = &context.defense_pos_index;
     let duel_ctx = iter_ctx.duel_context;
+    let fatigue_tracker = state.fatigue.clone();
 
     let collision_cb = |_s_map: &mut DynamicSpatialMap, col: &LiveCollision, spd: &mut f64| {
         let def_player = defense_players
@@ -155,7 +152,7 @@ pub fn execute_carry_action<F>(
             carrier_pos_domain,
             &attribute_keys,
             off_prof,
-            &fatigue_lookup(&current_carrier.id()),
+            &fatigue_tracker.fatigue_for(&current_carrier.id()),
         );
         let def_rating = calculate_player_duel_rating_with_state(
             def_player,
@@ -165,7 +162,7 @@ pub fn execute_carry_action<F>(
                 .unwrap_or(DomainPosition::Centerback),
             &attribute_keys,
             def_prof,
-            &fatigue_lookup(&def_player.id()),
+            &fatigue_tracker.fatigue_for(&def_player.id()),
         );
 
         local_seq += 1;
@@ -178,8 +175,8 @@ pub fn execute_carry_action<F>(
             def_rating,
             current_carrier,
             def_player,
-            fatigue_lookup(&current_carrier.id()),
-            fatigue_lookup(&def_player.id()),
+            fatigue_tracker.fatigue_for(&current_carrier.id()),
+            fatigue_tracker.fatigue_for(&def_player.id()),
             &attribute_keys,
             &c_context,
         );
@@ -206,7 +203,7 @@ pub fn execute_carry_action<F>(
                 carrier_pos_domain,
                 &attribute_keys,
                 sec_off,
-                &fatigue_lookup(&current_carrier.id()),
+                &fatigue_tracker.fatigue_for(&current_carrier.id()),
             );
             let sec_df = calculate_player_duel_rating_with_state(
                 def_player,
@@ -216,7 +213,7 @@ pub fn execute_carry_action<F>(
                     .unwrap_or(DomainPosition::Centerback),
                 &attribute_keys,
                 sec_def,
-                &fatigue_lookup(&def_player.id()),
+                &fatigue_tracker.fatigue_for(&def_player.id()),
             );
 
             local_seq += 1;
@@ -228,8 +225,8 @@ pub fn execute_carry_action<F>(
                 sec_df,
                 current_carrier,
                 def_player,
-                fatigue_lookup(&current_carrier.id()),
-                fatigue_lookup(&def_player.id()),
+                fatigue_tracker.fatigue_for(&current_carrier.id()),
+                fatigue_tracker.fatigue_for(&def_player.id()),
                 &attribute_keys,
                 &sec_context,
             );
@@ -255,14 +252,14 @@ pub fn execute_carry_action<F>(
     };
 
     let tick_result = run_carrier_tick_loop_with_collision(
-        state.spatial_map_mut(),
+        &mut state.spatial_map,
         &movers,
         current_carrier.id(),
         &def_ids,
         &attribute_keys,
         MovementContext::LivePlay,
         &pitch,
-        fatigue_lookup,
+        &|id| fatigue_tracker.fatigue_for(id),
         &effort_multiplier_for,
         collision_cb,
     );

@@ -1,10 +1,7 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue;
 use crate::artrine::calculate_normalized_proximity;
-use crate::match_decision::target_selection::{
-    calculate_player_target_weight, ReceptionRole,
-};
-use crate::physical::FatigueState;
+use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::resolution::DuelContext;
 use crate::spatial::{
@@ -41,7 +38,7 @@ pub struct OpenPlayIterationContext<'a> {
 }
 
 impl<'a> OpenPlayIterationContext<'a> {
-    pub fn build<F>(
+    pub fn build(
         state: &mut MatchState,
         context: &CallToActionContext,
         pass_phase: &PassPhaseResult<'_>,
@@ -49,11 +46,7 @@ impl<'a> OpenPlayIterationContext<'a> {
         current_carrier: &'a Player,
         offense_players: &[&'a Player],
         defense_players: &[&Player],
-        fatigue_lookup: &F,
-    ) -> Self
-    where
-        F: Fn(&Uuid) -> FatigueState,
-    {
+    ) -> Self {
         let pitch = *state.pitch();
         let attribute_keys = state.attribute_keys().clone();
         let carrier_pos = loop_state.current_carrier_pos;
@@ -75,13 +68,12 @@ impl<'a> OpenPlayIterationContext<'a> {
                 &target_candidates,
                 defense_players,
                 &attribute_keys,
-                fatigue_lookup,
             );
 
         let long_launch_target_weight = target_candidates
             .iter()
             .map(|p| {
-                let p_state = fatigue_lookup(&p.id());
+                let p_state = state.fatigue_lookup().get(&p.id());
                 let base_weight = calculate_player_target_weight(
                     p,
                     state.spatial_map(),
@@ -109,7 +101,7 @@ impl<'a> OpenPlayIterationContext<'a> {
             &pitch,
             &attribute_keys,
             context.is_home_offense,
-            fatigue_lookup,
+            &|id| state.fatigue_lookup().get(id),
         );
 
         let next_artro_pos =
@@ -121,7 +113,7 @@ impl<'a> OpenPlayIterationContext<'a> {
             defense_players,
             state.spatial_map(),
             &attribute_keys,
-            fatigue_lookup,
+            &|id| state.fatigue_lookup().get(id),
             carrier_pos,
             next_artro_pos,
             &pitch,
@@ -134,12 +126,12 @@ impl<'a> OpenPlayIterationContext<'a> {
             defense_players,
             state.spatial_map(),
             &attribute_keys,
-            fatigue_lookup,
+            &|id| state.fatigue_lookup().get(id),
             &pitch,
             context.is_home_offense,
         );
 
-        let carrier_fatigue = fatigue_lookup(&current_carrier.id());
+        let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
         let carrier_impulse = state.impulse_for(&current_carrier.id());
         let game_state_pressure = analyze_match_state(state);
         let risk_profile = RiskProfile::from_player_with_impulse(

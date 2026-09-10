@@ -226,16 +226,6 @@ pub fn derive_and_apply_reorganization(
         }
     }
 
-    let home_fatigue = publisher.state().home_fatigue().clone();
-    let away_fatigue = publisher.state().away_fatigue().clone();
-    let fatigue_lookup = move |id: &Uuid| {
-        home_fatigue
-            .get(id)
-            .or_else(|| away_fatigue.get(id))
-            .copied()
-            .unwrap_or_default()
-    };
-
     let home_team_id = publisher.state().home_team_id();
     let away_team_id = publisher.state().away_team_id();
     let home_instr = publisher
@@ -287,13 +277,15 @@ pub fn derive_and_apply_reorganization(
         }
     };
 
+    let state = publisher.state_mut();
+    let fatigue_lookup = state.fatigue.lookup();
     let tick_result = run_spatial_tick_loop_with_context(
-        publisher.state_mut().spatial_map_mut(),
+        &mut state.spatial_map,
         &movers,
         &attribute_keys,
         MovementContext::DeadBall,
         &pitch,
-        &fatigue_lookup,
+        &|id| fatigue_lookup.get(id),
         &effort_multiplier_for,
     );
 
@@ -317,8 +309,7 @@ pub fn derive_and_apply_reorganization(
 
     let (tac, lead) = if let Some(artrine) = offense_artrine {
         let table = PlayerAttributeTable::from_player(artrine, &attribute_keys);
-        let tac =
-            extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
+        let tac = extract_attribute_value(&table, AttributeKey::TacticalKnowledge);
         let lead = extract_attribute_value(&table, AttributeKey::Leadership);
         (tac, lead)
     } else {

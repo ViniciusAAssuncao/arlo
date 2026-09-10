@@ -4,6 +4,32 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Copy)]
+pub struct FatigueLookup<'a> {
+    home_fatigue: &'a HashMap<Uuid, FatigueState>,
+    away_fatigue: &'a HashMap<Uuid, FatigueState>,
+}
+
+impl<'a> FatigueLookup<'a> {
+    pub fn new(
+        home_fatigue: &'a HashMap<Uuid, FatigueState>,
+        away_fatigue: &'a HashMap<Uuid, FatigueState>,
+    ) -> Self {
+        Self {
+            home_fatigue,
+            away_fatigue,
+        }
+    }
+
+    pub fn get(&self, player_id: &Uuid) -> FatigueState {
+        self.home_fatigue
+            .get(player_id)
+            .or_else(|| self.away_fatigue.get(player_id))
+            .copied()
+            .unwrap_or_default()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct FatigueTracker {
     home_fatigue: HashMap<Uuid, FatigueState>,
@@ -13,6 +39,10 @@ pub struct FatigueTracker {
 impl FatigueTracker {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn lookup(&self) -> FatigueLookup<'_> {
+        FatigueLookup::new(&self.home_fatigue, &self.away_fatigue)
     }
 
     pub fn home_fatigue(&self) -> &HashMap<Uuid, FatigueState> {

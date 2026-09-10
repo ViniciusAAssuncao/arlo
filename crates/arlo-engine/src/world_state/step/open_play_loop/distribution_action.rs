@@ -4,7 +4,6 @@ use crate::match_decision::scoring::{
     ScoringOpportunity,
 };
 use crate::match_decision::target_selection::{select_target, ReceptionRole};
-use crate::physical::FatigueState;
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
@@ -30,7 +29,7 @@ use uuid::Uuid;
 
 const OPEN_PLAY_MAX_FINISH_DISTANCE_MIRIM: f64 = 50.0;
 
-fn check_distribution_scoring_opportunity<F>(
+fn check_distribution_scoring_opportunity(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -40,10 +39,7 @@ fn check_distribution_scoring_opportunity<F>(
     current_carrier: &Player,
     defense_players: &[&Player],
     rec_att_rating: f64,
-    fatigue_lookup: &F,
-) where
-    F: Fn(&Uuid) -> FatigueState,
-{
+) {
     let pitch = *state.pitch();
     let rx_mirim = loop_state.current_carrier_pos.raw().0 / MIRIM_TO_METERS;
     let dist_to_goal_mirim = if context.is_home_offense {
@@ -88,6 +84,8 @@ fn check_distribution_scoring_opportunity<F>(
             .or(Some(current_carrier.id()));
 
         let finish_ctx = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+        let rec_fatigue = state.fatigue_lookup().get(&receiver_player.id());
+        let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
         let req = ScoringAttemptRequest::new(
             receiver_player,
             goalguard,
@@ -100,10 +98,7 @@ fn check_distribution_scoring_opportunity<F>(
             total_adv,
             &finish_ctx,
         )
-        .with_fatigue(
-            fatigue_lookup(&receiver_player.id()),
-            fatigue_lookup(&goalguard.id()),
-        );
+        .with_fatigue(rec_fatigue, gg_fatigue);
 
         let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut fin_rng);
 
@@ -113,7 +108,7 @@ fn check_distribution_scoring_opportunity<F>(
     }
 }
 
-pub fn execute_distribution_action<F>(
+pub fn execute_distribution_action(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -122,10 +117,7 @@ pub fn execute_distribution_action<F>(
     current_carrier: &Player,
     defense_players: &[&Player],
     chosen_decision: ArtrineDecisionKind,
-    fatigue_lookup: &F,
-) where
-    F: Fn(&Uuid) -> FatigueState,
-{
+) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
     let carrier_pos = loop_state.current_carrier_pos;
@@ -170,13 +162,13 @@ pub fn execute_distribution_action<F>(
             &iter_ctx.target_candidates,
             &context.offense_pos_index,
         )
-        .with_fatigue(fatigue_lookup),
+        .with_fatigue(&|id| state.fatigue_lookup().get(id)),
         &attribute_keys,
         off_prof,
     );
     let def_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(defense_players, &context.defense_pos_index)
-            .with_fatigue(fatigue_lookup),
+            .with_fatigue(&|id| state.fatigue_lookup().get(id)),
         &attribute_keys,
         def_prof,
     );
@@ -196,21 +188,23 @@ pub fn execute_distribution_action<F>(
         state.spatial_map(),
         &context.defense_instructions_index,
         &attribute_keys,
-        fatigue_lookup,
+        &|id| state.fatigue_lookup().get(id),
         contest_radius,
         None,
         &mut d_rng,
     );
 
     let dist_context = iter_ctx.duel_context.for_duel_kind(duel_kind);
+    let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
+    let lead_def_fatigue = state.fatigue_lookup().get(&lead_defender.id());
     let req = DuelResolutionRequest::with_states(
         duel_kind,
         att_rating,
         def_rating,
         current_carrier,
         lead_defender,
-        fatigue_lookup(&current_carrier.id()),
-        fatigue_lookup(&lead_defender.id()),
+        carrier_fatigue,
+        lead_def_fatigue,
         &attribute_keys,
         &dist_context,
     );
@@ -245,7 +239,7 @@ pub fn execute_distribution_action<F>(
     let pass_speed = calculate_pass_speed(
         current_carrier,
         &attribute_keys,
-        &fatigue_lookup(&current_carrier.id()),
+        &state.fatigue_lookup().get(&current_carrier.id()),
     );
     let flight_duration = ball_flight_duration(throw_advance, pass_speed);
     loop_state
@@ -262,7 +256,7 @@ pub fn execute_distribution_action<F>(
         context.is_home_offense,
         ReceptionRole::OpenPlayReceiver,
         &iter_ctx.openness_by_player,
-        Some(fatigue_lookup),
+        Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
         &mut d_rng,
     )
     .unwrap_or(current_carrier.id());
@@ -291,24 +285,26 @@ pub fn execute_distribution_action<F>(
             .unwrap_or(DomainPosition::CenterOffense),
         &attribute_keys,
         rec_off,
-        &fatigue_lookup(&receiver_id),
+        &state.fatigue_lookup().get(&receiver_id),
     );
     let rec_def_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(defense_players, &context.defense_pos_index)
-            .with_fatigue(fatigue_lookup),
+            .with_fatigue(&|id| state.fatigue_lookup().get(id)),
         &attribute_keys,
         rec_def,
     );
 
     let rec_context = iter_ctx.duel_context.for_duel_kind(rec_duel_kind);
+    let rec_fatigue = state.fatigue_lookup().get(&receiver_id);
+    let lead_def_fatigue2 = state.fatigue_lookup().get(&lead_defender.id());
     let req = DuelResolutionRequest::with_states(
         rec_duel_kind,
         rec_att_rating,
         rec_def_rating,
         receiver_player,
         lead_defender,
-        fatigue_lookup(&receiver_id),
-        fatigue_lookup(&lead_defender.id()),
+        rec_fatigue,
+        lead_def_fatigue2,
         &attribute_keys,
         &rec_context,
     );
@@ -369,6 +365,5 @@ pub fn execute_distribution_action<F>(
         current_carrier,
         defense_players,
         rec_att_rating,
-        fatigue_lookup,
     );
 }

@@ -1,4 +1,5 @@
 use crate::physical::FatigueState;
+use crate::world_state::match_state::fatigue::FatigueLookup;
 use crate::world_state::match_state::state::MatchState;
 use arlo_domain::Player;
 use std::collections::HashMap;
@@ -15,6 +16,10 @@ impl MatchState {
 
     pub fn fatigue_for(&self, player_id: &Uuid) -> FatigueState {
         self.fatigue.fatigue_for(player_id)
+    }
+
+    pub fn fatigue_lookup(&self) -> FatigueLookup<'_> {
+        self.fatigue.lookup()
     }
 
     pub fn substitute_fatigue_player(&mut self, outgoing: Uuid, incoming: Uuid, is_home: bool) {
