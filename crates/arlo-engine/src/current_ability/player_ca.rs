@@ -1,5 +1,5 @@
+use crate::caching::position_profile_cache::get_position_profile;
 use crate::current_ability::calculator::calculate_current_ability;
-use crate::current_ability::profiles::get_profile_for_position;
 use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -13,16 +13,14 @@ pub fn calculate_player_ca(
         .iter()
         .max_by_key(|pos| pos.proficiency())?;
 
-    let profile = get_profile_for_position(best_position.position());
+    let profile = get_position_profile(best_position.position());
 
-    let mut attributes_and_weights = Vec::new();
+    let mut attributes_and_weights = Vec::with_capacity(profile.weights.len());
 
     for attr in player.attributes() {
-        if let Some(key) = attribute_keys.get(&attr.attribute_definition_id()) {
-            if let Some(weight) = profile.weights.iter().find(|w| w.key == *key) {
-                if weight.weight > 0.0 {
-                    attributes_and_weights.push((attr.value() as f64, weight.weight));
-                }
+        if let Some(&key) = attribute_keys.get(&attr.attribute_definition_id()) {
+            if let Some(weight) = profile.dense_weights[key.index()] {
+                attributes_and_weights.push((attr.value() as f64, weight));
             }
         }
     }

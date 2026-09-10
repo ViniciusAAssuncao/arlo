@@ -164,14 +164,14 @@ pub fn execute_distribution_action<F>(
         &iter_ctx.target_candidates,
         &context.offense_pos_index,
         &attribute_keys,
-        &off_prof,
+        off_prof,
         fatigue_lookup,
     );
     let def_rating = calculate_side_rating_from_index_with_fatigue(
         defense_players,
         &context.defense_pos_index,
         &attribute_keys,
-        &def_prof,
+        def_prof,
         fatigue_lookup,
     );
 
@@ -284,14 +284,14 @@ pub fn execute_distribution_action<F>(
             .copied()
             .unwrap_or(DomainPosition::CenterOffense),
         &attribute_keys,
-        &rec_off,
+        rec_off,
         &fatigue_lookup(&receiver_id),
     );
     let rec_def_rating = calculate_side_rating_from_index_with_fatigue(
         defense_players,
         &context.defense_pos_index,
         &attribute_keys,
-        &rec_def,
+        rec_def,
         fatigue_lookup,
     );
 

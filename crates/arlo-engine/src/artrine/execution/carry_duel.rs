@@ -60,7 +60,7 @@ where
         &blocker_helpers,
         ctx.offense_position_index,
         ctx.attribute_keys,
-        &offense_profile,
+        offense_profile,
         ctx.fatigue_for,
     );
 
@@ -68,7 +68,7 @@ where
         ctx.defenders,
         ctx.defense_position_index,
         ctx.attribute_keys,
-        &defense_profile,
+        defense_profile,
         ctx.fatigue_for,
     );
 

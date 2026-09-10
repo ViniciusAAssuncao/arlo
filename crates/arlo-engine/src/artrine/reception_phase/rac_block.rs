@@ -61,7 +61,7 @@ where
             &blocker_subset,
             ctx.offense_position_index,
             ctx.attribute_keys,
-            &block_offense_profile,
+            block_offense_profile,
         )
         .unwrap_or(blocker_subset[0])
     } else {
@@ -73,7 +73,7 @@ where
             &blocker_subset,
             ctx.offense_position_index,
             ctx.attribute_keys,
-            &block_offense_profile,
+            block_offense_profile,
             ctx.fatigue_for,
         )
     } else {
@@ -82,7 +82,7 @@ where
             ctx.receiver,
             ctx.receiver_pos_domain,
             ctx.attribute_keys,
-            &block_offense_profile,
+            block_offense_profile,
             &receiver_state,
         )
     };
@@ -91,7 +91,7 @@ where
         ctx.defenders,
         ctx.defense_position_index,
         ctx.attribute_keys,
-        &block_defense_profile,
+        block_defense_profile,
         ctx.fatigue_for,
     );
 

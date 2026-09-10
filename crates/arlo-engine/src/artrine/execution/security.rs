@@ -55,21 +55,21 @@ where
         ball_carrier,
         carrier_position,
         attribute_keys,
-        &attacker_profile,
+        attacker_profile,
         &carrier_state,
     );
     let defender_rating = calculate_side_rating_from_index_with_fatigue(
         defenders,
         defense_position_index,
         attribute_keys,
-        &defender_profile,
+        defender_profile,
         fatigue_for,
     );
     let lead_defender = identify_lead_player_from_index(
         defenders,
         defense_position_index,
         attribute_keys,
-        &defender_profile,
+        defender_profile,
     );
     let defender_primary = lead_defender.unwrap_or(defenders[0]);
     let defender_state = fatigue_for(&defender_primary.id());

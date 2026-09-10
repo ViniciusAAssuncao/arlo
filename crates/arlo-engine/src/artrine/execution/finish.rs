@@ -243,7 +243,7 @@ where
         finisher,
         DomainPosition::CenterOffense,
         ctx.attribute_keys,
-        &attacker_profile,
+        attacker_profile,
         &finisher_state,
     );
 

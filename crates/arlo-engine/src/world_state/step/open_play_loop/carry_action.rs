@@ -155,7 +155,7 @@ pub fn execute_carry_action<F>(
                 current_carrier,
                 carrier_pos_domain,
                 &attribute_keys,
-                &off_prof,
+                off_prof,
                 &fatigue_lookup(&current_carrier.id()),
             );
             let def_rating = calculate_player_duel_rating_with_state(
@@ -165,7 +165,7 @@ pub fn execute_carry_action<F>(
                     .copied()
                     .unwrap_or(DomainPosition::Centerback),
                 &attribute_keys,
-                &def_prof,
+                def_prof,
                 &fatigue_lookup(&def_player.id()),
             );
 
@@ -206,7 +206,7 @@ pub fn execute_carry_action<F>(
                     current_carrier,
                     carrier_pos_domain,
                     &attribute_keys,
-                    &sec_off,
+                    sec_off,
                     &fatigue_lookup(&current_carrier.id()),
                 );
                 let sec_df = calculate_player_duel_rating_with_state(
@@ -216,7 +216,7 @@ pub fn execute_carry_action<F>(
                         .copied()
                         .unwrap_or(DomainPosition::Centerback),
                     &attribute_keys,
-                    &sec_def,
+                    sec_def,
                     &fatigue_lookup(&def_player.id()),
                 );
 

@@ -109,7 +109,7 @@ pub fn execute_cross_action<F>(
         finisher,
         DomainPosition::CenterOffense,
         &attribute_keys,
-        &att_prof,
+        att_prof,
         &fatigue_lookup(&finisher.id()),
     );
 
@@ -188,7 +188,7 @@ pub fn execute_self_finish_action<F>(
         current_carrier,
         DomainPosition::CenterOffense,
         &attribute_keys,
-        &att_prof,
+        att_prof,
         &fatigue_lookup(&current_carrier.id()),
     );
 

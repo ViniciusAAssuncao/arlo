@@ -149,13 +149,13 @@ where
     let attacker_rating = crate::resolution::group_rating::calculate_side_rating_with_fatigue(
         attackers,
         attribute_keys,
-        &attacker_profile,
+        attacker_profile,
         fatigue_for,
     );
     let defender_rating = crate::resolution::group_rating::calculate_side_rating_with_fatigue(
         defenders,
         attribute_keys,
-        &defender_profile,
+        defender_profile,
         fatigue_for,
     );
 
@@ -221,14 +221,14 @@ where
         attackers,
         attacker_positions,
         attribute_keys,
-        &attacker_profile,
+        attacker_profile,
         fatigue_for,
     );
     let defender_rating = calculate_side_rating_from_index_with_fatigue(
         defenders,
         defender_positions,
         attribute_keys,
-        &defender_profile,
+        defender_profile,
         fatigue_for,
     );
 

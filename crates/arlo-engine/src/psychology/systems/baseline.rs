@@ -1,4 +1,5 @@
 use crate::attributes::PlayerAttributeTable;
+use crate::caching::impulse_baseline_profile;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::weighting::{calculate_weighted_saturated_average, AttributeWeight};
 use arlo_domain::sport_constants::{
@@ -67,8 +68,8 @@ pub fn calculate_player_impulse_baseline(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let profile = default_impulse_baseline_profile();
-    calculate_player_impulse_baseline_with_profile(player, attribute_keys, &profile)
+    let profile = impulse_baseline_profile();
+    calculate_player_impulse_baseline_with_profile(player, attribute_keys, profile)
 }
 
 pub fn find_active_captain<'a>(

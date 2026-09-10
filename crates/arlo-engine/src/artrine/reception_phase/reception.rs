@@ -118,7 +118,7 @@ where
         receiver_player,
         receiver_pos_domain,
         attribute_keys,
-        &offense_profile,
+        offense_profile,
         &receiver_state,
     );
 
@@ -160,7 +160,7 @@ where
         active_defenders,
         defense_position_index,
         attribute_keys,
-        &defense_profile,
+        defense_profile,
         fatigue_for,
     );
 

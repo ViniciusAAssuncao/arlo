@@ -40,7 +40,7 @@ where
         receiver_player,
         DomainPosition::CenterOffense,
         ctx.attribute_keys,
-        &attacker_profile,
+        attacker_profile,
         &receiver_state,
     );
 

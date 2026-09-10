@@ -1,3 +1,4 @@
+use crate::caching::position_profile_cache::get_position_similarity;
 use crate::current_ability::profiles::get_profile_for_position;
 use crate::current_ability::weights::PositionWeightProfile;
 use arlo_domain::{AttributeKey, Position};
@@ -44,5 +45,5 @@ pub fn calculate_position_similarity(a: Position, b: Position) -> f64 {
 }
 
 pub fn position_similarity(a: Position, b: Position) -> f64 {
-    crate::lineup_runtime::position_profile_cache::get_position_similarity(a, b)
+    get_position_similarity(a, b)
 }

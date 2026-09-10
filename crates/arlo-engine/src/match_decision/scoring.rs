@@ -202,14 +202,14 @@ pub fn resolve_scoring_attempt_with_fatigue<R: Rng + ?Sized>(
         finisher,
         Position::CenterOffense,
         attribute_keys,
-        &attacker_profile,
+        attacker_profile,
         finisher_state,
     );
     let defender_rating = calculate_player_duel_rating_with_state(
         goalguard,
         Position::Goalguard,
         attribute_keys,
-        &defender_profile,
+        defender_profile,
         goalguard_state,
     );
 

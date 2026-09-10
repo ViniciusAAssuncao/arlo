@@ -46,7 +46,7 @@ where
         &block_res.blocker_subset,
         ctx.offense_position_index,
         ctx.attribute_keys,
-        &rb_offense_profile,
+        rb_offense_profile,
         ctx.fatigue_for,
     ) + block_res.block_bonus;
 
@@ -54,7 +54,7 @@ where
         ctx.defenders,
         ctx.defense_position_index,
         ctx.attribute_keys,
-        &rb_defense_profile,
+        rb_defense_profile,
         ctx.fatigue_for,
     );
 
