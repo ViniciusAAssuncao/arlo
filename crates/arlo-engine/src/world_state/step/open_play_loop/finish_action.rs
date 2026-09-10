@@ -2,7 +2,8 @@ use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest,
+    duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
+    ScoringAttemptRequest,
 };
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
@@ -128,7 +129,7 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
 
     let finish_context = iter_ctx
         .duel_context
-        .for_duel_kind(DuelKind::FinishingAttempt);
+        .for_duel_kind(duel_kind_for_opportunity(opportunity));
     let fin_fatigue = state.fatigue_lookup().get(&finisher.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
     let fin_table = state.teams.player_attribute_tables().get(&finisher.id());
@@ -207,7 +208,7 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
 
     let finish_context = iter_ctx
         .duel_context
-        .for_duel_kind(DuelKind::FinishingAttempt);
+        .for_duel_kind(duel_kind_for_opportunity(opportunity));
     let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
     let carrier_table = state

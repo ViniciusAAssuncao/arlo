@@ -1,10 +1,9 @@
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest,
-    ScoringOpportunity,
+    duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
+    ScoringAttemptRequest, ScoringOpportunity,
 };
 use crate::possession::TouchActionType;
-use crate::resolution::DuelKind;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
@@ -72,7 +71,7 @@ pub fn check_distribution_scoring_opportunity<R: Rng + ?Sized>(
 
         let finish_ctx = iter_ctx
             .duel_context
-            .for_duel_kind(DuelKind::FinishingAttempt);
+            .for_duel_kind(duel_kind_for_opportunity(opportunity));
         let rec_fatigue = state.fatigue_lookup().get(&receiver_player.id());
         let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
         let rec_table = state

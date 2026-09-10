@@ -8,7 +8,8 @@ use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE,
-    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST, FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
+    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
+    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST, FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
     FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use arlo_domain::{AttributeKey, Player, Position};
@@ -156,8 +157,16 @@ pub fn can_attempt_field_point(drives_in_series: u32, territory_advance_mirim: f
         && territory_advance_mirim >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
 }
 
-pub fn can_attempt_field_goal(territory_advance_mirim: f64) -> bool {
-    territory_advance_mirim >= FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST
+pub fn can_attempt_field_goal(
+    drives_in_series: u32,
+    territory_advance_mirim: f64,
+    post: ScoringPost,
+) -> bool {
+    let min_advance = match post {
+        ScoringPost::Goalpost => FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST,
+        ScoringPost::Fieldpost => FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
+    };
+    drives_in_series >= FIELD_POINT_REQUIRED_DRIVES && territory_advance_mirim >= min_advance
 }
 
 pub fn determine_field_goal_post(
@@ -181,8 +190,27 @@ pub fn evaluate_scoring_opportunity(
     finisher_rating: f64,
 ) -> ScoringOpportunity {
     if is_bonus_phase {
-        let post = determine_field_goal_post(finisher_rating, territory_advance_mirim);
-        ScoringOpportunity::FieldGoal(post)
+        if !can_attempt_field_goal(
+            drives_in_series,
+            territory_advance_mirim,
+            ScoringPost::Fieldpost,
+        ) {
+            ScoringOpportunity::None
+        } else {
+            let candidate_post =
+                determine_field_goal_post(finisher_rating, territory_advance_mirim);
+            let post = if candidate_post == ScoringPost::Goalpost
+                && !can_attempt_field_goal(
+                    drives_in_series,
+                    territory_advance_mirim,
+                    ScoringPost::Goalpost,
+                ) {
+                ScoringPost::Fieldpost
+            } else {
+                candidate_post
+            };
+            ScoringOpportunity::FieldGoal(post)
+        }
     } else if can_attempt_goal_point(drives_in_series) {
         ScoringOpportunity::GoalPoint
     } else if can_attempt_field_point(drives_in_series, territory_advance_mirim) {
@@ -221,11 +249,21 @@ pub fn extract_assist_tree_from_sequence(
     live_sequence.assist_chain(finisher_id)
 }
 
+pub fn duel_kind_for_opportunity(opportunity: ScoringOpportunity) -> DuelKind {
+    match opportunity {
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_) => {
+            DuelKind::FieldGoalAttempt
+        }
+        ScoringOpportunity::GoalPoint | ScoringOpportunity::None => DuelKind::FinishingAttempt,
+    }
+}
+
 pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     request: ScoringAttemptRequest<'_>,
     rng: &mut R,
 ) -> (ScoringDecision, AttributedDuelOutcome) {
-    let (attacker_profile, defender_profile) = get_duel_profiles(DuelKind::FinishingAttempt);
+    let duel_kind = duel_kind_for_opportunity(request.opportunity);
+    let (attacker_profile, defender_profile) = get_duel_profiles(duel_kind);
     let mut attacker_rating = match request.finisher_table {
         Some(table) => calculate_player_duel_rating_from_table(
             request.finisher,
@@ -276,7 +314,7 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     attacker_rating += distance_adjustment;
 
     let duel_req = DuelResolutionRequest::with_states(
-        DuelKind::FinishingAttempt,
+        duel_kind,
         attacker_rating,
         defender_rating,
         request.finisher,

@@ -29,7 +29,6 @@ pub fn available_decision_kinds(
     );
 
     let can_cross_or_finish = opportunity != ScoringOpportunity::None
-        || is_bonus_phase
         || drives_in_current_series >= GOAL_POINT_REQUIRED_DRIVES
         || (drives_in_current_series >= FIELD_POINT_REQUIRED_DRIVES
             && accumulated_advance_mirim
