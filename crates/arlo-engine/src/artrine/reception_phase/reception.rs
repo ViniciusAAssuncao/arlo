@@ -7,15 +7,15 @@ use crate::artrine::logistics::{
     resolve_primary_lead_defender,
 };
 use crate::attributes::PlayerAttributeTable;
-use crate::match_decision::target_selection::{select_target_with_fatigue, ReceptionRole};
+use crate::match_decision::target_selection::{select_target, ReceptionRole};
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
+    calculate_player_duel_rating_with_state, calculate_side_rating, RatingParticipants,
 };
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::positioning_drift::{
@@ -67,7 +67,7 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let receiver_id = select_target_with_fatigue(
+    let receiver_id = select_target(
         candidates,
         spatial_map,
         pitch,
@@ -77,7 +77,7 @@ where
         attacking_positive_x,
         ReceptionRole::OpenPlayReceiver,
         openness_by_player,
-        fatigue_for,
+        Some(fatigue_for),
         rng,
     )
     .unwrap_or_else(|| passer_or_artrine.id());
@@ -156,12 +156,11 @@ where
         defenders
     };
 
-    let defender_rating = calculate_side_rating_from_index_with_fatigue(
-        active_defenders,
-        defense_position_index,
+    let defender_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(active_defenders, defense_position_index)
+            .with_fatigue(fatigue_for),
         attribute_keys,
         defense_profile,
-        fatigue_for,
     );
 
     let contest_radius =
@@ -184,18 +183,18 @@ where
     let lead_def_state = fatigue_for(&lead_defender.id());
 
     let rec_context = context.for_duel_kind(duel_kind);
-    let raw_duel = resolve_duel_with_fatigue(
+    let req = DuelResolutionRequest::with_states(
         duel_kind,
         attacker_rating,
         defender_rating,
         receiver_player,
         lead_defender,
-        &receiver_state,
-        &lead_def_state,
+        receiver_state,
+        lead_def_state,
         attribute_keys,
         &rec_context,
-        rng,
     );
+    let raw_duel = resolve_duel(req, rng);
 
     let caught = raw_duel.attacker_won();
 

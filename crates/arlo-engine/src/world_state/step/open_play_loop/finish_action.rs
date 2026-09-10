@@ -1,6 +1,6 @@
-use crate::match_decision::finisher_selection::select_finisher_or_kicker;
+use crate::match_decision::finisher_selection::select_finisher;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, resolve_scoring_attempt_with_fatigue,
+    evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest,
 };
 use crate::physical::FatigueState;
 use crate::possession::TouchActionType;
@@ -8,7 +8,7 @@ use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::resolution::DuelKind;
 use crate::rng::RngStream;
-use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_cross_speed_with_state};
+use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_cross_speed};
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -62,9 +62,9 @@ pub fn execute_cross_action<F>(
         .rng_provider()
         .indexed_rng_for(RngStream::FinisherSelection, seq_fin);
 
-    let chosen_finisher_id = select_finisher_or_kicker(
+    let chosen_finisher_id = select_finisher(
         &iter_ctx.target_candidates,
-        &context.offense_role_index,
+        Some(&context.offense_role_index),
         is_bonus_phase,
         state.spatial_map(),
         &pitch,
@@ -73,7 +73,7 @@ pub fn execute_cross_action<F>(
         &attribute_keys,
         context.is_home_offense,
         &iter_ctx.openness_by_player,
-        fatigue_lookup,
+        Some(fatigue_lookup),
         &mut fin_rng,
     );
 
@@ -81,11 +81,8 @@ pub fn execute_cross_action<F>(
         .and_then(|fid| iter_ctx.target_candidates.iter().copied().find(|p| p.id() == fid))
         .unwrap_or(current_carrier);
 
-    let cross_speed = calculate_cross_speed_with_state(
-        current_carrier,
-        &attribute_keys,
-        &fatigue_lookup(&current_carrier.id()),
-    );
+    let cross_speed =
+        calculate_cross_speed(current_carrier, &attribute_keys, &fatigue_lookup(&current_carrier.id()));
     let finisher_pos = state
         .spatial_map()
         .get_position(&finisher.id())
@@ -136,7 +133,8 @@ pub fn execute_cross_action<F>(
         .primary_assister(finisher.id())
         .or(Some(current_carrier.id()));
 
-    let (score_dec, fin_duel) = resolve_scoring_attempt_with_fatigue(
+    let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+    let req = ScoringAttemptRequest::new(
         finisher,
         goalguard,
         &attribute_keys,
@@ -146,11 +144,11 @@ pub fn execute_cross_action<F>(
         opportunity,
         total_drives,
         total_advance,
-        &fatigue_lookup(&finisher.id()),
-        &fatigue_lookup(&goalguard.id()),
-        &iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt),
-        &mut duel_rng,
-    );
+        &finish_context,
+    )
+    .with_fatigue(fatigue_lookup(&finisher.id()), fatigue_lookup(&goalguard.id()));
+
+    let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut duel_rng);
 
     loop_state.accumulated_duels.push(fin_duel);
     loop_state.scoring_decision = score_dec;
@@ -214,7 +212,8 @@ pub fn execute_self_finish_action<F>(
         .live_sequence()
         .primary_assister(current_carrier.id());
 
-    let (score_dec, fin_duel) = resolve_scoring_attempt_with_fatigue(
+    let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+    let req = ScoringAttemptRequest::new(
         current_carrier,
         goalguard,
         &attribute_keys,
@@ -224,11 +223,14 @@ pub fn execute_self_finish_action<F>(
         opportunity,
         total_drives,
         total_advance,
-        &fatigue_lookup(&current_carrier.id()),
-        &fatigue_lookup(&goalguard.id()),
-        &iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt),
-        &mut duel_rng,
+        &finish_context,
+    )
+    .with_fatigue(
+        fatigue_lookup(&current_carrier.id()),
+        fatigue_lookup(&goalguard.id()),
     );
+
+    let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut duel_rng);
 
     loop_state.accumulated_duels.push(fin_duel);
     loop_state.scoring_decision = score_dec;

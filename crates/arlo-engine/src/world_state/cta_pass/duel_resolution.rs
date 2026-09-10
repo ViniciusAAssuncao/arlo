@@ -3,12 +3,15 @@ use crate::match_decision::event_translation::{
 };
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
-use crate::resolution::resolver::resolve_duel_for_participants_with_fatigue;
+use crate::resolution::group_rating::RatingParticipants;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::AttributedDuelOutcome;
 use crate::rng::RngStream;
 use crate::world_state::cta_pass::participants::PhaseParticipants;
 use crate::world_state::match_state::MatchState;
+use arlo_domain::Position;
 use arlo_events::EventSink;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 pub fn resolve_pass_protection_duel(
@@ -59,17 +62,33 @@ pub fn resolve_pass_protection_duel(
             .unwrap_or_default()
     };
 
-    let raw_pass_duel = resolve_duel_for_participants_with_fatigue(
+    let pass_blocker_players: Vec<_> = participants.pass_blockers.iter().map(|(p, _)| *p).collect();
+    let pass_blocker_map: HashMap<Uuid, Position> = participants
+        .pass_blockers
+        .iter()
+        .map(|(p, pos)| (p.id(), *pos))
+        .collect();
+
+    let pass_rusher_players: Vec<_> = participants.pass_rushers.iter().map(|(p, _)| *p).collect();
+    let pass_rusher_map: HashMap<Uuid, Position> = participants
+        .pass_rushers
+        .iter()
+        .map(|(p, pos)| (p.id(), *pos))
+        .collect();
+
+    let req = DuelResolutionRequest::from_participants(
         DuelKind::PassProtection,
         participants.passer,
-        &participants.pass_blockers,
+        RatingParticipants::from_slice_with_index(&pass_blocker_players, &pass_blocker_map)
+            .with_fatigue(&fatigue_lookup),
         participants.pass_rusher,
-        &participants.pass_rushers,
+        RatingParticipants::from_slice_with_index(&pass_rusher_players, &pass_rusher_map)
+            .with_fatigue(&fatigue_lookup),
         state.attribute_keys(),
         &context,
-        &fatigue_lookup,
-        &mut duel_rng,
     );
+
+    let raw_pass_duel = resolve_duel(req, &mut duel_rng);
 
     let pass_duel_event = translate_duel_resolved(
         &raw_pass_duel,

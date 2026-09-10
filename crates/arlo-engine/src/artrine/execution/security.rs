@@ -4,10 +4,10 @@ use crate::physical::{FatigueState, PhysicalState};
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
-    identify_lead_player_from_index,
+    calculate_player_duel_rating_with_state, calculate_side_rating,
+    identify_lead_player_from_index, RatingParticipants,
 };
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::positioning_drift::get_drifted_defender_position;
 use crate::spatial::proximity::calculate_distance_mirim;
@@ -58,12 +58,11 @@ where
         attacker_profile,
         &carrier_state,
     );
-    let defender_rating = calculate_side_rating_from_index_with_fatigue(
-        defenders,
-        defense_position_index,
+    let defender_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(defenders, defense_position_index)
+            .with_fatigue(fatigue_for),
         attribute_keys,
         defender_profile,
-        fatigue_for,
     );
     let lead_defender = identify_lead_player_from_index(
         defenders,
@@ -74,18 +73,18 @@ where
     let defender_primary = lead_defender.unwrap_or(defenders[0]);
     let defender_state = fatigue_for(&defender_primary.id());
 
-    let raw_outcome = resolve_duel_with_fatigue(
+    let req = DuelResolutionRequest::with_states(
         security_kind,
         attacker_rating,
         defender_rating,
         ball_carrier,
         defender_primary,
-        &carrier_state,
-        &defender_state,
+        carrier_state,
+        defender_state,
         attribute_keys,
         context,
-        rng,
     );
+    let raw_outcome = resolve_duel(req, rng);
 
     let attacker_ids = vec![ball_carrier.id()];
     let defender_ids = defenders.iter().map(|p| p.id()).collect();

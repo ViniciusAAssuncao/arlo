@@ -12,10 +12,10 @@ use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
-    identify_lead_player_from_index,
+    calculate_player_duel_rating_with_state, calculate_side_rating,
+    identify_lead_player_from_index, RatingParticipants,
 };
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::spatial::positioning_drift::get_drifted_defender_position;
 use arlo_domain::Player;
@@ -69,12 +69,11 @@ where
     };
 
     let blocker_rating = if !blocker_subset.is_empty() {
-        calculate_side_rating_from_index_with_fatigue(
-            &blocker_subset,
-            ctx.offense_position_index,
+        calculate_side_rating(
+            RatingParticipants::from_slice_with_index(&blocker_subset, ctx.offense_position_index)
+                .with_fatigue(ctx.fatigue_for),
             ctx.attribute_keys,
             block_offense_profile,
-            ctx.fatigue_for,
         )
     } else {
         let receiver_state = ctx.fatigue(&ctx.receiver.id());
@@ -87,12 +86,11 @@ where
         )
     };
 
-    let defender_block_rating = calculate_side_rating_from_index_with_fatigue(
-        ctx.defenders,
-        ctx.defense_position_index,
+    let defender_block_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(ctx.defenders, ctx.defense_position_index)
+            .with_fatigue(ctx.fatigue_for),
         ctx.attribute_keys,
         block_defense_profile,
-        ctx.fatigue_for,
     );
 
     let contest_radius = ctx.contest_radius();
@@ -115,18 +113,18 @@ where
     let lead_block_def_state = ctx.fatigue(&lead_block_defender.id());
 
     let block_context = ctx.duel_context.for_duel_kind(block_duel_kind);
-    let raw_block_duel = resolve_duel_with_fatigue(
+    let req = DuelResolutionRequest::with_states(
         block_duel_kind,
         blocker_rating,
         defender_block_rating,
         lead_blocker,
         lead_block_defender,
-        &lead_blocker_state,
-        &lead_block_def_state,
+        lead_blocker_state,
+        lead_block_def_state,
         ctx.attribute_keys,
         &block_context,
-        rng,
     );
+    let raw_block_duel = resolve_duel(req, rng);
 
     let blocker_pos = ctx
         .spatial_map

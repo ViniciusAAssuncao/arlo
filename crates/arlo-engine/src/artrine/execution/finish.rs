@@ -1,9 +1,9 @@
 use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::distribution::execute_distribution;
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
-use crate::match_decision::finisher_selection::select_finisher_or_kicker;
+use crate::match_decision::finisher_selection::select_finisher;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, resolve_scoring_attempt_with_fatigue, ScoringDecision,
+    evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
 };
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
@@ -12,7 +12,7 @@ use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
 use crate::resolution::DuelKind;
 use crate::spatial::ball_kinematics::{
-    ball_flight_duration, calculate_cross_speed_with_state, calculate_shot_speed_with_state,
+    ball_flight_duration, calculate_cross_speed, calculate_shot_speed,
 };
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
@@ -46,7 +46,7 @@ where
     let finishing_duration =
         derive_duel_duration(finisher_pos, finisher_speed, goalguard_pos, goalguard_speed);
 
-    let shot_speed = calculate_shot_speed_with_state(finisher, ctx.attribute_keys, &finisher_state);
+    let shot_speed = calculate_shot_speed(finisher, ctx.attribute_keys, &finisher_state);
     let finisher_x_mirim = finisher_pos.raw().0 / MIRIM_TO_METERS;
     let dist_to_goal_mirim = if ctx.attacking_positive_x {
         (ctx.pitch.length_mirim() - finisher_x_mirim).max(0.0)
@@ -104,9 +104,9 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let chosen_finisher_id = select_finisher_or_kicker(
+    let chosen_finisher_id = select_finisher(
         ctx.offense_helpers,
-        ctx.offense_role_index,
+        Some(ctx.offense_role_index),
         ctx.is_bonus_phase,
         spatial_map,
         ctx.pitch,
@@ -115,7 +115,7 @@ where
         ctx.attribute_keys,
         ctx.attacking_positive_x,
         ctx.openness_by_player,
-        ctx.fatigue_for,
+        Some(ctx.fatigue_for),
         rng,
     );
 
@@ -130,7 +130,7 @@ where
         .unwrap_or(start_pos);
 
     let cross_dist_mirim = calculate_distance_mirim(artrine_pos, finisher_pos);
-    let cross_speed = calculate_cross_speed_with_state(artrine, ctx.attribute_keys, &artrine_state);
+    let cross_speed = calculate_cross_speed(artrine, ctx.attribute_keys, &artrine_state);
     let cross_flight = ball_flight_duration(cross_dist_mirim, cross_speed);
 
     let (finishing_duration, shot_flight) =
@@ -255,7 +255,7 @@ where
     );
 
     let finish_context = ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
-    let (scoring_decision, finish_duel) = resolve_scoring_attempt_with_fatigue(
+    let req = ScoringAttemptRequest::new(
         finisher,
         ctx.goalguard,
         ctx.attribute_keys,
@@ -265,11 +265,11 @@ where
         opportunity,
         ctx.drives_in_series,
         total_advance_mirim,
-        &finisher_state,
-        &goalguard_state,
         &finish_context,
-        rng,
-    );
+    )
+    .with_fatigue(finisher_state, goalguard_state);
+
+    let (scoring_decision, finish_duel) = resolve_scoring_attempt(req, rng);
 
     let (turnover, recovering_player_id) = match &scoring_decision {
         ScoringDecision::Missed { .. } => (Some(ctx.defense_team_id), None),

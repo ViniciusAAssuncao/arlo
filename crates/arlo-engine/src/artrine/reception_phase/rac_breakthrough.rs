@@ -10,11 +10,10 @@ use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_anchored_side_rating_from_index_with_fatigue,
-    calculate_side_rating_from_index_with_fatigue,
+    calculate_anchored_side_rating, calculate_side_rating, RatingParticipants,
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::spatial::positioning_drift::get_drifted_defender_position;
 use arlo_math::units::{Duration, Speed, Velocity};
@@ -40,22 +39,23 @@ where
 {
     let (rb_offense_profile, rb_defense_profile) = get_duel_profiles(DuelKind::RunBreakthrough);
 
-    let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
+    let attacker_rating = calculate_anchored_side_rating(
         ctx.receiver,
         ctx.receiver_pos_domain,
-        &block_res.blocker_subset,
-        ctx.offense_position_index,
+        RatingParticipants::from_slice_with_index(
+            &block_res.blocker_subset,
+            ctx.offense_position_index,
+        )
+        .with_fatigue(ctx.fatigue_for),
         ctx.attribute_keys,
         rb_offense_profile,
-        ctx.fatigue_for,
     ) + block_res.block_bonus;
 
-    let defender_rating = calculate_side_rating_from_index_with_fatigue(
-        ctx.defenders,
-        ctx.defense_position_index,
+    let defender_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(ctx.defenders, ctx.defense_position_index)
+            .with_fatigue(ctx.fatigue_for),
         ctx.attribute_keys,
         rb_defense_profile,
-        ctx.fatigue_for,
     );
 
     let contest_radius = ctx.contest_radius();
@@ -78,18 +78,18 @@ where
     let lead_def_state = ctx.fatigue(&lead_defender.id());
 
     let rb_context = ctx.duel_context.for_duel_kind(DuelKind::RunBreakthrough);
-    let raw_rb_duel = resolve_duel_with_fatigue(
+    let req = DuelResolutionRequest::with_states(
         DuelKind::RunBreakthrough,
         attacker_rating,
         defender_rating,
         ctx.receiver,
         lead_defender,
-        &receiver_state,
-        &lead_def_state,
+        receiver_state,
+        lead_def_state,
         ctx.attribute_keys,
         &rb_context,
-        rng,
     );
+    let raw_rb_duel = resolve_duel(req, rng);
 
     let rb_def_pos =
         get_drifted_defender_position(lead_defender, ctx.spatial_map, ctx.attribute_keys, rng)

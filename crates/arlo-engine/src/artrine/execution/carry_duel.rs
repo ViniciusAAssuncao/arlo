@@ -13,10 +13,9 @@ use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_anchored_side_rating_from_index_with_fatigue,
-    calculate_side_rating_from_index_with_fatigue,
+    calculate_anchored_side_rating, calculate_side_rating, RatingParticipants,
 };
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::spatial::decision_vector::derive_velocity_towards_target;
 use crate::spatial::positioning_drift::nearest_drifted_opponent;
@@ -54,22 +53,20 @@ where
     );
     let (offense_profile, defense_profile) = get_duel_profiles(DuelKind::ArtroBreakthrough);
 
-    let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
+    let attacker_rating = calculate_anchored_side_rating(
         artrine,
         DomainPosition::Artrine,
-        &blocker_helpers,
-        ctx.offense_position_index,
+        RatingParticipants::from_slice_with_index(&blocker_helpers, ctx.offense_position_index)
+            .with_fatigue(ctx.fatigue_for),
         ctx.attribute_keys,
         offense_profile,
-        ctx.fatigue_for,
     );
 
-    let defender_rating = calculate_side_rating_from_index_with_fatigue(
-        ctx.defenders,
-        ctx.defense_position_index,
+    let defender_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(ctx.defenders, ctx.defense_position_index)
+            .with_fatigue(ctx.fatigue_for),
         ctx.attribute_keys,
         defense_profile,
-        ctx.fatigue_for,
     );
 
     let artrine_state = ctx.fatigue(&artrine.id());
@@ -101,18 +98,18 @@ where
     );
 
     let artro_context = ctx.duel_context.for_duel_kind(DuelKind::ArtroBreakthrough);
-    let raw_artro_duel = resolve_duel_with_fatigue(
+    let req = DuelResolutionRequest::with_states(
         DuelKind::ArtroBreakthrough,
         attacker_rating,
         defender_rating,
         artrine,
         lead_defender,
-        &artrine_state,
-        &ctx.fatigue(&lead_defender.id()),
+        artrine_state,
+        ctx.fatigue(&lead_defender.id()),
         ctx.attribute_keys,
         &artro_context,
-        rng,
     );
+    let raw_artro_duel = resolve_duel(req, rng);
 
     let (artro_duration, nearest_def_opt) = match nearest_drifted_opponent(
         start_pos,

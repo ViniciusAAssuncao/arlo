@@ -1,7 +1,7 @@
 use crate::match_decision::event_translation::{create_envelope, translate_pass_completed};
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed_with_state};
+use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::cta_pass::participants::PhaseParticipants;
@@ -52,11 +52,8 @@ pub fn calculate_pass_kinematics(
     );
 
     if pass_completed {
-        let pass_speed = calculate_pass_speed_with_state(
-            participants.passer,
-            state.attribute_keys(),
-            &passer_state,
-        );
+        let pass_speed =
+            calculate_pass_speed(participants.passer, state.attribute_keys(), &passer_state);
         let flight_duration = ball_flight_duration(pass_distance_mirim, pass_speed);
         duration_ledger.record_live(DurationComponentKind::InitialHandoffFlight, flight_duration);
 

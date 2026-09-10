@@ -3,14 +3,16 @@ use crate::physical::models::metabolic_power::{
     calculate_desired_cruise_speed, calculate_player_body_mass, calculate_player_critical_speed,
 };
 use crate::physical::systems::degradation::physical_attribute_modifier;
-use crate::physical::systems::pacing::calculate_player_pacing_state_with_effort_and_impulse;
+use crate::physical::systems::pacing::calculate_player_pacing_state;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::kinematics::advance_position;
-use crate::spatial::live_collisions::{check_collision, is_severe_contact, CollisionResolution, LiveCollision};
+use crate::spatial::live_collisions::{
+    check_collision, is_severe_contact, CollisionResolution, LiveCollision,
+};
 use crate::spatial::movement_context::MovementContext;
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
 use crate::spatial::steering::{
@@ -88,7 +90,9 @@ where
         pitch,
         fatigue_for,
         effort_multiplier_for,
-        |_, _, _| CollisionResolution::Continue { velocity_mitigation: 1.0 },
+        |_, _, _| CollisionResolution::Continue {
+            velocity_mitigation: 1.0,
+        },
     )
 }
 
@@ -141,11 +145,9 @@ where
         let state = fatigue_for(&pid);
         let critical_speed_m_s = calculate_player_critical_speed(player, attribute_keys, 0).value();
         let work_rate = extract_attribute_value(&table, AttributeKey::WorkRate);
-        let positioning =
-            extract_attribute_value(&table, AttributeKey::Positioning);
+        let positioning = extract_attribute_value(&table, AttributeKey::Positioning);
         let agility = extract_attribute_value(&table, AttributeKey::Agility);
-        let acceleration =
-            extract_attribute_value(&table, AttributeKey::Acceleration);
+        let acceleration = extract_attribute_value(&table, AttributeKey::Acceleration);
         let balance = extract_attribute_value(&table, AttributeKey::Balance);
         let strength = extract_attribute_value(&table, AttributeKey::Strength);
         let mass_kg = calculate_player_body_mass(player, attribute_keys);
@@ -159,7 +161,7 @@ where
         let impulse = ImpulseState::from_baseline(baseline);
         let pressure = GameStatePressure::default();
 
-        let pacing_state = calculate_player_pacing_state_with_effort_and_impulse(
+        let pacing_state = calculate_player_pacing_state(
             player,
             attribute_keys,
             is_near_ball,
@@ -294,13 +296,17 @@ where
         if movement_context == MovementContext::LivePlay && !carrier_id.is_nil() {
             if let Some(&carrier_pos) = spatial_map.positions().get(&carrier_id) {
                 let carrier_radius = *physical_radii.get(&carrier_id).unwrap_or(&0.55);
-                let carrier_vel = spatial_map.get_velocity(&carrier_id).unwrap_or_else(Velocity::zero);
+                let carrier_vel = spatial_map
+                    .get_velocity(&carrier_id)
+                    .unwrap_or_else(Velocity::zero);
 
                 let mut contacts = Vec::new();
                 for &def_id in defender_ids {
                     if let Some(&def_pos) = spatial_map.positions().get(&def_id) {
                         let def_radius = *physical_radii.get(&def_id).unwrap_or(&0.55);
-                        let def_vel = spatial_map.get_velocity(&def_id).unwrap_or_else(Velocity::zero);
+                        let def_vel = spatial_map
+                            .get_velocity(&def_id)
+                            .unwrap_or_else(Velocity::zero);
 
                         if let Some(col) = check_collision(
                             carrier_id,

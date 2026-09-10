@@ -12,14 +12,13 @@ use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_anchored_side_rating_from_index_with_fatigue,
-    calculate_side_rating_from_index_with_fatigue,
+    calculate_anchored_side_rating, calculate_side_rating, RatingParticipants,
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::spatial::ball_kinematics::{
-    ball_flight_duration, calculate_cross_speed_with_state, calculate_pass_speed_with_state,
+    ball_flight_duration, calculate_cross_speed, calculate_pass_speed,
 };
 use crate::spatial::positioning_drift::nearest_drifted_opponent;
 use crate::spatial::DynamicSpatialMap;
@@ -61,22 +60,20 @@ where
     let duel_kind = determine_distribution_duel_kind(decision_kind);
     let (offense_profile, defense_profile) = get_duel_profiles(duel_kind);
 
-    let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
+    let attacker_rating = calculate_anchored_side_rating(
         artrine,
         DomainPosition::Artrine,
-        ctx.offense_helpers,
-        ctx.offense_position_index,
+        RatingParticipants::from_slice_with_index(ctx.offense_helpers, ctx.offense_position_index)
+            .with_fatigue(ctx.fatigue_for),
         ctx.attribute_keys,
         offense_profile,
-        ctx.fatigue_for,
     );
 
-    let defender_rating = calculate_side_rating_from_index_with_fatigue(
-        ctx.defenders,
-        ctx.defense_position_index,
+    let defender_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(ctx.defenders, ctx.defense_position_index)
+            .with_fatigue(ctx.fatigue_for),
         ctx.attribute_keys,
         defense_profile,
-        ctx.fatigue_for,
     );
 
     let contest_radius = ctx.contest_radius();
@@ -99,18 +96,18 @@ where
     let lead_def_state = ctx.fatigue(&lead_defender.id());
 
     let dist_context = ctx.duel_context.for_duel_kind(duel_kind);
-    let raw_dist_duel = resolve_duel_with_fatigue(
+    let req = DuelResolutionRequest::with_states(
         duel_kind,
         attacker_rating,
         defender_rating,
         artrine,
         lead_defender,
-        &artrine_state,
-        &lead_def_state,
+        artrine_state,
+        lead_def_state,
         ctx.attribute_keys,
         &dist_context,
-        rng,
     );
+    let raw_dist_duel = resolve_duel(req, rng);
 
     let artrine_speed =
         calculate_effective_player_speed(artrine, ctx.attribute_keys, &artrine_state);
@@ -237,10 +234,8 @@ where
     let artrine_state = ctx.fatigue(&artrine.id());
 
     let ball_speed = match decision_kind {
-        ArtrineDecisionKind::Cross => {
-            calculate_cross_speed_with_state(artrine, ctx.attribute_keys, &artrine_state)
-        }
-        _ => calculate_pass_speed_with_state(artrine, ctx.attribute_keys, &artrine_state),
+        ArtrineDecisionKind::Cross => calculate_cross_speed(artrine, ctx.attribute_keys, &artrine_state),
+        _ => calculate_pass_speed(artrine, ctx.attribute_keys, &artrine_state),
     };
     let flight_duration = ball_flight_duration(throw_advance, ball_speed);
     (throw_advance, flight_duration)

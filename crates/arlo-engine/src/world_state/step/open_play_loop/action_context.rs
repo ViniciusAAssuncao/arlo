@@ -2,7 +2,7 @@ use crate::ai::cognitive::RiskProfile;
 use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue;
 use crate::artrine::calculate_normalized_proximity;
 use crate::match_decision::target_selection::{
-    calculate_player_target_weight_with_state, ReceptionRole,
+    calculate_player_target_weight, ReceptionRole,
 };
 use crate::physical::FatigueState;
 use crate::playmaking::resolve_misdirection_logit_offset;
@@ -82,7 +82,7 @@ impl<'a> OpenPlayIterationContext<'a> {
             .iter()
             .map(|p| {
                 let p_state = fatigue_lookup(&p.id());
-                let base_weight = calculate_player_target_weight_with_state(
+                let base_weight = calculate_player_target_weight(
                     p,
                     state.spatial_map(),
                     &pitch,
@@ -92,7 +92,7 @@ impl<'a> OpenPlayIterationContext<'a> {
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &openness_by_player,
-                    &p_state,
+                    Some(&p_state),
                 );
                 if context.offense_role_index.get(&p.id()) == Some(&SlotRole::Launcher) {
                     base_weight * LAUNCHER_TARGET_WEIGHT_MULTIPLIER

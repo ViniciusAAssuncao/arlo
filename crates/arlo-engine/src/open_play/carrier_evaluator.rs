@@ -1,87 +1,17 @@
-use crate::ai::cognitive::RiskProfile;
-use crate::ai::epv::DynamicEpvModel;
 use crate::ai::evaluators::{
     ActionUtilityEvaluator, CarryUtilityEvaluator, CrossUtilityEvaluator, DecisionEvaluationContext,
     LongLaunchUtilityEvaluator, SelfFinishUtilityEvaluator, ShortPassUtilityEvaluator,
 };
-use crate::physical::PhysicalState;
-use crate::world_state::GameStatePressure;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position, SlotRole};
-use arlo_math::units::Position as VectorPosition;
-use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
-use std::collections::HashMap;
-use uuid::Uuid;
+use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CarrierDecisionEvaluator;
 
 impl CarrierDecisionEvaluator {
     pub fn evaluate_action_utilities(
-        carrier: &Player,
-        carrier_position: Position,
-        carrier_role: SlotRole,
-        carrier_instructions: PlayerInstructions,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        ctx: &DecisionEvaluationContext<'_>,
         available_kinds: &[ArtrineDecisionKind],
-        normalized_proximity: f64,
-        drives_in_series: u32,
-        down: u8,
-        remaining_advance_mirim: f64,
-        pass_protection_net_advantage: f64,
-        best_available_target_weight: f64,
-        long_launch_target_weight: f64,
-        carrier_pos_vec: VectorPosition,
-        pitch_control_ahead: f64,
-        distance_to_next_artro_mirim: f64,
-        pitch_length_mirim: f64,
-        pitch_width_mirim: f64,
-        offensive_gravity: f64,
-        passing_range: PassingRange,
-        risk_profile: RiskProfile,
-        game_state_pressure: GameStatePressure,
-        play_call_emphasis: DecisionEmphasis,
-        carrier_physical_state: &PhysicalState,
-        is_true_artrine: bool,
-        expected_free_path_mirim: f64,
     ) -> Vec<(ArtrineDecisionKind, f64)> {
-        let epv_model = DynamicEpvModel::new(offensive_gravity);
-        let current_epv = epv_model.calculate_epa(
-            normalized_proximity,
-            down,
-            remaining_advance_mirim,
-            drives_in_series,
-        );
-
-        let ctx = DecisionEvaluationContext {
-            carrier,
-            carrier_position,
-            carrier_role,
-            carrier_instructions,
-            carrier_physical_state: *carrier_physical_state,
-            attribute_keys,
-            epv_model,
-            current_epv,
-            normalized_proximity,
-            drives_in_series,
-            down,
-            remaining_advance_mirim,
-            pass_protection_net_advantage,
-            best_available_target_weight,
-            long_launch_target_weight,
-            pitch_control_ahead,
-            distance_to_next_artro_mirim,
-            pitch_length_mirim,
-            pitch_width_mirim,
-            carrier_pos_vec,
-            offensive_gravity,
-            passing_range,
-            risk_profile,
-            game_state_pressure,
-            play_call_emphasis,
-            is_true_artrine,
-            expected_free_path_mirim,
-        };
-
         let carry_evaluator = CarryUtilityEvaluator;
         let short_pass_evaluator = ShortPassUtilityEvaluator;
         let long_launch_evaluator = LongLaunchUtilityEvaluator;
@@ -92,11 +22,11 @@ impl CarrierDecisionEvaluator {
 
         for &kind in available_kinds {
             let utility = match kind {
-                ArtrineDecisionKind::SelfCarry => carry_evaluator.evaluate(&ctx),
-                ArtrineDecisionKind::ShortPass => short_pass_evaluator.evaluate(&ctx),
-                ArtrineDecisionKind::LongLaunch => long_launch_evaluator.evaluate(&ctx),
-                ArtrineDecisionKind::Cross => cross_evaluator.evaluate(&ctx),
-                ArtrineDecisionKind::SelfFinish => finish_evaluator.evaluate(&ctx),
+                ArtrineDecisionKind::SelfCarry => carry_evaluator.evaluate(ctx),
+                ArtrineDecisionKind::ShortPass => short_pass_evaluator.evaluate(ctx),
+                ArtrineDecisionKind::LongLaunch => long_launch_evaluator.evaluate(ctx),
+                ArtrineDecisionKind::Cross => cross_evaluator.evaluate(ctx),
+                ArtrineDecisionKind::SelfFinish => finish_evaluator.evaluate(ctx),
             };
             results.push((kind, utility));
         }

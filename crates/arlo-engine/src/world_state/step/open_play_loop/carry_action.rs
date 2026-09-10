@@ -6,7 +6,7 @@ use crate::physical::FatigueState;
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::rng::RngStream;
 use crate::spatial::{
@@ -142,117 +142,117 @@ pub fn execute_carry_action<F>(
     let defense_pos_index = &context.defense_pos_index;
     let duel_ctx = iter_ctx.duel_context;
 
-    let collision_cb =
-        |_s_map: &mut DynamicSpatialMap, col: &LiveCollision, spd: &mut f64| {
-            let def_player = defense_players
-                .iter()
-                .copied()
-                .find(|p| p.id() == col.defender_id)
-                .unwrap_or(defense_players[0]);
+    let collision_cb = |_s_map: &mut DynamicSpatialMap, col: &LiveCollision, spd: &mut f64| {
+        let def_player = defense_players
+            .iter()
+            .copied()
+            .find(|p| p.id() == col.defender_id)
+            .unwrap_or(defense_players[0]);
 
-            let (off_prof, def_prof) = get_duel_profiles(DuelKind::ArtroBreakthrough);
-            let att_rating = calculate_player_duel_rating_with_state(
+        let (off_prof, def_prof) = get_duel_profiles(DuelKind::ArtroBreakthrough);
+        let att_rating = calculate_player_duel_rating_with_state(
+            current_carrier,
+            carrier_pos_domain,
+            &attribute_keys,
+            off_prof,
+            &fatigue_lookup(&current_carrier.id()),
+        );
+        let def_rating = calculate_player_duel_rating_with_state(
+            def_player,
+            defense_pos_index
+                .get(&def_player.id())
+                .copied()
+                .unwrap_or(DomainPosition::Centerback),
+            &attribute_keys,
+            def_prof,
+            &fatigue_lookup(&def_player.id()),
+        );
+
+        local_seq += 1;
+        let mut d_rng = rng_provider.indexed_rng_for(RngStream::DuelResolution, local_seq);
+        let c_context = duel_ctx.for_duel_kind(DuelKind::ArtroBreakthrough);
+
+        let req = DuelResolutionRequest::with_states(
+            DuelKind::ArtroBreakthrough,
+            att_rating,
+            def_rating,
+            current_carrier,
+            def_player,
+            fatigue_lookup(&current_carrier.id()),
+            fatigue_lookup(&def_player.id()),
+            &attribute_keys,
+            &c_context,
+        );
+        let duel_raw = resolve_duel(req, &mut d_rng);
+
+        let attributed = AttributedDuelOutcome::new(
+            duel_raw,
+            vec![current_carrier.id()],
+            vec![def_player.id()],
+        );
+        local_duels.push(attributed);
+
+        if duel_raw.attacker_won() {
+            let mit = duel_raw.velocity_mitigation_factor();
+            *spd *= mit;
+            CollisionResolution::Continue {
+                velocity_mitigation: mit,
+            }
+        } else {
+            carry_halted = true;
+            let (sec_off, sec_def) = get_duel_profiles(DuelKind::BallSecurityCarry);
+            let sec_att = calculate_player_duel_rating_with_state(
                 current_carrier,
                 carrier_pos_domain,
                 &attribute_keys,
-                off_prof,
+                sec_off,
                 &fatigue_lookup(&current_carrier.id()),
             );
-            let def_rating = calculate_player_duel_rating_with_state(
+            let sec_df = calculate_player_duel_rating_with_state(
                 def_player,
                 defense_pos_index
                     .get(&def_player.id())
                     .copied()
                     .unwrap_or(DomainPosition::Centerback),
                 &attribute_keys,
-                def_prof,
+                sec_def,
                 &fatigue_lookup(&def_player.id()),
             );
 
             local_seq += 1;
-            let mut d_rng = rng_provider.indexed_rng_for(RngStream::DuelResolution, local_seq);
-            let c_context = duel_ctx.for_duel_kind(DuelKind::ArtroBreakthrough);
-
-            let duel_raw = resolve_duel_with_fatigue(
-                DuelKind::ArtroBreakthrough,
-                att_rating,
-                def_rating,
+            let mut sec_rng = rng_provider.indexed_rng_for(RngStream::DuelResolution, local_seq);
+            let sec_context = duel_ctx.for_duel_kind(DuelKind::BallSecurityCarry);
+            let sec_req = DuelResolutionRequest::with_states(
+                DuelKind::BallSecurityCarry,
+                sec_att,
+                sec_df,
                 current_carrier,
                 def_player,
-                &fatigue_lookup(&current_carrier.id()),
-                &fatigue_lookup(&def_player.id()),
+                fatigue_lookup(&current_carrier.id()),
+                fatigue_lookup(&def_player.id()),
                 &attribute_keys,
-                &c_context,
-                &mut d_rng,
+                &sec_context,
             );
+            let sec_raw = resolve_duel(sec_req, &mut sec_rng);
 
-            let attributed = AttributedDuelOutcome::new(
-                duel_raw,
+            let sec_attr = AttributedDuelOutcome::new(
+                sec_raw,
                 vec![current_carrier.id()],
                 vec![def_player.id()],
             );
-            local_duels.push(attributed);
+            local_duels.push(sec_attr);
 
-            if duel_raw.attacker_won() {
-                let mit = duel_raw.velocity_mitigation_factor();
-                *spd *= mit;
-                CollisionResolution::Continue {
-                    velocity_mitigation: mit,
-                }
-            } else {
-                carry_halted = true;
-                let (sec_off, sec_def) = get_duel_profiles(DuelKind::BallSecurityCarry);
-                let sec_att = calculate_player_duel_rating_with_state(
-                    current_carrier,
-                    carrier_pos_domain,
-                    &attribute_keys,
-                    sec_off,
-                    &fatigue_lookup(&current_carrier.id()),
-                );
-                let sec_df = calculate_player_duel_rating_with_state(
-                    def_player,
-                    defense_pos_index
-                        .get(&def_player.id())
-                        .copied()
-                        .unwrap_or(DomainPosition::Centerback),
-                    &attribute_keys,
-                    sec_def,
-                    &fatigue_lookup(&def_player.id()),
-                );
-
-                local_seq += 1;
-                let mut sec_rng = rng_provider.indexed_rng_for(RngStream::DuelResolution, local_seq);
-                let sec_raw = resolve_duel_with_fatigue(
-                    DuelKind::BallSecurityCarry,
-                    sec_att,
-                    sec_df,
-                    current_carrier,
-                    def_player,
-                    &fatigue_lookup(&current_carrier.id()),
-                    &fatigue_lookup(&def_player.id()),
-                    &attribute_keys,
-                    &duel_ctx.for_duel_kind(DuelKind::BallSecurityCarry),
-                    &mut sec_rng,
-                );
-
-                let sec_attr = AttributedDuelOutcome::new(
-                    sec_raw,
-                    vec![current_carrier.id()],
-                    vec![def_player.id()],
-                );
-                local_duels.push(sec_attr);
-
-                if !sec_raw.attacker_won() {
-                    carry_turnover = Some(defense_team_id);
-                    carry_recovering = Some(def_player.id());
-                }
-
-                CollisionResolution::Halt {
-                    turnover_team: carry_turnover,
-                    recovering_player: carry_recovering,
-                }
+            if !sec_raw.attacker_won() {
+                carry_turnover = Some(defense_team_id);
+                carry_recovering = Some(def_player.id());
             }
-        };
+
+            CollisionResolution::Halt {
+                turnover_team: carry_turnover,
+                recovering_player: carry_recovering,
+            }
+        }
+    };
 
     let tick_result = run_carrier_tick_loop_with_collision(
         state.spatial_map_mut(),

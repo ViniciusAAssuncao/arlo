@@ -1,6 +1,4 @@
-use crate::match_decision::target_selection::{
-    calculate_player_target_weight_with_state, ReceptionRole,
-};
+use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::physical::FatigueState;
 use crate::playmaking::routes::simulate_route_development;
 use crate::rng::RngStream;
@@ -29,7 +27,7 @@ where
             .iter()
             .map(|p| {
                 let p_state = fatigue_lookup(&p.id());
-                calculate_player_target_weight_with_state(
+                calculate_player_target_weight(
                     p,
                     state.spatial_map(),
                     state.pitch(),
@@ -39,7 +37,7 @@ where
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &empty_openness,
-                    &p_state,
+                    Some(&p_state),
                 )
             })
             .fold(0.0_f64, f64::max);
@@ -83,7 +81,7 @@ where
             .iter()
             .map(|p| {
                 let p_state = fatigue_lookup(&p.id());
-                calculate_player_target_weight_with_state(
+                calculate_player_target_weight(
                     p,
                     state.spatial_map(),
                     state.pitch(),
@@ -93,7 +91,7 @@ where
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &openness_by_player,
-                    &p_state,
+                    Some(&p_state),
                 )
             })
             .fold(0.0_f64, f64::max);
