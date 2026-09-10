@@ -10,6 +10,7 @@ pub mod invariant_violation;
 pub mod league;
 pub mod manager;
 pub mod manager_attribute_value;
+pub mod manager_profile;
 pub mod match_format_rules;
 pub mod person;
 pub mod pitch;
@@ -37,12 +38,15 @@ pub use country::Country;
 pub use federation::Federation;
 pub use invariant_violation::InvariantViolation;
 pub use league::League;
-pub use manager::Manager;
+pub use manager::{Manager, ManagerBuilder};
 pub use manager_attribute_value::ManagerAttributeValue;
+pub use manager_profile::{
+    ArtrineDependency, DefensiveApproach, ManagerTacticalProfile, OffensiveApproach, RotationPolicy,
+};
 pub use match_format_rules::MatchFormatRules;
 pub use person::Person;
 pub use pitch::{
-    artro_rows_for_pitch, project_formation, project_formation_mirrored,
+    artro_rows_for_pitch, channel_y_meters, project_formation, project_formation_mirrored,
     project_formation_with_direction, project_ratio, project_ratio_mirrored, project_slot,
     project_slot_mirrored, project_slot_with_direction, Artro, ArtroPlacement, ArtroRow, FirstZone,
     Pitch, PitchCoordinates, PitchZone, ProjectionDirection, SecondZone,

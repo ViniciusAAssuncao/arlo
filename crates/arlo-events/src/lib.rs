@@ -1,5 +1,6 @@
 pub mod action;
 pub mod envelope;
+pub mod events;
 pub mod in_memory_sink;
 pub mod physical;
 pub mod possession;
@@ -14,10 +15,12 @@ pub use action::{
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use arlo_domain::PitchZone;
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
+pub use events::manager::*;
 pub use in_memory_sink::InMemorySink;
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
-    CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent, Turnover,
+    CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent,
+    PossessionTimeRecorded, Turnover,
 };
 pub use psychology::{
     ImpulseCriticalReached, ImpulseEventKind, ImpulseShiftRecorded, PsychologyEvent,
@@ -51,6 +54,12 @@ pub enum MatchEvent {
     RecoveryIntervalProcessed(RecoveryIntervalProcessed),
     ImpulseShiftRecorded(ImpulseShiftRecorded),
     ImpulseCriticalReached(ImpulseCriticalReached),
+    PossessionTimeRecorded(PossessionTimeRecorded),
+    SubstitutionMade(SubstitutionMade),
+    TimeCallUsed(TimeCallUsed),
+    ChallengeResolved(ChallengeResolved),
+    TacticalProfileActivated(TacticalProfileActivated),
+    PlayCallSelected(PlayCallSelected),
 }
 
 impl MatchEvent {
@@ -74,6 +83,7 @@ impl MatchEvent {
                 | Self::OutOfBounds(_)
                 | Self::CountdownToSizeStarted(_)
                 | Self::DownAdvanced(_)
+                | Self::PossessionTimeRecorded(_)
         )
     }
 
@@ -102,6 +112,17 @@ impl MatchEvent {
         )
     }
 
+    pub fn is_manager(&self) -> bool {
+        matches!(
+            self,
+            Self::SubstitutionMade(_)
+                | Self::TimeCallUsed(_)
+                | Self::ChallengeResolved(_)
+                | Self::TacticalProfileActivated(_)
+                | Self::PlayCallSelected(_)
+        )
+    }
+
     pub fn event_type_name(&self) -> &'static str {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
@@ -123,6 +144,12 @@ impl MatchEvent {
             Self::RecoveryIntervalProcessed(_) => "RecoveryIntervalProcessed",
             Self::ImpulseShiftRecorded(_) => "ImpulseShiftRecorded",
             Self::ImpulseCriticalReached(_) => "ImpulseCriticalReached",
+            Self::PossessionTimeRecorded(_) => "PossessionTimeRecorded",
+            Self::SubstitutionMade(_) => "SubstitutionMade",
+            Self::TimeCallUsed(_) => "TimeCallUsed",
+            Self::ChallengeResolved(_) => "ChallengeResolved",
+            Self::TacticalProfileActivated(_) => "TacticalProfileActivated",
+            Self::PlayCallSelected(_) => "PlayCallSelected",
         }
     }
 }
@@ -241,6 +268,42 @@ impl From<ImpulseCriticalReached> for MatchEvent {
     }
 }
 
+impl From<PossessionTimeRecorded> for MatchEvent {
+    fn from(ev: PossessionTimeRecorded) -> Self {
+        Self::PossessionTimeRecorded(ev)
+    }
+}
+
+impl From<SubstitutionMade> for MatchEvent {
+    fn from(ev: SubstitutionMade) -> Self {
+        Self::SubstitutionMade(ev)
+    }
+}
+
+impl From<TimeCallUsed> for MatchEvent {
+    fn from(ev: TimeCallUsed) -> Self {
+        Self::TimeCallUsed(ev)
+    }
+}
+
+impl From<ChallengeResolved> for MatchEvent {
+    fn from(ev: ChallengeResolved) -> Self {
+        Self::ChallengeResolved(ev)
+    }
+}
+
+impl From<TacticalProfileActivated> for MatchEvent {
+    fn from(ev: TacticalProfileActivated) -> Self {
+        Self::TacticalProfileActivated(ev)
+    }
+}
+
+impl From<PlayCallSelected> for MatchEvent {
+    fn from(ev: PlayCallSelected) -> Self {
+        Self::PlayCallSelected(ev)
+    }
+}
+
 impl From<PhysicalEvent> for MatchEvent {
     fn from(ev: PhysicalEvent) -> Self {
         match ev {
@@ -280,6 +343,7 @@ impl From<PossessionEvent> for MatchEvent {
             PossessionEvent::OutOfBounds(e) => Self::OutOfBounds(e),
             PossessionEvent::CountdownToSizeStarted(e) => Self::CountdownToSizeStarted(e),
             PossessionEvent::DownAdvanced(e) => Self::DownAdvanced(e),
+            PossessionEvent::PossessionTimeRecorded(e) => Self::PossessionTimeRecorded(e),
         }
     }
 }
@@ -291,6 +355,18 @@ impl From<ScoringEvent> for MatchEvent {
             ScoringEvent::FieldPoint(e) => Self::FieldPoint(e),
             ScoringEvent::FieldGoal(e) => Self::FieldGoal(e),
             ScoringEvent::AttemptMissed(e) => Self::ScoringAttemptMissed(e),
+        }
+    }
+}
+
+impl From<ManagerEvent> for MatchEvent {
+    fn from(ev: ManagerEvent) -> Self {
+        match ev {
+            ManagerEvent::SubstitutionMade(e) => Self::SubstitutionMade(e),
+            ManagerEvent::TimeCallUsed(e) => Self::TimeCallUsed(e),
+            ManagerEvent::ChallengeResolved(e) => Self::ChallengeResolved(e),
+            ManagerEvent::TacticalProfileActivated(e) => Self::TacticalProfileActivated(e),
+            ManagerEvent::PlayCallSelected(e) => Self::PlayCallSelected(e),
         }
     }
 }

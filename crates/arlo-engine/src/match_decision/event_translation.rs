@@ -1,12 +1,14 @@
 use crate::artrine::DistributionFlightInfo;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::possession::LiveSequenceTracker;
 use crate::resolution::{DuelKind as EngineDuelKind, DuelOutcome};
 use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
     DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent,
     MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded, PitchZone,
-    ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed, Turnover,
+    PossessionTimeRecorded, ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed,
+    Turnover,
 };
 use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
@@ -21,6 +23,7 @@ pub fn translate_duel_kind(kind: EngineDuelKind) -> PublicDuelKind {
         EngineDuelKind::ArtroBreakthrough => PublicDuelKind::ArtroBreakthrough,
         EngineDuelKind::AerialDuel => PublicDuelKind::AerialDuel,
         EngineDuelKind::FinishingAttempt => PublicDuelKind::FinishingAttempt,
+        EngineDuelKind::FieldGoalAttempt => PublicDuelKind::FieldGoalAttempt,
         EngineDuelKind::ShortDistribution => PublicDuelKind::ShortDistribution,
         EngineDuelKind::LongDistribution => PublicDuelKind::LongDistribution,
         EngineDuelKind::CrossDistribution => PublicDuelKind::CrossDistribution,
@@ -125,7 +128,7 @@ pub fn translate_turnover(
     previous_offense: Uuid,
     new_offense: Uuid,
     recovering_player: Option<Uuid>,
-    lost_by_player: Option<Uuid>,
+    lost_by_player_id: Option<Uuid>,
     in_live_play: bool,
     point: Position,
 ) -> Turnover {
@@ -133,7 +136,7 @@ pub fn translate_turnover(
         previous_offense,
         new_offense,
         recovering_player,
-        lost_by_player,
+        lost_by_player_id,
         in_live_play,
         point.raw().0,
         point.raw().1,
@@ -181,18 +184,24 @@ pub fn translate_down_advanced(
     )
 }
 
+pub fn translate_possession_time(team_id: Uuid, duration_seconds: f64) -> PossessionTimeRecorded {
+    PossessionTimeRecorded::new(team_id, duration_seconds)
+}
+
 pub fn translate_scoring_decision(decision: &ScoringDecision) -> Option<MatchEvent> {
     match decision {
         ScoringDecision::GoalPoint {
             team_id,
             scorer_id,
             artrine_id,
+            assister_id,
             drives_completed,
             ..
         } => Some(MatchEvent::GoalPoint(GoalPointScored::new(
             *team_id,
             *scorer_id,
             *artrine_id,
+            *assister_id,
             *drives_completed,
         ))),
         ScoringDecision::FieldPoint {
@@ -225,6 +234,33 @@ pub fn translate_scoring_decision(decision: &ScoringDecision) -> Option<MatchEve
             *attempted_post,
         ))),
         ScoringDecision::NoOpportunity => None,
+    }
+}
+
+pub fn translate_scoring_decision_with_sequence(
+    decision: &ScoringDecision,
+    live_sequence: &LiveSequenceTracker,
+) -> Option<MatchEvent> {
+    match decision {
+        ScoringDecision::GoalPoint {
+            team_id,
+            scorer_id,
+            artrine_id,
+            assister_id,
+            drives_completed,
+            ..
+        } => {
+            let effective_assister =
+                assister_id.or_else(|| live_sequence.primary_assister(*scorer_id));
+            Some(MatchEvent::GoalPoint(GoalPointScored::new(
+                *team_id,
+                *scorer_id,
+                *artrine_id,
+                effective_assister,
+                *drives_completed,
+            )))
+        }
+        _ => translate_scoring_decision(decision),
     }
 }
 

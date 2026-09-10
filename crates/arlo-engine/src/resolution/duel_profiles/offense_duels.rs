@@ -102,6 +102,15 @@ pub fn finishing_attempt_profile() -> DuelProfile {
     ])
 }
 
+pub fn field_goal_profile() -> DuelProfile {
+    DuelProfile::new(vec![
+        w(AttributeKey::GoalKicking, 5.0),
+        w(AttributeKey::Composure, 4.5),
+        w(AttributeKey::Technique, 4.0),
+        w(AttributeKey::Concentration, 3.5),
+    ])
+}
+
 pub fn short_distribution_profile() -> DuelProfile {
     DuelProfile::new(vec![
         w(AttributeKey::Passing, 5.0),

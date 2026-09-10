@@ -152,6 +152,40 @@ pub fn calculate_dynamic_separation_force_with_id(
     total_repulsion
 }
 
+pub fn calculate_carrier_containment_force(
+    current_pos: Position,
+    current_velocity: Velocity,
+    carrier_pos: Position,
+    carrier_velocity: Velocity,
+    containment_distance_meters: f64,
+    containment_strength: f64,
+    mass_kg: f64,
+    _dt: Duration,
+) -> Vector3 {
+    let delta = carrier_pos.raw() - current_pos.raw();
+    let dist = delta.magnitude();
+    if dist < 1e-6 {
+        return Vector3::zero();
+    }
+
+    let dir = delta / dist;
+    let distance_error = dist - containment_distance_meters.max(0.1);
+    let spring_force = dir * (distance_error * containment_strength.max(0.1));
+
+    let rel_vel = current_velocity.raw() - carrier_velocity.raw();
+    let damping_force = rel_vel * 0.45;
+
+    let total_force = spring_force - damping_force;
+    let max_force = mass_kg * 8.0;
+    let mag = total_force.magnitude();
+
+    if mag > max_force && mag > 1e-6 {
+        (total_force / mag) * max_force
+    } else {
+        total_force
+    }
+}
+
 pub fn calculate_steered_velocity(
     current_velocity: Velocity,
     current_pos: Position,
@@ -191,9 +225,5 @@ pub fn calculate_steered_velocity(
 
     let new_dir_raw = Position::from_components(new_angle.cos(), new_angle.sin(), 0.0).raw();
     let raw_vel = new_dir_raw * speed.value();
-    Velocity::from_raw(final_raw_vel(raw_vel))
-}
-
-fn final_raw_vel(vel: arlo_math::units::Vector3) -> arlo_math::units::Vector3 {
-    vel
+    Velocity::from_raw(raw_vel)
 }

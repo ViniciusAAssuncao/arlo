@@ -1,5 +1,5 @@
-use crate::artrine::ArtrineDecisionResult;
 use crate::match_decision::scoring::{ScoringDecision, ScoringOpportunity};
+use crate::open_play::CarrierDecisionResult;
 use crate::possession::snapshot::PossessionSnapshot;
 use crate::possession::transition::PlayOutcome;
 use crate::psychology::systems::event_bus::DispatchedImpulseEvent;
@@ -152,7 +152,7 @@ pub fn instrument_transition(
 
 pub fn create_artrine_decision_impulse_event(
     artrine_id: Uuid,
-    result: &ArtrineDecisionResult,
+    result: &CarrierDecisionResult,
 ) -> DispatchedImpulseEvent {
     let p = result.chosen_probability().value().clamp(0.0001, 0.9999);
     let surprisal = -p.ln();
@@ -167,7 +167,7 @@ pub fn create_artrine_decision_impulse_event(
 
 pub fn instrument_artrine_decision(
     artrine_id: Uuid,
-    result: &ArtrineDecisionResult,
+    result: &CarrierDecisionResult,
 ) -> DispatchedImpulseEvent {
     create_artrine_decision_impulse_event(artrine_id, result)
 }

@@ -1,10 +1,14 @@
 use crate::aggregator::StatAggregator;
+use crate::manager::{ManagerDecisionAggregator, PlayCallOutcomeAggregator};
 use crate::player::{
-    PlayerArtrineDecisionAggregator, PlayerDrivesAggregator, PlayerDuelAggregator,
-    PlayerImpulseAggregator, PlayerPhysicalAggregator, PlayerReceivingAggregator,
-    PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
+    PlayerArtrineDecisionAggregator, PlayerAssistsAggregator, PlayerDrivesAggregator,
+    PlayerDuelAggregator, PlayerImpulseAggregator, PlayerPhysicalAggregator,
+    PlayerReceivingAggregator, PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
 };
-use crate::snapshot::{IntoSnapshot, PeriodicMatchSnapshot, PlayerMatchSnapshot};
+use crate::snapshot::{
+    IntoSnapshot, PeriodicMatchSnapshot, PlayerMatchSnapshot, TeamMatchSnapshot,
+};
+use crate::team::TeamPossessionAggregator;
 use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
@@ -31,6 +35,10 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerScoringAttemptsAggregator::new());
         registry.register_aggregator(PlayerPhysicalAggregator::new());
         registry.register_aggregator(PlayerImpulseAggregator::new());
+        registry.register_aggregator(PlayerAssistsAggregator::new());
+        registry.register_aggregator(TeamPossessionAggregator::new());
+        registry.register_aggregator(ManagerDecisionAggregator::new());
+        registry.register_aggregator(PlayCallOutcomeAggregator::new());
         registry
     }
 
@@ -125,7 +133,35 @@ impl AggregatorRegistry {
         if let Some(agg) = self.get::<PlayerImpulseAggregator>() {
             ids.extend(agg.all_player_stats().keys().copied());
         }
+        if let Some(agg) = self.get::<PlayerAssistsAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
         ids
+    }
+
+    pub fn all_team_ids(&self) -> HashSet<Uuid> {
+        let mut ids = HashSet::new();
+        if let Some(agg) = self.get::<TeamPossessionAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerImpulseAggregator>() {
+            ids.extend(agg.all_team_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<ManagerDecisionAggregator>() {
+            ids.extend(agg.all_logs().keys().copied());
+        }
+        ids
+    }
+
+    pub fn create_team_snapshot(&self, team_id: &Uuid) -> TeamMatchSnapshot {
+        let mut snap = TeamMatchSnapshot::new(*team_id, 0.0);
+
+        if let Some(agg) = self.get::<TeamPossessionAggregator>() {
+            let p = agg.get_or_default(team_id);
+            snap.total_possession_seconds = p.total_possession_seconds;
+        }
+
+        snap
     }
 
     pub fn create_player_snapshot(&self, player_id: &Uuid) -> PlayerMatchSnapshot {
@@ -191,6 +227,11 @@ impl AggregatorRegistry {
             snap.total_points_scored = sc.total_points_scored;
         }
 
+        if let Some(agg) = self.get::<PlayerAssistsAggregator>() {
+            let a = agg.get_or_default(player_id);
+            snap.goalpoint_assists = a.goalpoint_assists;
+        }
+
         if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {
             let ad = agg.get_or_default(player_id);
             snap.artrine_decisions_total = ad.total_decisions;
@@ -245,6 +286,13 @@ impl AggregatorRegistry {
             .collect()
     }
 
+    pub fn create_all_team_snapshots(&self) -> HashMap<Uuid, TeamMatchSnapshot> {
+        let ids = self.all_team_ids();
+        ids.into_iter()
+            .map(|id| (id, self.create_team_snapshot(&id)))
+            .collect()
+    }
+
     pub fn player_snapshots_vec(&self) -> Vec<PlayerMatchSnapshot> {
         let mut ids: Vec<Uuid> = self.all_player_ids().into_iter().collect();
         ids.sort();
@@ -253,12 +301,25 @@ impl AggregatorRegistry {
             .collect()
     }
 
+    pub fn team_snapshots_vec(&self) -> Vec<TeamMatchSnapshot> {
+        let mut ids: Vec<Uuid> = self.all_team_ids().into_iter().collect();
+        ids.sort();
+        ids.into_iter()
+            .map(|id| self.create_team_snapshot(&id))
+            .collect()
+    }
+
     pub fn capture_periodic_snapshot(
         &self,
         sequence_number: u64,
         clock: MatchClockInstant,
     ) -> PeriodicMatchSnapshot {
-        PeriodicMatchSnapshot::new(sequence_number, clock, self.player_snapshots_vec())
+        PeriodicMatchSnapshot::new(
+            sequence_number,
+            clock,
+            self.player_snapshots_vec(),
+            self.team_snapshots_vec(),
+        )
     }
 }
 

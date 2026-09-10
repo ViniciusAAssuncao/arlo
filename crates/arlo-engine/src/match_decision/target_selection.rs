@@ -1,3 +1,4 @@
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
@@ -16,53 +17,40 @@ pub enum ReceptionRole {
     OpenPlayReceiver,
 }
 
-pub fn player_base_reception_weight_with_state(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+pub fn player_base_reception_weight_from_table(
+    table: &PlayerAttributeTable,
     role: ReceptionRole,
-    state: &PhysicalState,
+    state: Option<&PhysicalState>,
 ) -> f64 {
+    let default_state = PhysicalState::initial();
+    let effective_state = state.unwrap_or(&default_state);
+
     match role {
         ReceptionRole::OpenPlayReceiver => {
             let hands = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                table,
                 AttributeKey::HandsReception,
-                state,
+                effective_state,
             );
             let ant = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                table,
                 AttributeKey::Anticipation,
-                state,
+                effective_state,
             );
             let pos = extract_effective_attribute_value(
-                player,
-                attribute_keys,
+                table,
                 AttributeKey::Positioning,
-                state,
+                effective_state,
             );
             (hands * 0.45 + ant * 0.35 + pos * 0.20).max(0.1)
         }
         ReceptionRole::Finisher => {
-            let finishing = extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Finishing,
-                state,
-            );
-            let technique = extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Technique,
-                state,
-            );
-            let composure = extract_effective_attribute_value(
-                player,
-                attribute_keys,
-                AttributeKey::Composure,
-                state,
-            );
+            let finishing =
+                extract_effective_attribute_value(table, AttributeKey::Finishing, effective_state);
+            let technique =
+                extract_effective_attribute_value(table, AttributeKey::Technique, effective_state);
+            let composure =
+                extract_effective_attribute_value(table, AttributeKey::Composure, effective_state);
             (finishing * 0.50 + technique * 0.30 + composure * 0.20).max(0.1)
         }
     }
@@ -72,22 +60,25 @@ pub fn player_base_reception_weight(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     role: ReceptionRole,
+    state: Option<&PhysicalState>,
 ) -> f64 {
-    player_base_reception_weight_with_state(player, attribute_keys, role, &PhysicalState::initial())
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    player_base_reception_weight_from_table(&table, role, state)
 }
 
-pub fn calculate_player_target_weight_with_state(
+pub fn calculate_player_target_weight_from_table(
     player: &Player,
+    table: &PlayerAttributeTable,
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
-    state: &PhysicalState,
+    openness_by_player: &HashMap<Uuid, f64>,
+    state: Option<&PhysicalState>,
 ) -> f64 {
-    let base_weight = player_base_reception_weight_with_state(player, attribute_keys, role, state);
+    let base_weight = player_base_reception_weight_from_table(table, role, state);
     let proximity_factor = match spatial_map.get_position(&player.id()) {
         Some(pos) => {
             let total_len = pitch.length().value();
@@ -124,7 +115,8 @@ pub fn calculate_player_target_weight_with_state(
             .in_possession()
             .involvement_priority()
             .value();
-    base_weight * proximity_factor * fit_mult * priority_mult
+    let openness = openness_by_player.get(&player.id()).copied().unwrap_or(1.0);
+    base_weight * proximity_factor * fit_mult * priority_mult * openness
 }
 
 pub fn calculate_player_target_weight(
@@ -136,30 +128,35 @@ pub fn calculate_player_target_weight(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
+    openness_by_player: &HashMap<Uuid, f64>,
+    state: Option<&PhysicalState>,
 ) -> f64 {
-    calculate_player_target_weight_with_state(
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    calculate_player_target_weight_from_table(
         player,
+        &table,
         spatial_map,
         pitch,
         position_index,
         instructions_index,
-        attribute_keys,
         attacking_positive_x,
         role,
-        &PhysicalState::initial(),
+        openness_by_player,
+        state,
     )
 }
 
-pub fn select_target_with_fatigue<F, R>(
+pub fn select_target_from_tables<F, R>(
     candidates: &[&Player],
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     attacking_positive_x: bool,
     role: ReceptionRole,
-    fatigue_for: &F,
+    openness_by_player: &HashMap<Uuid, f64>,
+    fatigue_for: Option<&F>,
     rng: &mut R,
 ) -> Option<Uuid>
 where
@@ -173,20 +170,29 @@ where
         return Some(candidates[0].id());
     }
 
+    let default_state = PhysicalState::initial();
+
     let weights: Vec<f64> = candidates
         .iter()
         .map(|p| {
-            let state = fatigue_for(&p.id());
-            calculate_player_target_weight_with_state(
+            let state = match fatigue_for {
+                Some(lookup) => lookup(&p.id()),
+                None => default_state,
+            };
+            let table = attribute_tables
+                .get(&p.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            calculate_player_target_weight_from_table(
                 p,
+                table,
                 spatial_map,
                 pitch,
                 position_index,
                 instructions_index,
-                attribute_keys,
                 attacking_positive_x,
                 role,
-                &state,
+                openness_by_player,
+                Some(&state),
             )
         })
         .collect();
@@ -195,7 +201,7 @@ where
     Some(candidates[index].id())
 }
 
-pub fn select_target<R: Rng + ?Sized>(
+pub fn select_target<F, R>(
     candidates: &[&Player],
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
@@ -204,18 +210,29 @@ pub fn select_target<R: Rng + ?Sized>(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
     role: ReceptionRole,
+    openness_by_player: &HashMap<Uuid, f64>,
+    fatigue_for: Option<&F>,
     rng: &mut R,
-) -> Option<Uuid> {
-    select_target_with_fatigue(
+) -> Option<Uuid>
+where
+    F: Fn(&Uuid) -> PhysicalState,
+    R: Rng + ?Sized,
+{
+    let mut attribute_tables = HashMap::with_capacity(candidates.len());
+    for p in candidates {
+        attribute_tables.insert(p.id(), PlayerAttributeTable::from_player(p, attribute_keys));
+    }
+    select_target_from_tables(
         candidates,
         spatial_map,
         pitch,
         position_index,
         instructions_index,
-        attribute_keys,
+        &attribute_tables,
         attacking_positive_x,
         role,
-        &|_| PhysicalState::initial(),
+        openness_by_player,
+        fatigue_for,
         rng,
     )
 }

@@ -1,3 +1,4 @@
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::proximity::calculate_distance;
@@ -67,27 +68,37 @@ pub fn apply_positioning_drift_with_structure<R: Rng + ?Sized>(
     )
 }
 
+pub fn get_drifted_defender_position_from_table<R: Rng + ?Sized>(
+    defender: &Player,
+    table: &PlayerAttributeTable,
+    spatial_map: &DynamicSpatialMap,
+    rng: &mut R,
+) -> Option<Position> {
+    let anchor = spatial_map.get_position(&defender.id())?;
+    let positioning = extract_attribute_value(table, AttributeKey::Positioning);
+    Some(apply_positioning_drift(anchor, positioning, rng))
+}
+
 pub fn get_drifted_defender_position<R: Rng + ?Sized>(
     defender: &Player,
     spatial_map: &DynamicSpatialMap,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     rng: &mut R,
 ) -> Option<Position> {
-    let anchor = spatial_map.get_position(&defender.id())?;
-    let positioning = extract_attribute_value(defender, attribute_keys, AttributeKey::Positioning);
-    Some(apply_positioning_drift(anchor, positioning, rng))
+    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
+    get_drifted_defender_position_from_table(defender, &table, spatial_map, rng)
 }
 
-pub fn get_drifted_attacker_position<R: Rng + ?Sized>(
+pub fn get_drifted_attacker_position_from_table<R: Rng + ?Sized>(
     attacker: &Player,
+    table: &PlayerAttributeTable,
     spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
     player_instructions: PlayerInstructions,
     rng: &mut R,
 ) -> Option<Position> {
     let anchor = spatial_map.get_position(&attacker.id())?;
-    let positioning = extract_attribute_value(attacker, attribute_keys, AttributeKey::Positioning);
+    let positioning = extract_attribute_value(table, AttributeKey::Positioning);
     let structure = instructions.in_possession().structure().value();
     let creative_license = player_instructions
         .in_possession()
@@ -102,17 +113,39 @@ pub fn get_drifted_attacker_position<R: Rng + ?Sized>(
     ))
 }
 
-pub fn nearest_drifted_opponent<'a, R: Rng + ?Sized>(
+pub fn get_drifted_attacker_position<R: Rng + ?Sized>(
+    attacker: &Player,
+    spatial_map: &DynamicSpatialMap,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    player_instructions: PlayerInstructions,
+    rng: &mut R,
+) -> Option<Position> {
+    let table = PlayerAttributeTable::from_player(attacker, attribute_keys);
+    get_drifted_attacker_position_from_table(
+        attacker,
+        &table,
+        spatial_map,
+        instructions,
+        player_instructions,
+        rng,
+    )
+}
+
+pub fn nearest_drifted_opponent_from_tables<'a, R: Rng + ?Sized>(
     reference_pos: Position,
     candidates: &[&'a Player],
     spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     rng: &mut R,
 ) -> Option<(&'a Player, Position)> {
     candidates
         .iter()
         .filter_map(|&p| {
-            get_drifted_defender_position(p, spatial_map, attribute_keys, rng).map(|pos| (p, pos))
+            let table = attribute_tables
+                .get(&p.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            get_drifted_defender_position_from_table(p, table, spatial_map, rng).map(|pos| (p, pos))
         })
         .min_by(|(_, pos_a), (_, pos_b)| {
             let dist_a = calculate_distance(reference_pos, *pos_a).value();
@@ -121,4 +154,24 @@ pub fn nearest_drifted_opponent<'a, R: Rng + ?Sized>(
                 .partial_cmp(&dist_b)
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
+}
+
+pub fn nearest_drifted_opponent<'a, R: Rng + ?Sized>(
+    reference_pos: Position,
+    candidates: &[&'a Player],
+    spatial_map: &DynamicSpatialMap,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    rng: &mut R,
+) -> Option<(&'a Player, Position)> {
+    let mut attribute_tables = HashMap::with_capacity(candidates.len());
+    for p in candidates {
+        attribute_tables.insert(p.id(), PlayerAttributeTable::from_player(p, attribute_keys));
+    }
+    nearest_drifted_opponent_from_tables(
+        reference_pos,
+        candidates,
+        spatial_map,
+        &attribute_tables,
+        rng,
+    )
 }

@@ -4,29 +4,37 @@ use arlo_domain::{Formation, FormationSlot, Player, Position, SlotRole};
 use arlo_tactics::PlayerInstructions;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LineupAssignment {
+    formation_slot_index: usize,
     slot: FormationSlot,
-    player: Player,
+    player: Arc<Player>,
     slot_role: SlotRole,
     player_instructions: PlayerInstructions,
 }
 
 impl LineupAssignment {
     pub fn new(
+        formation_slot_index: usize,
         slot: FormationSlot,
-        player: Player,
+        player: Arc<Player>,
         slot_role: SlotRole,
         player_instructions: PlayerInstructions,
     ) -> Self {
         Self {
+            formation_slot_index,
             slot,
             player,
             slot_role,
             player_instructions,
         }
+    }
+
+    pub fn formation_slot_index(&self) -> usize {
+        self.formation_slot_index
     }
 
     pub fn slot(&self) -> &FormationSlot {
@@ -35,6 +43,10 @@ impl LineupAssignment {
 
     pub fn player(&self) -> &Player {
         &self.player
+    }
+
+    pub fn player_arc(&self) -> Arc<Player> {
+        Arc::clone(&self.player)
     }
 
     pub fn slot_role(&self) -> SlotRole {
@@ -50,6 +62,7 @@ impl LineupAssignment {
 pub struct Lineup {
     formation: Formation,
     assignments: Vec<LineupAssignment>,
+    players_cache: Vec<Arc<Player>>,
 }
 
 impl Lineup {
@@ -81,21 +94,20 @@ impl Lineup {
             .slots()
             .iter()
             .copied()
+            .enumerate()
             .zip(players)
-            .map(|(slot, player)| {
+            .map(|((formation_slot_index, slot), player)| {
                 LineupAssignment::new(
+                    formation_slot_index,
                     slot,
-                    player,
+                    Arc::new(player),
                     SlotRole::Standard,
                     PlayerInstructions::default(),
                 )
             })
             .collect();
 
-        Ok(Self {
-            formation,
-            assignments,
-        })
+        Self::from_assignments(formation, assignments)
     }
 
     pub fn from_assignments(
@@ -125,10 +137,40 @@ impl Lineup {
             }
         }
 
+        let players_cache = assignments.iter().map(|a| Arc::clone(&a.player)).collect();
+
         Ok(Self {
             formation,
             assignments,
+            players_cache,
         })
+    }
+
+    pub fn substitute(
+        &self,
+        outgoing_player_id: Uuid,
+        incoming_player: Arc<Player>,
+    ) -> EngineResult<Self> {
+        let mut found = false;
+        let mut new_assignments = Vec::with_capacity(self.assignments.len());
+        for assignment in &self.assignments {
+            if assignment.player().id() == outgoing_player_id {
+                found = true;
+                new_assignments.push(LineupAssignment::new(
+                    assignment.formation_slot_index(),
+                    *assignment.slot(),
+                    Arc::clone(&incoming_player),
+                    assignment.slot_role(),
+                    assignment.player_instructions(),
+                ));
+            } else {
+                new_assignments.push(assignment.clone());
+            }
+        }
+        if !found {
+            return Err(EngineError::PlayerNotFound(outgoing_player_id));
+        }
+        Self::from_assignments(self.formation.clone(), new_assignments)
     }
 
     pub fn builder(formation: Formation) -> LineupBuilder {
@@ -143,8 +185,8 @@ impl Lineup {
         &self.assignments
     }
 
-    pub fn players(&self) -> Vec<&Player> {
-        self.assignments.iter().map(|a| a.player()).collect()
+    pub fn players(&self) -> &[Arc<Player>] {
+        &self.players_cache
     }
 
     pub fn role_index(&self) -> HashMap<Uuid, SlotRole> {
@@ -188,6 +230,20 @@ impl Lineup {
 
     pub fn get_player_for_slot(&self, slot_index: usize) -> Option<&Player> {
         self.assignments.get(slot_index).map(|a| a.player())
+    }
+
+    pub fn player_at_slot_index(&self, slot_index: usize) -> Option<&Player> {
+        self.assignments
+            .iter()
+            .find(|a| a.formation_slot_index() == slot_index)
+            .map(|a| a.player())
+    }
+
+    pub fn slot_index_for_player(&self, player_id: &Uuid) -> Option<usize> {
+        self.assignments
+            .iter()
+            .find(|a| a.player().id() == *player_id)
+            .map(|a| a.formation_slot_index())
     }
 
     pub fn get_assignment(&self, player_id: &Uuid) -> Option<&LineupAssignment> {

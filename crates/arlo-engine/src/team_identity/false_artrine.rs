@@ -1,7 +1,8 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::dynamic_anchor::calculate_defense_attractor_coordinates;
 use crate::lineup_runtime::dynamic_anchor::offense::calculate_offense_attractor_coordinates_for_position;
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::DynamicSpatialMap;
@@ -84,10 +85,10 @@ pub fn decoy_attractor(
     VectorPosition::from_components(clamped_x, clamped_y, 0.0)
 }
 
-pub fn phantom_voronoi_site<F>(
+pub fn phantom_voronoi_site_from_table<F>(
     false_artrine: &Player,
+    table: &PlayerAttributeTable,
     spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_for: &F,
     team_id: u8,
 ) -> VoronoiSite
@@ -98,12 +99,8 @@ where
         .get_position(&false_artrine.id())
         .unwrap_or_else(VectorPosition::zero);
     let fatigue = fatigue_for(&false_artrine.id());
-    let speed = calculate_effective_player_speed(false_artrine, attribute_keys, &fatigue).value();
-    let bluff = extract_attribute_value(
-        false_artrine,
-        attribute_keys,
-        AttributeKey::FalseArtrineBluff,
-    );
+    let speed = calculate_effective_player_speed_from_table(false_artrine, table, &fatigue).value();
+    let bluff = extract_attribute_value(table, AttributeKey::FalseArtrineBluff);
     let reaction_time = ((20.0 - bluff) * 0.015).max(0.05);
 
     VoronoiSite::new(pos.raw().0, pos.raw().1, speed, reaction_time, team_id)

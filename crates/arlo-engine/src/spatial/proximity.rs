@@ -3,6 +3,7 @@ use arlo_domain::sport_constants::{MINIMUM_ENGAGEMENT_SECONDS, PROXIMITY_CONTEST
 use arlo_domain::Player;
 use arlo_math::units::collision::compute_swept_sphere_intersection;
 use arlo_math::units::{Duration, Length, Position, Speed, Velocity, MIRIM_TO_METERS};
+use smallvec::SmallVec;
 use uuid::Uuid;
 
 pub fn calculate_distance(pos_a: Position, pos_b: Position) -> Length {
@@ -106,7 +107,7 @@ pub fn filter_active_duelists_swept(
     candidates: &[(&Player, Position, Speed)],
     radius: Length,
     max_duration: Duration,
-) -> Vec<Uuid> {
+) -> SmallVec<[Uuid; 4]> {
     candidates
         .iter()
         .filter(|(_, pos, speed)| {
@@ -133,7 +134,7 @@ pub fn filter_active_duelists_by_id_swept(
     candidates: &[(Uuid, Position, Speed)],
     radius: Length,
     max_duration: Duration,
-) -> Vec<Uuid> {
+) -> SmallVec<[Uuid; 4]> {
     candidates
         .iter()
         .filter(|(_, pos, speed)| {
@@ -158,7 +159,7 @@ pub fn filter_active_duelists(
     epicenter: Position,
     primary_speed: Speed,
     candidates: &[(&Player, Position, Speed)],
-) -> Vec<Uuid> {
+) -> SmallVec<[Uuid; 4]> {
     let radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
     let max_duration = Duration::new(MINIMUM_ENGAGEMENT_SECONDS);
     let primary_vel = Velocity::zero();
@@ -186,7 +187,7 @@ pub fn filter_active_duelists_by_id(
     epicenter: Position,
     primary_speed: Speed,
     candidates: &[(Uuid, Position, Speed)],
-) -> Vec<Uuid> {
+) -> SmallVec<[Uuid; 4]> {
     let radius = Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * MIRIM_TO_METERS);
     let max_duration = Duration::new(MINIMUM_ENGAGEMENT_SECONDS);
     let primary_vel = Velocity::zero();
@@ -214,6 +215,6 @@ pub fn active_duelists(
     epicenter: Position,
     primary_speed: Speed,
     candidates: &[(&Player, Position, Speed)],
-) -> Vec<Uuid> {
+) -> SmallVec<[Uuid; 4]> {
     filter_active_duelists(epicenter, primary_speed, candidates)
 }

@@ -83,3 +83,15 @@ pub struct PlayerTouchSnapshot {
     pub total_touches: u32,
     pub turnovers_conceded: u32,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TeamPossessionSnapshot {
+    pub team_id: Uuid,
+    pub total_possession_seconds: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerAssistSnapshot {
+    pub player_id: Uuid,
+    pub goalpoint_assists: u32,
+}

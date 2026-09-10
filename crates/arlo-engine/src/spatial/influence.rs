@@ -1,3 +1,4 @@
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::proximity::calculate_distance;
@@ -7,9 +8,9 @@ use arlo_math::units::Position;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
-pub fn defender_variance(defender: &Player, attribute_keys: &HashMap<Uuid, AttributeKey>) -> f64 {
-    let accel = extract_attribute_value(defender, attribute_keys, AttributeKey::Acceleration);
-    let pace = extract_attribute_value(defender, attribute_keys, AttributeKey::Pace);
+pub fn defender_variance_from_table(table: &PlayerAttributeTable) -> f64 {
+    let accel = extract_attribute_value(table, AttributeKey::Acceleration);
+    let pace = extract_attribute_value(table, AttributeKey::Pace);
     2.0 + (0.35 * pace) + (0.35 * accel)
 }
 
@@ -24,17 +25,20 @@ pub fn defender_projected_mean(defender: &Player, spatial_map: &DynamicSpatialMa
     Position::from_components(pos.raw().0 + vel.raw().0, pos.raw().1 + vel.raw().1, 0.0)
 }
 
-pub fn calculate_point_resistance(
+pub fn calculate_point_resistance_from_tables(
     point: Position,
     defenders: &[&Player],
     spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
 ) -> f64 {
     let mut total_resistance = 0.0;
 
     for defender in defenders {
         let mean = defender_projected_mean(defender, spatial_map);
-        let variance = defender_variance(defender, attribute_keys);
+        let table = attribute_tables
+            .get(&defender.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let variance = defender_variance_from_table(table);
 
         let dx = point.raw().0 - mean.raw().0;
         let dy = point.raw().1 - mean.raw().1;
@@ -47,12 +51,12 @@ pub fn calculate_point_resistance(
     total_resistance
 }
 
-pub fn calculate_spatial_resistance_between(
+pub fn calculate_spatial_resistance_between_from_tables(
     start_pos: Position,
     target_pos: Position,
     defenders: &[&Player],
     spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
 ) -> f64 {
     if defenders.is_empty() {
         return 0.0;
@@ -67,39 +71,39 @@ pub fn calculate_spatial_resistance_between(
         let y = start_pos.raw().1 + t * (target_pos.raw().1 - start_pos.raw().1);
         let pt = Position::from_components(x, y, 0.0);
 
-        accumulated += calculate_point_resistance(pt, defenders, spatial_map, attribute_keys);
+        accumulated +=
+            calculate_point_resistance_from_tables(pt, defenders, spatial_map, attribute_tables);
     }
 
     accumulated / ((steps + 1) as f64)
 }
 
-pub fn calculate_spatial_resistance(
+pub fn calculate_spatial_resistance_from_tables(
     target_vector: Position,
     defenders: &[&Player],
     spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
 ) -> f64 {
     let defender_ids: HashSet<Uuid> = defenders.iter().map(|p| p.id()).collect();
     let start_pos = spatial_map
-        .positions()
-        .iter()
+        .iter_positions()
         .filter(|(id, _)| !defender_ids.contains(id))
         .min_by(|(_, a), (_, b)| {
-            let dist_a = calculate_distance(**a, target_vector).value();
-            let dist_b = calculate_distance(**b, target_vector).value();
+            let dist_a = calculate_distance(*a, target_vector).value();
+            let dist_b = calculate_distance(*b, target_vector).value();
             dist_a
                 .partial_cmp(&dist_b)
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
-        .map(|(_, pos)| *pos)
+        .map(|(_, pos)| pos)
         .unwrap_or_else(Position::zero);
 
-    calculate_spatial_resistance_between(
+    calculate_spatial_resistance_between_from_tables(
         start_pos,
         target_vector,
         defenders,
         spatial_map,
-        attribute_keys,
+        attribute_tables,
     )
 }
 

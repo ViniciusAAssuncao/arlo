@@ -1,6 +1,13 @@
-use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors, AnchorComputationContext};
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
+use crate::lineup_runtime::dynamic_anchor::{
+    compute_dynamic_anchors_from_tables, AnchorComputationContext,
+};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
+use crate::team_identity::marking::{
+    derive_block_marking_roles_from_tables, eligible_block_marking_defenders,
+    extract_manager_artro_strategy_fidelity_from_table,
+};
 use crate::team_identity::tempo::{
     effort_multiplier_from_value, huddle_duration_scale, individual_transition_effort_multiplier,
 };
@@ -25,9 +32,9 @@ pub fn derive_and_apply_reorganization(
     recovering_player_id: Option<Uuid>,
 ) -> (Duration, Duration) {
     let pitch = *publisher.state().pitch();
-    let home_lineup = publisher.state().home_lineup().clone();
-    let away_lineup = publisher.state().away_lineup().clone();
-    let attribute_keys = publisher.state().attribute_keys().clone();
+    let home_lineup = publisher.state().home_lineup_arc();
+    let away_lineup = publisher.state().away_lineup_arc();
+    let player_attribute_tables = publisher.state().teams.player_attribute_tables().clone();
 
     let was_home_offense = publisher
         .state()
@@ -43,20 +50,89 @@ pub fn derive_and_apply_reorganization(
     let home_instructions = *publisher.state().home_instructions();
     let away_instructions = *publisher.state().away_instructions();
 
+    let press_reference_pos = if is_post_turnover {
+        recovering_player_id.and_then(|id| publisher.state().spatial_map().get_position(&id))
+    } else {
+        None
+    };
+
+    let (home_block_roles, away_block_roles) = if is_post_turnover {
+        if let Some(ref_pos) = press_reference_pos {
+            if is_home_offense {
+                let def_lineup = &away_lineup;
+                let def_manager_table = publisher.state().teams.away_manager_table();
+                let def_instructions = &away_instructions;
+                let def_pos_index = publisher
+                    .state()
+                    .defensive_position_index_for_team(publisher.state().away_team_id());
+                let def_players = def_lineup.players();
+                let player_refs: Vec<&arlo_domain::Player> =
+                    def_players.iter().map(|p| p.as_ref()).collect();
+                let eligible = eligible_block_marking_defenders(&player_refs, def_pos_index);
+                let press_block_shape = def_instructions.transition().press_block_shape();
+                let execution_fidelity =
+                    extract_manager_artro_strategy_fidelity_from_table(def_manager_table);
+                let roles = derive_block_marking_roles_from_tables(
+                    &eligible,
+                    ref_pos,
+                    publisher.state().spatial_map(),
+                    press_block_shape,
+                    &player_attribute_tables,
+                    execution_fidelity,
+                );
+                (None, Some(roles))
+            } else {
+                let def_lineup = &home_lineup;
+                let def_manager_table = publisher.state().teams.home_manager_table();
+                let def_instructions = &home_instructions;
+                let def_pos_index = publisher
+                    .state()
+                    .defensive_position_index_for_team(publisher.state().home_team_id());
+                let def_players = def_lineup.players();
+                let player_refs: Vec<&arlo_domain::Player> =
+                    def_players.iter().map(|p| p.as_ref()).collect();
+                let eligible = eligible_block_marking_defenders(&player_refs, def_pos_index);
+                let press_block_shape = def_instructions.transition().press_block_shape();
+                let execution_fidelity =
+                    extract_manager_artro_strategy_fidelity_from_table(def_manager_table);
+                let roles = derive_block_marking_roles_from_tables(
+                    &eligible,
+                    ref_pos,
+                    publisher.state().spatial_map(),
+                    press_block_shape,
+                    &player_attribute_tables,
+                    execution_fidelity,
+                );
+                (Some(roles), None)
+            }
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
+
     let home_ctx = AnchorComputationContext {
         player_instructions_index: publisher
             .state()
             .instructions_index_for_team(publisher.state().home_team_id()),
         opposing_lineup: Some(&away_lineup),
         spatial_map: Some(publisher.state().spatial_map()),
+        block_marking_roles: home_block_roles.as_ref(),
+        press_reference_pos: if !is_home_offense {
+            press_reference_pos
+        } else {
+            None
+        },
+        attribute_tables: Some(&player_attribute_tables),
     };
-    let mut home_targets = compute_dynamic_anchors(
+    let mut home_targets = compute_dynamic_anchors_from_tables(
         &pitch,
         &home_lineup,
+        &player_attribute_tables,
         scrimmage_x_mirim,
         is_home_offense,
         true,
-        &attribute_keys,
         &home_instructions,
         &home_ctx,
     );
@@ -67,14 +143,21 @@ pub fn derive_and_apply_reorganization(
             .instructions_index_for_team(publisher.state().away_team_id()),
         opposing_lineup: Some(&home_lineup),
         spatial_map: Some(publisher.state().spatial_map()),
+        block_marking_roles: away_block_roles.as_ref(),
+        press_reference_pos: if is_home_offense {
+            press_reference_pos
+        } else {
+            None
+        },
+        attribute_tables: Some(&player_attribute_tables),
     };
-    let mut away_targets = compute_dynamic_anchors(
+    let mut away_targets = compute_dynamic_anchors_from_tables(
         &pitch,
         &away_lineup,
+        &player_attribute_tables,
         scrimmage_x_mirim,
         !is_home_offense,
         false,
-        &attribute_keys,
         &away_instructions,
         &away_ctx,
     );
@@ -151,16 +234,6 @@ pub fn derive_and_apply_reorganization(
         }
     }
 
-    let home_fatigue = publisher.state().home_fatigue().clone();
-    let away_fatigue = publisher.state().away_fatigue().clone();
-    let fatigue_lookup = move |id: &Uuid| {
-        home_fatigue
-            .get(id)
-            .or_else(|| away_fatigue.get(id))
-            .copied()
-            .unwrap_or_default()
-    };
-
     let home_team_id = publisher.state().home_team_id();
     let away_team_id = publisher.state().away_team_id();
     let home_instr = publisher
@@ -212,13 +285,15 @@ pub fn derive_and_apply_reorganization(
         }
     };
 
+    let state = publisher.state_mut();
+    let fatigue_lookup = state.fatigue.lookup();
     let tick_result = run_spatial_tick_loop_with_context(
-        publisher.state_mut().spatial_map_mut(),
+        &mut state.spatial_map,
         &movers,
-        &attribute_keys,
+        &player_attribute_tables,
         MovementContext::DeadBall,
         &pitch,
-        &fatigue_lookup,
+        &(|id| fatigue_lookup.get(id)),
         &effort_multiplier_for,
     );
 
@@ -241,9 +316,11 @@ pub fn derive_and_apply_reorganization(
         });
 
     let (tac, lead) = if let Some(artrine) = offense_artrine {
-        let tac =
-            extract_attribute_value(artrine, &attribute_keys, AttributeKey::TacticalKnowledge);
-        let lead = extract_attribute_value(artrine, &attribute_keys, AttributeKey::Leadership);
+        let table = player_attribute_tables
+            .get(&artrine.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let tac = extract_attribute_value(table, AttributeKey::TacticalKnowledge);
+        let lead = extract_attribute_value(table, AttributeKey::Leadership);
         (tac, lead)
     } else {
         (DEFAULT_ATTRIBUTE_VALUE, DEFAULT_ATTRIBUTE_VALUE)

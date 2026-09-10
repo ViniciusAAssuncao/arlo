@@ -27,6 +27,16 @@ impl MatchState {
         self.impulse.set_player_impulse(player_id, is_home, state);
     }
 
+    pub fn substitute_impulse_player(&mut self, outgoing: Uuid, incoming: Uuid, is_home: bool) {
+        self.impulse.substitute_player(
+            outgoing,
+            incoming,
+            is_home,
+            &self.teams,
+            &self.attribute_keys,
+        );
+    }
+
     pub fn set_all_impulse_to_initial(&mut self) {
         self.impulse.set_all_to_initial();
     }

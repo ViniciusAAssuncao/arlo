@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::estimate_body_mass;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::PhysicalState;
@@ -19,9 +20,10 @@ pub fn derive_player_steered_velocity(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     fatigue_multiplier: f64,
 ) -> Velocity {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let state = PhysicalState::with_energy(fatigue_multiplier);
     let speed = calculate_effective_player_speed(player, attribute_keys, &state);
-    let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
+    let agility = extract_attribute_value(&table, AttributeKey::Agility);
     calculate_steered_velocity(current_velocity, current_pos, target_pos, speed, agility)
 }
 
@@ -35,12 +37,13 @@ pub fn derive_player_boid_steered_velocity(
     fatigue_multiplier: f64,
     dt: Duration,
 ) -> Velocity {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let state = PhysicalState::with_energy(fatigue_multiplier);
     let speed = calculate_effective_player_speed(player, attribute_keys, &state);
-    let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
-    let acceleration = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-    let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
-    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+    let agility = extract_attribute_value(&table, AttributeKey::Agility);
+    let acceleration = extract_attribute_value(&table, AttributeKey::Acceleration);
+    let balance = extract_attribute_value(&table, AttributeKey::Balance);
+    let strength = extract_attribute_value(&table, AttributeKey::Strength);
     let mass = estimate_body_mass(player.height_m(), strength);
     let physical_radius = derive_player_physical_radius(player, attribute_keys);
 
@@ -76,12 +79,13 @@ pub fn derive_player_dynamic_boid_steered_velocity(
     fatigue_multiplier: f64,
     dt: Duration,
 ) -> Velocity {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let state = PhysicalState::with_energy(fatigue_multiplier);
     let speed = calculate_effective_player_speed(player, attribute_keys, &state);
-    let agility = extract_attribute_value(player, attribute_keys, AttributeKey::Agility);
-    let acceleration = extract_attribute_value(player, attribute_keys, AttributeKey::Acceleration);
-    let balance = extract_attribute_value(player, attribute_keys, AttributeKey::Balance);
-    let strength = extract_attribute_value(player, attribute_keys, AttributeKey::Strength);
+    let agility = extract_attribute_value(&table, AttributeKey::Agility);
+    let acceleration = extract_attribute_value(&table, AttributeKey::Acceleration);
+    let balance = extract_attribute_value(&table, AttributeKey::Balance);
+    let strength = extract_attribute_value(&table, AttributeKey::Strength);
     let mass = estimate_body_mass(player.height_m(), strength);
     let physical_radius = derive_player_physical_radius(player, attribute_keys);
 

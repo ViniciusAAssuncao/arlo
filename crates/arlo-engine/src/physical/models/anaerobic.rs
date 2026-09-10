@@ -1,6 +1,8 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::{
     calculate_critical_speed as calc_crit_speed, calculate_max_w_prime as calc_max_w_prime,
     calculate_metabolic_work_rate, calculate_player_body_mass,
+    calculate_player_body_mass_from_table,
     calculate_player_critical_speed as calc_player_crit_speed,
     calculate_player_max_w_prime as calc_player_max_w_prime, estimate_body_mass,
 };
@@ -44,9 +46,10 @@ pub fn calculate_duel_intensity_multiplier(duel_kind: DuelKind) -> f64 {
         DuelKind::PassProtection => 1.7,
         DuelKind::RouteContest | DuelKind::AerialDuel => 1.6,
         DuelKind::BallSecurityCarry | DuelKind::BallSecurityDistribution => 1.5,
-        DuelKind::ShortDistribution | DuelKind::LongDistribution | DuelKind::CrossDistribution => {
-            1.2
-        }
+        DuelKind::ShortDistribution
+        | DuelKind::LongDistribution
+        | DuelKind::CrossDistribution
+        | DuelKind::FieldGoalAttempt => 1.2,
     }
 }
 
@@ -58,6 +61,25 @@ pub fn calculate_anaerobic_cost(
 ) -> f64 {
     let duration = duration_seconds.max(0.0);
     let mass = 78.0;
+    let rate = calculate_metabolic_work_rate(
+        speed_meters_per_sec,
+        critical_speed,
+        mass,
+        intensity_multiplier,
+    );
+    rate * duration
+}
+
+pub fn calculate_player_anaerobic_cost_from_table(
+    player: &Player,
+    table: &PlayerAttributeTable,
+    duration_seconds: f64,
+    speed_meters_per_sec: f64,
+    critical_speed: f64,
+    intensity_multiplier: f64,
+) -> f64 {
+    let duration = duration_seconds.max(0.0);
+    let mass = calculate_player_body_mass_from_table(player, table);
     let rate = calculate_metabolic_work_rate(
         speed_meters_per_sec,
         critical_speed,

@@ -20,4 +20,4 @@ pub use out_of_possession::OutOfPossessionInstructions;
 pub use player::*;
 pub use team_instructions::TeamInstructions;
 pub use team_tactical_profile::TeamTacticalProfile;
-pub use transition::TransitionInstructions;
+pub use transition::{nearest_block_notation, PressBlockShape, TransitionInstructions};

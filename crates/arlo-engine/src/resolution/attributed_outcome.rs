@@ -1,16 +1,21 @@
 use crate::resolution::outcome::DuelOutcome;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AttributedDuelOutcome {
     outcome: DuelOutcome,
-    attacker_ids: Vec<Uuid>,
-    defender_ids: Vec<Uuid>,
+    attacker_ids: SmallVec<[Uuid; 4]>,
+    defender_ids: SmallVec<[Uuid; 4]>,
 }
 
 impl AttributedDuelOutcome {
-    pub fn new(outcome: DuelOutcome, attacker_ids: Vec<Uuid>, defender_ids: Vec<Uuid>) -> Self {
+    pub fn new(
+        outcome: DuelOutcome,
+        attacker_ids: SmallVec<[Uuid; 4]>,
+        defender_ids: SmallVec<[Uuid; 4]>,
+    ) -> Self {
         Self {
             outcome,
             attacker_ids,
@@ -21,17 +26,19 @@ impl AttributedDuelOutcome {
     pub fn with_active_duelists(
         outcome: DuelOutcome,
         primary_attacker_id: Uuid,
-        active_helpers: Vec<Uuid>,
+        active_helpers: impl IntoIterator<Item = Uuid>,
         primary_defender_id: Uuid,
-        active_defenders: Vec<Uuid>,
+        active_defenders: impl IntoIterator<Item = Uuid>,
     ) -> Self {
-        let mut attackers = vec![primary_attacker_id];
+        let mut attackers = SmallVec::new();
+        attackers.push(primary_attacker_id);
         for id in active_helpers {
             if !attackers.contains(&id) {
                 attackers.push(id);
             }
         }
-        let mut defenders = vec![primary_defender_id];
+        let mut defenders = SmallVec::new();
+        defenders.push(primary_defender_id);
         for id in active_defenders {
             if !defenders.contains(&id) {
                 defenders.push(id);

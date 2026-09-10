@@ -1,6 +1,7 @@
 use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::artrine::decision_profiles::{long_launch_profile, short_pass_profile};
+use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -13,11 +14,14 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
 
     fn evaluate(&self, ctx: &DecisionEvaluationContext) -> f64 {
         let profile = short_pass_profile();
-        let intrinsic_rating = ctx.artrine_rating(&profile);
+        let intrinsic_rating = ctx.carrier_rating(&profile);
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
         let target_qual = ctx.target_quality();
 
-        let adv_mirim = (6.0 + 3.0 * target_qual) * skill_mult;
+        let free_path = ctx.expected_free_path();
+        let adv_mirim = (free_path * short_pass_advance_multiplier(ctx.passing_range)
+            + target_qual.max(0.0) * 1.5)
+            * skill_mult;
         let (new_down, new_rem) = if adv_mirim >= ctx.remaining_advance_mirim {
             (1, 10.0)
         } else {
@@ -33,7 +37,7 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
             ctx.epv_model
                 .calculate_epa(new_norm_x, new_down, new_rem, ctx.drives_in_series);
         let epv_fail = if ctx.down >= 4 && ctx.remaining_advance_mirim > 0.0 {
-            -ctx.epv_model.opponent_epa(ctx.normalized_proximity)
+            -ctx.opponent_epa()
         } else {
             ctx.epv_model.calculate_epa(
                 ctx.normalized_proximity,
@@ -42,7 +46,7 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
                 ctx.drives_in_series,
             )
         };
-        let epv_to = -ctx.epv_model.opponent_epa(ctx.normalized_proximity);
+        let epv_to = -ctx.opponent_epa();
 
         let delta_succ = epv_success - ctx.current_epv;
         let delta_fail = epv_fail - ctx.current_epv;
@@ -81,16 +85,13 @@ impl ActionUtilityEvaluator for ShortPassUtilityEvaluator {
         let game_state_bias = ctx
             .game_state_pressure
             .bias_for_decision(ArtrineDecisionKind::ShortPass, ctx.drives_in_series);
-        let team_identity_bias = ctx
-            .team_identity_bias
-            .bias_for(ArtrineDecisionKind::ShortPass);
+        let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.short_pass().value();
+        let tactical_bias = ctx.carrier_tactical_bias(ArtrineDecisionKind::ShortPass);
 
-        (expected_future_value * gravity_factor)
-            * risk_multiplier
-            * game_state_bias
-            * team_identity_bias
-            * 3.5
-            + (intrinsic_rating * 0.2)
+        ((expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5
+            + (intrinsic_rating * 0.2))
+            * emphasis_multiplier
+            * tactical_bias
     }
 }
 
@@ -104,11 +105,14 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
 
     fn evaluate(&self, ctx: &DecisionEvaluationContext) -> f64 {
         let profile = long_launch_profile();
-        let intrinsic_rating = ctx.artrine_rating(&profile);
+        let intrinsic_rating = ctx.carrier_rating(&profile);
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
-        let target_qual = ctx.target_quality();
+        let target_qual = ctx.long_launch_target_quality();
 
-        let adv_mirim = (14.0 + 6.0 * target_qual) * skill_mult;
+        let free_path = ctx.expected_free_path() * 2.5;
+        let adv_mirim = (free_path * long_launch_advance_multiplier(ctx.passing_range)
+            + target_qual.max(0.0) * 3.0)
+            * skill_mult;
         let (new_down, new_rem) = if adv_mirim >= ctx.remaining_advance_mirim {
             (1, 10.0)
         } else {
@@ -124,7 +128,7 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
             ctx.epv_model
                 .calculate_epa(new_norm_x, new_down, new_rem, ctx.drives_in_series);
         let epv_fail = if ctx.down >= 4 && ctx.remaining_advance_mirim > 0.0 {
-            -ctx.epv_model.opponent_epa(ctx.normalized_proximity)
+            -ctx.opponent_epa()
         } else {
             ctx.epv_model.calculate_epa(
                 ctx.normalized_proximity,
@@ -133,7 +137,7 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
                 ctx.drives_in_series,
             )
         };
-        let epv_to = -ctx.epv_model.opponent_epa(ctx.normalized_proximity);
+        let epv_to = -ctx.opponent_epa();
 
         let delta_succ = epv_success - ctx.current_epv;
         let delta_fail = epv_fail - ctx.current_epv;
@@ -172,15 +176,12 @@ impl ActionUtilityEvaluator for LongLaunchUtilityEvaluator {
         let game_state_bias = ctx
             .game_state_pressure
             .bias_for_decision(ArtrineDecisionKind::LongLaunch, ctx.drives_in_series);
-        let team_identity_bias = ctx
-            .team_identity_bias
-            .bias_for(ArtrineDecisionKind::LongLaunch);
+        let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.long_launch().value();
+        let tactical_bias = ctx.carrier_tactical_bias(ArtrineDecisionKind::LongLaunch);
 
-        (expected_future_value * gravity_factor)
-            * risk_multiplier
-            * game_state_bias
-            * team_identity_bias
-            * 3.5
-            + (intrinsic_rating * 0.2)
+        ((expected_future_value * gravity_factor) * risk_multiplier * game_state_bias * 3.5
+            + (intrinsic_rating * 0.2))
+            * emphasis_multiplier
+            * tactical_bias
     }
 }

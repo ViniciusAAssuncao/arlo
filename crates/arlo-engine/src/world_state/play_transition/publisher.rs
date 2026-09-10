@@ -1,11 +1,17 @@
 use crate::artrine::DistributionFlightInfo;
+use crate::manager_ai::event_translation::{
+    translate_challenge_resolved, translate_play_call_selected, translate_substitution_made,
+    translate_tactical_profile_activated, translate_time_call_used,
+};
 use crate::match_decision::event_translation::{
     create_envelope, translate_countdown_started, translate_distribution_completed,
     translate_down_advanced, translate_drive_recorded, translate_duel_resolved,
-    translate_out_of_bounds, translate_physical_strain_recorded, translate_reception_resolved,
-    translate_recovery_interval_processed, translate_scoring_decision, translate_turnover,
+    translate_out_of_bounds, translate_physical_strain_recorded, translate_possession_time,
+    translate_reception_resolved, translate_recovery_interval_processed,
+    translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
+use crate::officiating::ReviewableCallKind;
 use crate::psychology::event_translation::{
     translate_impulse_critical_reached, translate_impulse_shift_recorded,
 };
@@ -15,8 +21,12 @@ use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::MatchState;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::PitchZone;
-use arlo_events::{CountdownReason, EventArtroPlacement, EventSink, MatchEvent};
+use arlo_events::{
+    CountdownReason, EventArtroPlacement, EventSink, MatchClockInstant, MatchEvent,
+    SubstitutionReason,
+};
 use arlo_math::units::Position as VectorPosition;
+use arlo_tactics::PlayCallCategory;
 use uuid::Uuid;
 
 pub struct EventPublisher<'a, S: EventSink> {
@@ -164,6 +174,11 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         self.publish(countdown_event);
     }
 
+    pub fn emit_possession_time_recorded(&mut self, team_id: Uuid, duration: f64) {
+        let event = translate_possession_time(team_id, duration);
+        self.publish(event);
+    }
+
     pub fn emit_physical_strain(
         &mut self,
         player_id: Uuid,
@@ -219,5 +234,56 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
     pub fn emit_impulse_critical(&mut self, critical: &EngineImpulseCritical) {
         let critical_event = translate_impulse_critical_reached(critical);
         self.publish(critical_event);
+    }
+
+    pub fn emit_substitution_made(
+        &mut self,
+        team_id: Uuid,
+        player_out: Uuid,
+        player_in: Uuid,
+        match_clock: MatchClockInstant,
+        reason: SubstitutionReason,
+    ) {
+        let event =
+            translate_substitution_made(team_id, player_out, player_in, match_clock, reason);
+        self.publish(event);
+    }
+
+    pub fn emit_time_call_used(&mut self, team_id: Uuid, remaining_time_calls_after: u32) {
+        let event = translate_time_call_used(team_id, remaining_time_calls_after);
+        self.publish(event);
+    }
+
+    pub fn emit_challenge_resolved(
+        &mut self,
+        team_id: Uuid,
+        call_kind: ReviewableCallKind,
+        success: bool,
+        remaining_challenges_after: u32,
+    ) {
+        let event =
+            translate_challenge_resolved(team_id, call_kind, success, remaining_challenges_after);
+        self.publish(event);
+    }
+
+    pub fn emit_tactical_profile_activated(
+        &mut self,
+        team_id: Uuid,
+        profile_id: Uuid,
+        profile_name: impl Into<String>,
+    ) {
+        let event = translate_tactical_profile_activated(team_id, profile_id, profile_name);
+        self.publish(event);
+    }
+
+    pub fn emit_play_call_selected(
+        &mut self,
+        team_id: Uuid,
+        play_call_id: Uuid,
+        play_call_name: impl Into<String>,
+        category: PlayCallCategory,
+    ) {
+        let event = translate_play_call_selected(team_id, play_call_id, play_call_name, category);
+        self.publish(event);
     }
 }

@@ -13,13 +13,14 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
 
     fn evaluate(&self, ctx: &DecisionEvaluationContext) -> f64 {
         let profile = self_carry_profile();
-        let intrinsic_rating = ctx.artrine_rating(&profile);
+        let intrinsic_rating = ctx.carrier_rating(&profile);
         let skill_mult = ctx.skill_multiplier(intrinsic_rating);
         let pc = ctx.pitch_control();
 
-        let adv_mirim = (4.0 + 4.0 * pc) * skill_mult;
+        let free_path = ctx.expected_free_path();
+        let adv_mirim = free_path * skill_mult;
         let crosses_artro = adv_mirim >= ctx.distance_to_next_artro_mirim.max(0.5);
-        let artros_crossed = if crosses_artro {
+        let artros_crossed = if crosses_artro && ctx.is_true_artrine {
             1 + ((adv_mirim - ctx.distance_to_next_artro_mirim).max(0.0) / 3.0).floor() as u32
         } else {
             0
@@ -41,7 +42,7 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
             .epv_model
             .calculate_epa(new_norm_x, new_down, new_rem, new_drives);
         let epv_fail = if ctx.down >= 4 && ctx.remaining_advance_mirim > 0.0 {
-            -ctx.epv_model.opponent_epa(ctx.normalized_proximity)
+            -ctx.opponent_epa()
         } else {
             ctx.epv_model.calculate_epa(
                 ctx.normalized_proximity,
@@ -50,7 +51,7 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
                 ctx.drives_in_series,
             )
         };
-        let epv_to = -ctx.epv_model.opponent_epa(ctx.normalized_proximity);
+        let epv_to = -ctx.opponent_epa();
 
         let delta_succ = epv_success - ctx.current_epv;
         let delta_fail = epv_fail - ctx.current_epv;
@@ -87,21 +88,23 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
         let game_state_bias = ctx
             .game_state_pressure
             .bias_for_decision(ArtrineDecisionKind::SelfCarry, ctx.drives_in_series);
-        let team_identity_bias = ctx
-            .team_identity_bias
-            .bias_for(ArtrineDecisionKind::SelfCarry);
 
-        let drive_urgency_bonus = if ctx.drives_in_series < 3 && artros_crossed > 0 {
-            (artros_crossed as f64) * ((3 - ctx.drives_in_series) as f64) * 0.45 * skill_mult
-        } else {
-            0.0
-        };
+        let drive_urgency_bonus =
+            if ctx.is_true_artrine && ctx.drives_in_series < 3 && artros_crossed > 0 {
+                (artros_crossed as f64) * ((3 - ctx.drives_in_series) as f64) * 0.45 * skill_mult
+            } else {
+                0.0
+            };
 
-        (expected_future_value * gravity_factor + drive_urgency_bonus)
+        let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.self_carry().value();
+        let tactical_bias = ctx.carrier_tactical_bias(ArtrineDecisionKind::SelfCarry);
+
+        ((expected_future_value * gravity_factor + drive_urgency_bonus)
             * risk_multiplier
             * game_state_bias
-            * team_identity_bias
             * 3.5
-            + (intrinsic_rating * 0.2)
+            + (intrinsic_rating * 0.2))
+            * emphasis_multiplier
+            * tactical_bias
     }
 }
