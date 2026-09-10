@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::physical::state::PhysicalState;
 use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
@@ -78,10 +78,9 @@ pub fn recover_team_physical_states_from_tables(
     if dead_ball_seconds <= 0.0 {
         return;
     }
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     for player in players {
         let state = states.entry(player.id()).or_default();
-        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_TABLE);
+        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         recover_player_physical_state_from_table(state, table, dead_ball_seconds);
     }
 }

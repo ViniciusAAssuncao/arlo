@@ -4,7 +4,7 @@ pub mod offense;
 pub use defense::*;
 pub use offense::*;
 
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::lineup::Lineup;
 use crate::spatial::DynamicSpatialMap;
 use crate::team_identity::BlockMarkingRole;
@@ -111,14 +111,13 @@ pub fn calculate_player_dynamic_attractor(
     instructions: &TeamInstructions,
     ctx: &AnchorComputationContext,
 ) -> VectorPosition {
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     let table = ctx
         .attribute_tables
         .and_then(|m| m.get(&player.id()))
         .cloned()
         .unwrap_or_else(|| {
             if attribute_keys.is_empty() {
-                DEFAULT_TABLE
+                DEFAULT_PLAYER_ATTRIBUTE_TABLE
             } else {
                 PlayerAttributeTable::from_player(player, attribute_keys)
             }
@@ -151,7 +150,6 @@ pub fn compute_dynamic_anchors_from_tables(
         return HashMap::new();
     }
 
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     let pitch_length_m = pitch.length().value();
     let scrimmage_x_m = (scrimmage_x_mirim * MIRIM_TO_METERS).clamp(0.0, pitch_length_m);
     let role_index = lineup.role_index();
@@ -164,7 +162,7 @@ pub fn compute_dynamic_anchors_from_tables(
     for assignment in lineup.assignments() {
         let player = assignment.player();
         let slot = assignment.slot();
-        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_TABLE);
+        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let attractor = if is_offense {
             resolve_offense_player_attractor_from_table(
                 pitch,

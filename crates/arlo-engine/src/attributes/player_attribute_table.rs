@@ -4,6 +4,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+pub static DEFAULT_PLAYER_ATTRIBUTE_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlayerAttributeTable {
     values: [f64; AttributeKey::COUNT],

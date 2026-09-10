@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
@@ -171,9 +171,8 @@ fn resolve_participant_rating(
         None => default_state,
     };
     if let Some(tables) = participants.attribute_tables {
-        if let Some(table) = tables.get(&player.id()) {
-            return calculate_player_duel_rating_from_table(player, pos, table, profile, &state);
-        }
+        let table = tables.get(&player.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        return calculate_player_duel_rating_from_table(player, pos, table, profile, &state);
     }
     calculate_player_duel_rating_with_state(player, pos, attribute_keys, profile, &state)
 }
@@ -235,22 +234,16 @@ pub fn calculate_anchored_side_rating(
     };
 
     let anchor_rating = match helpers.attribute_tables {
-        Some(tables) => match tables.get(&anchor.id()) {
-            Some(table) => calculate_player_duel_rating_from_table(
+        Some(tables) => {
+            let table = tables.get(&anchor.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            calculate_player_duel_rating_from_table(
                 anchor,
                 anchor_position,
                 table,
                 profile,
                 &anchor_state,
-            ),
-            None => calculate_player_duel_rating_with_state(
-                anchor,
-                anchor_position,
-                attribute_keys,
-                profile,
-                &anchor_state,
-            ),
-        },
+            )
+        }
         None => calculate_player_duel_rating_with_state(
             anchor,
             anchor_position,

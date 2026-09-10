@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::proximity::calculate_distance;
@@ -139,11 +139,10 @@ pub fn nearest_drifted_opponent_from_tables<'a, R: Rng + ?Sized>(
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     rng: &mut R,
 ) -> Option<(&'a Player, Position)> {
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     candidates
         .iter()
         .filter_map(|&p| {
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             get_drifted_defender_position_from_table(p, table, spatial_map, rng).map(|pos| (p, pos))
         })
         .min_by(|(_, pos_a), (_, pos_b)| {

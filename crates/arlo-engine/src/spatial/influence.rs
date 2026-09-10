@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::dynamic_map::DynamicSpatialMap;
 use crate::spatial::proximity::calculate_distance;
@@ -32,11 +32,10 @@ pub fn calculate_point_resistance_from_tables(
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
 ) -> f64 {
     let mut total_resistance = 0.0;
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
 
     for defender in defenders {
         let mean = defender_projected_mean(defender, spatial_map);
-        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_TABLE);
+        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let variance = defender_variance_from_table(table);
 
         let dx = point.raw().0 - mean.raw().0;

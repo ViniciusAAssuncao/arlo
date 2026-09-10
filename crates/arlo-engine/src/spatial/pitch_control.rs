@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::physical::FatigueState;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::DynamicSpatialMap;
@@ -69,11 +69,10 @@ pub fn build_team_voronoi_sites_from_tables<F>(
 where
     F: Fn(&Uuid) -> FatigueState,
 {
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     players
         .iter()
         .map(|p| {
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             build_player_voronoi_site_from_table(*p, table, spatial_map, fatigue_for, team_id)
         })
         .collect()
@@ -146,10 +145,9 @@ where
         0,
     );
 
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     for &helper in helpers {
         if offense_role_index.get(&helper.id()) == Some(&SlotRole::FalseArtrine) {
-            let table = attribute_tables.get(&helper.id()).unwrap_or(&DEFAULT_TABLE);
+            let table = attribute_tables.get(&helper.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let phantom = crate::team_identity::false_artrine::phantom_voronoi_site_from_table(
                 helper,
                 table,

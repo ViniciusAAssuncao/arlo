@@ -1,25 +1,36 @@
-use crate::attributes::PlayerAttributeTable;
-use crate::lineup_runtime::dynamic_anchor::{compute_dynamic_anchors_from_tables, AnchorComputationContext};
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
+use crate::lineup_runtime::dynamic_anchor::{
+    compute_dynamic_anchors_from_tables,
+    AnchorComputationContext,
+};
 use crate::spatial::decision_vector::extract_attribute_value;
-use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
+use crate::spatial::{ run_spatial_tick_loop_with_context, MovementContext };
 use crate::team_identity::marking::{
-    derive_block_marking_roles_from_tables, eligible_block_marking_defenders,
+    derive_block_marking_roles_from_tables,
+    eligible_block_marking_defenders,
     extract_manager_artro_strategy_fidelity_from_table,
 };
 use crate::team_identity::tempo::{
-    effort_multiplier_from_value, huddle_duration_scale, individual_transition_effort_multiplier,
+    effort_multiplier_from_value,
+    huddle_duration_scale,
+    individual_transition_effort_multiplier,
 };
-use crate::team_identity::transition::{counter_attack_depth_bias, counter_press_engagement_bias};
+use crate::team_identity::transition::{ counter_attack_depth_bias, counter_press_engagement_bias };
 use crate::world_state::constants::{
-    COUNTER_PRESS_SHIFT_PERCENTAGE, DEFAULT_ATTRIBUTE_VALUE, HUDDLE_BASE_MAX_SECONDS,
-    HUDDLE_LEADERSHIP_WEIGHT, HUDDLE_MAX_SECONDS, HUDDLE_MIN_SECONDS, HUDDLE_TACTICAL_WEIGHT,
+    COUNTER_PRESS_SHIFT_PERCENTAGE,
+    DEFAULT_ATTRIBUTE_VALUE,
+    HUDDLE_BASE_MAX_SECONDS,
+    HUDDLE_LEADERSHIP_WEIGHT,
+    HUDDLE_MAX_SECONDS,
+    HUDDLE_MIN_SECONDS,
+    HUDDLE_TACTICAL_WEIGHT,
     PITCH_EDGE_MARGIN_MIRIM,
 };
 use crate::world_state::play_transition::fatigue_applier::apply_kinematic_movement_strain;
 use crate::world_state::play_transition::publisher::EventPublisher;
-use arlo_domain::{AttributeKey, Position as DomainPosition};
+use arlo_domain::{ AttributeKey, Position as DomainPosition };
 use arlo_events::EventSink;
-use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_math::units::{ Duration, Position as VectorPosition, MIRIM_TO_METERS };
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -27,7 +38,7 @@ pub fn derive_and_apply_reorganization(
     publisher: &mut EventPublisher<'_, impl EventSink>,
     scrimmage_x_mirim: f64,
     is_post_turnover: bool,
-    recovering_player_id: Option<Uuid>,
+    recovering_player_id: Option<Uuid>
 ) -> (Duration, Duration) {
     let pitch = *publisher.state().pitch();
     let home_lineup = publisher.state().home_lineup_arc();
@@ -39,11 +50,7 @@ pub fn derive_and_apply_reorganization(
         .possession()
         .role()
         .is_offense(publisher.state().home_team_id());
-    let is_home_offense = if is_post_turnover {
-        !was_home_offense
-    } else {
-        was_home_offense
-    };
+    let is_home_offense = if is_post_turnover { !was_home_offense } else { was_home_offense };
 
     let home_instructions = *publisher.state().home_instructions();
     let away_instructions = *publisher.state().away_instructions();
@@ -64,8 +71,10 @@ pub fn derive_and_apply_reorganization(
                     .state()
                     .defensive_position_index_for_team(publisher.state().away_team_id());
                 let def_players = def_lineup.players();
-                let player_refs: Vec<&arlo_domain::Player> =
-                    def_players.iter().map(|p| p.as_ref()).collect();
+                let player_refs: Vec<&arlo_domain::Player> = def_players
+                    .iter()
+                    .map(|p| p.as_ref())
+                    .collect();
                 let eligible = eligible_block_marking_defenders(&player_refs, def_pos_index);
                 let press_block_shape = def_instructions.transition().press_block_shape();
                 let execution_fidelity =
@@ -76,7 +85,7 @@ pub fn derive_and_apply_reorganization(
                     publisher.state().spatial_map(),
                     press_block_shape,
                     &player_attribute_tables,
-                    execution_fidelity,
+                    execution_fidelity
                 );
                 (None, Some(roles))
             } else {
@@ -87,8 +96,10 @@ pub fn derive_and_apply_reorganization(
                     .state()
                     .defensive_position_index_for_team(publisher.state().home_team_id());
                 let def_players = def_lineup.players();
-                let player_refs: Vec<&arlo_domain::Player> =
-                    def_players.iter().map(|p| p.as_ref()).collect();
+                let player_refs: Vec<&arlo_domain::Player> = def_players
+                    .iter()
+                    .map(|p| p.as_ref())
+                    .collect();
                 let eligible = eligible_block_marking_defenders(&player_refs, def_pos_index);
                 let press_block_shape = def_instructions.transition().press_block_shape();
                 let execution_fidelity =
@@ -99,7 +110,7 @@ pub fn derive_and_apply_reorganization(
                     publisher.state().spatial_map(),
                     press_block_shape,
                     &player_attribute_tables,
-                    execution_fidelity,
+                    execution_fidelity
                 );
                 (Some(roles), None)
             }
@@ -132,7 +143,7 @@ pub fn derive_and_apply_reorganization(
         is_home_offense,
         true,
         &home_instructions,
-        &home_ctx,
+        &home_ctx
     );
 
     let away_ctx = AnchorComputationContext {
@@ -157,16 +168,12 @@ pub fn derive_and_apply_reorganization(
         !is_home_offense,
         false,
         &away_instructions,
-        &away_ctx,
+        &away_ctx
     );
 
     let individual_release_tempo = if is_post_turnover {
         recovering_player_id.map(|id| {
-            publisher
-                .state()
-                .player_instructions_for(&id)
-                .transition()
-                .release_tempo()
+            publisher.state().player_instructions_for(&id).transition().release_tempo()
         })
     } else {
         None
@@ -181,11 +188,11 @@ pub fn derive_and_apply_reorganization(
             let ca_bias = counter_attack_depth_bias(
                 home_instructions.transition().counter_attack_intensity(),
                 pitch_len,
-                individual_release_tempo,
+                individual_release_tempo
             );
             let cp_bias = counter_press_engagement_bias(
                 away_instructions.transition().counter_press_intensity(),
-                away_instructions.regroup_discipline(),
+                away_instructions.regroup_discipline()
             );
             let cp_shift = cp_bias * pitch_len * COUNTER_PRESS_SHIFT_PERCENTAGE;
 
@@ -201,11 +208,11 @@ pub fn derive_and_apply_reorganization(
             let ca_bias = counter_attack_depth_bias(
                 away_instructions.transition().counter_attack_intensity(),
                 pitch_len,
-                individual_release_tempo,
+                individual_release_tempo
             );
             let cp_bias = counter_press_engagement_bias(
                 home_instructions.transition().counter_press_intensity(),
-                home_instructions.regroup_discipline(),
+                home_instructions.regroup_discipline()
             );
             let cp_shift = cp_bias * pitch_len * COUNTER_PRESS_SHIFT_PERCENTAGE;
 
@@ -234,14 +241,8 @@ pub fn derive_and_apply_reorganization(
 
     let home_team_id = publisher.state().home_team_id();
     let away_team_id = publisher.state().away_team_id();
-    let home_instr = publisher
-        .state()
-        .instructions_index_for_team(home_team_id)
-        .clone();
-    let away_instr = publisher
-        .state()
-        .instructions_index_for_team(away_team_id)
-        .clone();
+    let home_instr = publisher.state().instructions_index_for_team(home_team_id).clone();
+    let away_instr = publisher.state().instructions_index_for_team(away_team_id).clone();
     let home_ids: HashSet<Uuid> = home_lineup
         .assignments()
         .iter()
@@ -255,10 +256,7 @@ pub fn derive_and_apply_reorganization(
     };
 
     let offense_tempo = offense_instructions.in_possession().tempo().value();
-    let defense_pressing = defense_instructions
-        .out_of_possession()
-        .pressing_intensity()
-        .value();
+    let defense_pressing = defense_instructions.out_of_possession().pressing_intensity().value();
 
     let effort_multiplier_for = |id: &Uuid| {
         let is_home = home_ids.contains(id);
@@ -276,7 +274,7 @@ pub fn derive_and_apply_reorganization(
             };
             individual_transition_effort_multiplier(
                 base_mult,
-                instr.transition().transition_urgency(),
+                instr.transition().transition_urgency()
             )
         } else {
             base_mult
@@ -291,17 +289,13 @@ pub fn derive_and_apply_reorganization(
         &player_attribute_tables,
         MovementContext::DeadBall,
         &pitch,
-        &|id| fatigue_lookup.get(id),
-        &effort_multiplier_for,
+        &(|id| fatigue_lookup.get(id)),
+        &effort_multiplier_for
     );
 
     apply_kinematic_movement_strain(publisher, tick_result.trajectories());
 
-    let offense_lineup = if is_home_offense {
-        &home_lineup
-    } else {
-        &away_lineup
-    };
+    let offense_lineup = if is_home_offense { &home_lineup } else { &away_lineup };
 
     let offense_artrine = offense_lineup
         .assignments()
@@ -314,8 +308,9 @@ pub fn derive_and_apply_reorganization(
         });
 
     let (tac, lead) = if let Some(artrine) = offense_artrine {
-        static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
-        let table = player_attribute_tables.get(&artrine.id()).unwrap_or(&DEFAULT_TABLE);
+        let table = player_attribute_tables
+            .get(&artrine.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let tac = extract_attribute_value(table, AttributeKey::TacticalKnowledge);
         let lead = extract_attribute_value(table, AttributeKey::Leadership);
         (tac, lead)
@@ -323,15 +318,15 @@ pub fn derive_and_apply_reorganization(
         (DEFAULT_ATTRIBUTE_VALUE, DEFAULT_ATTRIBUTE_VALUE)
     };
 
-    let base_huddle_seconds = (HUDDLE_BASE_MAX_SECONDS
-        - (tac * HUDDLE_TACTICAL_WEIGHT + lead * HUDDLE_LEADERSHIP_WEIGHT))
-        .clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
+    let base_huddle_seconds = (
+        HUDDLE_BASE_MAX_SECONDS -
+        (tac * HUDDLE_TACTICAL_WEIGHT + lead * HUDDLE_LEADERSHIP_WEIGHT)
+    ).clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
     let huddle_scale = huddle_duration_scale(offense_instructions.in_possession().tempo());
-    let huddle_seconds =
-        (base_huddle_seconds * huddle_scale).clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
+    let huddle_seconds = (base_huddle_seconds * huddle_scale).clamp(
+        HUDDLE_MIN_SECONDS,
+        HUDDLE_MAX_SECONDS
+    );
 
-    (
-        Duration::new(tick_result.elapsed_seconds()),
-        Duration::new(huddle_seconds),
-    )
+    (Duration::new(tick_result.elapsed_seconds()), Duration::new(huddle_seconds))
 }

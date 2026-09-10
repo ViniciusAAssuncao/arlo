@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
@@ -163,7 +163,6 @@ pub fn recalibrate_defenders_for_carrier_from_tables(
     attacking_positive_x: bool,
 ) -> HashMap<Uuid, VectorPosition> {
     let mut shifted_anchors = HashMap::with_capacity(defenders.len());
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
 
     for &defender in defenders {
         let def_pos = spatial_map
@@ -181,7 +180,7 @@ pub fn recalibrate_defenders_for_carrier_from_tables(
                     .unwrap_or(Position::Centerback)
             });
 
-        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_TABLE);
+        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
 
         let shifted = calculate_carrier_defensive_shift_from_table(
             defender,

@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::spatial::positioning_drift::get_drifted_defender_position_from_table;
@@ -23,13 +23,12 @@ pub fn collect_helper_candidates_from_tables<'a, F>(
 where
     F: Fn(&Uuid) -> FatigueState,
 {
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     helpers
         .iter()
         .map(|&p| {
             let pos = spatial_map.get_position(&p.id()).unwrap_or(fallback_pos);
             let st = fatigue_for(&p.id());
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let spd = calculate_effective_player_speed_from_table(p, table, &st);
             (p, pos, spd)
         })
@@ -48,11 +47,10 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     defenders
         .iter()
         .map(|&p| {
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let pos = get_drifted_defender_position_from_table(p, table, spatial_map, rng)
                 .or_else(|| spatial_map.get_position(&p.id()))
                 .unwrap_or(fallback_pos);

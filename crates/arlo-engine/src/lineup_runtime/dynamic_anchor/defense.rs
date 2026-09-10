@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::team_identity::depth_from_bipolar;
@@ -142,14 +142,13 @@ pub fn calculate_defense_attractor_coordinates(
     marking: Option<MarkingAssignment>,
     ctx: &AnchorComputationContext,
 ) -> (f64, f64) {
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     let table = ctx
         .attribute_tables
         .and_then(|m| m.get(&player.id()))
         .cloned()
         .unwrap_or_else(|| {
             if attribute_keys.is_empty() {
-                DEFAULT_TABLE
+                DEFAULT_PLAYER_ATTRIBUTE_TABLE
             } else {
                 PlayerAttributeTable::from_player(player, attribute_keys)
             }

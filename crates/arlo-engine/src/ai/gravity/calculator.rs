@@ -1,5 +1,5 @@
 use crate::ai::gravity::model::OffensiveGravity;
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
@@ -190,7 +190,6 @@ where
     }
 
     let mut best_gravity = OffensiveGravity::default();
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
 
     for &player in players {
         let assigned_pos = position_index
@@ -211,7 +210,7 @@ where
         let zone_factor = calculate_zone_factor(player_vec_pos, pitch, attacking_positive_x);
         let state = fatigue_for(&player.id());
 
-        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_TABLE);
+        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
 
         let grav = calculate_player_offensive_gravity_with_state_from_table(
             player,

@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::physical::{ compute_player_fatigue_multiplier, FatigueState };
 use crate::spatial::decision_vector::{
     calculate_player_speed,
@@ -178,10 +178,9 @@ pub fn identify_kinematic_lead_defender_with_drift_from_tables<'a, F, R>(
 
     let mut best_defender: Option<&'a Player> = None;
     let mut min_effective_tti = f64::INFINITY;
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
 
     for &defender in defenders {
-        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_TABLE);
+        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let def_pos = get_drifted_defender_position_from_table(defender, table, spatial_map, rng)
             .or_else(|| spatial_map.get_position(&defender.id()))
             .unwrap_or(target_pos);

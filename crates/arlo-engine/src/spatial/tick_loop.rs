@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::physical::models::metabolic_power::{
     calculate_desired_cruise_speed, calculate_player_body_mass_from_table,
     calculate_player_critical_speed_from_table,
@@ -134,7 +134,6 @@ where
     }
 
     let mut mover_kinematics = HashMap::with_capacity(movers.len());
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
 
     for (player, target) in movers {
         let pid = player.id();
@@ -144,7 +143,7 @@ where
             .unwrap_or_else(Position::zero);
         trajectories.insert(pid, SpatialTrajectory::new(pid, initial_pos));
 
-        let table = attribute_tables.get(&pid).unwrap_or(&DEFAULT_TABLE);
+        let table = attribute_tables.get(&pid).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let state = fatigue_for(&pid);
         let critical_speed_m_s = calculate_player_critical_speed_from_table(player, table, 0).value();
         let work_rate = extract_attribute_value(table, AttributeKey::WorkRate);

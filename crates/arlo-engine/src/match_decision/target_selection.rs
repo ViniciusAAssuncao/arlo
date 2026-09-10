@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
@@ -180,7 +180,6 @@ where
     }
 
     let default_state = PhysicalState::initial();
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     
     let weights: Vec<f64> = candidates
         .iter()
@@ -189,7 +188,7 @@ where
                 Some(lookup) => lookup(&p.id()),
                 None => default_state,
             };
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             calculate_player_target_weight_from_table(
                 p,
                 table,

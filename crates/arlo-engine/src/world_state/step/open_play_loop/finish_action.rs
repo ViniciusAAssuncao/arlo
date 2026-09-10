@@ -1,3 +1,4 @@
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
@@ -63,8 +64,11 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         .and_then(|fid| iter_ctx.target_candidates.iter().copied().find(|p| p.id() == fid))
         .unwrap_or(current_carrier);
 
-    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
-    let carrier_table = state.teams.player_attribute_tables().get(&current_carrier.id()).unwrap_or(&DEFAULT_TABLE);
+    let carrier_table = state
+        .teams
+        .player_attribute_tables()
+        .get(&current_carrier.id())
+        .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
 
     let cross_speed = calculate_cross_speed_from_table(
         current_carrier,

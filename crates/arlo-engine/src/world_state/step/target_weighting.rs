@@ -1,3 +1,4 @@
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::match_decision::target_selection::{calculate_player_target_weight_from_table, ReceptionRole};
 use crate::playmaking::routes::simulate_route_development_from_tables;
 use crate::rng::RngStream;
@@ -20,12 +21,11 @@ pub fn resolve_decision_target_weights(
 
     if context.offense_route_index.is_empty() {
         let empty_openness = HashMap::new();
-        static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
         let best_available_target_weight = target_candidates
             .iter()
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
-                let table = tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+                let table = tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
                 calculate_player_target_weight_from_table(
                     p,
                     table,
@@ -77,12 +77,11 @@ pub fn resolve_decision_target_weights(
             &mut drift_rng,
         );
 
-        static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
         let best_available_target_weight = target_candidates
             .iter()
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
-                let table = tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
+                let table = tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
                 calculate_player_target_weight_from_table(
                     p,
                     table,

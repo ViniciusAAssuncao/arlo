@@ -1,4 +1,4 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::positioning_drift::anchor_drift_radius_mirim;
@@ -65,14 +65,13 @@ pub fn resolve_offense_player_attractor(
     role_index: &HashMap<Uuid, SlotRole>,
     ctx: &AnchorComputationContext,
 ) -> VectorPosition {
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     let table = ctx
         .attribute_tables
         .and_then(|m| m.get(&player.id()))
         .cloned()
         .unwrap_or_else(|| {
             if attribute_keys.is_empty() {
-                DEFAULT_TABLE
+                DEFAULT_PLAYER_ATTRIBUTE_TABLE
             } else {
                 PlayerAttributeTable::from_player(player, attribute_keys)
             }
@@ -182,14 +181,13 @@ pub fn calculate_offense_attractor_coordinates_for_position(
     instructions: &TeamInstructions,
     ctx: &AnchorComputationContext,
 ) -> (f64, f64) {
-    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
     let table = ctx
         .attribute_tables
         .and_then(|m| m.get(&player.id()))
         .cloned()
         .unwrap_or_else(|| {
             if attribute_keys.is_empty() {
-                DEFAULT_TABLE
+                DEFAULT_PLAYER_ATTRIBUTE_TABLE
             } else {
                 PlayerAttributeTable::from_player(player, attribute_keys)
             }
