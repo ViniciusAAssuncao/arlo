@@ -69,14 +69,18 @@ pub fn resolve_pass_protection_duel(
         .map(|(p, pos)| (p.id(), *pos))
         .collect();
 
+    let tables = state.teams.player_attribute_tables();
+
     let req = DuelResolutionRequest::from_participants(
         DuelKind::PassProtection,
         participants.passer,
         RatingParticipants::from_slice_with_index(&pass_blocker_players, &pass_blocker_map)
-            .with_fatigue(&fatigue_fn),
+            .with_fatigue(&fatigue_fn)
+            .with_attribute_tables(tables),
         participants.pass_rusher,
         RatingParticipants::from_slice_with_index(&pass_rusher_players, &pass_rusher_map)
-            .with_fatigue(&fatigue_fn),
+            .with_fatigue(&fatigue_fn)
+            .with_attribute_tables(tables),
         state.attribute_keys(),
         &context,
     );

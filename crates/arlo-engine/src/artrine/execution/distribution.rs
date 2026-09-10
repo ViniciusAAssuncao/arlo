@@ -64,14 +64,16 @@ where
         artrine,
         DomainPosition::Artrine,
         RatingParticipants::from_slice_with_index(ctx.offense_helpers, ctx.offense_position_index)
-            .with_fatigue(ctx.fatigue_for),
+            .with_fatigue(ctx.fatigue_for)
+            .with_attribute_tables(ctx.attribute_tables),
         ctx.attribute_keys,
         offense_profile,
     );
 
     let defender_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(ctx.defenders, ctx.defense_position_index)
-            .with_fatigue(ctx.fatigue_for),
+            .with_fatigue(ctx.fatigue_for)
+            .with_attribute_tables(ctx.attribute_tables),
         ctx.attribute_keys,
         defense_profile,
     );
@@ -96,6 +98,8 @@ where
     let lead_def_state = ctx.fatigue(&lead_defender.id());
 
     let dist_context = ctx.duel_context.for_duel_kind(duel_kind);
+    let attacker_table = ctx.attribute_tables.get(&artrine.id());
+    let defender_table = ctx.attribute_tables.get(&lead_defender.id());
     let req = DuelResolutionRequest::with_states(
         duel_kind,
         attacker_rating,
@@ -106,7 +110,8 @@ where
         lead_def_state,
         ctx.attribute_keys,
         &dist_context,
-    );
+    )
+    .with_tables(attacker_table, defender_table);
     let raw_dist_duel = resolve_duel(req, rng);
 
     let artrine_speed =

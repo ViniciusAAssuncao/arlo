@@ -9,7 +9,9 @@ use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
+use crate::resolution::group_rating::{
+    calculate_player_duel_rating_from_table, calculate_player_duel_rating_with_state,
+};
 use crate::resolution::DuelKind;
 use crate::spatial::ball_kinematics::{
     ball_flight_duration, calculate_cross_speed, calculate_shot_speed,
@@ -240,13 +242,22 @@ where
     let goalguard_state = ctx.fatigue(&ctx.goalguard.id());
 
     let (attacker_profile, _) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let finisher_rating = calculate_player_duel_rating_with_state(
-        finisher,
-        DomainPosition::CenterOffense,
-        ctx.attribute_keys,
-        attacker_profile,
-        &finisher_state,
-    );
+    let finisher_rating = match ctx.attribute_tables.get(&finisher.id()) {
+        Some(table) => calculate_player_duel_rating_from_table(
+            finisher,
+            DomainPosition::CenterOffense,
+            table,
+            attacker_profile,
+            &finisher_state,
+        ),
+        None => calculate_player_duel_rating_with_state(
+            finisher,
+            DomainPosition::CenterOffense,
+            ctx.attribute_keys,
+            attacker_profile,
+            &finisher_state,
+        ),
+    };
 
     let opportunity = evaluate_scoring_opportunity(
         ctx.is_bonus_phase,
@@ -256,6 +267,8 @@ where
     );
 
     let finish_context = ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+    let finisher_table = ctx.attribute_tables.get(&finisher.id());
+    let goalguard_table = ctx.attribute_tables.get(&ctx.goalguard.id());
     let req = ScoringAttemptRequest::new(
         finisher,
         ctx.goalguard,
@@ -268,7 +281,8 @@ where
         total_advance_mirim,
         &finish_context,
     )
-    .with_fatigue(finisher_state, goalguard_state);
+    .with_fatigue(finisher_state, goalguard_state)
+    .with_tables(finisher_table, goalguard_table);
 
     let (scoring_decision, finish_duel) = resolve_scoring_attempt(req, rng);
 

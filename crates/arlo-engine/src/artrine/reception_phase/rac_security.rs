@@ -56,6 +56,7 @@ where
         sec_defenders,
         ctx.defense_position_index,
         ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.defense_team_id,
         &sec_context,
         ctx.fatigue_for,

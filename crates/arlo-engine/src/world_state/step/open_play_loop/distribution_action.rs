@@ -8,7 +8,7 @@ use crate::match_decision::target_selection::{select_target, ReceptionRole};
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
-    calculate_anchored_side_rating, calculate_player_duel_rating_with_state, calculate_side_rating,
+    calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
     RatingParticipants,
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
@@ -90,6 +90,8 @@ fn check_distribution_scoring_opportunity(
         let finish_ctx = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
         let rec_fatigue = state.fatigue_lookup().get(&receiver_player.id());
         let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
+        let rec_table = state.teams.player_attribute_tables().get(&receiver_player.id());
+        let gg_table = state.teams.player_attribute_tables().get(&goalguard.id());
         let req = ScoringAttemptRequest::new(
             receiver_player,
             goalguard,
@@ -102,7 +104,8 @@ fn check_distribution_scoring_opportunity(
             total_adv,
             &finish_ctx,
         )
-        .with_fatigue(rec_fatigue, gg_fatigue);
+        .with_fatigue(rec_fatigue, gg_fatigue)
+        .with_tables(rec_table, gg_table);
 
         let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut fin_rng);
 
@@ -159,6 +162,11 @@ pub fn execute_distribution_action(
     };
 
     let (off_prof, def_prof) = get_duel_profiles(duel_kind);
+
+    let seq_duel = state.next_sequence();
+
+    let tables = state.teams.player_attribute_tables();
+
     let att_rating = calculate_anchored_side_rating(
         current_carrier,
         carrier_pos_domain,
@@ -166,19 +174,20 @@ pub fn execute_distribution_action(
             &iter_ctx.target_candidates,
             &context.offense_pos_index,
         )
-        .with_fatigue(&|id| state.fatigue_lookup().get(id)),
+        .with_fatigue(&|id| state.fatigue_lookup().get(id))
+        .with_attribute_tables(tables),
         &attribute_keys,
         off_prof,
     );
     let def_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(defense_players, &context.defense_pos_index)
-            .with_fatigue(&|id| state.fatigue_lookup().get(id)),
+            .with_fatigue(&|id| state.fatigue_lookup().get(id))
+            .with_attribute_tables(tables),
         &attribute_keys,
         def_prof,
     );
 
     let contest_radius = Length::new(2.0 * iter_ctx.defense_pressing_multiplier * MIRIM_TO_METERS);
-    let seq_duel = state.next_sequence();
     let mut d_rng = state
         .rng_provider()
         .indexed_rng_for(RngStream::DuelResolution, seq_duel);
@@ -201,6 +210,8 @@ pub fn execute_distribution_action(
     let dist_context = iter_ctx.duel_context.for_duel_kind(duel_kind);
     let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
     let lead_def_fatigue = state.fatigue_lookup().get(&lead_defender.id());
+    let att_table = tables.get(&current_carrier.id());
+    let lead_def_table = tables.get(&lead_defender.id());
     let req = DuelResolutionRequest::with_states(
         duel_kind,
         att_rating,
@@ -211,7 +222,8 @@ pub fn execute_distribution_action(
         lead_def_fatigue,
         &attribute_keys,
         &dist_context,
-    );
+    )
+    .with_tables(att_table, lead_def_table);
     let raw_throw_duel = resolve_duel(req, &mut d_rng);
 
     let throw_duel = AttributedDuelOutcome::new(
@@ -280,20 +292,21 @@ pub fn execute_distribution_action(
     };
 
     let (rec_off, rec_def) = get_duel_profiles(rec_duel_kind);
-    let rec_att_rating = calculate_player_duel_rating_with_state(
+    let rec_att_rating = calculate_player_duel_rating_from_table(
         receiver_player,
         context
             .offense_pos_index
             .get(&receiver_id)
             .copied()
             .unwrap_or(DomainPosition::CenterOffense),
-        &attribute_keys,
+        state.attribute_table_for(&receiver_id),
         rec_off,
         &state.fatigue_lookup().get(&receiver_id),
     );
     let rec_def_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(defense_players, &context.defense_pos_index)
-            .with_fatigue(&|id| state.fatigue_lookup().get(id)),
+            .with_fatigue(&|id| state.fatigue_lookup().get(id))
+            .with_attribute_tables(tables),
         &attribute_keys,
         rec_def,
     );
@@ -301,6 +314,8 @@ pub fn execute_distribution_action(
     let rec_context = iter_ctx.duel_context.for_duel_kind(rec_duel_kind);
     let rec_fatigue = state.fatigue_lookup().get(&receiver_id);
     let lead_def_fatigue2 = state.fatigue_lookup().get(&lead_defender.id());
+    let rec_table = tables.get(&receiver_id);
+    let lead_def_table2 = tables.get(&lead_defender.id());
     let req = DuelResolutionRequest::with_states(
         rec_duel_kind,
         rec_att_rating,
@@ -311,7 +326,8 @@ pub fn execute_distribution_action(
         lead_def_fatigue2,
         &attribute_keys,
         &rec_context,
-    );
+    )
+    .with_tables(rec_table, lead_def_table2);
     let raw_rec_duel = resolve_duel(req, &mut d_rng);
 
     let rec_attributed = AttributedDuelOutcome::new(

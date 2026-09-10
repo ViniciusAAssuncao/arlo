@@ -1,7 +1,10 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::{logistic_slope_for, DuelKind};
-use crate::resolution::duel_noise::sample_player_noise;
+use crate::resolution::duel_noise::{
+    sample_player_noise, sample_player_noise_from_table_with_baseline,
+};
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{calculate_side_rating, RatingParticipants};
 use crate::resolution::outcome::DuelOutcome;
@@ -22,6 +25,8 @@ pub struct DuelResolutionRequest<'a> {
     pub defender_state: PhysicalState,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
     pub context: &'a DuelContext,
+    pub attacker_table: Option<&'a PlayerAttributeTable>,
+    pub defender_table: Option<&'a PlayerAttributeTable>,
 }
 
 impl<'a> DuelResolutionRequest<'a> {
@@ -44,6 +49,8 @@ impl<'a> DuelResolutionRequest<'a> {
             defender_state: PhysicalState::initial(),
             attribute_keys,
             context,
+            attacker_table: None,
+            defender_table: None,
         }
     }
 
@@ -68,6 +75,8 @@ impl<'a> DuelResolutionRequest<'a> {
             defender_state,
             attribute_keys,
             context,
+            attacker_table: None,
+            defender_table: None,
         }
     }
 
@@ -93,6 +102,13 @@ impl<'a> DuelResolutionRequest<'a> {
             .map(|f| f(&defender_primary.id()))
             .unwrap_or(default_state);
 
+        let attacker_table = attackers
+            .attribute_tables
+            .and_then(|m| m.get(&attacker_primary.id()));
+        let defender_table = defenders
+            .attribute_tables
+            .and_then(|m| m.get(&defender_primary.id()));
+
         Self {
             kind,
             attacker_rating,
@@ -103,7 +119,19 @@ impl<'a> DuelResolutionRequest<'a> {
             defender_state,
             attribute_keys,
             context,
+            attacker_table,
+            defender_table,
         }
+    }
+
+    pub fn with_tables(
+        mut self,
+        attacker_table: Option<&'a PlayerAttributeTable>,
+        defender_table: Option<&'a PlayerAttributeTable>,
+    ) -> Self {
+        self.attacker_table = attacker_table;
+        self.defender_table = defender_table;
+        self
     }
 }
 
@@ -150,18 +178,34 @@ pub fn resolve_duel<R: Rng + ?Sized>(
     request: DuelResolutionRequest<'_>,
     rng: &mut R,
 ) -> DuelOutcome {
-    let noise_a = sample_player_noise(
-        request.attacker_primary,
-        request.attribute_keys,
-        &request.attacker_state,
-        rng,
-    );
-    let noise_b = sample_player_noise(
-        request.defender_primary,
-        request.attribute_keys,
-        &request.defender_state,
-        rng,
-    );
+    let noise_a = match request.attacker_table {
+        Some(table) => sample_player_noise_from_table_with_baseline(
+            request.attacker_primary,
+            table,
+            &request.attacker_state,
+            rng,
+        ),
+        None => sample_player_noise(
+            request.attacker_primary,
+            request.attribute_keys,
+            &request.attacker_state,
+            rng,
+        ),
+    };
+    let noise_b = match request.defender_table {
+        Some(table) => sample_player_noise_from_table_with_baseline(
+            request.defender_primary,
+            table,
+            &request.defender_state,
+            rng,
+        ),
+        None => sample_player_noise(
+            request.defender_primary,
+            request.attribute_keys,
+            &request.defender_state,
+            rng,
+        ),
+    };
 
     let mut hfa_logit = 0.0;
     if request.context.attacker_is_home() {

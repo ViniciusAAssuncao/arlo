@@ -46,14 +46,16 @@ where
             &block_res.blocker_subset,
             ctx.offense_position_index,
         )
-        .with_fatigue(ctx.fatigue_for),
+        .with_fatigue(ctx.fatigue_for)
+        .with_attribute_tables(ctx.attribute_tables),
         ctx.attribute_keys,
         rb_offense_profile,
     ) + block_res.block_bonus;
 
     let defender_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(ctx.defenders, ctx.defense_position_index)
-            .with_fatigue(ctx.fatigue_for),
+            .with_fatigue(ctx.fatigue_for)
+            .with_attribute_tables(ctx.attribute_tables),
         ctx.attribute_keys,
         rb_defense_profile,
     );
@@ -78,6 +80,8 @@ where
     let lead_def_state = ctx.fatigue(&lead_defender.id());
 
     let rb_context = ctx.duel_context.for_duel_kind(DuelKind::RunBreakthrough);
+    let attacker_table = ctx.attribute_tables.get(&ctx.receiver.id());
+    let defender_table = ctx.attribute_tables.get(&lead_defender.id());
     let req = DuelResolutionRequest::with_states(
         DuelKind::RunBreakthrough,
         attacker_rating,
@@ -88,7 +92,8 @@ where
         lead_def_state,
         ctx.attribute_keys,
         &rb_context,
-    );
+    )
+    .with_tables(attacker_table, defender_table);
     let raw_rb_duel = resolve_duel(req, rng);
 
     let rb_def_pos =

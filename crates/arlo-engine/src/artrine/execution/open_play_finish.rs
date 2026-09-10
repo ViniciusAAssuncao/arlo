@@ -7,7 +7,7 @@ use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_shot_speed};
 use crate::spatial::DynamicSpatialMap;
@@ -36,13 +36,22 @@ where
 {
     let receiver_state = ctx.fatigue(&receiver_player.id());
     let (attacker_profile, _) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let receiver_rating = calculate_player_duel_rating_with_state(
-        receiver_player,
-        DomainPosition::CenterOffense,
-        ctx.attribute_keys,
-        attacker_profile,
-        &receiver_state,
-    );
+    let receiver_rating = match ctx.attribute_tables.get(&receiver_player.id()) {
+        Some(table) => calculate_player_duel_rating_from_table(
+            receiver_player,
+            DomainPosition::CenterOffense,
+            table,
+            attacker_profile,
+            &receiver_state,
+        ),
+        None => crate::resolution::group_rating::calculate_player_duel_rating_with_state(
+            receiver_player,
+            DomainPosition::CenterOffense,
+            ctx.attribute_keys,
+            attacker_profile,
+            &receiver_state,
+        ),
+    };
 
     let opportunity = evaluate_scoring_opportunity(
         ctx.is_bonus_phase,
@@ -68,6 +77,8 @@ where
             None
         };
 
+        let finisher_table = ctx.attribute_tables.get(&receiver_player.id());
+        let goalguard_table = ctx.attribute_tables.get(&ctx.goalguard.id());
         let req = ScoringAttemptRequest::new(
             receiver_player,
             ctx.goalguard,
@@ -80,7 +91,8 @@ where
             total_territory,
             &finish_context,
         )
-        .with_fatigue(receiver_state, ctx.fatigue(&ctx.goalguard.id()));
+        .with_fatigue(receiver_state, ctx.fatigue(&ctx.goalguard.id()))
+        .with_tables(finisher_table, goalguard_table);
 
         let (decision, finish_duel) = resolve_scoring_attempt(req, rng);
 

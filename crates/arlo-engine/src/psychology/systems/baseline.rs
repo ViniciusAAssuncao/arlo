@@ -38,16 +38,14 @@ pub fn default_impulse_baseline_profile() -> ImpulseBaselineProfile {
     ])
 }
 
-pub fn calculate_player_impulse_baseline_with_profile(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+pub fn calculate_player_impulse_baseline_from_table_with_profile(
+    table: &PlayerAttributeTable,
     profile: &ImpulseBaselineProfile,
 ) -> f64 {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let mut items = Vec::with_capacity(profile.weights().len());
     for w in profile.weights() {
         if w.weight > 0.0 {
-            let val = extract_attribute_value(&table, w.key);
+            let val = table.get(w.key);
             items.push((val, w.weight));
         }
     }
@@ -62,6 +60,15 @@ pub fn calculate_player_impulse_baseline_with_profile(
     let norm = (avg - 10.0) / 10.0;
     let mapped = 100.0 / (1.0 + (-1.8 * norm).exp());
     mapped.clamp(0.0, 100.0)
+}
+
+pub fn calculate_player_impulse_baseline_with_profile(
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    profile: &ImpulseBaselineProfile,
+) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    calculate_player_impulse_baseline_from_table_with_profile(&table, profile)
 }
 
 pub fn calculate_player_impulse_baseline(

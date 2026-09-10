@@ -13,7 +13,8 @@ use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating_with_state, calculate_side_rating, RatingParticipants,
+    calculate_player_duel_rating_from_table, calculate_player_duel_rating_with_state,
+    calculate_side_rating, RatingParticipants,
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
@@ -50,6 +51,7 @@ pub fn resolve_reception<F, R>(
     candidates: &[&Player],
     defenders: &[&Player],
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     pitch: &Pitch,
     spatial_map: &DynamicSpatialMap,
     position_index: &HashMap<Uuid, DomainPosition>,
@@ -115,13 +117,22 @@ where
 
     let receiver_state = fatigue_for(&receiver_id);
 
-    let attacker_rating = calculate_player_duel_rating_with_state(
-        receiver_player,
-        receiver_pos_domain,
-        attribute_keys,
-        offense_profile,
-        &receiver_state,
-    );
+    let attacker_rating = match attribute_tables.get(&receiver_id) {
+        Some(table) => calculate_player_duel_rating_from_table(
+            receiver_player,
+            receiver_pos_domain,
+            table,
+            offense_profile,
+            &receiver_state,
+        ),
+        None => calculate_player_duel_rating_with_state(
+            receiver_player,
+            receiver_pos_domain,
+            attribute_keys,
+            offense_profile,
+            &receiver_state,
+        ),
+    };
 
     let receiver_player_instructions = instructions_index
         .get(&receiver_id)
@@ -159,7 +170,8 @@ where
 
     let defender_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(active_defenders, defense_position_index)
-            .with_fatigue(fatigue_for),
+            .with_fatigue(fatigue_for)
+            .with_attribute_tables(attribute_tables),
         attribute_keys,
         defense_profile,
     );
@@ -184,6 +196,8 @@ where
     let lead_def_state = fatigue_for(&lead_defender.id());
 
     let rec_context = context.for_duel_kind(duel_kind);
+    let rec_table = attribute_tables.get(&receiver_id);
+    let lead_def_table = attribute_tables.get(&lead_defender.id());
     let req = DuelResolutionRequest::with_states(
         duel_kind,
         attacker_rating,
@@ -194,17 +208,24 @@ where
         lead_def_state,
         attribute_keys,
         &rec_context,
-    );
+    )
+    .with_tables(rec_table, lead_def_table);
     let raw_duel = resolve_duel(req, rng);
 
     let caught = raw_duel.attacker_won();
 
     let intercepted_by_defender = if !caught {
-        let def_table = PlayerAttributeTable::from_player(lead_defender, attribute_keys);
-        let def_hands = extract_attribute_value(&def_table, AttributeKey::HandsReception);
-        let def_ant = extract_attribute_value(&def_table, AttributeKey::Anticipation);
-        let att_table = PlayerAttributeTable::from_player(receiver_player, attribute_keys);
-        let att_hands = extract_attribute_value(&att_table, AttributeKey::HandsReception);
+        let def_table_owned = match attribute_tables.get(&lead_defender.id()) {
+            Some(t) => t.clone(),
+            None => PlayerAttributeTable::from_player(lead_defender, attribute_keys),
+        };
+        let def_hands = extract_attribute_value(&def_table_owned, AttributeKey::HandsReception);
+        let def_ant = extract_attribute_value(&def_table_owned, AttributeKey::Anticipation);
+        let att_table_owned = match attribute_tables.get(&receiver_id) {
+            Some(t) => t.clone(),
+            None => PlayerAttributeTable::from_player(receiver_player, attribute_keys),
+        };
+        let att_hands = extract_attribute_value(&att_table_owned, AttributeKey::HandsReception);
         let hands_diff = def_hands - att_hands;
         let threshold = -(INTERCEPTION_BASE_THRESHOLD
             - (hands_diff * INTERCEPTION_HANDS_DIFF_WEIGHT

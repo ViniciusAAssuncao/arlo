@@ -1,7 +1,9 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
 use crate::possession::LiveSequenceTracker;
 use crate::resolution::calculate_player_duel_rating_with_state;
 use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::sport_constants::{
@@ -89,6 +91,8 @@ pub struct ScoringAttemptRequest<'a> {
     pub finisher_state: PhysicalState,
     pub goalguard_state: PhysicalState,
     pub context: &'a DuelContext,
+    pub finisher_table: Option<&'a PlayerAttributeTable>,
+    pub goalguard_table: Option<&'a PlayerAttributeTable>,
 }
 
 impl<'a> ScoringAttemptRequest<'a> {
@@ -117,6 +121,8 @@ impl<'a> ScoringAttemptRequest<'a> {
             finisher_state: PhysicalState::initial(),
             goalguard_state: PhysicalState::initial(),
             context,
+            finisher_table: None,
+            goalguard_table: None,
         }
     }
 
@@ -127,6 +133,16 @@ impl<'a> ScoringAttemptRequest<'a> {
     ) -> Self {
         self.finisher_state = finisher_state;
         self.goalguard_state = goalguard_state;
+        self
+    }
+
+    pub fn with_tables(
+        mut self,
+        finisher_table: Option<&'a PlayerAttributeTable>,
+        goalguard_table: Option<&'a PlayerAttributeTable>,
+    ) -> Self {
+        self.finisher_table = finisher_table;
+        self.goalguard_table = goalguard_table;
         self
     }
 }
@@ -210,20 +226,38 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> (ScoringDecision, AttributedDuelOutcome) {
     let (attacker_profile, defender_profile) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let mut attacker_rating = calculate_player_duel_rating_with_state(
-        request.finisher,
-        Position::CenterOffense,
-        request.attribute_keys,
-        attacker_profile,
-        &request.finisher_state,
-    );
-    let defender_rating = calculate_player_duel_rating_with_state(
-        request.goalguard,
-        Position::Goalguard,
-        request.attribute_keys,
-        defender_profile,
-        &request.goalguard_state,
-    );
+    let mut attacker_rating = match request.finisher_table {
+        Some(table) => calculate_player_duel_rating_from_table(
+            request.finisher,
+            Position::CenterOffense,
+            table,
+            attacker_profile,
+            &request.finisher_state,
+        ),
+        None => calculate_player_duel_rating_with_state(
+            request.finisher,
+            Position::CenterOffense,
+            request.attribute_keys,
+            attacker_profile,
+            &request.finisher_state,
+        ),
+    };
+    let defender_rating = match request.goalguard_table {
+        Some(table) => calculate_player_duel_rating_from_table(
+            request.goalguard,
+            Position::Goalguard,
+            table,
+            defender_profile,
+            &request.goalguard_state,
+        ),
+        None => calculate_player_duel_rating_with_state(
+            request.goalguard,
+            Position::Goalguard,
+            request.attribute_keys,
+            defender_profile,
+            &request.goalguard_state,
+        ),
+    };
 
     let distance_adjustment = match request.opportunity {
         ScoringOpportunity::GoalPoint => 0.5,
@@ -251,7 +285,8 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         request.goalguard_state,
         request.attribute_keys,
         request.context,
-    );
+    )
+    .with_tables(request.finisher_table, request.goalguard_table);
 
     let raw_outcome = resolve_duel(duel_req, rng);
 

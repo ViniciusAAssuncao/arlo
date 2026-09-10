@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::FatigueState;
 use crate::resolution::DuelContext;
 use arlo_domain::pitch::Pitch;
@@ -11,6 +12,7 @@ use uuid::Uuid;
 pub struct ActionExecutionContext<'a, F> {
     pub pitch: &'a Pitch,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
+    pub attribute_tables: &'a HashMap<Uuid, PlayerAttributeTable>,
     pub offense_team_id: Uuid,
     pub defense_team_id: Uuid,
     pub attacking_positive_x: bool,

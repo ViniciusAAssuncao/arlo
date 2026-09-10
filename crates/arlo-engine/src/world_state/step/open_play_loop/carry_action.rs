@@ -2,9 +2,10 @@ use crate::artrine::{
     compute_carry_target_lane, compute_forward_target_pos, detect_drive_crossings,
     filter_blocker_helpers,
 };
+use crate::attributes::PlayerAttributeTable;
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::rng::RngStream;
@@ -22,7 +23,7 @@ use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use smallvec::smallvec;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 pub fn execute_carry_action(
@@ -140,6 +141,13 @@ pub fn execute_carry_action(
     let duel_ctx = iter_ctx.duel_context;
     let fatigue_tracker = state.fatigue.clone();
 
+    let carrier_table: PlayerAttributeTable =
+        state.attribute_table_for(&current_carrier.id()).clone();
+    let defender_tables: HashMap<Uuid, PlayerAttributeTable> = defense_players
+        .iter()
+        .map(|p| (p.id(), state.attribute_table_for(&p.id()).clone()))
+        .collect();
+
     let collision_cb = |_s_map: &mut DynamicSpatialMap, col: &LiveCollision, spd: &mut f64| {
         let def_player = defense_players
             .iter()
@@ -147,21 +155,23 @@ pub fn execute_carry_action(
             .find(|p| p.id() == col.defender_id)
             .unwrap_or(defense_players[0]);
 
+        let def_table_ref = &defender_tables[&def_player.id()];
+
         let (off_prof, def_prof) = get_duel_profiles(DuelKind::ArtroBreakthrough);
-        let att_rating = calculate_player_duel_rating_with_state(
+        let att_rating = calculate_player_duel_rating_from_table(
             current_carrier,
             carrier_pos_domain,
-            &attribute_keys,
+            &carrier_table,
             off_prof,
             &fatigue_tracker.fatigue_for(&current_carrier.id()),
         );
-        let def_rating = calculate_player_duel_rating_with_state(
+        let def_rating = calculate_player_duel_rating_from_table(
             def_player,
             defense_pos_index
                 .get(&def_player.id())
                 .copied()
                 .unwrap_or(DomainPosition::Centerback),
-            &attribute_keys,
+            def_table_ref,
             def_prof,
             &fatigue_tracker.fatigue_for(&def_player.id()),
         );
@@ -180,7 +190,8 @@ pub fn execute_carry_action(
             fatigue_tracker.fatigue_for(&def_player.id()),
             &attribute_keys,
             &c_context,
-        );
+        )
+        .with_tables(Some(&carrier_table), Some(def_table_ref));
         let duel_raw = resolve_duel(req, &mut d_rng);
 
         let attributed = AttributedDuelOutcome::new(
@@ -199,20 +210,20 @@ pub fn execute_carry_action(
         } else {
             carry_halted = true;
             let (sec_off, sec_def) = get_duel_profiles(DuelKind::BallSecurityCarry);
-            let sec_att = calculate_player_duel_rating_with_state(
+            let sec_att = calculate_player_duel_rating_from_table(
                 current_carrier,
                 carrier_pos_domain,
-                &attribute_keys,
+                &carrier_table,
                 sec_off,
                 &fatigue_tracker.fatigue_for(&current_carrier.id()),
             );
-            let sec_df = calculate_player_duel_rating_with_state(
+            let sec_df = calculate_player_duel_rating_from_table(
                 def_player,
                 defense_pos_index
                     .get(&def_player.id())
                     .copied()
                     .unwrap_or(DomainPosition::Centerback),
-                &attribute_keys,
+                def_table_ref,
                 sec_def,
                 &fatigue_tracker.fatigue_for(&def_player.id()),
             );
@@ -230,7 +241,8 @@ pub fn execute_carry_action(
                 fatigue_tracker.fatigue_for(&def_player.id()),
                 &attribute_keys,
                 &sec_context,
-            );
+            )
+            .with_tables(Some(&carrier_table), Some(def_table_ref));
             let sec_raw = resolve_duel(sec_req, &mut sec_rng);
 
             let sec_attr = AttributedDuelOutcome::new(

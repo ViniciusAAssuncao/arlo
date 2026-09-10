@@ -3,6 +3,7 @@ use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::distribution::execute_distribution;
 use crate::artrine::execution::finish::{execute_cross_pipeline, execute_self_finish};
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
+use crate::attributes::PlayerAttributeTable;
 use crate::error::EngineResult;
 use crate::lineup_runtime::find_goalguard;
 use crate::physical::FatigueState;
@@ -30,6 +31,7 @@ pub fn execute_artrine_decision<F, R>(
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     defense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     pitch: &Pitch,
     spatial_map: &mut DynamicSpatialMap,
     start_pos: VectorPosition,
@@ -63,6 +65,7 @@ where
     let ctx = ActionExecutionContext {
         pitch,
         attribute_keys,
+        attribute_tables,
         offense_team_id,
         defense_team_id,
         attacking_positive_x,

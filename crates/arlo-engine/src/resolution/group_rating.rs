@@ -18,6 +18,7 @@ pub struct RatingParticipants<'a> {
     pub players: &'a [&'a Player],
     pub position_index: Option<&'a HashMap<Uuid, Position>>,
     pub fatigue_lookup: Option<&'a dyn Fn(&Uuid) -> PhysicalState>,
+    pub attribute_tables: Option<&'a HashMap<Uuid, PlayerAttributeTable>>,
 }
 
 impl<'a> RatingParticipants<'a> {
@@ -26,6 +27,7 @@ impl<'a> RatingParticipants<'a> {
             players,
             position_index: None,
             fatigue_lookup: None,
+            attribute_tables: None,
         }
     }
 
@@ -37,6 +39,7 @@ impl<'a> RatingParticipants<'a> {
             players,
             position_index: Some(position_index),
             fatigue_lookup: None,
+            attribute_tables: None,
         }
     }
 
@@ -52,22 +55,29 @@ impl<'a> RatingParticipants<'a> {
         self.fatigue_lookup = fatigue_lookup;
         self
     }
+
+    pub fn with_attribute_tables(
+        mut self,
+        tables: &'a HashMap<Uuid, PlayerAttributeTable>,
+    ) -> Self {
+        self.attribute_tables = Some(tables);
+        self
+    }
 }
 
-pub fn calculate_player_duel_rating_with_state(
+pub fn calculate_player_duel_rating_from_table(
     player: &Player,
     functional_position: Position,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    table: &PlayerAttributeTable,
     profile: &DuelProfile,
     state: &PhysicalState,
 ) -> f64 {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let mut total_weight = 0.0;
     let mut accumulated = 0.0;
 
     for w in profile.weights() {
         if w.weight > 0.0 {
-            let val = extract_effective_attribute_value(&table, w.key, state);
+            let val = extract_effective_attribute_value(table, w.key, state);
             accumulated += val * w.weight;
             total_weight += w.weight;
         }
@@ -80,6 +90,17 @@ pub fn calculate_player_duel_rating_with_state(
     };
     let fit = calculate_fit_for_position(player, functional_position);
     raw * fit.efficiency_multiplier()
+}
+
+pub fn calculate_player_duel_rating_with_state(
+    player: &Player,
+    functional_position: Position,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    profile: &DuelProfile,
+    state: &PhysicalState,
+) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    calculate_player_duel_rating_from_table(player, functional_position, &table, profile, state)
 }
 
 pub fn calculate_player_duel_rating(
@@ -128,6 +149,35 @@ pub fn calculate_group_rating(ratings: &[f64]) -> f64 {
     lead + aggregated_bonus
 }
 
+fn resolve_participant_rating(
+    participants: &RatingParticipants<'_>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    profile: &DuelProfile,
+    player: &Player,
+) -> f64 {
+    let default_state = PhysicalState::initial();
+    let pos = participants
+        .position_index
+        .and_then(|idx| idx.get(&player.id()).copied())
+        .unwrap_or_else(|| {
+            player
+                .positions()
+                .first()
+                .map(|pp| pp.position())
+                .unwrap_or(Position::CenterOffense)
+        });
+    let state = match participants.fatigue_lookup {
+        Some(lookup) => lookup(&player.id()),
+        None => default_state,
+    };
+    if let Some(tables) = participants.attribute_tables {
+        if let Some(table) = tables.get(&player.id()) {
+            return calculate_player_duel_rating_from_table(player, pos, table, profile, &state);
+        }
+    }
+    calculate_player_duel_rating_with_state(player, pos, attribute_keys, profile, &state)
+}
+
 pub fn calculate_side_rating(
     participants: RatingParticipants<'_>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
@@ -137,26 +187,10 @@ pub fn calculate_side_rating(
         return 0.0;
     }
 
-    let default_state = PhysicalState::initial();
     let ratings: Vec<f64> = participants
         .players
         .iter()
-        .map(|&p| {
-            let pos = participants
-                .position_index
-                .and_then(|idx| idx.get(&p.id()).copied())
-                .unwrap_or_else(|| {
-                    p.positions()
-                        .first()
-                        .map(|pp| pp.position())
-                        .unwrap_or(Position::CenterOffense)
-                });
-            let state = match participants.fatigue_lookup {
-                Some(lookup) => lookup(&p.id()),
-                None => default_state,
-            };
-            calculate_player_duel_rating_with_state(p, pos, attribute_keys, profile, &state)
-        })
+        .map(|&p| resolve_participant_rating(&participants, attribute_keys, profile, p))
         .collect();
 
     calculate_group_rating(&ratings)
@@ -199,13 +233,32 @@ pub fn calculate_anchored_side_rating(
         Some(lookup) => lookup(&anchor.id()),
         None => default_state,
     };
-    let anchor_rating = calculate_player_duel_rating_with_state(
-        anchor,
-        anchor_position,
-        attribute_keys,
-        profile,
-        &anchor_state,
-    );
+
+    let anchor_rating = match helpers.attribute_tables {
+        Some(tables) => match tables.get(&anchor.id()) {
+            Some(table) => calculate_player_duel_rating_from_table(
+                anchor,
+                anchor_position,
+                table,
+                profile,
+                &anchor_state,
+            ),
+            None => calculate_player_duel_rating_with_state(
+                anchor,
+                anchor_position,
+                attribute_keys,
+                profile,
+                &anchor_state,
+            ),
+        },
+        None => calculate_player_duel_rating_with_state(
+            anchor,
+            anchor_position,
+            attribute_keys,
+            profile,
+            &anchor_state,
+        ),
+    };
 
     if helpers.players.is_empty() {
         return anchor_rating;
@@ -214,22 +267,7 @@ pub fn calculate_anchored_side_rating(
     let helper_ratings: Vec<f64> = helpers
         .players
         .iter()
-        .map(|&p| {
-            let pos = helpers
-                .position_index
-                .and_then(|idx| idx.get(&p.id()).copied())
-                .unwrap_or_else(|| {
-                    p.positions()
-                        .first()
-                        .map(|pp| pp.position())
-                        .unwrap_or(Position::CenterOffense)
-                });
-            let state = match helpers.fatigue_lookup {
-                Some(lookup) => lookup(&p.id()),
-                None => default_state,
-            };
-            calculate_player_duel_rating_with_state(p, pos, attribute_keys, profile, &state)
-        })
+        .map(|&p| resolve_participant_rating(&helpers, attribute_keys, profile, p))
         .collect();
 
     calculate_anchored_rating(anchor_rating, &helper_ratings)

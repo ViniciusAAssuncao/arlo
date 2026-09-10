@@ -2,6 +2,7 @@ use crate::artrine::reception_phase::rac_block::resolve_rac_block;
 use crate::artrine::reception_phase::rac_breakthrough::resolve_rac_breakthrough;
 use crate::artrine::reception_phase::rac_context::RacContext;
 use crate::artrine::reception_phase::rac_security::resolve_rac_security;
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::FatigueState;
 use crate::resolution::{AttributedDuelOutcome, DuelContext};
 use crate::spatial::DynamicSpatialMap;
@@ -32,6 +33,7 @@ pub fn resolve_run_after_catch<F, R>(
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     defense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     pitch: &Pitch,
     spatial_map: &DynamicSpatialMap,
     defense_team_id: Uuid,
@@ -54,6 +56,7 @@ where
         defense_position_index,
         defense_instructions_index,
         attribute_keys,
+        attribute_tables,
         pitch,
         spatial_map,
         defense_team_id,

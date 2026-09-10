@@ -5,7 +5,7 @@ use crate::match_decision::scoring::{
 };
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
-use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::DuelKind;
 use crate::rng::RngStream;
 use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_cross_speed};
@@ -90,10 +90,10 @@ pub fn execute_cross_action(
     );
 
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let fin_rating = calculate_player_duel_rating_with_state(
+    let fin_rating = calculate_player_duel_rating_from_table(
         finisher,
         DomainPosition::CenterOffense,
-        &attribute_keys,
+        state.attribute_table_for(&finisher.id()),
         att_prof,
         &state.fatigue_lookup().get(&finisher.id()),
     );
@@ -127,6 +127,8 @@ pub fn execute_cross_action(
     let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
     let fin_fatigue = state.fatigue_lookup().get(&finisher.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
+    let fin_table = state.teams.player_attribute_tables().get(&finisher.id());
+    let gg_table = state.teams.player_attribute_tables().get(&goalguard.id());
     let req = ScoringAttemptRequest::new(
         finisher,
         goalguard,
@@ -139,7 +141,8 @@ pub fn execute_cross_action(
         total_advance,
         &finish_context,
     )
-    .with_fatigue(fin_fatigue, gg_fatigue);
+    .with_fatigue(fin_fatigue, gg_fatigue)
+    .with_tables(fin_table, gg_table);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut duel_rng);
 
@@ -172,10 +175,10 @@ pub fn execute_self_finish_action(
     );
 
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let fin_rating = calculate_player_duel_rating_with_state(
+    let fin_rating = calculate_player_duel_rating_from_table(
         current_carrier,
         DomainPosition::CenterOffense,
-        &attribute_keys,
+        state.attribute_table_for(&current_carrier.id()),
         att_prof,
         &state.fatigue_lookup().get(&current_carrier.id()),
     );
@@ -208,6 +211,8 @@ pub fn execute_self_finish_action(
     let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
     let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
+    let carrier_table = state.teams.player_attribute_tables().get(&current_carrier.id());
+    let gg_table = state.teams.player_attribute_tables().get(&goalguard.id());
     let req = ScoringAttemptRequest::new(
         current_carrier,
         goalguard,
@@ -220,7 +225,8 @@ pub fn execute_self_finish_action(
         total_advance,
         &finish_context,
     )
-    .with_fatigue(carrier_fatigue, gg_fatigue);
+    .with_fatigue(carrier_fatigue, gg_fatigue)
+    .with_tables(carrier_table, gg_table);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut duel_rng);
 

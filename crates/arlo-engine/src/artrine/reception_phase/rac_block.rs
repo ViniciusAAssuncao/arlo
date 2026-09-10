@@ -12,7 +12,7 @@ use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating_with_state, calculate_side_rating,
+    calculate_player_duel_rating_from_table, calculate_side_rating,
     identify_lead_player_from_index, RatingParticipants,
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
@@ -71,24 +71,35 @@ where
     let blocker_rating = if !blocker_subset.is_empty() {
         calculate_side_rating(
             RatingParticipants::from_slice_with_index(&blocker_subset, ctx.offense_position_index)
-                .with_fatigue(ctx.fatigue_for),
+                .with_fatigue(ctx.fatigue_for)
+                .with_attribute_tables(ctx.attribute_tables),
             ctx.attribute_keys,
             block_offense_profile,
         )
     } else {
         let receiver_state = ctx.fatigue(&ctx.receiver.id());
-        calculate_player_duel_rating_with_state(
-            ctx.receiver,
-            ctx.receiver_pos_domain,
-            ctx.attribute_keys,
-            block_offense_profile,
-            &receiver_state,
-        )
+        match ctx.attribute_tables.get(&ctx.receiver.id()) {
+            Some(table) => calculate_player_duel_rating_from_table(
+                ctx.receiver,
+                ctx.receiver_pos_domain,
+                table,
+                block_offense_profile,
+                &receiver_state,
+            ),
+            None => crate::resolution::group_rating::calculate_player_duel_rating_with_state(
+                ctx.receiver,
+                ctx.receiver_pos_domain,
+                ctx.attribute_keys,
+                block_offense_profile,
+                &receiver_state,
+            ),
+        }
     };
 
     let defender_block_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(ctx.defenders, ctx.defense_position_index)
-            .with_fatigue(ctx.fatigue_for),
+            .with_fatigue(ctx.fatigue_for)
+            .with_attribute_tables(ctx.attribute_tables),
         ctx.attribute_keys,
         block_defense_profile,
     );
@@ -113,6 +124,8 @@ where
     let lead_block_def_state = ctx.fatigue(&lead_block_defender.id());
 
     let block_context = ctx.duel_context.for_duel_kind(block_duel_kind);
+    let attacker_table = ctx.attribute_tables.get(&lead_blocker.id());
+    let defender_table = ctx.attribute_tables.get(&lead_block_defender.id());
     let req = DuelResolutionRequest::with_states(
         block_duel_kind,
         blocker_rating,
@@ -123,7 +136,8 @@ where
         lead_block_def_state,
         ctx.attribute_keys,
         &block_context,
-    );
+    )
+    .with_tables(attacker_table, defender_table);
     let raw_block_duel = resolve_duel(req, rng);
 
     let blocker_pos = ctx
