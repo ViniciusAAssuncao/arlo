@@ -105,17 +105,3 @@ where
 
     VoronoiSite::new(pos.raw().0, pos.raw().1, speed, reaction_time, team_id)
 }
-
-pub fn phantom_voronoi_site<F>(
-    false_artrine: &Player,
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    team_id: u8,
-) -> VoronoiSite
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
-    let table = PlayerAttributeTable::from_player(false_artrine, attribute_keys);
-    phantom_voronoi_site_from_table(false_artrine, &table, spatial_map, fatigue_for, team_id)
-}

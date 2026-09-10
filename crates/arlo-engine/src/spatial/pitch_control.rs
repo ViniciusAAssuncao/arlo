@@ -43,20 +43,6 @@ where
     VoronoiSite::new(position.raw().0, position.raw().1, speed, reaction_time, team_id)
 }
 
-pub fn build_player_voronoi_site_at<F>(
-    player: &Player,
-    position: VectorPosition,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    team_id: u8,
-) -> VoronoiSite
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    build_player_voronoi_site_at_from_table(player, &table, position, fatigue_for, team_id)
-}
-
 pub fn build_player_voronoi_site_from_table<F>(
     player: &Player,
     table: &PlayerAttributeTable,
@@ -71,20 +57,6 @@ where
         .get_position(&player.id())
         .unwrap_or_else(VectorPosition::zero);
     build_player_voronoi_site_at_from_table(player, table, pos, fatigue_for, team_id)
-}
-
-pub fn build_player_voronoi_site<F>(
-    player: &Player,
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    team_id: u8,
-) -> VoronoiSite
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    build_player_voronoi_site_from_table(player, &table, spatial_map, fatigue_for, team_id)
 }
 
 pub fn build_team_voronoi_sites_from_tables<F>(
@@ -104,22 +76,6 @@ where
             let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_TABLE);
             build_player_voronoi_site_from_table(*p, table, spatial_map, fatigue_for, team_id)
         })
-        .collect()
-}
-
-pub fn build_team_voronoi_sites<F>(
-    players: &[&Player],
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    team_id: u8,
-) -> Vec<VoronoiSite>
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
-    players
-        .iter()
-        .map(|p| build_player_voronoi_site(p, spatial_map, attribute_keys, fatigue_for, team_id))
         .collect()
 }
 
@@ -145,34 +101,6 @@ where
         defenders,
         attribute_tables,
         spatial_map,
-        fatigue_for,
-        1,
-    );
-    compute_team_control_fraction(&att_sites, &def_sites, region, 5, 5)
-}
-
-pub fn calculate_kinematic_pitch_control<F>(
-    attackers: &[&Player],
-    defenders: &[&Player],
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    region: &VoronoiRegion,
-) -> f64
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
-    let att_sites = build_team_voronoi_sites(
-        attackers,
-        spatial_map,
-        attribute_keys,
-        fatigue_for,
-        0,
-    );
-    let def_sites = build_team_voronoi_sites(
-        defenders,
-        spatial_map,
-        attribute_keys,
         fatigue_for,
         1,
     );
@@ -243,46 +171,6 @@ where
     compute_team_control_fraction(&att_sites, &def_sites, &region, 5, 5)
 }
 
-pub fn calculate_artro_advance_pitch_control<F>(
-    artrine: &Player,
-    helpers: &[&Player],
-    defenders: &[&Player],
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    start_pos: VectorPosition,
-    target_artro_pos: VectorPosition,
-    pitch: &Pitch,
-    offense_role_index: &HashMap<Uuid, SlotRole>,
-) -> f64
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
-    let mut attribute_tables = HashMap::new();
-    attribute_tables.insert(
-        artrine.id(),
-        PlayerAttributeTable::from_player(artrine, attribute_keys),
-    );
-    for h in helpers {
-        attribute_tables.insert(h.id(), PlayerAttributeTable::from_player(h, attribute_keys));
-    }
-    for d in defenders {
-        attribute_tables.insert(d.id(), PlayerAttributeTable::from_player(d, attribute_keys));
-    }
-    calculate_artro_advance_pitch_control_from_tables(
-        artrine,
-        helpers,
-        defenders,
-        spatial_map,
-        &attribute_tables,
-        fatigue_for,
-        start_pos,
-        target_artro_pos,
-        pitch,
-        offense_role_index,
-    )
-}
-
 pub fn calculate_point_pitch_control_players_from_tables<F>(
     attackers: &[&Player],
     defenders: &[&Player],
@@ -305,34 +193,6 @@ where
         defenders,
         attribute_tables,
         spatial_map,
-        fatigue_for,
-        1,
-    );
-    compute_point_team_control(&att_sites, &def_sites, point.raw().0, point.raw().1)
-}
-
-pub fn calculate_point_pitch_control_players<F>(
-    attackers: &[&Player],
-    defenders: &[&Player],
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    point: VectorPosition,
-) -> f64
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
-    let att_sites = build_team_voronoi_sites(
-        attackers,
-        spatial_map,
-        attribute_keys,
-        fatigue_for,
-        0,
-    );
-    let def_sites = build_team_voronoi_sites(
-        defenders,
-        spatial_map,
-        attribute_keys,
         fatigue_for,
         1,
     );

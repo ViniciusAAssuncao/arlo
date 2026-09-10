@@ -1,9 +1,9 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::FatigueState;
-use crate::spatial::pitch_control::{build_team_voronoi_sites, build_team_voronoi_sites_from_tables};
+use crate::spatial::pitch_control::build_team_voronoi_sites_from_tables;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::Player;
 use arlo_math::geometry::{compute_point_team_control, VoronoiSite};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use std::collections::HashMap;
@@ -147,32 +147,6 @@ where
         build_team_voronoi_sites_from_tables(attackers, attribute_tables, spatial_map, fatigue_for, 0);
     let def_sites =
         build_team_voronoi_sites_from_tables(defenders, attribute_tables, spatial_map, fatigue_for, 1);
-    calculate_expected_free_path_to_goal(
-        &att_sites,
-        &def_sites,
-        player_pos,
-        pitch,
-        attacking_positive_x,
-    )
-}
-
-pub fn calculate_player_expected_free_path<F>(
-    player_pos: VectorPosition,
-    attackers: &[&Player],
-    defenders: &[&Player],
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    pitch: &Pitch,
-    attacking_positive_x: bool,
-) -> f64
-where
-    F: Fn(&Uuid) -> FatigueState,
-{
-    let att_sites =
-        build_team_voronoi_sites(attackers, spatial_map, attribute_keys, fatigue_for, 0);
-    let def_sites =
-        build_team_voronoi_sites(defenders, spatial_map, attribute_keys, fatigue_for, 1);
     calculate_expected_free_path_to_goal(
         &att_sites,
         &def_sites,

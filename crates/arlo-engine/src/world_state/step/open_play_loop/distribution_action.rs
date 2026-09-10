@@ -1,4 +1,4 @@
-use crate::artrine::{resolve_primary_lead_defender, DistributionFlightInfo};
+use crate::artrine::{resolve_primary_lead_defender_from_tables, DistributionFlightInfo};
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::scoring::{
     evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest,
@@ -185,7 +185,7 @@ pub fn execute_distribution_action<R: Rng + ?Sized>(
 
     let contest_radius = Length::new(2.0 * iter_ctx.defense_pressing_multiplier * MIRIM_TO_METERS);
 
-    let lead_defender = resolve_primary_lead_defender(
+    let lead_defender = resolve_primary_lead_defender_from_tables(
         current_carrier.id(),
         &context.offense_pos_index,
         carrier_pos,
@@ -193,7 +193,7 @@ pub fn execute_distribution_action<R: Rng + ?Sized>(
         defense_players,
         state.spatial_map(),
         &context.defense_instructions_index,
-        &attribute_keys,
+        tables,
         &|id| state.fatigue_lookup().get(id),
         contest_radius,
         None,

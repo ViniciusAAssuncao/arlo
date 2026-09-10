@@ -25,8 +25,7 @@ pub use duel_timing::{derive_duel_duration, nearest_opponent, time_to_close};
 pub use group_rating::{
     calculate_anchored_rating, calculate_anchored_side_rating, calculate_group_rating,
     calculate_player_duel_rating, calculate_player_duel_rating_from_table,
-    calculate_player_duel_rating_with_state, calculate_side_rating, identify_lead_player,
-    identify_lead_player_from_index, RatingParticipants,
+    calculate_player_duel_rating_with_state, calculate_side_rating, RatingParticipants,
 };
 pub use outcome::DuelOutcome;
 pub use progression_strategy::ProgressionResolutionStrategy;

@@ -14,11 +14,6 @@ pub fn defender_variance_from_table(table: &PlayerAttributeTable) -> f64 {
     2.0 + (0.35 * pace) + (0.35 * accel)
 }
 
-pub fn defender_variance(defender: &Player, attribute_keys: &HashMap<Uuid, AttributeKey>) -> f64 {
-    let table = PlayerAttributeTable::from_player(defender, attribute_keys);
-    defender_variance_from_table(&table)
-}
-
 pub fn defender_projected_mean(defender: &Player, spatial_map: &DynamicSpatialMap) -> Position {
     let pos = spatial_map
         .get_position(&defender.id())
@@ -43,29 +38,6 @@ pub fn calculate_point_resistance_from_tables(
         let mean = defender_projected_mean(defender, spatial_map);
         let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_TABLE);
         let variance = defender_variance_from_table(table);
-
-        let dx = point.raw().0 - mean.raw().0;
-        let dy = point.raw().1 - mean.raw().1;
-        let d_sq = (dx * dx) + (dy * dy);
-
-        let decay = (-d_sq / (2.0 * variance)).exp();
-        total_resistance += decay;
-    }
-
-    total_resistance
-}
-
-pub fn calculate_point_resistance(
-    point: Position,
-    defenders: &[&Player],
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-) -> f64 {
-    let mut total_resistance = 0.0;
-
-    for defender in defenders {
-        let mean = defender_projected_mean(defender, spatial_map);
-        let variance = defender_variance(defender, attribute_keys);
 
         let dx = point.raw().0 - mean.raw().0;
         let dy = point.raw().1 - mean.raw().1;
@@ -104,32 +76,6 @@ pub fn calculate_spatial_resistance_between_from_tables(
     accumulated / ((steps + 1) as f64)
 }
 
-pub fn calculate_spatial_resistance_between(
-    start_pos: Position,
-    target_pos: Position,
-    defenders: &[&Player],
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-) -> f64 {
-    if defenders.is_empty() {
-        return 0.0;
-    }
-
-    let steps = 10;
-    let mut accumulated = 0.0;
-
-    for i in 0..=steps {
-        let t = (i as f64) / (steps as f64);
-        let x = start_pos.raw().0 + t * (target_pos.raw().0 - start_pos.raw().0);
-        let y = start_pos.raw().1 + t * (target_pos.raw().1 - start_pos.raw().1);
-        let pt = Position::from_components(x, y, 0.0);
-
-        accumulated += calculate_point_resistance(pt, defenders, spatial_map, attribute_keys);
-    }
-
-    accumulated / ((steps + 1) as f64)
-}
-
 pub fn calculate_spatial_resistance_from_tables(
     target_vector: Position,
     defenders: &[&Player],
@@ -156,35 +102,6 @@ pub fn calculate_spatial_resistance_from_tables(
         defenders,
         spatial_map,
         attribute_tables,
-    )
-}
-
-pub fn calculate_spatial_resistance(
-    target_vector: Position,
-    defenders: &[&Player],
-    spatial_map: &DynamicSpatialMap,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-) -> f64 {
-    let defender_ids: HashSet<Uuid> = defenders.iter().map(|p| p.id()).collect();
-    let start_pos = spatial_map
-        .iter_positions()
-        .filter(|(id, _)| !defender_ids.contains(id))
-        .min_by(|(_, a), (_, b)| {
-            let dist_a = calculate_distance(*a, target_vector).value();
-            let dist_b = calculate_distance(*b, target_vector).value();
-            dist_a
-                .partial_cmp(&dist_b)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        })
-        .map(|(_, pos)| pos)
-        .unwrap_or_else(Position::zero);
-
-    calculate_spatial_resistance_between(
-        start_pos,
-        target_vector,
-        defenders,
-        spatial_map,
-        attribute_keys,
     )
 }
 
