@@ -1,6 +1,7 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::{
-    calculate_desired_cruise_speed, calculate_player_body_mass_from_table, calculate_player_critical_speed_from_table,
+    calculate_desired_cruise_speed, calculate_player_body_mass_from_table,
+    calculate_player_critical_speed_from_table,
 };
 use crate::physical::systems::degradation::physical_attribute_modifier;
 use crate::physical::systems::pacing::calculate_player_pacing_state_from_table;
@@ -14,6 +15,7 @@ use crate::spatial::live_collisions::{
     check_collision, is_severe_contact, CollisionResolution, LiveCollision,
 };
 use crate::spatial::movement_context::MovementContext;
+use crate::spatial::player_slot::{PlayerSlot, TOTAL_MATCH_SLOTS};
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
 use crate::spatial::steering::{
     calculate_dynamic_boid_steering_velocity_with_context, derive_player_physical_radius_from_table,
@@ -201,14 +203,12 @@ where
         );
     }
 
-    let mut physical_radii = HashMap::with_capacity(spatial_map.positions().len());
-    for &id in spatial_map.positions().keys() {
-        let radius = if let Some(props) = mover_kinematics.get(&id) {
-            props.physical_radius
-        } else {
-            0.55
-        };
-        physical_radii.insert(id, radius);
+    let slots = *spatial_map.registry().slots();
+    let mut physical_radii = [0.55; TOTAL_MATCH_SLOTS];
+    for (i, &id) in slots.iter().enumerate() {
+        if let Some(props) = mover_kinematics.get(&id) {
+            physical_radii[i] = props.physical_radius;
+        }
     }
 
     let max_ticks = match movement_context {
@@ -217,16 +217,17 @@ where
     };
 
     let mut ticks_executed = 0;
-    let mut neighbor_snapshot = Vec::with_capacity(spatial_map.positions().len());
+    let mut neighbor_snapshot = Vec::with_capacity(TOTAL_MATCH_SLOTS);
 
     while ticks_executed < max_ticks {
         let mut all_arrived = true;
 
         neighbor_snapshot.clear();
-        for (&id, &pos) in spatial_map.positions() {
-            let vel = spatial_map.get_velocity(&id).unwrap_or_else(Velocity::zero);
-            let is_home = spatial_map.is_home_player(&id);
-            let physical_radius = *physical_radii.get(&id).unwrap_or(&0.55);
+        for (i, &id) in slots.iter().enumerate() {
+            let pos = spatial_map.position_at_slot(PlayerSlot::new(i as u8));
+            let vel = spatial_map.velocity_at_slot(PlayerSlot::new(i as u8));
+            let is_home = (spatial_map.home_team_mask() & (1 << i)) != 0;
+            let physical_radius = physical_radii[i];
             neighbor_snapshot.push(SpatialNeighbor::new(id, pos, vel, is_home, physical_radius));
         }
 
@@ -296,16 +297,24 @@ where
         }
 
         if movement_context == MovementContext::LivePlay && !carrier_id.is_nil() {
-            if let Some(&carrier_pos) = spatial_map.positions().get(&carrier_id) {
-                let carrier_radius = *physical_radii.get(&carrier_id).unwrap_or(&0.55);
+            if let Some(carrier_pos) = spatial_map.get_position(&carrier_id) {
+                let carrier_radius = spatial_map
+                    .registry()
+                    .slot_for(&carrier_id)
+                    .map(|s| physical_radii[s.index()])
+                    .unwrap_or(0.55);
                 let carrier_vel = spatial_map
                     .get_velocity(&carrier_id)
                     .unwrap_or_else(Velocity::zero);
 
                 let mut contacts = Vec::new();
                 for &def_id in defender_ids {
-                    if let Some(&def_pos) = spatial_map.positions().get(&def_id) {
-                        let def_radius = *physical_radii.get(&def_id).unwrap_or(&0.55);
+                    if let Some(def_pos) = spatial_map.get_position(&def_id) {
+                        let def_radius = spatial_map
+                            .registry()
+                            .slot_for(&def_id)
+                            .map(|s| physical_radii[s.index()])
+                            .unwrap_or(0.55);
                         let def_vel = spatial_map
                             .get_velocity(&def_id)
                             .unwrap_or_else(Velocity::zero);

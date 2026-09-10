@@ -138,17 +138,16 @@ pub fn calculate_spatial_resistance_from_tables(
 ) -> f64 {
     let defender_ids: HashSet<Uuid> = defenders.iter().map(|p| p.id()).collect();
     let start_pos = spatial_map
-        .positions()
-        .iter()
+        .iter_positions()
         .filter(|(id, _)| !defender_ids.contains(id))
         .min_by(|(_, a), (_, b)| {
-            let dist_a = calculate_distance(**a, target_vector).value();
-            let dist_b = calculate_distance(**b, target_vector).value();
+            let dist_a = calculate_distance(*a, target_vector).value();
+            let dist_b = calculate_distance(*b, target_vector).value();
             dist_a
                 .partial_cmp(&dist_b)
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
-        .map(|(_, pos)| *pos)
+        .map(|(_, pos)| pos)
         .unwrap_or_else(Position::zero);
 
     calculate_spatial_resistance_between_from_tables(
@@ -168,17 +167,16 @@ pub fn calculate_spatial_resistance(
 ) -> f64 {
     let defender_ids: HashSet<Uuid> = defenders.iter().map(|p| p.id()).collect();
     let start_pos = spatial_map
-        .positions()
-        .iter()
+        .iter_positions()
         .filter(|(id, _)| !defender_ids.contains(id))
         .min_by(|(_, a), (_, b)| {
-            let dist_a = calculate_distance(**a, target_vector).value();
-            let dist_b = calculate_distance(**b, target_vector).value();
+            let dist_a = calculate_distance(*a, target_vector).value();
+            let dist_b = calculate_distance(*b, target_vector).value();
             dist_a
                 .partial_cmp(&dist_b)
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
-        .map(|(_, pos)| *pos)
+        .map(|(_, pos)| pos)
         .unwrap_or_else(Position::zero);
 
     calculate_spatial_resistance_between(
