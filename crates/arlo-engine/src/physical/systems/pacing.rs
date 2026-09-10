@@ -15,8 +15,6 @@ use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::{ AttributeKey, Player };
 use arlo_math::units::{ Position, Speed, MIRIM_TO_METERS };
 use serde::{ Deserialize, Serialize };
-use std::collections::HashMap;
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PacingState {
@@ -198,52 +196,4 @@ pub fn calculate_player_pacing_state_from_table(
     };
 
     calculate_pacing_state(&req)
-}
-
-pub fn calculate_player_pacing_state(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    is_near_ball: bool,
-    game_state_pressure: &GameStatePressure,
-    state: &PhysicalState,
-    impulse_state: &ImpulseState,
-    effort_multiplier: f64,
-    current_time_unix_seconds: i64
-) -> PacingState {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    calculate_player_pacing_state_from_table(
-        player,
-        &table,
-        is_near_ball,
-        game_state_pressure,
-        state,
-        impulse_state,
-        effort_multiplier,
-        current_time_unix_seconds
-    )
-}
-
-pub fn calculate_paced_distance_mirim(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    duration_seconds: f64,
-    is_near_ball: bool,
-    game_state_pressure: &GameStatePressure,
-    state: &PhysicalState,
-    impulse_state: &ImpulseState,
-    effort_multiplier: f64,
-    current_time_unix_seconds: i64
-) -> f64 {
-    let pacing = calculate_player_pacing_state(
-        player,
-        attribute_keys,
-        is_near_ball,
-        game_state_pressure,
-        state,
-        impulse_state,
-        effort_multiplier,
-        current_time_unix_seconds
-    );
-    let dist_meters = pacing.target_cruise_speed().value() * duration_seconds.max(0.0);
-    dist_meters / MIRIM_TO_METERS
 }

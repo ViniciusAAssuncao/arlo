@@ -1,11 +1,9 @@
 use crate::attributes::PlayerAttributeTable;
+use crate::caching::impulse_baseline_profile;
 use crate::physical::systems::degradation::extract_effective_attribute_value_with_impulse;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::{
-    calculate_player_impulse_baseline, calculate_player_impulse_baseline_from_table_with_profile,
-};
-use crate::caching::impulse_baseline_profile;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
 use arlo_domain::sport_constants::{ATTRIBUTE_SATURATION_THRESHOLD, BASE_NOISE_SCALE};
 use arlo_domain::{AttributeKey, Player};
 pub use arlo_math::stats::SkewNormalParams;
@@ -70,37 +68,6 @@ pub fn player_noise_distribution_from_table_with_impulse(
     SkewNormalParams::new(location, scale, shape)
 }
 
-pub fn player_noise_distribution_with_impulse(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    physical_state: &PhysicalState,
-    impulse_state: &ImpulseState,
-) -> SkewNormalParams {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    let baseline = calculate_player_impulse_baseline(player, attribute_keys);
-    player_noise_distribution_from_table_with_impulse(
-        player,
-        &table,
-        physical_state,
-        impulse_state,
-        baseline,
-    )
-}
-
-pub fn player_noise_distribution(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    physical_state: &PhysicalState,
-) -> SkewNormalParams {
-    let baseline = calculate_player_impulse_baseline(player, attribute_keys);
-    player_noise_distribution_with_impulse(
-        player,
-        attribute_keys,
-        physical_state,
-        &ImpulseState::from_baseline(baseline),
-    )
-}
-
 pub fn sample_player_noise_from_table_with_impulse<R: Rng + ?Sized>(
     player: &Player,
     table: &PlayerAttributeTable,
@@ -145,13 +112,17 @@ pub fn sample_player_noise_with_impulse<R: Rng + ?Sized>(
     impulse_state: &ImpulseState,
     rng: &mut R,
 ) -> f64 {
-    let params = player_noise_distribution_with_impulse(
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let profile = impulse_baseline_profile();
+    let baseline = calculate_player_impulse_baseline_from_table_with_profile(&table, profile);
+    sample_player_noise_from_table_with_impulse(
         player,
-        attribute_keys,
+        &table,
         physical_state,
         impulse_state,
-    );
-    params.sample(rng)
+        baseline,
+        rng,
+    )
 }
 
 pub fn sample_player_noise<R: Rng + ?Sized>(
@@ -160,6 +131,6 @@ pub fn sample_player_noise<R: Rng + ?Sized>(
     physical_state: &PhysicalState,
     rng: &mut R,
 ) -> f64 {
-    let params = player_noise_distribution(player, attribute_keys, physical_state);
-    params.sample(rng)
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    sample_player_noise_from_table_with_baseline(player, &table, physical_state, rng)
 }

@@ -8,7 +8,7 @@ use arlo_engine::physical::systems::degradation::{
 };
 use arlo_engine::physical::PhysicalState;
 use arlo_engine::psychology::state::ImpulseState;
-use arlo_engine::resolution::duel_noise::player_noise_distribution;
+use arlo_engine::resolution::duel_noise::player_noise_distribution_from_table_with_impulse;
 use arlo_engine::spatial::decision_vector::extract_attribute_value;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::collections::HashMap;
@@ -140,10 +140,12 @@ fn bench_attribute_extraction(c: &mut Criterion) {
 
     group.bench_function("player_noise_distribution", |b| {
         b.iter(|| {
-            player_noise_distribution(
+            player_noise_distribution_from_table_with_impulse(
                 black_box(&player),
-                black_box(&attribute_keys),
+                black_box(&table),
                 black_box(&physical_state),
+                black_box(&impulse_state),
+                black_box(55.0),
             )
         })
     });

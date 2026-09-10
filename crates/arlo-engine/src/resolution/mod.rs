@@ -15,7 +15,7 @@ pub use attributed_outcome::AttributedDuelOutcome;
 pub use context::DuelContext;
 pub use duel_kind::{logistic_slope_for, DuelKind};
 pub use duel_noise::{
-    player_noise_distribution, player_noise_distribution_from_table_with_impulse,
+    player_noise_distribution_from_table_with_impulse,
     sample_player_noise, sample_player_noise_from_table_with_baseline,
     sample_player_noise_from_table_with_impulse, sample_player_noise_with_impulse,
     SkewNormalParams,
