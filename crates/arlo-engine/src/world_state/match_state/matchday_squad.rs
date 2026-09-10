@@ -2,16 +2,17 @@ use crate::lineup_runtime::Lineup;
 use arlo_domain::Player;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatchdaySquad {
-    bench: Vec<Player>,
+    bench: Vec<Arc<Player>>,
     substituted_off: HashSet<Uuid>,
 }
 
 impl MatchdaySquad {
-    pub fn new(bench: Vec<Player>, substituted_off: HashSet<Uuid>) -> Self {
+    pub fn new(bench: Vec<Arc<Player>>, substituted_off: HashSet<Uuid>) -> Self {
         Self {
             bench,
             substituted_off,
@@ -24,6 +25,7 @@ impl MatchdaySquad {
             .iter()
             .filter(|p| !lineup_ids.contains(&p.id()))
             .cloned()
+            .map(Arc::new)
             .collect();
         Self {
             bench,
@@ -31,11 +33,11 @@ impl MatchdaySquad {
         }
     }
 
-    pub fn bench(&self) -> &[Player] {
+    pub fn bench(&self) -> &[Arc<Player>] {
         &self.bench
     }
 
-    pub fn bench_mut(&mut self) -> &mut Vec<Player> {
+    pub fn bench_mut(&mut self) -> &mut Vec<Arc<Player>> {
         &mut self.bench
     }
 
@@ -43,7 +45,7 @@ impl MatchdaySquad {
         &self.substituted_off
     }
 
-    pub fn available_replacements(&self) -> impl Iterator<Item = &Player> {
+    pub fn available_replacements(&self) -> impl Iterator<Item = &Arc<Player>> {
         self.bench
             .iter()
             .filter(move |p| !self.substituted_off.contains(&p.id()))
@@ -57,7 +59,7 @@ impl MatchdaySquad {
         self.substituted_off.clear();
     }
 
-    pub fn swap_bench(&mut self, outgoing: Player, incoming_id: Uuid) {
+    pub fn swap_bench(&mut self, outgoing: Arc<Player>, incoming_id: Uuid) {
         self.bench.retain(|p| p.id() != incoming_id);
         if !self.bench.iter().any(|p| p.id() == outgoing.id()) {
             self.bench.push(outgoing);

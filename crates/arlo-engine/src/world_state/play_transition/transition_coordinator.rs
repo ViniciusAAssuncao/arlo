@@ -24,7 +24,7 @@ use crate::world_state::play_transition::scoring_handler::{
     publish_scoring_impulse,
 };
 use crate::world_state::reorganization::derive_and_apply_reorganization;
-use arlo_domain::ArtrineDecisionKind;
+use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
 use arlo_math::units::MIRIM_TO_METERS;
 use arlo_math::Probability;
@@ -131,18 +131,26 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
 
     fn process_impulse(&mut self, detailed_outcome: &DetailedPlayOutcome) -> TransitionResult {
         let offense_lineup = if self.offense_team_id == self.publisher.state().home_team_id() {
-            self.publisher.state().home_lineup().clone()
+            self.publisher.state().home_lineup_arc()
         } else {
-            self.publisher.state().away_lineup().clone()
+            self.publisher.state().away_lineup_arc()
         };
         let defense_lineup = if self.defense_team_id == self.publisher.state().home_team_id() {
-            self.publisher.state().home_lineup().clone()
+            self.publisher.state().home_lineup_arc()
         } else {
-            self.publisher.state().away_lineup().clone()
+            self.publisher.state().away_lineup_arc()
         };
 
-        let offense_players = offense_lineup.players();
-        let defense_players = defense_lineup.players();
+        let offense_players: Vec<&Player> = offense_lineup
+            .assignments()
+            .iter()
+            .map(|a| a.player())
+            .collect();
+        let defense_players: Vec<&Player> = defense_lineup
+            .assignments()
+            .iter()
+            .map(|a| a.player())
+            .collect();
 
         for duel in &self.play_duels {
             self.publisher

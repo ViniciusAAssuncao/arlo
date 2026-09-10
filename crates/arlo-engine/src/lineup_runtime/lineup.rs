@@ -4,13 +4,14 @@ use arlo_domain::{Formation, FormationSlot, Player, Position, SlotRole};
 use arlo_tactics::PlayerInstructions;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LineupAssignment {
     formation_slot_index: usize,
     slot: FormationSlot,
-    player: Player,
+    player: Arc<Player>,
     slot_role: SlotRole,
     player_instructions: PlayerInstructions,
 }
@@ -19,7 +20,7 @@ impl LineupAssignment {
     pub fn new(
         formation_slot_index: usize,
         slot: FormationSlot,
-        player: Player,
+        player: Arc<Player>,
         slot_role: SlotRole,
         player_instructions: PlayerInstructions,
     ) -> Self {
@@ -42,6 +43,10 @@ impl LineupAssignment {
 
     pub fn player(&self) -> &Player {
         &self.player
+    }
+
+    pub fn player_arc(&self) -> Arc<Player> {
+        Arc::clone(&self.player)
     }
 
     pub fn slot_role(&self) -> SlotRole {
@@ -94,7 +99,7 @@ impl Lineup {
                 LineupAssignment::new(
                     formation_slot_index,
                     slot,
-                    player,
+                    Arc::new(player),
                     SlotRole::Standard,
                     PlayerInstructions::default(),
                 )
@@ -143,7 +148,7 @@ impl Lineup {
     pub fn substitute(
         &self,
         outgoing_player_id: Uuid,
-        incoming_player: Player,
+        incoming_player: Arc<Player>,
     ) -> EngineResult<Self> {
         let mut found = false;
         let mut new_assignments = Vec::with_capacity(self.assignments.len());
@@ -153,7 +158,7 @@ impl Lineup {
                 new_assignments.push(LineupAssignment::new(
                     assignment.formation_slot_index(),
                     *assignment.slot(),
-                    incoming_player.clone(),
+                    Arc::clone(&incoming_player),
                     assignment.slot_role(),
                     assignment.player_instructions(),
                 ));
@@ -179,8 +184,11 @@ impl Lineup {
         &self.assignments
     }
 
-    pub fn players(&self) -> Vec<&Player> {
-        self.assignments.iter().map(|a| a.player()).collect()
+    pub fn players(&self) -> Vec<Arc<Player>> {
+        self.assignments
+            .iter()
+            .map(|a| Arc::clone(&a.player))
+            .collect()
     }
 
     pub fn role_index(&self) -> HashMap<Uuid, SlotRole> {

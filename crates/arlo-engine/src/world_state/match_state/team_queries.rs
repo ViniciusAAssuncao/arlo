@@ -3,6 +3,7 @@ use crate::world_state::match_state::state::MatchState;
 use arlo_domain::{Manager, Position as DomainPosition, SlotRole};
 use arlo_tactics::{PlayCall, PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 impl MatchState {
@@ -20,6 +21,18 @@ impl MatchState {
 
     pub fn away_lineup(&self) -> &Lineup {
         self.teams.away_lineup()
+    }
+
+    pub fn home_lineup_arc(&self) -> Arc<Lineup> {
+        self.teams.home_lineup_arc()
+    }
+
+    pub fn away_lineup_arc(&self) -> Arc<Lineup> {
+        self.teams.away_lineup_arc()
+    }
+
+    pub fn lineup_for_team_arc(&self, team_id: Uuid) -> Arc<Lineup> {
+        self.teams.lineup_for_team_arc(team_id)
     }
 
     pub fn home_tactical_profile(&self) -> &TeamTacticalProfile {
@@ -137,6 +150,25 @@ impl MatchState {
             .position_index_for_team(team_id, self.possession.role().is_offense(team_id))
     }
 
+    pub fn offensive_position_index_for_team_arc(
+        &self,
+        team_id: Uuid,
+    ) -> Arc<HashMap<Uuid, DomainPosition>> {
+        self.teams.offensive_position_index_for_team_arc(team_id)
+    }
+
+    pub fn defensive_position_index_for_team_arc(
+        &self,
+        team_id: Uuid,
+    ) -> Arc<HashMap<Uuid, DomainPosition>> {
+        self.teams.defensive_position_index_for_team_arc(team_id)
+    }
+
+    pub fn position_index_for_team_arc(&self, team_id: Uuid) -> Arc<HashMap<Uuid, DomainPosition>> {
+        self.teams
+            .position_index_for_team_arc(team_id, self.possession.role().is_offense(team_id))
+    }
+
     pub fn home_role_index(&self) -> &HashMap<Uuid, SlotRole> {
         self.teams.home_role_index()
     }
@@ -145,15 +177,42 @@ impl MatchState {
         self.teams.away_role_index()
     }
 
+    pub fn home_role_index_arc(&self) -> Arc<HashMap<Uuid, SlotRole>> {
+        self.teams.home_role_index_arc()
+    }
+
+    pub fn away_role_index_arc(&self) -> Arc<HashMap<Uuid, SlotRole>> {
+        self.teams.away_role_index_arc()
+    }
+
     pub fn role_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, SlotRole> {
         self.teams.role_index_for_team(team_id)
+    }
+
+    pub fn role_index_for_team_arc(&self, team_id: Uuid) -> Arc<HashMap<Uuid, SlotRole>> {
+        self.teams.role_index_for_team_arc(team_id)
     }
 
     pub fn player_instructions_for(&self, player_id: &Uuid) -> PlayerInstructions {
         self.teams.player_instructions(player_id)
     }
 
+    pub fn home_instructions_index_arc(&self) -> Arc<HashMap<Uuid, PlayerInstructions>> {
+        self.teams.home_instructions_index_arc()
+    }
+
+    pub fn away_instructions_index_arc(&self) -> Arc<HashMap<Uuid, PlayerInstructions>> {
+        self.teams.away_instructions_index_arc()
+    }
+
     pub fn instructions_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, PlayerInstructions> {
         self.teams.instructions_index_for_team(team_id)
+    }
+
+    pub fn instructions_index_for_team_arc(
+        &self,
+        team_id: Uuid,
+    ) -> Arc<HashMap<Uuid, PlayerInstructions>> {
+        self.teams.instructions_index_for_team_arc(team_id)
     }
 }

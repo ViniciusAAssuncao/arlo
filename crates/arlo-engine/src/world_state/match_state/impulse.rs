@@ -10,7 +10,7 @@ use crate::psychology::systems::events::{
 };
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::teams::TeamRegistry;
-use arlo_domain::AttributeKey;
+use arlo_domain::{AttributeKey, Player};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -28,8 +28,16 @@ impl ImpulseTracker {
         away_lineup: &Lineup,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) -> Self {
-        let home_players = home_lineup.players();
-        let away_players = away_lineup.players();
+        let home_players: Vec<&Player> = home_lineup
+            .assignments()
+            .iter()
+            .map(|a| a.player())
+            .collect();
+        let away_players: Vec<&Player> = away_lineup
+            .assignments()
+            .iter()
+            .map(|a| a.player())
+            .collect();
 
         let home_captain = find_active_captain(&home_players, attribute_keys);
         let away_captain = find_active_captain(&away_players, attribute_keys);
@@ -139,12 +147,14 @@ impl ImpulseTracker {
         let home_captain = teams.home_captain(attribute_keys);
         let away_captain = teams.away_captain(attribute_keys);
 
-        for p in teams.home_lineup().players() {
+        for a in teams.home_lineup().assignments() {
+            let p = a.player();
             let base = calculate_player_contextual_baseline(p, attribute_keys, home_captain, true);
             self.home_impulse
                 .insert(p.id(), ImpulseState::from_baseline(base));
         }
-        for p in teams.away_lineup().players() {
+        for a in teams.away_lineup().assignments() {
+            let p = a.player();
             let base = calculate_player_contextual_baseline(p, attribute_keys, away_captain, false);
             self.away_impulse
                 .insert(p.id(), ImpulseState::from_baseline(base));
@@ -165,7 +175,8 @@ impl ImpulseTracker {
         let home_captain = teams.home_captain(attribute_keys);
         let away_captain = teams.away_captain(attribute_keys);
 
-        for player in teams.home_lineup().players() {
+        for a in teams.home_lineup().assignments() {
+            let player = a.player();
             let pid = player.id();
             let phys = fatigue.fatigue_for(&pid);
             if let Some(state) = self.home_impulse.get_mut(&pid) {
@@ -180,7 +191,8 @@ impl ImpulseTracker {
                 );
             }
         }
-        for player in teams.away_lineup().players() {
+        for a in teams.away_lineup().assignments() {
+            let player = a.player();
             let pid = player.id();
             let phys = fatigue.fatigue_for(&pid);
             if let Some(state) = self.away_impulse.get_mut(&pid) {
@@ -247,9 +259,9 @@ impl ImpulseTracker {
             if dispatched.target_id == teams.home_team_id() {
                 let home_player_ids: Vec<Uuid> = teams
                     .home_lineup()
-                    .players()
+                    .assignments()
                     .iter()
-                    .map(|p| p.id())
+                    .map(|a| a.player().id())
                     .collect();
                 for pid in home_player_ids {
                     if let Some(shift) = self.apply_impulse_event(
@@ -266,9 +278,9 @@ impl ImpulseTracker {
             } else if dispatched.target_id == teams.away_team_id() {
                 let away_player_ids: Vec<Uuid> = teams
                     .away_lineup()
-                    .players()
+                    .assignments()
                     .iter()
-                    .map(|p| p.id())
+                    .map(|a| a.player().id())
                     .collect();
                 for pid in away_player_ids {
                     if let Some(shift) = self.apply_impulse_event(

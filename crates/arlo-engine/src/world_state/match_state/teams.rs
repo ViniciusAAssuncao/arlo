@@ -4,21 +4,22 @@ use arlo_domain::{AttributeKey, Manager, Player, Position as DomainPosition, Slo
 use arlo_tactics::{PlayCall, PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 fn compute_lineup_indices(
     lineup: &Lineup,
 ) -> (
-    HashMap<Uuid, DomainPosition>,
-    HashMap<Uuid, DomainPosition>,
-    HashMap<Uuid, SlotRole>,
-    HashMap<Uuid, PlayerInstructions>,
+    Arc<HashMap<Uuid, DomainPosition>>,
+    Arc<HashMap<Uuid, DomainPosition>>,
+    Arc<HashMap<Uuid, SlotRole>>,
+    Arc<HashMap<Uuid, PlayerInstructions>>,
 ) {
     (
-        lineup.offensive_position_index(),
-        lineup.defensive_position_index(),
-        lineup.role_index(),
-        lineup.instructions_index(),
+        Arc::new(lineup.offensive_position_index()),
+        Arc::new(lineup.defensive_position_index()),
+        Arc::new(lineup.role_index()),
+        Arc::new(lineup.instructions_index()),
     )
 }
 
@@ -26,8 +27,8 @@ fn compute_lineup_indices(
 pub struct TeamRegistry {
     home_team_id: Uuid,
     away_team_id: Uuid,
-    home_lineup: Lineup,
-    away_lineup: Lineup,
+    home_lineup: Arc<Lineup>,
+    away_lineup: Arc<Lineup>,
     home_tactical_profile: TeamTacticalProfile,
     away_tactical_profile: TeamTacticalProfile,
     home_manager: Manager,
@@ -36,14 +37,14 @@ pub struct TeamRegistry {
     away_available_profiles: Vec<TeamTacticalProfile>,
     home_playbook: Vec<PlayCall>,
     away_playbook: Vec<PlayCall>,
-    home_offensive_position_index: HashMap<Uuid, DomainPosition>,
-    home_defensive_position_index: HashMap<Uuid, DomainPosition>,
-    away_offensive_position_index: HashMap<Uuid, DomainPosition>,
-    away_defensive_position_index: HashMap<Uuid, DomainPosition>,
-    home_role_index: HashMap<Uuid, SlotRole>,
-    away_role_index: HashMap<Uuid, SlotRole>,
-    home_instructions_index: HashMap<Uuid, PlayerInstructions>,
-    away_instructions_index: HashMap<Uuid, PlayerInstructions>,
+    home_offensive_position_index: Arc<HashMap<Uuid, DomainPosition>>,
+    home_defensive_position_index: Arc<HashMap<Uuid, DomainPosition>>,
+    away_offensive_position_index: Arc<HashMap<Uuid, DomainPosition>>,
+    away_defensive_position_index: Arc<HashMap<Uuid, DomainPosition>>,
+    home_role_index: Arc<HashMap<Uuid, SlotRole>>,
+    away_role_index: Arc<HashMap<Uuid, SlotRole>>,
+    home_instructions_index: Arc<HashMap<Uuid, PlayerInstructions>>,
+    away_instructions_index: Arc<HashMap<Uuid, PlayerInstructions>>,
     player_attribute_tables: HashMap<Uuid, PlayerAttributeTable>,
 }
 
@@ -79,8 +80,8 @@ impl TeamRegistry {
         Self {
             home_team_id,
             away_team_id,
-            home_lineup,
-            away_lineup,
+            home_lineup: Arc::new(home_lineup),
+            away_lineup: Arc::new(away_lineup),
             home_tactical_profile,
             away_tactical_profile,
             home_manager,
@@ -104,13 +105,13 @@ impl TeamRegistry {
     pub fn replace_lineup(&mut self, team_id: Uuid, new_lineup: Lineup) {
         let (off_pos, def_pos, role_idx, instr_idx) = compute_lineup_indices(&new_lineup);
         if team_id == self.home_team_id {
-            self.home_lineup = new_lineup;
+            self.home_lineup = Arc::new(new_lineup);
             self.home_offensive_position_index = off_pos;
             self.home_defensive_position_index = def_pos;
             self.home_role_index = role_idx;
             self.home_instructions_index = instr_idx;
         } else {
-            self.away_lineup = new_lineup;
+            self.away_lineup = Arc::new(new_lineup);
             self.away_offensive_position_index = off_pos;
             self.away_defensive_position_index = def_pos;
             self.away_role_index = role_idx;
@@ -144,6 +145,22 @@ impl TeamRegistry {
 
     pub fn away_lineup(&self) -> &Lineup {
         &self.away_lineup
+    }
+
+    pub fn home_lineup_arc(&self) -> Arc<Lineup> {
+        Arc::clone(&self.home_lineup)
+    }
+
+    pub fn away_lineup_arc(&self) -> Arc<Lineup> {
+        Arc::clone(&self.away_lineup)
+    }
+
+    pub fn lineup_for_team_arc(&self, team_id: Uuid) -> Arc<Lineup> {
+        if team_id == self.home_team_id {
+            Arc::clone(&self.home_lineup)
+        } else {
+            Arc::clone(&self.away_lineup)
+        }
     }
 
     pub fn home_tactical_profile(&self) -> &TeamTacticalProfile {
@@ -246,6 +263,22 @@ impl TeamRegistry {
         &self.away_defensive_position_index
     }
 
+    pub fn home_offensive_position_index_arc(&self) -> Arc<HashMap<Uuid, DomainPosition>> {
+        Arc::clone(&self.home_offensive_position_index)
+    }
+
+    pub fn home_defensive_position_index_arc(&self) -> Arc<HashMap<Uuid, DomainPosition>> {
+        Arc::clone(&self.home_defensive_position_index)
+    }
+
+    pub fn away_offensive_position_index_arc(&self) -> Arc<HashMap<Uuid, DomainPosition>> {
+        Arc::clone(&self.away_offensive_position_index)
+    }
+
+    pub fn away_defensive_position_index_arc(&self) -> Arc<HashMap<Uuid, DomainPosition>> {
+        Arc::clone(&self.away_defensive_position_index)
+    }
+
     pub fn offensive_position_index_for_team(
         &self,
         team_id: Uuid,
@@ -268,6 +301,28 @@ impl TeamRegistry {
         }
     }
 
+    pub fn offensive_position_index_for_team_arc(
+        &self,
+        team_id: Uuid,
+    ) -> Arc<HashMap<Uuid, DomainPosition>> {
+        if team_id == self.home_team_id {
+            Arc::clone(&self.home_offensive_position_index)
+        } else {
+            Arc::clone(&self.away_offensive_position_index)
+        }
+    }
+
+    pub fn defensive_position_index_for_team_arc(
+        &self,
+        team_id: Uuid,
+    ) -> Arc<HashMap<Uuid, DomainPosition>> {
+        if team_id == self.home_team_id {
+            Arc::clone(&self.home_defensive_position_index)
+        } else {
+            Arc::clone(&self.away_defensive_position_index)
+        }
+    }
+
     pub fn position_index_for_team(
         &self,
         team_id: Uuid,
@@ -280,6 +335,18 @@ impl TeamRegistry {
         }
     }
 
+    pub fn position_index_for_team_arc(
+        &self,
+        team_id: Uuid,
+        is_offense: bool,
+    ) -> Arc<HashMap<Uuid, DomainPosition>> {
+        if is_offense {
+            self.offensive_position_index_for_team_arc(team_id)
+        } else {
+            self.defensive_position_index_for_team_arc(team_id)
+        }
+    }
+
     pub fn home_role_index(&self) -> &HashMap<Uuid, SlotRole> {
         &self.home_role_index
     }
@@ -288,11 +355,27 @@ impl TeamRegistry {
         &self.away_role_index
     }
 
+    pub fn home_role_index_arc(&self) -> Arc<HashMap<Uuid, SlotRole>> {
+        Arc::clone(&self.home_role_index)
+    }
+
+    pub fn away_role_index_arc(&self) -> Arc<HashMap<Uuid, SlotRole>> {
+        Arc::clone(&self.away_role_index)
+    }
+
     pub fn role_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, SlotRole> {
         if team_id == self.home_team_id {
             &self.home_role_index
         } else {
             &self.away_role_index
+        }
+    }
+
+    pub fn role_index_for_team_arc(&self, team_id: Uuid) -> Arc<HashMap<Uuid, SlotRole>> {
+        if team_id == self.home_team_id {
+            Arc::clone(&self.home_role_index)
+        } else {
+            Arc::clone(&self.away_role_index)
         }
     }
 
@@ -304,11 +387,30 @@ impl TeamRegistry {
         &self.away_instructions_index
     }
 
+    pub fn home_instructions_index_arc(&self) -> Arc<HashMap<Uuid, PlayerInstructions>> {
+        Arc::clone(&self.home_instructions_index)
+    }
+
+    pub fn away_instructions_index_arc(&self) -> Arc<HashMap<Uuid, PlayerInstructions>> {
+        Arc::clone(&self.away_instructions_index)
+    }
+
     pub fn instructions_index_for_team(&self, team_id: Uuid) -> &HashMap<Uuid, PlayerInstructions> {
         if team_id == self.home_team_id {
             &self.home_instructions_index
         } else {
             &self.away_instructions_index
+        }
+    }
+
+    pub fn instructions_index_for_team_arc(
+        &self,
+        team_id: Uuid,
+    ) -> Arc<HashMap<Uuid, PlayerInstructions>> {
+        if team_id == self.home_team_id {
+            Arc::clone(&self.home_instructions_index)
+        } else {
+            Arc::clone(&self.away_instructions_index)
         }
     }
 
@@ -324,11 +426,12 @@ impl TeamRegistry {
         self.home_offensive_position_index.contains_key(player_id)
     }
 
-    pub fn find_player(&self, player_id: &Uuid) -> Option<&Player> {
+    pub fn find_player<'a>(&'a self, player_id: &Uuid) -> Option<&'a Player> {
         self.home_lineup
-            .players()
-            .into_iter()
-            .chain(self.away_lineup.players())
+            .assignments()
+            .iter()
+            .chain(self.away_lineup.assignments().iter())
+            .map(|a| a.player())
             .find(|p| p.id() == *player_id)
     }
 
@@ -336,7 +439,12 @@ impl TeamRegistry {
         &'a self,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) -> Option<&'a Player> {
-        let players = self.home_lineup.players();
+        let players: Vec<&Player> = self
+            .home_lineup
+            .assignments()
+            .iter()
+            .map(|a| a.player())
+            .collect();
         crate::psychology::systems::baseline::find_active_captain(&players, attribute_keys)
     }
 
@@ -344,7 +452,12 @@ impl TeamRegistry {
         &'a self,
         attribute_keys: &HashMap<Uuid, AttributeKey>,
     ) -> Option<&'a Player> {
-        let players = self.away_lineup.players();
+        let players: Vec<&Player> = self
+            .away_lineup
+            .assignments()
+            .iter()
+            .map(|a| a.player())
+            .collect();
         crate::psychology::systems::baseline::find_active_captain(&players, attribute_keys)
     }
 

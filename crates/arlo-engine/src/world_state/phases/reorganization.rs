@@ -30,8 +30,8 @@ pub fn derive_and_apply_reorganization(
     recovering_player_id: Option<Uuid>,
 ) -> (Duration, Duration) {
     let pitch = *publisher.state().pitch();
-    let home_lineup = publisher.state().home_lineup().clone();
-    let away_lineup = publisher.state().away_lineup().clone();
+    let home_lineup = publisher.state().home_lineup_arc();
+    let away_lineup = publisher.state().away_lineup_arc();
     let attribute_keys = publisher.state().attribute_keys().clone();
 
     let was_home_offense = publisher
@@ -64,7 +64,9 @@ pub fn derive_and_apply_reorganization(
                     .state()
                     .defensive_position_index_for_team(publisher.state().away_team_id());
                 let def_players = def_lineup.players();
-                let eligible = eligible_block_marking_defenders(&def_players, def_pos_index);
+                let player_refs: Vec<&arlo_domain::Player> =
+                    def_players.iter().map(|p| p.as_ref()).collect();
+                let eligible = eligible_block_marking_defenders(&player_refs, def_pos_index);
                 let press_block_shape = def_instructions.transition().press_block_shape();
                 let execution_fidelity =
                     extract_manager_artro_strategy_fidelity(def_manager, &attribute_keys);
@@ -85,7 +87,9 @@ pub fn derive_and_apply_reorganization(
                     .state()
                     .defensive_position_index_for_team(publisher.state().home_team_id());
                 let def_players = def_lineup.players();
-                let eligible = eligible_block_marking_defenders(&def_players, def_pos_index);
+                let player_refs: Vec<&arlo_domain::Player> =
+                    def_players.iter().map(|p| p.as_ref()).collect();
+                let eligible = eligible_block_marking_defenders(&player_refs, def_pos_index);
                 let press_block_shape = def_instructions.transition().press_block_shape();
                 let execution_fidelity =
                     extract_manager_artro_strategy_fidelity(def_manager, &attribute_keys);

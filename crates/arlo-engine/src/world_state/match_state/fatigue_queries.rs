@@ -52,8 +52,20 @@ impl MatchState {
     }
 
     pub fn apply_dead_ball_recovery(&mut self, dead_ball_seconds: f64) -> Vec<(Uuid, f64, f64)> {
-        let home_players = self.teams.home_lineup().players();
-        let away_players = self.teams.away_lineup().players();
+        let home_players: Vec<&Player> = self
+            .teams
+            .home_lineup()
+            .assignments()
+            .iter()
+            .map(|a| a.player())
+            .collect();
+        let away_players: Vec<&Player> = self
+            .teams
+            .away_lineup()
+            .assignments()
+            .iter()
+            .map(|a| a.player())
+            .collect();
         self.fatigue.apply_dead_ball_recovery(
             dead_ball_seconds,
             &home_players,

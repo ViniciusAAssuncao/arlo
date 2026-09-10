@@ -30,7 +30,11 @@ pub fn calculate_defense_attractor_coordinates(
 ) -> (f64, f64) {
     if let Some(MarkingAssignment::Man(target)) = marking {
         if let (Some(opposing_lineup), Some(spatial_map)) = (ctx.opposing_lineup, ctx.spatial_map) {
-            let opposing_players = opposing_lineup.players();
+            let opposing_players: Vec<&Player> = opposing_lineup
+                .assignments()
+                .iter()
+                .map(|a| a.player())
+                .collect();
             let opposing_pos_index = opposing_lineup.offensive_position_index();
             let defender_pos = VectorPosition::from_components(base_x, base_y, 0.0);
             if let Some(man_pos) = resolve_man_marking_target_position(
