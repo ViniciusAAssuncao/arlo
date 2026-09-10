@@ -7,7 +7,6 @@ use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::DuelKind;
-use crate::rng::RngStream;
 use crate::spatial::ball_kinematics::calculate_cross_speed_from_table;
 use crate::spatial::ball_kinematics::ball_flight_duration;
 use crate::spatial::proximity::calculate_distance_mirim;
@@ -18,9 +17,10 @@ use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationC
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{Player, Position as DomainPosition};
+use rand::Rng;
 use uuid::Uuid;
 
-pub fn execute_cross_action(
+pub fn execute_cross_action<R: Rng + ?Sized>(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -28,6 +28,7 @@ pub fn execute_cross_action(
     loop_state: &mut OpenPlayLoopState,
     current_carrier: &Player,
     defense_players: &[&Player],
+    rng: &mut R,
 ) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
@@ -43,11 +44,6 @@ pub fn execute_cross_action(
         current_time,
     );
 
-    let seq_fin = state.next_sequence();
-    let mut fin_rng = state
-        .rng_provider()
-        .indexed_rng_for(RngStream::FinisherSelection, seq_fin);
-
     let chosen_finisher_id = select_finisher_from_tables(
         &iter_ctx.target_candidates,
         Some(&context.offense_role_index),
@@ -60,7 +56,7 @@ pub fn execute_cross_action(
         context.is_home_offense,
         &iter_ctx.openness_by_player,
         Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
-        &mut fin_rng,
+        rng,
     );
 
     let finisher = chosen_finisher_id
@@ -117,10 +113,6 @@ pub fn execute_cross_action(
         Ok(g) => g,
         Err(_) => return,
     };
-    let seq_duel = state.next_sequence();
-    let mut duel_rng = state
-        .rng_provider()
-        .indexed_rng_for(RngStream::DuelResolution, seq_duel);
 
     let assister_id = state
         .possession()
@@ -148,7 +140,7 @@ pub fn execute_cross_action(
     .with_fatigue(fin_fatigue, gg_fatigue)
     .with_tables(fin_table, gg_table);
 
-    let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut duel_rng);
+    let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
 
     loop_state.accumulated_duels.push(fin_duel);
     loop_state.scoring_decision = score_dec;
@@ -156,7 +148,7 @@ pub fn execute_cross_action(
     loop_state.ball_in_play = false;
 }
 
-pub fn execute_self_finish_action(
+pub fn execute_self_finish_action<R: Rng + ?Sized>(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -164,6 +156,7 @@ pub fn execute_self_finish_action(
     loop_state: &mut OpenPlayLoopState,
     current_carrier: &Player,
     defense_players: &[&Player],
+    rng: &mut R,
 ) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
@@ -202,10 +195,6 @@ pub fn execute_self_finish_action(
         Ok(g) => g,
         Err(_) => return,
     };
-    let seq_duel = state.next_sequence();
-    let mut duel_rng = state
-        .rng_provider()
-        .indexed_rng_for(RngStream::DuelResolution, seq_duel);
 
     let assister_id = state
         .possession()
@@ -232,7 +221,7 @@ pub fn execute_self_finish_action(
     .with_fatigue(carrier_fatigue, gg_fatigue)
     .with_tables(carrier_table, gg_table);
 
-    let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut duel_rng);
+    let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
 
     loop_state.accumulated_duels.push(fin_duel);
     loop_state.scoring_decision = score_dec;

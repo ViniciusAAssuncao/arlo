@@ -1,16 +1,20 @@
 use crate::artrine::{
-    compute_carry_target_lane, compute_forward_target_pos, detect_drive_crossings,
+    compute_carry_target_lane,
+    compute_forward_target_pos,
+    detect_drive_crossings,
     filter_blocker_helpers,
 };
 use crate::attributes::PlayerAttributeTable;
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
-use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
-use crate::resolution::{AttributedDuelOutcome, DuelKind};
-use crate::rng::RngStream;
+use crate::resolution::resolver::{ resolve_duel, DuelResolutionRequest };
+use crate::resolution::{ AttributedDuelOutcome, DuelKind };
 use crate::spatial::{
-    run_carrier_tick_loop_with_collision, CollisionResolution, DynamicSpatialMap, LiveCollision,
+    run_carrier_tick_loop_with_collision,
+    CollisionResolution,
+    DynamicSpatialMap,
+    LiveCollision,
     MovementContext,
 };
 use crate::team_identity::marking::recalibrate_defenders_for_carrier_from_tables;
@@ -20,13 +24,14 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::{Player, Position as DomainPosition};
-use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_domain::{ Player, Position as DomainPosition };
+use arlo_math::units::{ Duration, Position as VectorPosition, MIRIM_TO_METERS };
+use rand::Rng;
 use smallvec::smallvec;
-use std::collections::{HashMap, HashSet};
+use std::collections::{ HashMap, HashSet };
 use uuid::Uuid;
 
-pub fn execute_carry_action(
+pub fn execute_carry_action<R: Rng + ?Sized>(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -34,6 +39,7 @@ pub fn execute_carry_action(
     current_carrier: &Player,
     defense_players: &[&Player],
     is_true_artrine: bool,
+    rng: &mut R
 ) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
@@ -41,29 +47,28 @@ pub fn execute_carry_action(
 
     let zone = pitch.zone_at_position(carrier_pos);
     let current_time = state.clock().seconds_in_period();
-    state.possession_mut().live_sequence_mut().record_touch(
-        current_carrier.id(),
-        TouchActionType::Carry,
-        zone,
-        current_time,
-    );
+    state
+        .possession_mut()
+        .live_sequence_mut()
+        .record_touch(current_carrier.id(), TouchActionType::Carry, zone, current_time);
 
     let target_channel_y_m = compute_carry_target_lane(carrier_pos, &pitch);
     let target_carry_pos = compute_forward_target_pos(
         carrier_pos,
         target_channel_y_m,
         &pitch,
-        context.is_home_offense,
+        context.is_home_offense
     );
 
     let _blockers = filter_blocker_helpers(
         &iter_ctx.target_candidates,
         &context.offense_role_index,
-        &context.offense_route_index,
+        &context.offense_route_index
     );
 
-    let mut movers =
-        Vec::with_capacity(1 + iter_ctx.target_candidates.len() + defense_players.len());
+    let mut movers = Vec::with_capacity(
+        1 + iter_ctx.target_candidates.len() + defense_players.len()
+    );
     movers.push((current_carrier, target_carry_pos));
 
     for &helper in &iter_ctx.target_candidates {
@@ -73,8 +78,11 @@ pub fn execute_carry_action(
             } else {
                 -10.0 * 0.7 * MIRIM_TO_METERS
             };
-            let helper_target =
-                VectorPosition::from_components(pos.raw().0 + offset_x, pos.raw().1, 0.0);
+            let helper_target = VectorPosition::from_components(
+                pos.raw().0 + offset_x,
+                pos.raw().1,
+                0.0
+            );
             movers.push((helper, helper_target));
         }
     }
@@ -87,23 +95,19 @@ pub fn execute_carry_action(
         carrier_pos,
         iter_ctx.offensive_gravity_mult,
         &pitch,
-        context.is_home_offense,
+        context.is_home_offense
     );
 
     for &defender in defense_players {
-        let def_target = def_targets
-            .get(&defender.id())
-            .copied()
-            .unwrap_or(target_carry_pos);
+        let def_target = def_targets.get(&defender.id()).copied().unwrap_or(target_carry_pos);
         movers.push((defender, def_target));
     }
 
-    state
-        .spatial_map_mut()
-        .set_position(current_carrier.id(), carrier_pos);
+    state.spatial_map_mut().set_position(current_carrier.id(), carrier_pos);
 
     let defense_pressing_value = (iter_ctx.defense_pressing_multiplier - 1.0).max(0.0);
-    let offense_ids: HashSet<Uuid> = std::iter::once(current_carrier.id())
+    let offense_ids: HashSet<Uuid> = std::iter
+        ::once(current_carrier.id())
         .chain(iter_ctx.target_candidates.iter().map(|p| p.id()))
         .collect();
 
@@ -116,14 +120,16 @@ pub fn execute_carry_action(
         }
     };
 
-    let def_ids: Vec<Uuid> = defense_players.iter().map(|p| p.id()).collect();
+    let def_ids: Vec<Uuid> = defense_players
+        .iter()
+        .map(|p| p.id())
+        .collect();
     let mut local_duels = Vec::new();
     let mut carry_turnover = None;
     let mut carry_recovering = None;
     let mut carry_halted = false;
 
-    let carrier_pos_domain = context
-        .offense_pos_index
+    let carrier_pos_domain = context.offense_pos_index
         .get(&current_carrier.id())
         .copied()
         .unwrap_or_else(|| {
@@ -134,15 +140,14 @@ pub fn execute_carry_action(
                 .unwrap_or(DomainPosition::CenterOffense)
         });
 
-    let rng_provider = *state.rng_provider();
-    let mut local_seq = state.event_sequence();
     let defense_team_id = context.defense_team_id;
     let defense_pos_index = &context.defense_pos_index;
     let duel_ctx = iter_ctx.duel_context;
     let fatigue_tracker = state.fatigue.clone();
 
-    let carrier_table: PlayerAttributeTable =
-        state.attribute_table_for(&current_carrier.id()).clone();
+    let carrier_table: PlayerAttributeTable = state
+        .attribute_table_for(&current_carrier.id())
+        .clone();
     let defender_tables: HashMap<Uuid, PlayerAttributeTable> = defense_players
         .iter()
         .map(|p| (p.id(), state.attribute_table_for(&p.id()).clone()))
@@ -163,21 +168,16 @@ pub fn execute_carry_action(
             carrier_pos_domain,
             &carrier_table,
             off_prof,
-            &fatigue_tracker.fatigue_for(&current_carrier.id()),
+            &fatigue_tracker.fatigue_for(&current_carrier.id())
         );
         let def_rating = calculate_player_duel_rating_from_table(
             def_player,
-            defense_pos_index
-                .get(&def_player.id())
-                .copied()
-                .unwrap_or(DomainPosition::Centerback),
+            defense_pos_index.get(&def_player.id()).copied().unwrap_or(DomainPosition::Centerback),
             def_table_ref,
             def_prof,
-            &fatigue_tracker.fatigue_for(&def_player.id()),
+            &fatigue_tracker.fatigue_for(&def_player.id())
         );
 
-        local_seq += 1;
-        let mut d_rng = rng_provider.indexed_rng_for(RngStream::DuelResolution, local_seq);
         let c_context = duel_ctx.for_duel_kind(DuelKind::ArtroBreakthrough);
 
         let req = DuelResolutionRequest::with_states(
@@ -189,15 +189,14 @@ pub fn execute_carry_action(
             fatigue_tracker.fatigue_for(&current_carrier.id()),
             fatigue_tracker.fatigue_for(&def_player.id()),
             &attribute_keys,
-            &c_context,
-        )
-        .with_tables(Some(&carrier_table), Some(def_table_ref));
-        let duel_raw = resolve_duel(req, &mut d_rng);
+            &c_context
+        ).with_tables(Some(&carrier_table), Some(def_table_ref));
+        let duel_raw = resolve_duel(req, rng);
 
         let attributed = AttributedDuelOutcome::new(
             duel_raw,
             smallvec![current_carrier.id()],
-            smallvec![def_player.id()],
+            smallvec![def_player.id()]
         );
         local_duels.push(attributed);
 
@@ -215,7 +214,7 @@ pub fn execute_carry_action(
                 carrier_pos_domain,
                 &carrier_table,
                 sec_off,
-                &fatigue_tracker.fatigue_for(&current_carrier.id()),
+                &fatigue_tracker.fatigue_for(&current_carrier.id())
             );
             let sec_df = calculate_player_duel_rating_from_table(
                 def_player,
@@ -225,11 +224,9 @@ pub fn execute_carry_action(
                     .unwrap_or(DomainPosition::Centerback),
                 def_table_ref,
                 sec_def,
-                &fatigue_tracker.fatigue_for(&def_player.id()),
+                &fatigue_tracker.fatigue_for(&def_player.id())
             );
 
-            local_seq += 1;
-            let mut sec_rng = rng_provider.indexed_rng_for(RngStream::DuelResolution, local_seq);
             let sec_context = duel_ctx.for_duel_kind(DuelKind::BallSecurityCarry);
             let sec_req = DuelResolutionRequest::with_states(
                 DuelKind::BallSecurityCarry,
@@ -240,15 +237,14 @@ pub fn execute_carry_action(
                 fatigue_tracker.fatigue_for(&current_carrier.id()),
                 fatigue_tracker.fatigue_for(&def_player.id()),
                 &attribute_keys,
-                &sec_context,
-            )
-            .with_tables(Some(&carrier_table), Some(def_table_ref));
-            let sec_raw = resolve_duel(sec_req, &mut sec_rng);
+                &sec_context
+            ).with_tables(Some(&carrier_table), Some(def_table_ref));
+            let sec_raw = resolve_duel(sec_req, rng);
 
             let sec_attr = AttributedDuelOutcome::new(
                 sec_raw,
                 smallvec![current_carrier.id()],
-                smallvec![def_player.id()],
+                smallvec![def_player.id()]
             );
             local_duels.push(sec_attr);
 
@@ -272,14 +268,10 @@ pub fn execute_carry_action(
         state.teams.player_attribute_tables(),
         MovementContext::LivePlay,
         &pitch,
-        &|id| fatigue_tracker.fatigue_for(id),
+        &(|id| fatigue_tracker.fatigue_for(id)),
         &effort_multiplier_for,
-        collision_cb,
+        collision_cb
     );
-
-    while state.event_sequence() < local_seq {
-        state.next_sequence();
-    }
 
     let end_pos = state
         .spatial_map()
@@ -295,7 +287,7 @@ pub fn execute_carry_action(
             &tick_result,
             carrier_pos,
             end_pos,
-            context.is_home_offense,
+            context.is_home_offense
         );
         for row in crossed {
             if !loop_state.accumulated_drive_row_indices.contains(&row) {
@@ -305,13 +297,11 @@ pub fn execute_carry_action(
         }
     }
 
-    loop_state
-        .accumulated_trajectories
-        .extend(tick_result.trajectories().clone());
+    loop_state.accumulated_trajectories.extend(tick_result.trajectories().clone());
     loop_state.accumulated_duels.extend(local_duels);
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CarrierMovement,
-        Duration::new(tick_result.elapsed_seconds()),
+        Duration::new(tick_result.elapsed_seconds())
     );
     loop_state.accumulated_mirins_advanced += adv_mirim;
     loop_state.current_carrier_pos = end_pos;

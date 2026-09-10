@@ -38,6 +38,11 @@ impl RngProvider {
         ChaCha8Rng::seed_from_u64(sub_seed)
     }
 
+    pub fn iteration_rng(&self, stream: RngStream, sequence: u64, iteration: usize) -> ChaCha8Rng {
+        let index = (sequence << 16) | ((iteration as u64) & 0xFFFF);
+        self.indexed_rng_for(stream, index)
+    }
+
     pub fn duel_resolution_rng(&self) -> ChaCha8Rng {
         self.rng_for(RngStream::DuelResolution)
     }

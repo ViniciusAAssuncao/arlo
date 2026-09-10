@@ -14,6 +14,7 @@ pub use loop_state::OpenPlayLoopState;
 
 use crate::artrine::ArtrineExecutionOutcome;
 use crate::error::EngineResult;
+use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
@@ -37,6 +38,11 @@ pub fn run_open_play_loop(
         && !state.is_match_finished()
     {
         loop_state.loop_iteration += 1;
+
+        let seq = state.event_sequence();
+        let mut iteration_rng = state
+            .rng_provider()
+            .iteration_rng(RngStream::DuelResolution, seq, loop_state.loop_iteration);
 
         let current_carrier = match offense_players
             .iter()
@@ -66,6 +72,7 @@ pub fn run_open_play_loop(
             pass_phase,
             &loop_state,
             current_carrier,
+            &mut iteration_rng,
             sink,
         );
 
@@ -83,6 +90,7 @@ pub fn run_open_play_loop(
                     current_carrier,
                     defense_players,
                     is_true_artrine,
+                    &mut iteration_rng,
                 );
             }
             ArtrineDecisionKind::ShortPass | ArtrineDecisionKind::LongLaunch => {
@@ -95,6 +103,7 @@ pub fn run_open_play_loop(
                     current_carrier,
                     defense_players,
                     chosen_decision,
+                    &mut iteration_rng,
                 );
             }
             ArtrineDecisionKind::Cross => {
@@ -106,6 +115,7 @@ pub fn run_open_play_loop(
                     &mut loop_state,
                     current_carrier,
                     defense_players,
+                    &mut iteration_rng,
                 );
             }
             ArtrineDecisionKind::SelfFinish => {
@@ -117,6 +127,7 @@ pub fn run_open_play_loop(
                     &mut loop_state,
                     current_carrier,
                     defense_players,
+                    &mut iteration_rng,
                 );
             }
         }

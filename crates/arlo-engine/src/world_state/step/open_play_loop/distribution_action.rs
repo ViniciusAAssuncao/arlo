@@ -13,7 +13,6 @@ use crate::resolution::group_rating::{
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
-use crate::rng::RngStream;
 use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
 use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
 use crate::time::DurationComponentKind;
@@ -25,12 +24,13 @@ use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Velocity, MIRIM_TO_METERS};
+use rand::Rng;
 use smallvec::smallvec;
 use uuid::Uuid;
 
 const OPEN_PLAY_MAX_FINISH_DISTANCE_MIRIM: f64 = 50.0;
 
-fn check_distribution_scoring_opportunity(
+fn check_distribution_scoring_opportunity<R: Rng + ?Sized>(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -40,6 +40,7 @@ fn check_distribution_scoring_opportunity(
     current_carrier: &Player,
     defense_players: &[&Player],
     rec_att_rating: f64,
+    rng: &mut R,
 ) {
     let pitch = *state.pitch();
     let rx_mirim = loop_state.current_carrier_pos.raw().0 / MIRIM_TO_METERS;
@@ -67,10 +68,6 @@ fn check_distribution_scoring_opportunity(
             Ok(g) => g,
             Err(_) => return,
         };
-        let seq_fin = state.next_sequence();
-        let mut fin_rng = state
-            .rng_provider()
-            .indexed_rng_for(RngStream::DuelResolution, seq_fin);
 
         let shot_zone = pitch.zone_at_position(loop_state.current_carrier_pos);
         let current_time = state.clock().seconds_in_period();
@@ -107,7 +104,7 @@ fn check_distribution_scoring_opportunity(
         .with_fatigue(rec_fatigue, gg_fatigue)
         .with_tables(rec_table, gg_table);
 
-        let (score_dec, fin_duel) = resolve_scoring_attempt(req, &mut fin_rng);
+        let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
 
         loop_state.accumulated_duels.push(fin_duel);
         loop_state.scoring_decision = score_dec;
@@ -115,7 +112,7 @@ fn check_distribution_scoring_opportunity(
     }
 }
 
-pub fn execute_distribution_action(
+pub fn execute_distribution_action<R: Rng + ?Sized>(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
@@ -124,6 +121,7 @@ pub fn execute_distribution_action(
     current_carrier: &Player,
     defense_players: &[&Player],
     chosen_decision: ArtrineDecisionKind,
+    rng: &mut R,
 ) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
@@ -163,8 +161,6 @@ pub fn execute_distribution_action(
 
     let (off_prof, def_prof) = get_duel_profiles(duel_kind);
 
-    let seq_duel = state.next_sequence();
-
     let tables = state.teams.player_attribute_tables();
 
     let att_rating = calculate_anchored_side_rating(
@@ -188,9 +184,6 @@ pub fn execute_distribution_action(
     );
 
     let contest_radius = Length::new(2.0 * iter_ctx.defense_pressing_multiplier * MIRIM_TO_METERS);
-    let mut d_rng = state
-        .rng_provider()
-        .indexed_rng_for(RngStream::DuelResolution, seq_duel);
 
     let lead_defender = resolve_primary_lead_defender(
         current_carrier.id(),
@@ -204,7 +197,7 @@ pub fn execute_distribution_action(
         &|id| state.fatigue_lookup().get(id),
         contest_radius,
         None,
-        &mut d_rng,
+        rng,
     );
 
     let dist_context = iter_ctx.duel_context.for_duel_kind(duel_kind);
@@ -224,7 +217,7 @@ pub fn execute_distribution_action(
         &dist_context,
     )
     .with_tables(att_table, lead_def_table);
-    let raw_throw_duel = resolve_duel(req, &mut d_rng);
+    let raw_throw_duel = resolve_duel(req, rng);
 
     let throw_duel = AttributedDuelOutcome::new(
         raw_throw_duel,
@@ -273,7 +266,7 @@ pub fn execute_distribution_action(
         ReceptionRole::OpenPlayReceiver,
         &iter_ctx.openness_by_player,
         Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
-        &mut d_rng,
+        rng,
     )
     .unwrap_or(current_carrier.id());
 
@@ -328,7 +321,7 @@ pub fn execute_distribution_action(
         &rec_context,
     )
     .with_tables(rec_table, lead_def_table2);
-    let raw_rec_duel = resolve_duel(req, &mut d_rng);
+    let raw_rec_duel = resolve_duel(req, rng);
 
     let rec_attributed = AttributedDuelOutcome::new(
         raw_rec_duel,
@@ -385,5 +378,6 @@ pub fn execute_distribution_action(
         current_carrier,
         defense_players,
         rec_att_rating,
+        rng,
     );
 }

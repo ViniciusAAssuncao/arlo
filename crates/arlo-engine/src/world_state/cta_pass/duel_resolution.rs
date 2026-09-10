@@ -50,7 +50,7 @@ pub fn resolve_pass_protection_duel(
 
     let mut duel_rng = state
         .rng_provider()
-        .indexed_rng_for(RngStream::DuelResolution, seq);
+        .iteration_rng(RngStream::DuelResolution, seq, 0);
 
     let fatigue_lookup = state.fatigue_lookup();
     let fatigue_fn = |id: &Uuid| fatigue_lookup.get(id);

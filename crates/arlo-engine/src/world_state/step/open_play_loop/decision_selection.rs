@@ -5,7 +5,6 @@ use crate::artrine::event_translation::translate_artrine_decision_made;
 use crate::match_decision::event_translation::create_envelope;
 use crate::open_play::carrier_sampler::sample_carrier_decision_from_table;
 use crate::open_play::CarrierDecisionEvaluator;
-use crate::rng::RngStream;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -14,14 +13,16 @@ use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Player, Position, SlotRole};
 use arlo_events::EventSink;
+use rand::Rng;
 
-pub fn select_carrier_decision(
+pub fn select_carrier_decision<R: Rng + ?Sized>(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
     pass_phase: &PassPhaseResult<'_>,
     loop_state: &OpenPlayLoopState,
     current_carrier: &Player,
+    rng: &mut R,
     sink: &mut impl EventSink,
 ) -> ArtrineDecisionKind {
     let total_drives =
@@ -122,11 +123,6 @@ pub fn select_carrier_decision(
     let utilities =
         CarrierDecisionEvaluator::evaluate_action_utilities(&eval_ctx, &available_kinds);
 
-    let seq = state.next_sequence();
-    let mut decision_rng = state
-        .rng_provider()
-        .indexed_rng_for(RngStream::ArtrineDecision, seq);
-
     let carrier_impulse = state.impulse_for(&current_carrier.id());
 
     let result = sample_carrier_decision_from_table(
@@ -135,10 +131,11 @@ pub fn select_carrier_decision(
         &utilities,
         &carrier_physical_state,
         &carrier_impulse,
-        &mut decision_rng,
+        rng,
     );
 
     if is_true_artrine {
+        let seq = state.next_sequence();
         let decision_event = translate_artrine_decision_made(
             current_carrier.id(),
             result.chosen(),
