@@ -13,6 +13,7 @@ use crate::spatial::{
     run_carrier_tick_loop_with_collision, CollisionResolution, DynamicSpatialMap, LiveCollision,
     MovementContext,
 };
+use crate::team_identity::marking::recalibrate_defenders_for_carrier;
 use crate::team_identity::tempo::effort_multiplier_from_value;
 use crate::time::DurationComponentKind;
 use crate::world_state::match_state::MatchState;
@@ -80,8 +81,23 @@ pub fn execute_carry_action<F>(
         }
     }
 
+    let def_targets = recalibrate_defenders_for_carrier(
+        defense_players,
+        &context.defense_pos_index,
+        state.spatial_map(),
+        carrier_pos,
+        iter_ctx.offensive_gravity_mult,
+        &pitch,
+        context.is_home_offense,
+        &attribute_keys,
+    );
+
     for &defender in defense_players {
-        movers.push((defender, target_carry_pos));
+        let def_target = def_targets
+            .get(&defender.id())
+            .copied()
+            .unwrap_or(target_carry_pos);
+        movers.push((defender, def_target));
     }
 
     state
@@ -279,7 +295,9 @@ pub fn execute_carry_action<F>(
         }
     }
 
-    loop_state.accumulated_trajectories.extend(tick_result.trajectories().clone());
+    loop_state
+        .accumulated_trajectories
+        .extend(tick_result.trajectories().clone());
     loop_state.accumulated_duels.extend(local_duels);
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CarrierMovement,

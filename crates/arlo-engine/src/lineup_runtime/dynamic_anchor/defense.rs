@@ -1,6 +1,7 @@
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::team_identity::depth_from_bipolar;
+use crate::team_identity::marking::dynamic_shifting::calculate_carrier_defensive_shift;
 use crate::team_identity::marking::resolve_man_marking_target_position;
 use crate::team_identity::BlockMarkingRole;
 use arlo_domain::pitch::Pitch;
@@ -107,6 +108,20 @@ pub fn calculate_defense_attractor_coordinates(
             (pinch_factor * (1.0 + BLOCK_MARKING_COVER_DISCIPLINE_BOOST)).clamp(0.0, 1.0);
     }
     let y_pos = base_y + (center_y - base_y) * pinch_factor;
+
+    if let Some(ref_pos) = ctx.press_reference_pos {
+        let shifted = calculate_carrier_defensive_shift(
+            player,
+            VectorPosition::from_components(x_pos, y_pos, 0.0),
+            ref_pos,
+            1.0,
+            target_position,
+            pitch,
+            attacking_positive_x,
+            attribute_keys,
+        );
+        return (shifted.raw().0, shifted.raw().1);
+    }
 
     (x_pos, y_pos)
 }
