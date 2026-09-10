@@ -37,7 +37,7 @@ impl SquadFatigueSummary {
         let mut total_w_prime = 0.0;
         let mut player_w_primes = Vec::with_capacity(players.len());
 
-        for player in &players {
+        for player in players {
             let pid = player.id();
             let state = fatigue.fatigue_for(&pid);
             total_energy += state.energy();

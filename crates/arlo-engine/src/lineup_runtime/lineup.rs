@@ -62,6 +62,7 @@ impl LineupAssignment {
 pub struct Lineup {
     formation: Formation,
     assignments: Vec<LineupAssignment>,
+    players_cache: Vec<Arc<Player>>,
 }
 
 impl Lineup {
@@ -106,10 +107,7 @@ impl Lineup {
             })
             .collect();
 
-        Ok(Self {
-            formation,
-            assignments,
-        })
+        Self::from_assignments(formation, assignments)
     }
 
     pub fn from_assignments(
@@ -139,9 +137,15 @@ impl Lineup {
             }
         }
 
+        let players_cache = assignments
+            .iter()
+            .map(|a| Arc::clone(&a.player))
+            .collect();
+
         Ok(Self {
             formation,
             assignments,
+            players_cache,
         })
     }
 
@@ -184,11 +188,8 @@ impl Lineup {
         &self.assignments
     }
 
-    pub fn players(&self) -> Vec<Arc<Player>> {
-        self.assignments
-            .iter()
-            .map(|a| Arc::clone(&a.player))
-            .collect()
+    pub fn players(&self) -> &[Arc<Player>] {
+        &self.players_cache
     }
 
     pub fn role_index(&self) -> HashMap<Uuid, SlotRole> {
