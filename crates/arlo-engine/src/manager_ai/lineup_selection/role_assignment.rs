@@ -10,7 +10,9 @@ use arlo_domain::sport_constants::managerial::{
     BLOCKER_ROLE_BASE_THRESHOLD, BLOCKER_ROLE_PHYSICALITY_ADJUSTMENT,
     LAUNCHER_PASSING_RANGE_PREFERENCE_WEIGHT,
 };
-use arlo_domain::{ArtrineDependency, AttributeKey, Formation, Player, Position, SlotRole};
+use arlo_domain::{
+    ArtrineDependency, AttributeKey, Formation, FormationSlot, Player, Position, SlotRole,
+};
 use arlo_tactics::{is_role_eligible_for_position, max_concurrent_count};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -51,6 +53,43 @@ fn evaluate_candidate_suitability(
             block * 0.6 + strength * 0.4
         }
         SlotRole::Standard => 0.0,
+    }
+}
+
+fn assign_best_candidate_for_role(
+    role: SlotRole,
+    assignments: &[(usize, Player)],
+    slots: &[FormationSlot],
+    roles: &mut HashMap<Uuid, SlotRole>,
+    role_counts: &mut HashMap<SlotRole, u32>,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+) {
+    if let Some(max) = max_concurrent_count(role) {
+        let current_count = role_counts.get(&role).copied().unwrap_or(0);
+        if current_count < max {
+            let candidate = assignments
+                .iter()
+                .filter(|(idx, p)| {
+                    let pos = slots
+                        .get(*idx)
+                        .map(|s| s.position())
+                        .unwrap_or(Position::Midcenter);
+                    roles.get(&p.id()) == Some(&SlotRole::Standard)
+                        && is_role_eligible_for_position(role, pos)
+                })
+                .max_by(|(_, a), (_, b)| {
+                    let score_a = evaluate_candidate_suitability(a, role, attribute_keys);
+                    let score_b = evaluate_candidate_suitability(b, role, attribute_keys);
+                    score_a
+                        .partial_cmp(&score_b)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+
+            if let Some((_, player)) = candidate {
+                roles.insert(player.id(), role);
+                *role_counts.entry(role).or_insert(0) += 1;
+            }
+        }
     }
 }
 
@@ -112,44 +151,14 @@ pub fn assign_roles(
     );
 
     if false_artrine_prob.value() >= 0.5 {
-        if let Some(max) = max_concurrent_count(SlotRole::FalseArtrine) {
-            let current_count = role_counts
-                .get(&SlotRole::FalseArtrine)
-                .copied()
-                .unwrap_or(0);
-            if current_count < max {
-                let candidate = assignments
-                    .iter()
-                    .filter(|(idx, p)| {
-                        let pos = slots
-                            .get(*idx)
-                            .map(|s| s.position())
-                            .unwrap_or(Position::Midcenter);
-                        roles.get(&p.id()) == Some(&SlotRole::Standard)
-                            && is_role_eligible_for_position(SlotRole::FalseArtrine, pos)
-                    })
-                    .max_by(|(_, a), (_, b)| {
-                        let score_a = evaluate_candidate_suitability(
-                            a,
-                            SlotRole::FalseArtrine,
-                            attribute_keys,
-                        );
-                        let score_b = evaluate_candidate_suitability(
-                            b,
-                            SlotRole::FalseArtrine,
-                            attribute_keys,
-                        );
-                        score_a
-                            .partial_cmp(&score_b)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    });
-
-                if let Some((_, player)) = candidate {
-                    roles.insert(player.id(), SlotRole::FalseArtrine);
-                    *role_counts.entry(SlotRole::FalseArtrine).or_insert(0) += 1;
-                }
-            }
-        }
+        assign_best_candidate_for_role(
+            SlotRole::FalseArtrine,
+            assignments,
+            slots,
+            &mut roles,
+            &mut role_counts,
+            attribute_keys,
+        );
     }
 
     let base_launcher_tactical = planning_norm * 0.7 + strategy_norm * 0.3;
@@ -167,35 +176,14 @@ pub fn assign_roles(
     );
 
     if launcher_prob.value() >= 0.5 {
-        if let Some(max) = max_concurrent_count(SlotRole::Launcher) {
-            let current_count = role_counts.get(&SlotRole::Launcher).copied().unwrap_or(0);
-            if current_count < max {
-                let candidate = assignments
-                    .iter()
-                    .filter(|(idx, p)| {
-                        let pos = slots
-                            .get(*idx)
-                            .map(|s| s.position())
-                            .unwrap_or(Position::Midcenter);
-                        roles.get(&p.id()) == Some(&SlotRole::Standard)
-                            && is_role_eligible_for_position(SlotRole::Launcher, pos)
-                    })
-                    .max_by(|(_, a), (_, b)| {
-                        let score_a =
-                            evaluate_candidate_suitability(a, SlotRole::Launcher, attribute_keys);
-                        let score_b =
-                            evaluate_candidate_suitability(b, SlotRole::Launcher, attribute_keys);
-                        score_a
-                            .partial_cmp(&score_b)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    });
-
-                if let Some((_, player)) = candidate {
-                    roles.insert(player.id(), SlotRole::Launcher);
-                    *role_counts.entry(SlotRole::Launcher).or_insert(0) += 1;
-                }
-            }
-        }
+        assign_best_candidate_for_role(
+            SlotRole::Launcher,
+            assignments,
+            slots,
+            &mut roles,
+            &mut role_counts,
+            attribute_keys,
+        );
     }
 
     let safeguard_prob = action_probability(
@@ -207,66 +195,24 @@ pub fn assign_roles(
     );
 
     if safeguard_prob.value() >= 0.5 {
-        if let Some(max) = max_concurrent_count(SlotRole::Safeguard) {
-            let current_count = role_counts.get(&SlotRole::Safeguard).copied().unwrap_or(0);
-            if current_count < max {
-                let candidate = assignments
-                    .iter()
-                    .filter(|(idx, p)| {
-                        let pos = slots
-                            .get(*idx)
-                            .map(|s| s.position())
-                            .unwrap_or(Position::Midcenter);
-                        roles.get(&p.id()) == Some(&SlotRole::Standard)
-                            && is_role_eligible_for_position(SlotRole::Safeguard, pos)
-                    })
-                    .max_by(|(_, a), (_, b)| {
-                        let score_a =
-                            evaluate_candidate_suitability(a, SlotRole::Safeguard, attribute_keys);
-                        let score_b =
-                            evaluate_candidate_suitability(b, SlotRole::Safeguard, attribute_keys);
-                        score_a
-                            .partial_cmp(&score_b)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    });
-
-                if let Some((_, player)) = candidate {
-                    roles.insert(player.id(), SlotRole::Safeguard);
-                    *role_counts.entry(SlotRole::Safeguard).or_insert(0) += 1;
-                }
-            }
-        }
+        assign_best_candidate_for_role(
+            SlotRole::Safeguard,
+            assignments,
+            slots,
+            &mut roles,
+            &mut role_counts,
+            attribute_keys,
+        );
     }
 
-    if let Some(max) = max_concurrent_count(SlotRole::Kicker) {
-        let current_count = role_counts.get(&SlotRole::Kicker).copied().unwrap_or(0);
-        if current_count < max {
-            let candidate = assignments
-                .iter()
-                .filter(|(idx, p)| {
-                    let pos = slots
-                        .get(*idx)
-                        .map(|s| s.position())
-                        .unwrap_or(Position::Midcenter);
-                    roles.get(&p.id()) == Some(&SlotRole::Standard)
-                        && is_role_eligible_for_position(SlotRole::Kicker, pos)
-                })
-                .max_by(|(_, a), (_, b)| {
-                    let score_a =
-                        evaluate_candidate_suitability(a, SlotRole::Kicker, attribute_keys);
-                    let score_b =
-                        evaluate_candidate_suitability(b, SlotRole::Kicker, attribute_keys);
-                    score_a
-                        .partial_cmp(&score_b)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
-
-            if let Some((_, player)) = candidate {
-                roles.insert(player.id(), SlotRole::Kicker);
-                *role_counts.entry(SlotRole::Kicker).or_insert(0) += 1;
-            }
-        }
-    }
+    assign_best_candidate_for_role(
+        SlotRole::Kicker,
+        assignments,
+        slots,
+        &mut roles,
+        &mut role_counts,
+        attribute_keys,
+    );
 
     let blocker_threshold = BLOCKER_ROLE_BASE_THRESHOLD
         - (physicality_pref.clamp(0.0, 1.0) * BLOCKER_ROLE_PHYSICALITY_ADJUSTMENT);
