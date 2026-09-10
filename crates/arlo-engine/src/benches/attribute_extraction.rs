@@ -2,6 +2,7 @@ use arlo_domain::{
     AttributeCategory, AttributeDefinition, AttributeKey, AttributeTarget, CaptaincyRole,
     Player, PlayerAttributeValue, PlayerPosition, Position,
 };
+use arlo_engine::attributes::PlayerAttributeTable;
 use arlo_engine::physical::systems::degradation::{
     extract_effective_attribute_value, extract_effective_attribute_value_with_impulse,
 };
@@ -97,27 +98,20 @@ fn bench_attribute_extraction(c: &mut Criterion) {
     let (player, attribute_keys, all_keys) = setup_player_and_keys();
     let physical_state = PhysicalState::new(0.85, 0.90, 1500.0, 3);
     let impulse_state = ImpulseState::from_baseline(55.0);
+    let table = PlayerAttributeTable::from_player(&player, &attribute_keys);
 
     let mut group = c.benchmark_group("attribute_extraction");
 
     group.bench_function("extract_single_key", |b| {
         b.iter(|| {
-            extract_attribute_value(
-                black_box(&player),
-                black_box(&attribute_keys),
-                black_box(AttributeKey::Passing),
-            )
+            extract_attribute_value(black_box(&table), black_box(AttributeKey::Passing))
         })
     });
 
     group.bench_function("extract_all_keys_batch", |b| {
         b.iter(|| {
             for &key in &all_keys {
-                black_box(extract_attribute_value(
-                    black_box(&player),
-                    black_box(&attribute_keys),
-                    black_box(key),
-                ));
+                black_box(extract_attribute_value(black_box(&table), black_box(key)));
             }
         })
     });
@@ -125,8 +119,7 @@ fn bench_attribute_extraction(c: &mut Criterion) {
     group.bench_function("extract_effective_with_fatigue", |b| {
         b.iter(|| {
             extract_effective_attribute_value(
-                black_box(&player),
-                black_box(&attribute_keys),
+                black_box(&table),
                 black_box(AttributeKey::Passing),
                 black_box(&physical_state),
             )
@@ -136,11 +129,11 @@ fn bench_attribute_extraction(c: &mut Criterion) {
     group.bench_function("extract_effective_with_impulse", |b| {
         b.iter(|| {
             extract_effective_attribute_value_with_impulse(
-                black_box(&player),
-                black_box(&attribute_keys),
+                black_box(&table),
                 black_box(AttributeKey::Passing),
                 black_box(&physical_state),
                 black_box(&impulse_state),
+                black_box(55.0),
             )
         })
     });

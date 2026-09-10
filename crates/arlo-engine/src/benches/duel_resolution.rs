@@ -5,10 +5,10 @@ use arlo_domain::{
 use arlo_engine::physical::PhysicalState;
 use arlo_engine::resolution::duel_profiles::get_duel_profiles;
 use arlo_engine::resolution::group_rating::{
-    calculate_anchored_side_rating_from_index_with_fatigue,
-    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
+    calculate_anchored_side_rating, calculate_player_duel_rating_with_state,
+    calculate_side_rating, RatingParticipants,
 };
-use arlo_engine::resolution::resolver::resolve_duel_with_fatigue;
+use arlo_engine::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use arlo_engine::resolution::{DuelContext, DuelKind};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::SeedableRng;
@@ -178,26 +178,30 @@ fn bench_duel_resolution(c: &mut Criterion) {
 
     group.bench_function("side_rating_5_players", |b| {
         b.iter(|| {
-            calculate_side_rating_from_index_with_fatigue(
-                black_box(&def_helper_refs),
-                black_box(&def_pos_index),
+            calculate_side_rating(
+                RatingParticipants::from_slice_with_index(
+                    black_box(&def_helper_refs),
+                    black_box(&def_pos_index),
+                )
+                .with_fatigue(black_box(&fatigue_lookup)),
                 black_box(&attribute_keys),
                 black_box(&def_profile),
-                black_box(&fatigue_lookup),
             )
         })
     });
 
     group.bench_function("anchored_side_rating", |b| {
         b.iter(|| {
-            calculate_anchored_side_rating_from_index_with_fatigue(
+            calculate_anchored_side_rating(
                 black_box(&attacker),
                 black_box(Position::Passer),
-                black_box(&off_helper_refs),
-                black_box(&off_pos_index),
+                RatingParticipants::from_slice_with_index(
+                    black_box(&off_helper_refs),
+                    black_box(&off_pos_index),
+                )
+                .with_fatigue(black_box(&fatigue_lookup)),
                 black_box(&attribute_keys),
                 black_box(&off_profile),
-                black_box(&fatigue_lookup),
             )
         })
     });
@@ -205,18 +209,18 @@ fn bench_duel_resolution(c: &mut Criterion) {
     group.bench_function("resolve_duel_with_fatigue_raw", |b| {
         let mut rng = ChaCha8Rng::seed_from_u64(42);
         b.iter(|| {
-            resolve_duel_with_fatigue(
-                black_box(DuelKind::PassProtection),
+            let req = DuelResolutionRequest::with_states(
+                DuelKind::PassProtection,
                 black_box(14.5),
                 black_box(13.2),
                 black_box(&attacker),
                 black_box(&defender),
-                black_box(&fatigue_state),
-                black_box(&fatigue_state),
+                black_box(fatigue_state),
+                black_box(fatigue_state),
                 black_box(&attribute_keys),
                 black_box(&duel_context),
-                black_box(&mut rng),
-            )
+            );
+            resolve_duel(req, black_box(&mut rng))
         })
     });
 
