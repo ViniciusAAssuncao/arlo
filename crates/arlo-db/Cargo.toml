@@ -9,6 +9,5 @@ license.workspace = true
 arlo-domain.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true
-tracing.workspace = true
 tokio.workspace = true
 uuid.workspace = true
