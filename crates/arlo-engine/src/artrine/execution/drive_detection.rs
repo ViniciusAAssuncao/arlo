@@ -4,6 +4,7 @@ use crate::possession::drive::validator::validate_continuous_trajectory;
 use crate::spatial::TickSimulationResult;
 use arlo_domain::pitch::{artro_rows_for_pitch, Pitch};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use smallvec::SmallVec;
 use uuid::Uuid;
 
 pub fn detect_drive_crossings(
@@ -13,10 +14,10 @@ pub fn detect_drive_crossings(
     start_pos: VectorPosition,
     end_position: VectorPosition,
     attacking_positive_x: bool,
-) -> Vec<usize> {
+) -> SmallVec<[usize; 4]> {
     let all_rows = artro_rows_for_pitch(pitch);
     let true_artrine = TrueArtrine::new(artrine_id);
-    let mut drive_row_indices = Vec::new();
+    let mut drive_row_indices = SmallVec::new();
 
     let segments = tick_result
         .get_trajectory(&artrine_id)

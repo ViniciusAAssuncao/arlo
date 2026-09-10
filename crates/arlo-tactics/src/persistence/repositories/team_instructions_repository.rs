@@ -142,7 +142,7 @@ pub async fn insert_profile(
     .execute(&mut *tx)
     .await?;
 
-    let entries: [(TacticalPhase, InstructionKey, f64); 12] = [
+    let entries: [(TacticalPhase, InstructionKey, f64); 17] = [
         (
             TacticalPhase::InPossession,
             InstructionKey::Mentality,
@@ -172,6 +172,26 @@ pub async fn insert_profile(
             TacticalPhase::InPossession,
             InstructionKey::Structure,
             instructions.in_possession().structure().value(),
+        ),
+        (
+            TacticalPhase::InPossession,
+            InstructionKey::PassingRange,
+            instructions.in_possession().passing_range().value(),
+        ),
+        (
+            TacticalPhase::InPossession,
+            InstructionKey::Aeriality,
+            instructions.in_possession().aeriality().value(),
+        ),
+        (
+            TacticalPhase::InPossession,
+            InstructionKey::Physicality,
+            instructions.in_possession().physicality().value(),
+        ),
+        (
+            TacticalPhase::InPossession,
+            InstructionKey::ScoringPatience,
+            instructions.in_possession().scoring_patience().value(),
         ),
         (
             TacticalPhase::OutOfPossession,
@@ -208,6 +228,11 @@ pub async fn insert_profile(
             TacticalPhase::Transition,
             InstructionKey::CounterPressIntensity,
             instructions.transition().counter_press_intensity().value(),
+        ),
+        (
+            TacticalPhase::Transition,
+            InstructionKey::PressBlockShape,
+            instructions.transition().press_block_shape().value(),
         ),
     ];
 

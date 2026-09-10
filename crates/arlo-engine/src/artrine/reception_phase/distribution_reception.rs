@@ -11,6 +11,7 @@ use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -58,7 +59,7 @@ fn handle_failed_reception(
     ArtrineExecutionOutcome {
         mirins_advanced: 0.0,
         drives_recorded: 0,
-        drive_row_indices: Vec::new(),
+        drive_row_indices: SmallVec::new(),
         turnover,
         recovering_player_id,
         scoring_decision: ScoringDecision::NoOpportunity,
@@ -93,6 +94,7 @@ where
         ctx.offense_helpers,
         ctx.defenders,
         ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.pitch,
         spatial_map,
         ctx.offense_position_index,
@@ -104,6 +106,7 @@ where
         ctx.duel_context,
         ctx.fatigue_for,
         ctx.defense_pressing_multiplier,
+        ctx.openness_by_player,
         rng,
     );
 
@@ -157,6 +160,7 @@ where
         ctx.defense_position_index,
         ctx.defense_instructions_index,
         ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.pitch,
         spatial_map,
         ctx.defense_team_id,
@@ -204,7 +208,7 @@ where
         return ArtrineExecutionOutcome {
             mirins_advanced,
             drives_recorded: 0,
-            drive_row_indices: Vec::new(),
+            drive_row_indices: SmallVec::new(),
             turnover: rac_outcome.turnover,
             recovering_player_id: rac_outcome.recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
@@ -242,7 +246,7 @@ where
     ArtrineExecutionOutcome {
         mirins_advanced,
         drives_recorded: 0,
-        drive_row_indices: Vec::new(),
+        drive_row_indices: SmallVec::new(),
         turnover,
         recovering_player_id,
         scoring_decision,

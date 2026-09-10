@@ -3,22 +3,24 @@ use crate::artrine::constants::{
     INTERCEPTION_CLAMP_MIN, INTERCEPTION_HANDS_DIFF_WEIGHT,
 };
 use crate::artrine::logistics::{
-    collect_drifted_defender_candidates, collect_swept_participant_ids,
-    resolve_primary_lead_defender,
+    collect_drifted_defender_candidates_from_tables, collect_swept_participant_ids,
+    resolve_primary_lead_defender_from_tables,
 };
-use crate::match_decision::target_selection::{select_target_with_fatigue, ReceptionRole};
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::attributes::PlayerAttributeTable;
+use crate::match_decision::target_selection::{select_target_from_tables, ReceptionRole};
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
+    calculate_player_duel_rating_from_table, calculate_player_duel_rating_with_state,
+    calculate_side_rating, RatingParticipants,
 };
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::positioning_drift::{
-    get_drifted_attacker_position, get_drifted_defender_position, nearest_drifted_opponent,
+    get_drifted_attacker_position_from_table, get_drifted_defender_position_from_table, nearest_drifted_opponent_from_tables,
 };
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
@@ -28,6 +30,7 @@ use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position as DomainP
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Velocity, MIRIM_TO_METERS};
 use arlo_tactics::{PlayerInstructions, TeamInstructions};
 use rand::Rng;
+use smallvec::smallvec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -48,6 +51,7 @@ pub fn resolve_reception<F, R>(
     candidates: &[&Player],
     defenders: &[&Player],
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     pitch: &Pitch,
     spatial_map: &DynamicSpatialMap,
     position_index: &HashMap<Uuid, DomainPosition>,
@@ -59,22 +63,24 @@ pub fn resolve_reception<F, R>(
     context: &DuelContext,
     fatigue_for: &F,
     defense_pressing_multiplier: f64,
+    openness_by_player: &HashMap<Uuid, f64>,
     rng: &mut R,
 ) -> ReceptionOutcome
 where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let receiver_id = select_target_with_fatigue(
+    let receiver_id = select_target_from_tables(
         candidates,
         spatial_map,
         pitch,
         position_index,
         instructions_index,
-        attribute_keys,
+        attribute_tables,
         attacking_positive_x,
         ReceptionRole::OpenPlayReceiver,
-        fatigue_for,
+        openness_by_player,
+        Some(fatigue_for),
         rng,
     )
     .unwrap_or_else(|| passer_or_artrine.id());
@@ -111,23 +117,35 @@ where
 
     let receiver_state = fatigue_for(&receiver_id);
 
-    let attacker_rating = calculate_player_duel_rating_with_state(
-        receiver_player,
-        receiver_pos_domain,
-        attribute_keys,
-        &offense_profile,
-        &receiver_state,
-    );
+    let attacker_rating = match attribute_tables.get(&receiver_id) {
+        Some(table) => calculate_player_duel_rating_from_table(
+            receiver_player,
+            receiver_pos_domain,
+            table,
+            offense_profile,
+            &receiver_state,
+        ),
+        None => calculate_player_duel_rating_with_state(
+            receiver_player,
+            receiver_pos_domain,
+            attribute_keys,
+            offense_profile,
+            &receiver_state,
+        ),
+    };
 
     let receiver_player_instructions = instructions_index
         .get(&receiver_id)
         .copied()
         .unwrap_or_default();
 
-    let receiver_pos_vec = get_drifted_attacker_position(
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+    let safe_receiver_table = attribute_tables.get(&receiver_id).unwrap_or(&DEFAULT_TABLE);
+
+    let receiver_pos_vec = get_drifted_attacker_position_from_table(
         receiver_player,
+        safe_receiver_table,
         spatial_map,
-        attribute_keys,
         offense_instructions,
         receiver_player_instructions,
         rng,
@@ -139,7 +157,8 @@ where
         .iter()
         .copied()
         .filter(|cand| {
-            get_drifted_defender_position(cand, spatial_map, attribute_keys, rng)
+            let def_table = attribute_tables.get(&cand.id()).unwrap_or(&DEFAULT_TABLE);
+            get_drifted_defender_position_from_table(*cand, def_table, spatial_map, rng)
                 .map(|p| {
                     calculate_distance_mirim(receiver_pos_vec, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM
                 })
@@ -153,17 +172,17 @@ where
         defenders
     };
 
-    let defender_rating = calculate_side_rating_from_index_with_fatigue(
-        active_defenders,
-        defense_position_index,
+    let defender_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(active_defenders, defense_position_index)
+            .with_fatigue(fatigue_for)
+            .with_attribute_tables(attribute_tables),
         attribute_keys,
-        &defense_profile,
-        fatigue_for,
+        defense_profile,
     );
 
     let contest_radius =
         Length::new(PROXIMITY_CONTEST_RADIUS_MIRIM * defense_pressing_multiplier * MIRIM_TO_METERS);
-    let lead_defender = resolve_primary_lead_defender(
+    let lead_defender = resolve_primary_lead_defender_from_tables(
         receiver_id,
         position_index,
         receiver_pos_vec,
@@ -171,7 +190,7 @@ where
         active_defenders,
         spatial_map,
         defense_instructions_index,
-        attribute_keys,
+        attribute_tables,
         fatigue_for,
         contest_radius,
         None,
@@ -181,31 +200,36 @@ where
     let lead_def_state = fatigue_for(&lead_defender.id());
 
     let rec_context = context.for_duel_kind(duel_kind);
-    let raw_duel = resolve_duel_with_fatigue(
+    let rec_table = attribute_tables.get(&receiver_id);
+    let lead_def_table = attribute_tables.get(&lead_defender.id());
+    let req = DuelResolutionRequest::with_states(
         duel_kind,
         attacker_rating,
         defender_rating,
         receiver_player,
         lead_defender,
-        &receiver_state,
-        &lead_def_state,
+        receiver_state,
+        lead_def_state,
         attribute_keys,
         &rec_context,
-        rng,
-    );
+    )
+    .with_tables(rec_table, lead_def_table);
+    let raw_duel = resolve_duel(req, rng);
 
     let caught = raw_duel.attacker_won();
 
     let intercepted_by_defender = if !caught {
-        let def_hands =
-            extract_attribute_value(lead_defender, attribute_keys, AttributeKey::HandsReception);
-        let def_ant =
-            extract_attribute_value(lead_defender, attribute_keys, AttributeKey::Anticipation);
-        let att_hands = extract_attribute_value(
-            receiver_player,
-            attribute_keys,
-            AttributeKey::HandsReception,
-        );
+        let def_table_owned = match attribute_tables.get(&lead_defender.id()) {
+            Some(t) => t.clone(),
+            None => PlayerAttributeTable::from_player(lead_defender, attribute_keys),
+        };
+        let def_hands = extract_attribute_value(&def_table_owned, AttributeKey::HandsReception);
+        let def_ant = extract_attribute_value(&def_table_owned, AttributeKey::Anticipation);
+        let att_table_owned = match attribute_tables.get(&receiver_id) {
+            Some(t) => t.clone(),
+            None => PlayerAttributeTable::from_player(receiver_player, attribute_keys),
+        };
+        let att_hands = extract_attribute_value(&att_table_owned, AttributeKey::HandsReception);
         let hands_diff = def_hands - att_hands;
         let threshold = -(INTERCEPTION_BASE_THRESHOLD
             - (hands_diff * INTERCEPTION_HANDS_DIFF_WEIGHT
@@ -221,26 +245,27 @@ where
     };
 
     let receiver_speed =
-        calculate_effective_player_speed(receiver_player, attribute_keys, &receiver_state);
-    let duration = match nearest_drifted_opponent(
+        calculate_effective_player_speed_from_table(receiver_player, safe_receiver_table, &receiver_state);
+    let duration = match nearest_drifted_opponent_from_tables(
         receiver_pos_vec,
         defenders,
         spatial_map,
-        attribute_keys,
+        attribute_tables,
         rng,
     ) {
         Some((d, pos)) => {
             let d_state = fatigue_for(&d.id());
-            let d_spd = calculate_effective_player_speed(d, attribute_keys, &d_state);
+            let d_table = attribute_tables.get(&d.id()).unwrap_or(&DEFAULT_TABLE);
+            let d_spd = calculate_effective_player_speed_from_table(d, d_table, &d_state);
             derive_duel_duration(receiver_pos_vec, receiver_speed, pos, d_spd)
         }
         None => Duration::new(MINIMUM_ENGAGEMENT_SECONDS),
     };
 
-    let defender_candidates = collect_drifted_defender_candidates(
+    let defender_candidates = collect_drifted_defender_candidates_from_tables(
         active_defenders,
         spatial_map,
-        attribute_keys,
+        attribute_tables,
         receiver_pos_vec,
         fatigue_for,
         rng,
@@ -254,7 +279,7 @@ where
         duration,
     );
 
-    let duel = AttributedDuelOutcome::new(raw_duel, vec![receiver_id], active_defender_ids);
+    let duel = AttributedDuelOutcome::new(raw_duel, smallvec![receiver_id], active_defender_ids);
 
     ReceptionOutcome {
         receiver: receiver_id,

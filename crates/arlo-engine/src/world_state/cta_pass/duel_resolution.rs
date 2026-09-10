@@ -3,12 +3,15 @@ use crate::match_decision::event_translation::{
 };
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
-use crate::resolution::resolver::resolve_duel_for_participants_with_fatigue;
+use crate::resolution::group_rating::RatingParticipants;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::AttributedDuelOutcome;
 use crate::rng::RngStream;
 use crate::world_state::cta_pass::participants::PhaseParticipants;
 use crate::world_state::match_state::MatchState;
+use arlo_domain::Position;
 use arlo_events::EventSink;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 pub fn resolve_pass_protection_duel(
@@ -47,34 +50,47 @@ pub fn resolve_pass_protection_duel(
 
     let mut duel_rng = state
         .rng_provider()
-        .indexed_rng_for(RngStream::DuelResolution, seq);
+        .iteration_rng(RngStream::DuelResolution, seq, 0);
 
-    let home_fatigue = state.home_fatigue().clone();
-    let away_fatigue = state.away_fatigue().clone();
-    let fatigue_lookup = move |id: &Uuid| {
-        home_fatigue
-            .get(id)
-            .or_else(|| away_fatigue.get(id))
-            .copied()
-            .unwrap_or_default()
-    };
+    let fatigue_lookup = state.fatigue_lookup();
+    let fatigue_fn = |id: &Uuid| fatigue_lookup.get(id);
 
-    let raw_pass_duel = resolve_duel_for_participants_with_fatigue(
+    let pass_blocker_players: Vec<_> = participants.pass_blockers.iter().map(|(p, _)| *p).collect();
+    let pass_blocker_map: HashMap<Uuid, Position> = participants
+        .pass_blockers
+        .iter()
+        .map(|(p, pos)| (p.id(), *pos))
+        .collect();
+
+    let pass_rusher_players: Vec<_> = participants.pass_rushers.iter().map(|(p, _)| *p).collect();
+    let pass_rusher_map: HashMap<Uuid, Position> = participants
+        .pass_rushers
+        .iter()
+        .map(|(p, pos)| (p.id(), *pos))
+        .collect();
+
+    let tables = state.teams.player_attribute_tables();
+
+    let req = DuelResolutionRequest::from_participants(
         DuelKind::PassProtection,
         participants.passer,
-        &participants.pass_blockers,
+        RatingParticipants::from_slice_with_index(&pass_blocker_players, &pass_blocker_map)
+            .with_fatigue(&fatigue_fn)
+            .with_attribute_tables(tables),
         participants.pass_rusher,
-        &participants.pass_rushers,
+        RatingParticipants::from_slice_with_index(&pass_rusher_players, &pass_rusher_map)
+            .with_fatigue(&fatigue_fn)
+            .with_attribute_tables(tables),
         state.attribute_keys(),
         &context,
-        &fatigue_lookup,
-        &mut duel_rng,
     );
+
+    let raw_pass_duel = resolve_duel(req, &mut duel_rng);
 
     let pass_duel_event = translate_duel_resolved(
         &raw_pass_duel,
-        participants.attacker_ids.clone(),
-        participants.defender_ids.clone(),
+        participants.attacker_ids.to_vec(),
+        participants.defender_ids.to_vec(),
     );
     let seq = state.next_sequence();
     let clock_inst = state.clock().to_instant();

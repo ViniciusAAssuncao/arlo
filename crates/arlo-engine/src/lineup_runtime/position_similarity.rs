@@ -1,7 +1,9 @@
+use crate::caching::position_profile_cache::get_position_similarity;
 use crate::current_ability::profiles::get_profile_for_position;
 use crate::current_ability::weights::PositionWeightProfile;
 use arlo_domain::{AttributeKey, Position};
-use std::collections::HashMap;
+use arlo_math::stats::cosine_similarity;
+use std::collections::{HashMap, HashSet};
 
 pub fn calculate_profile_similarity(
     profile_a: &PositionWeightProfile,
@@ -12,26 +14,25 @@ pub fn calculate_profile_similarity(
         weights_a.insert(w.key, w.weight);
     }
 
-    let mut dot_product = 0.0;
-    let mut mag_b_sq = 0.0;
-
+    let mut weights_b: HashMap<AttributeKey, f64> = HashMap::with_capacity(profile_b.weights.len());
     for w in &profile_b.weights {
-        mag_b_sq += w.weight * w.weight;
-        if let Some(&wa) = weights_a.get(&w.key) {
-            dot_product += wa * w.weight;
-        }
+        weights_b.insert(w.key, w.weight);
     }
 
-    let mag_a_sq: f64 = profile_a.weights.iter().map(|w| w.weight * w.weight).sum();
+    let mut all_keys: HashSet<AttributeKey> =
+        HashSet::with_capacity(weights_a.len() + weights_b.len());
+    all_keys.extend(weights_a.keys());
+    all_keys.extend(weights_b.keys());
 
-    if mag_a_sq <= 0.0 || mag_b_sq <= 0.0 {
-        return 0.0;
+    let mut vec_a = Vec::with_capacity(all_keys.len());
+    let mut vec_b = Vec::with_capacity(all_keys.len());
+
+    for key in all_keys {
+        vec_a.push(*weights_a.get(&key).unwrap_or(&0.0));
+        vec_b.push(*weights_b.get(&key).unwrap_or(&0.0));
     }
 
-    let mag_a = mag_a_sq.sqrt();
-    let mag_b = mag_b_sq.sqrt();
-
-    (dot_product / (mag_a * mag_b)).clamp(0.0, 1.0)
+    cosine_similarity(&vec_a, &vec_b).clamp(0.0, 1.0)
 }
 
 pub fn calculate_position_similarity(a: Position, b: Position) -> f64 {
@@ -44,5 +45,5 @@ pub fn calculate_position_similarity(a: Position, b: Position) -> f64 {
 }
 
 pub fn position_similarity(a: Position, b: Position) -> f64 {
-    crate::lineup_runtime::position_profile_cache::get_position_similarity(a, b)
+    get_position_similarity(a, b)
 }

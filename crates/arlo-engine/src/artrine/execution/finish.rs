@@ -1,18 +1,20 @@
 use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::distribution::execute_distribution;
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
-use crate::match_decision::finisher_selection::select_finisher_with_fatigue;
+use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, resolve_scoring_attempt_with_fatigue, ScoringDecision,
+    evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
 };
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
+use crate::resolution::group_rating::{
+    calculate_player_duel_rating_from_table, calculate_player_duel_rating_with_state,
+};
 use crate::resolution::DuelKind;
 use crate::spatial::ball_kinematics::{
-    ball_flight_duration, calculate_cross_speed_with_state, calculate_shot_speed_with_state,
+    ball_flight_duration, calculate_cross_speed_from_table, calculate_shot_speed_from_table,
 };
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
@@ -20,6 +22,7 @@ use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -39,14 +42,18 @@ where
     let finisher_state = ctx.fatigue(&finisher.id());
     let goalguard_state = ctx.fatigue(&ctx.goalguard.id());
 
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let finisher_table = ctx.attribute_tables.get(&finisher.id()).unwrap_or(&DEFAULT_TABLE);
+    let goalguard_table = ctx.attribute_tables.get(&ctx.goalguard.id()).unwrap_or(&DEFAULT_TABLE);
+
     let finisher_speed =
-        calculate_effective_player_speed(finisher, ctx.attribute_keys, &finisher_state);
+        calculate_effective_player_speed_from_table(finisher, finisher_table, &finisher_state);
     let goalguard_speed =
-        calculate_effective_player_speed(ctx.goalguard, ctx.attribute_keys, &goalguard_state);
+        calculate_effective_player_speed_from_table(ctx.goalguard, goalguard_table, &goalguard_state);
     let finishing_duration =
         derive_duel_duration(finisher_pos, finisher_speed, goalguard_pos, goalguard_speed);
 
-    let shot_speed = calculate_shot_speed_with_state(finisher, ctx.attribute_keys, &finisher_state);
+    let shot_speed = calculate_shot_speed_from_table(finisher, finisher_table, &finisher_state);
     let finisher_x_mirim = finisher_pos.raw().0 / MIRIM_TO_METERS;
     let dist_to_goal_mirim = if ctx.attacking_positive_x {
         (ctx.pitch.length_mirim() - finisher_x_mirim).max(0.0)
@@ -87,6 +94,7 @@ where
         start_pos,
         ledger,
         ctx.accumulated_advance_mirim,
+        None,
         rng,
     )
 }
@@ -103,15 +111,18 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
-    let chosen_finisher_id = select_finisher_with_fatigue(
+    let chosen_finisher_id = select_finisher_from_tables(
         ctx.offense_helpers,
+        Some(ctx.offense_role_index),
+        ctx.is_bonus_phase,
         spatial_map,
         ctx.pitch,
         ctx.offense_position_index,
         ctx.offense_instructions_index,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.attacking_positive_x,
-        ctx.fatigue_for,
+        ctx.openness_by_player,
+        Some(&|id: &Uuid| ctx.fatigue(id)),
         rng,
     );
 
@@ -126,7 +137,9 @@ where
         .unwrap_or(start_pos);
 
     let cross_dist_mirim = calculate_distance_mirim(artrine_pos, finisher_pos);
-    let cross_speed = calculate_cross_speed_with_state(artrine, ctx.attribute_keys, &artrine_state);
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let carrier_table = ctx.attribute_tables.get(&artrine.id()).unwrap_or(&DEFAULT_TABLE);
+    let cross_speed = calculate_cross_speed_from_table(artrine, carrier_table, &artrine_state);
     let cross_flight = ball_flight_duration(cross_dist_mirim, cross_speed);
 
     let (finishing_duration, shot_flight) =
@@ -141,6 +154,12 @@ where
     ledger.record_live(DurationComponentKind::ShotFlight, shot_flight);
 
     let total_advance = ctx.accumulated_advance_mirim + additional_advance;
+    let assister_id = if finisher.id() != artrine.id() {
+        Some(artrine.id())
+    } else {
+        None
+    };
+
     execute_finishing_with_player(
         ctx,
         finisher,
@@ -148,6 +167,7 @@ where
         start_pos,
         ledger,
         total_advance,
+        assister_id,
         rng,
     )
 }
@@ -197,7 +217,7 @@ where
     ArtrineExecutionOutcome {
         mirins_advanced: dist_outcome.mirins_advanced,
         drives_recorded: 0,
-        drive_row_indices: Vec::new(),
+        drive_row_indices: SmallVec::new(),
         turnover: finish_outcome.turnover,
         recovering_player_id: finish_outcome.recovering_player_id,
         scoring_decision: finish_outcome.scoring_decision,
@@ -217,6 +237,7 @@ pub fn execute_finishing_with_player<F, R>(
     start_pos: VectorPosition,
     duration_ledger: DurationLedger,
     total_advance_mirim: f64,
+    assister_id: Option<Uuid>,
     rng: &mut R,
 ) -> ArtrineExecutionOutcome
 where
@@ -227,13 +248,22 @@ where
     let goalguard_state = ctx.fatigue(&ctx.goalguard.id());
 
     let (attacker_profile, _) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let finisher_rating = calculate_player_duel_rating_with_state(
-        finisher,
-        DomainPosition::CenterOffense,
-        ctx.attribute_keys,
-        &attacker_profile,
-        &finisher_state,
-    );
+    let finisher_rating = match ctx.attribute_tables.get(&finisher.id()) {
+        Some(table) => calculate_player_duel_rating_from_table(
+            finisher,
+            DomainPosition::CenterOffense,
+            table,
+            attacker_profile,
+            &finisher_state,
+        ),
+        None => calculate_player_duel_rating_with_state(
+            finisher,
+            DomainPosition::CenterOffense,
+            ctx.attribute_keys,
+            attacker_profile,
+            &finisher_state,
+        ),
+    };
 
     let opportunity = evaluate_scoring_opportunity(
         ctx.is_bonus_phase,
@@ -243,20 +273,24 @@ where
     );
 
     let finish_context = ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
-    let (scoring_decision, finish_duel) = resolve_scoring_attempt_with_fatigue(
+    let finisher_table = ctx.attribute_tables.get(&finisher.id());
+    let goalguard_table = ctx.attribute_tables.get(&ctx.goalguard.id());
+    let req = ScoringAttemptRequest::new(
         finisher,
         ctx.goalguard,
         ctx.attribute_keys,
         ctx.offense_team_id,
         artrine.id(),
+        assister_id,
         opportunity,
         ctx.drives_in_series,
         total_advance_mirim,
-        &finisher_state,
-        &goalguard_state,
         &finish_context,
-        rng,
-    );
+    )
+    .with_fatigue(finisher_state, goalguard_state)
+    .with_tables(finisher_table, goalguard_table);
+
+    let (scoring_decision, finish_duel) = resolve_scoring_attempt(req, rng);
 
     let (turnover, recovering_player_id) = match &scoring_decision {
         ScoringDecision::Missed { .. } => (Some(ctx.defense_team_id), None),
@@ -266,7 +300,7 @@ where
     ArtrineExecutionOutcome {
         mirins_advanced: 0.0,
         drives_recorded: 0,
-        drive_row_indices: Vec::new(),
+        drive_row_indices: SmallVec::new(),
         turnover,
         recovering_player_id,
         scoring_decision,

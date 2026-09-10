@@ -1,9 +1,12 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::{
     calculate_physical_exhaustion, extract_effective_attribute_value_with_impulse,
 };
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
+use crate::psychology::systems::baseline::{
+    calculate_player_impulse_baseline, calculate_player_impulse_baseline_from_table_with_profile,
+};
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -55,39 +58,42 @@ impl RiskProfile {
         }
     }
 
-    pub fn from_player_with_impulse(
-        player: &Player,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+    pub fn from_table_with_impulse(
+        _player: &Player,
+        table: &PlayerAttributeTable,
         physical_state: &PhysicalState,
         impulse_state: &ImpulseState,
     ) -> Self {
+        let profile = crate::caching::impulse_baseline_profile();
+        let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
+
         let flair = extract_effective_attribute_value_with_impulse(
-            player,
-            attribute_keys,
+            table,
             AttributeKey::Flair,
             physical_state,
             impulse_state,
+            baseline,
         );
         let bravery = extract_effective_attribute_value_with_impulse(
-            player,
-            attribute_keys,
+            table,
             AttributeKey::Bravery,
             physical_state,
             impulse_state,
+            baseline,
         );
         let vision = extract_effective_attribute_value_with_impulse(
-            player,
-            attribute_keys,
+            table,
             AttributeKey::Vision,
             physical_state,
             impulse_state,
+            baseline,
         );
         let decisions = extract_effective_attribute_value_with_impulse(
-            player,
-            attribute_keys,
+            table,
             AttributeKey::Decisions,
             physical_state,
             impulse_state,
+            baseline,
         );
 
         let norm_flair = (flair.clamp(0.0, 20.0)) / 10.0;
@@ -103,7 +109,6 @@ impl RiskProfile {
             + 0.20 * norm_vision
             + 0.15 * norm_decisions;
 
-        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
         let impulse_delta = impulse_state.accumulator() - baseline;
         let norm_impulse_delta = impulse_delta / 50.0;
 
@@ -137,6 +142,16 @@ impl RiskProfile {
             probability_distortion_gamma,
             physical_exhaustion,
         }
+    }
+
+    pub fn from_player_with_impulse(
+        player: &Player,
+        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        physical_state: &PhysicalState,
+        impulse_state: &ImpulseState,
+    ) -> Self {
+        let table = PlayerAttributeTable::from_player(player, attribute_keys);
+        Self::from_table_with_impulse(player, &table, physical_state, impulse_state)
     }
 
     pub fn from_player(

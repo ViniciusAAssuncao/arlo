@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::FatigueState;
 use crate::resolution::DuelContext;
 use crate::spatial::DynamicSpatialMap;
@@ -19,6 +20,7 @@ pub struct RacContext<'a, F> {
     pub defense_position_index: &'a HashMap<Uuid, DomainPosition>,
     pub defense_instructions_index: &'a HashMap<Uuid, PlayerInstructions>,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
+    pub attribute_tables: &'a HashMap<Uuid, PlayerAttributeTable>,
     pub pitch: &'a Pitch,
     pub spatial_map: &'a DynamicSpatialMap,
     pub defense_team_id: Uuid,

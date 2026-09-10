@@ -1,9 +1,13 @@
 use crate::physical::models::metabolic_power::calculate_metabolic_work_rate;
+use crate::spatial::live_collisions::LiveCollision;
+use arlo_domain::sport_constants::MAX_OPEN_PLAY_TICKS;
 use arlo_domain::PitchZone;
 use arlo_math::units::{Duration, Position, Velocity, MIRIM_TO_METERS};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
+
+pub const DEFAULT_TRAJECTORY_CAPACITY: usize = (MAX_OPEN_PLAY_TICKS as usize) / 4;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpatialTrajectory {
@@ -21,9 +25,15 @@ pub struct SpatialTrajectory {
 
 impl SpatialTrajectory {
     pub fn new(player_id: Uuid, initial_position: Position) -> Self {
+        Self::with_capacity(player_id, initial_position, DEFAULT_TRAJECTORY_CAPACITY)
+    }
+
+    pub fn with_capacity(player_id: Uuid, initial_position: Position, capacity: usize) -> Self {
+        let mut positions = Vec::with_capacity(capacity.max(1));
+        positions.push(initial_position);
         Self {
             player_id,
-            positions: vec![initial_position],
+            positions,
             distance_meters: 0.0,
             distance_mirim: 0.0,
             high_intensity_distance_mirim: 0.0,
@@ -31,7 +41,7 @@ impl SpatialTrajectory {
             supramaximal_time_seconds: 0.0,
             metabolic_energy_joules: 0.0,
             peak_speed_meters_per_sec: 0.0,
-            zone_distances: HashMap::new(),
+            zone_distances: HashMap::with_capacity(4),
         }
     }
 
@@ -76,6 +86,10 @@ impl SpatialTrajectory {
 
     pub fn positions(&self) -> &[Position] {
         &self.positions
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.positions.capacity()
     }
 
     pub fn distance_meters(&self) -> f64 {
@@ -155,6 +169,7 @@ pub struct TickSimulationResult {
     ticks_executed: u32,
     elapsed_seconds: f64,
     trajectories: HashMap<Uuid, SpatialTrajectory>,
+    interrupted_collision: Option<LiveCollision>,
 }
 
 impl TickSimulationResult {
@@ -167,6 +182,21 @@ impl TickSimulationResult {
             ticks_executed,
             elapsed_seconds,
             trajectories,
+            interrupted_collision: None,
+        }
+    }
+
+    pub fn with_collision(
+        ticks_executed: u32,
+        elapsed_seconds: f64,
+        trajectories: HashMap<Uuid, SpatialTrajectory>,
+        interrupted_collision: Option<LiveCollision>,
+    ) -> Self {
+        Self {
+            ticks_executed,
+            elapsed_seconds,
+            trajectories,
+            interrupted_collision,
         }
     }
 
@@ -184,5 +214,9 @@ impl TickSimulationResult {
 
     pub fn get_trajectory(&self, player_id: &Uuid) -> Option<&SpatialTrajectory> {
         self.trajectories.get(player_id)
+    }
+
+    pub fn interrupted_collision(&self) -> Option<&LiveCollision> {
+        self.interrupted_collision.as_ref()
     }
 }

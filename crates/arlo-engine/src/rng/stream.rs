@@ -13,6 +13,8 @@ pub enum RngStream {
     ArtrineDecision,
     BallSecurity,
     PositionalDrift,
+    ChallengeResolution,
+    PlayCallSelection,
 }
 
 impl RngStream {
@@ -24,10 +26,12 @@ impl RngStream {
             Self::ArtrineDecision => 4,
             Self::BallSecurity => 5,
             Self::PositionalDrift => 6,
+            Self::ChallengeResolution => 7,
+            Self::PlayCallSelection => 8,
         }
     }
 
-    pub fn all() -> [Self; 6] {
+    pub fn all() -> [Self; 8] {
         [
             Self::DuelResolution,
             Self::FinisherSelection,
@@ -35,6 +39,8 @@ impl RngStream {
             Self::ArtrineDecision,
             Self::BallSecurity,
             Self::PositionalDrift,
+            Self::ChallengeResolution,
+            Self::PlayCallSelection,
         ]
     }
 }

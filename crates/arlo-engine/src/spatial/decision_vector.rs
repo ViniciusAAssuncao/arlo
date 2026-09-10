@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::calculate_effective_player_speed;
 use crate::physical::PhysicalState;
 use arlo_domain::{AttributeKey, Player};
@@ -6,23 +7,19 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 pub fn extract_attribute_value(
+    table: &PlayerAttributeTable,
+    target: AttributeKey,
+) -> f64 {
+    table.get(target)
+}
+
+pub fn extract_attribute_value_from_player(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     target: AttributeKey,
 ) -> f64 {
-    let target_id =
-        attribute_keys
-            .iter()
-            .find_map(|(id, &key)| if key == target { Some(*id) } else { None });
-
-    if let Some(target_id) = target_id {
-        for attr in player.attributes() {
-            if attr.attribute_definition_id() == target_id {
-                return attr.value() as f64;
-            }
-        }
-    }
-    10.0
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    table.get(target)
 }
 
 pub fn calculate_player_speed(

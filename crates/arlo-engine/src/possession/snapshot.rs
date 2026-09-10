@@ -1,5 +1,6 @@
 use crate::possession::ball_state::BallState;
 use crate::possession::clock_state::{ClockState, ClockStopReason};
+use crate::possession::live_sequence::LiveSequenceTracker;
 use crate::possession::role::{opening_possession, PossessionRole};
 use crate::possession::series_state::SeriesState;
 use arlo_math::units::Position;
@@ -12,6 +13,7 @@ pub struct PossessionSnapshot {
     pub clock_state: ClockState,
     pub role: PossessionRole,
     pub series_state: SeriesState,
+    pub live_sequence: LiveSequenceTracker,
 }
 
 impl PossessionSnapshot {
@@ -26,6 +28,23 @@ impl PossessionSnapshot {
             clock_state,
             role,
             series_state,
+            live_sequence: LiveSequenceTracker::new(),
+        }
+    }
+
+    pub fn with_live_sequence(
+        ball_state: BallState,
+        clock_state: ClockState,
+        role: PossessionRole,
+        series_state: SeriesState,
+        live_sequence: LiveSequenceTracker,
+    ) -> Self {
+        Self {
+            ball_state,
+            clock_state,
+            role,
+            series_state,
+            live_sequence,
         }
     }
 
@@ -35,6 +54,7 @@ impl PossessionSnapshot {
             clock_state: ClockState::Stopped(ClockStopReason::PeriodEnd),
             role: opening_possession(home_team, away_team),
             series_state: SeriesState::initial(initial_scrimmage),
+            live_sequence: LiveSequenceTracker::new(),
         }
     }
 
@@ -56,6 +76,14 @@ impl PossessionSnapshot {
 
     pub fn series_state_mut(&mut self) -> &mut SeriesState {
         &mut self.series_state
+    }
+
+    pub fn live_sequence(&self) -> &LiveSequenceTracker {
+        &self.live_sequence
+    }
+
+    pub fn live_sequence_mut(&mut self) -> &mut LiveSequenceTracker {
+        &mut self.live_sequence
     }
 
     pub fn offense(&self) -> Uuid {

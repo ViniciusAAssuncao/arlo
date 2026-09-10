@@ -1,15 +1,15 @@
 use crate::artrine::execution::context::ActionExecutionContext;
 use crate::match_decision::scoring::{
-    evaluate_scoring_opportunity, resolve_scoring_attempt_with_fatigue, ScoringDecision,
+    evaluate_scoring_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
     ScoringOpportunity,
 };
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
-use crate::resolution::group_rating::calculate_player_duel_rating_with_state;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
-use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_shot_speed_with_state};
+use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_shot_speed_from_table};
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
 use arlo_domain::{Player, Position as DomainPosition};
@@ -36,13 +36,22 @@ where
 {
     let receiver_state = ctx.fatigue(&receiver_player.id());
     let (attacker_profile, _) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let receiver_rating = calculate_player_duel_rating_with_state(
-        receiver_player,
-        DomainPosition::CenterOffense,
-        ctx.attribute_keys,
-        &attacker_profile,
-        &receiver_state,
-    );
+    let receiver_rating = match ctx.attribute_tables.get(&receiver_player.id()) {
+        Some(table) => calculate_player_duel_rating_from_table(
+            receiver_player,
+            DomainPosition::CenterOffense,
+            table,
+            attacker_profile,
+            &receiver_state,
+        ),
+        None => crate::resolution::group_rating::calculate_player_duel_rating_with_state(
+            receiver_player,
+            DomainPosition::CenterOffense,
+            ctx.attribute_keys,
+            attacker_profile,
+            &receiver_state,
+        ),
+    };
 
     let opportunity = evaluate_scoring_opportunity(
         ctx.is_bonus_phase,
@@ -62,26 +71,40 @@ where
         && dist_to_goal_mirim <= OPEN_PLAY_MAX_FINISH_DISTANCE_MIRIM
     {
         let finish_context = ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
-        let (decision, finish_duel) = resolve_scoring_attempt_with_fatigue(
+        let assister_id = if artrine_id != receiver_player.id() {
+            Some(artrine_id)
+        } else {
+            None
+        };
+
+        let finisher_table = ctx.attribute_tables.get(&receiver_player.id());
+        let goalguard_table = ctx.attribute_tables.get(&ctx.goalguard.id());
+        let req = ScoringAttemptRequest::new(
             receiver_player,
             ctx.goalguard,
             ctx.attribute_keys,
             ctx.offense_team_id,
             artrine_id,
+            assister_id,
             opportunity,
             ctx.drives_in_series,
             total_territory,
-            &receiver_state,
-            &ctx.fatigue(&ctx.goalguard.id()),
             &finish_context,
-            rng,
-        );
+        )
+        .with_fatigue(receiver_state, ctx.fatigue(&ctx.goalguard.id()))
+        .with_tables(finisher_table, goalguard_table);
+
+        let (decision, finish_duel) = resolve_scoring_attempt(req, rng);
+
+        static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+        let safe_finisher_table = finisher_table.unwrap_or(&DEFAULT_TABLE);
+        let safe_gg_table = goalguard_table.unwrap_or(&DEFAULT_TABLE);
 
         let finisher_spd =
-            calculate_effective_player_speed(receiver_player, ctx.attribute_keys, &receiver_state);
-        let goalguard_spd = calculate_effective_player_speed(
+            calculate_effective_player_speed_from_table(receiver_player, safe_finisher_table, &receiver_state);
+        let goalguard_spd = calculate_effective_player_speed_from_table(
             ctx.goalguard,
-            ctx.attribute_keys,
+            safe_gg_table,
             &ctx.fatigue(&ctx.goalguard.id()),
         );
         let goalguard_pos = spatial_map
@@ -89,8 +112,7 @@ where
             .unwrap_or(end_position);
         let finish_dur =
             derive_duel_duration(end_position, finisher_spd, goalguard_pos, goalguard_spd);
-        let shot_spd =
-            calculate_shot_speed_with_state(receiver_player, ctx.attribute_keys, &receiver_state);
+        let shot_spd = calculate_shot_speed_from_table(receiver_player, safe_finisher_table, &receiver_state);
         let shot_flight = ball_flight_duration(dist_to_goal_mirim, shot_spd);
 
         ledger.record_live(DurationComponentKind::FinishingEngagement, finish_dur);

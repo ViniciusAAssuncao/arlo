@@ -4,6 +4,7 @@ use arlo_domain::sport_constants::{
 use arlo_events::ScoringPost;
 use arlo_formatter::ScoreBreakdown;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct TeamScore {
@@ -58,6 +59,7 @@ pub struct MatchScoreboard {
     away_score: TeamScore,
     drives_in_current_series: u32,
     last_action_score_occurred: bool,
+    last_scoring_team: Option<Uuid>,
 }
 
 impl MatchScoreboard {
@@ -81,6 +83,10 @@ impl MatchScoreboard {
         self.drives_in_current_series += 1;
     }
 
+    pub fn reverse_drive(&mut self) {
+        self.drives_in_current_series = self.drives_in_current_series.saturating_sub(1);
+    }
+
     pub fn reset_drives(&mut self) {
         self.drives_in_current_series = 0;
     }
@@ -89,30 +95,37 @@ impl MatchScoreboard {
         self.last_action_score_occurred
     }
 
-    pub fn record_goal_point(&mut self, is_home: bool) {
+    pub fn last_scoring_team(&self) -> Option<Uuid> {
+        self.last_scoring_team
+    }
+
+    pub fn record_goal_point(&mut self, is_home: bool, team_id: Uuid) {
         if is_home {
             self.home_score.record_goal_point();
         } else {
             self.away_score.record_goal_point();
         }
         self.last_action_score_occurred = true;
+        self.last_scoring_team = Some(team_id);
     }
 
-    pub fn record_field_point(&mut self, is_home: bool) {
+    pub fn record_field_point(&mut self, is_home: bool, team_id: Uuid) {
         if is_home {
             self.home_score.record_field_point();
         } else {
             self.away_score.record_field_point();
         }
         self.last_action_score_occurred = true;
+        self.last_scoring_team = Some(team_id);
     }
 
-    pub fn record_field_goal(&mut self, is_home: bool, post: ScoringPost) {
+    pub fn record_field_goal(&mut self, is_home: bool, post: ScoringPost, team_id: Uuid) {
         if is_home {
             self.home_score.record_field_goal(post);
         } else {
             self.away_score.record_field_goal(post);
         }
         self.last_action_score_occurred = true;
+        self.last_scoring_team = Some(team_id);
     }
 }

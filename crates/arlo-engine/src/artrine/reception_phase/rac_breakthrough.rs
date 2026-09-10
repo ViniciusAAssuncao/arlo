@@ -1,22 +1,21 @@
 use crate::artrine::logistics::{
-    collect_drifted_defender_candidates, collect_helper_candidates, collect_swept_participant_ids,
-    resolve_primary_lead_defender,
+    collect_drifted_defender_candidates_from_tables, collect_helper_candidates_from_tables, collect_swept_participant_ids,
+    resolve_primary_lead_defender_from_tables,
 };
 use crate::artrine::reception_phase::rac_block::RacBlockResult;
 use crate::artrine::reception_phase::rac_context::RacContext;
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_anchored_side_rating_from_index_with_fatigue,
-    calculate_side_rating_from_index_with_fatigue,
+    calculate_anchored_side_rating, calculate_side_rating, RatingParticipants,
 };
 use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
-use crate::spatial::positioning_drift::get_drifted_defender_position;
+use crate::spatial::positioning_drift::get_drifted_defender_position_from_table;
 use arlo_math::units::{Duration, Speed, Velocity};
 use rand::Rng;
 use uuid::Uuid;
@@ -40,26 +39,29 @@ where
 {
     let (rb_offense_profile, rb_defense_profile) = get_duel_profiles(DuelKind::RunBreakthrough);
 
-    let attacker_rating = calculate_anchored_side_rating_from_index_with_fatigue(
+    let attacker_rating = calculate_anchored_side_rating(
         ctx.receiver,
         ctx.receiver_pos_domain,
-        &block_res.blocker_subset,
-        ctx.offense_position_index,
+        RatingParticipants::from_slice_with_index(
+            &block_res.blocker_subset,
+            ctx.offense_position_index,
+        )
+        .with_fatigue(ctx.fatigue_for)
+        .with_attribute_tables(ctx.attribute_tables),
         ctx.attribute_keys,
-        &rb_offense_profile,
-        ctx.fatigue_for,
+        rb_offense_profile,
     ) + block_res.block_bonus;
 
-    let defender_rating = calculate_side_rating_from_index_with_fatigue(
-        ctx.defenders,
-        ctx.defense_position_index,
+    let defender_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(ctx.defenders, ctx.defense_position_index)
+            .with_fatigue(ctx.fatigue_for)
+            .with_attribute_tables(ctx.attribute_tables),
         ctx.attribute_keys,
-        &rb_defense_profile,
-        ctx.fatigue_for,
+        rb_defense_profile,
     );
 
     let contest_radius = ctx.contest_radius();
-    let lead_defender = resolve_primary_lead_defender(
+    let lead_defender = resolve_primary_lead_defender_from_tables(
         ctx.receiver.id(),
         ctx.offense_position_index,
         block_res.receiver_pos_vec,
@@ -67,7 +69,7 @@ where
         ctx.defenders,
         ctx.spatial_map,
         ctx.defense_instructions_index,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.fatigue_for,
         contest_radius,
         None,
@@ -78,34 +80,41 @@ where
     let lead_def_state = ctx.fatigue(&lead_defender.id());
 
     let rb_context = ctx.duel_context.for_duel_kind(DuelKind::RunBreakthrough);
-    let raw_rb_duel = resolve_duel_with_fatigue(
+    let attacker_table = ctx.attribute_tables.get(&ctx.receiver.id());
+    let defender_table = ctx.attribute_tables.get(&lead_defender.id());
+    let req = DuelResolutionRequest::with_states(
         DuelKind::RunBreakthrough,
         attacker_rating,
         defender_rating,
         ctx.receiver,
         lead_defender,
-        &receiver_state,
-        &lead_def_state,
+        receiver_state,
+        lead_def_state,
         ctx.attribute_keys,
         &rb_context,
-        rng,
-    );
+    )
+    .with_tables(attacker_table, defender_table);
+    let raw_rb_duel = resolve_duel(req, rng);
+
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    let safe_att_table = attacker_table.unwrap_or(&DEFAULT_TABLE);
+    let safe_def_table = defender_table.unwrap_or(&DEFAULT_TABLE);
 
     let rb_def_pos =
-        get_drifted_defender_position(lead_defender, ctx.spatial_map, ctx.attribute_keys, rng)
+        get_drifted_defender_position_from_table(lead_defender, safe_def_table, ctx.spatial_map, rng)
             .unwrap_or(block_res.receiver_pos_vec);
     let rb_def_spd =
-        calculate_effective_player_speed(lead_defender, ctx.attribute_keys, &lead_def_state);
+        calculate_effective_player_speed_from_table(lead_defender, safe_def_table, &lead_def_state);
 
     let rec_spd =
-        calculate_effective_player_speed(ctx.receiver, ctx.attribute_keys, &receiver_state);
+        calculate_effective_player_speed_from_table(ctx.receiver, safe_att_table, &receiver_state);
     let rb_duration =
         derive_duel_duration(block_res.receiver_pos_vec, rec_spd, rb_def_pos, rb_def_spd);
 
-    let rb_helper_candidates = collect_helper_candidates(
+    let rb_helper_candidates = collect_helper_candidates_from_tables(
         ctx.offense_helpers,
         ctx.spatial_map,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         block_res.receiver_pos_vec,
         ctx.fatigue_for,
     );
@@ -118,10 +127,10 @@ where
         rb_duration,
     );
 
-    let rb_defender_candidates = collect_drifted_defender_candidates(
+    let rb_defender_candidates = collect_drifted_defender_candidates_from_tables(
         ctx.defenders,
         ctx.spatial_map,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         block_res.receiver_pos_vec,
         ctx.fatigue_for,
         rng,

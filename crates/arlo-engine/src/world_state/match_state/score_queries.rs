@@ -20,6 +20,10 @@ impl MatchState {
         self.scoreboard.increment_drives();
     }
 
+    pub fn reverse_drive(&mut self) {
+        self.scoreboard.reverse_drive();
+    }
+
     pub fn reset_drives(&mut self) {
         self.scoreboard.reset_drives();
     }
@@ -28,18 +32,22 @@ impl MatchState {
         self.scoreboard.last_action_score_occurred()
     }
 
+    pub fn last_scoring_team(&self) -> Option<Uuid> {
+        self.scoreboard.last_scoring_team()
+    }
+
     pub fn record_goal_point(&mut self, team_id: Uuid) {
         self.scoreboard
-            .record_goal_point(team_id == self.teams.home_team_id());
+            .record_goal_point(team_id == self.teams.home_team_id(), team_id);
     }
 
     pub fn record_field_point(&mut self, team_id: Uuid) {
         self.scoreboard
-            .record_field_point(team_id == self.teams.home_team_id());
+            .record_field_point(team_id == self.teams.home_team_id(), team_id);
     }
 
     pub fn record_field_goal(&mut self, team_id: Uuid, post: ScoringPost) {
         self.scoreboard
-            .record_field_goal(team_id == self.teams.home_team_id(), post);
+            .record_field_goal(team_id == self.teams.home_team_id(), post, team_id);
     }
 }

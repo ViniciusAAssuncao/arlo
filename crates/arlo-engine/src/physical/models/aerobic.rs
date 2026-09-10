@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::state::PhysicalState;
 use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
@@ -49,15 +50,14 @@ pub fn calculate_aerobic_energy_decay(
     decay.clamp(0.0, 1.0)
 }
 
-pub fn calculate_player_aerobic_energy(
+pub fn calculate_player_aerobic_energy_from_table(
     player: &Player,
+    table: &PlayerAttributeTable,
     cumulative_distance_mirim: f64,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
     current_time_unix_seconds: i64,
 ) -> f64 {
-    let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
-    let natural_fitness =
-        extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
+    let stamina = extract_attribute_value(table, AttributeKey::Stamina);
+    let natural_fitness = extract_attribute_value(table, AttributeKey::NaturalFitness);
     let age_years = calculate_player_age(player, current_time_unix_seconds);
     calculate_aerobic_energy_decay(
         cumulative_distance_mirim,
@@ -67,17 +67,42 @@ pub fn calculate_player_aerobic_energy(
     )
 }
 
+pub fn calculate_player_aerobic_energy(
+    player: &Player,
+    cumulative_distance_mirim: f64,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    current_time_unix_seconds: i64,
+) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    calculate_player_aerobic_energy_from_table(
+        player,
+        &table,
+        cumulative_distance_mirim,
+        current_time_unix_seconds,
+    )
+}
+
+pub fn update_physical_state_aerobic_from_table(
+    state: &mut PhysicalState,
+    player: &Player,
+    table: &PlayerAttributeTable,
+    current_time_unix_seconds: i64,
+) {
+    let energy = calculate_player_aerobic_energy_from_table(
+        player,
+        table,
+        state.cumulative_distance_mirim(),
+        current_time_unix_seconds,
+    );
+    state.set_energy(energy);
+}
+
 pub fn update_physical_state_aerobic(
     state: &mut PhysicalState,
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     current_time_unix_seconds: i64,
 ) {
-    let energy = calculate_player_aerobic_energy(
-        player,
-        state.cumulative_distance_mirim(),
-        attribute_keys,
-        current_time_unix_seconds,
-    );
-    state.set_energy(energy);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    update_physical_state_aerobic_from_table(state, player, &table, current_time_unix_seconds);
 }

@@ -1,10 +1,16 @@
+use crate::attributes::{ManagerAttributeTable, PlayerAttributeTable};
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
+use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
+use crate::world_state::match_state::matchday_squad::MatchdaySquad;
+use crate::world_state::match_state::officiating::OfficiatingTracker;
+use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker;
+use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
@@ -16,6 +22,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatchState {
     pub(crate) teams: TeamRegistry,
+    pub(crate) home_squad: MatchdaySquad,
+    pub(crate) away_squad: MatchdaySquad,
     pub(crate) pitch: Pitch,
     pub(crate) attribute_keys: HashMap<Uuid, AttributeKey>,
     pub(crate) format_rules: MatchFormatRules,
@@ -28,9 +36,23 @@ pub struct MatchState {
     pub(crate) scoreboard: MatchScoreboard,
     pub(crate) fatigue: FatigueTracker,
     pub(crate) impulse: ImpulseTracker,
+    pub(crate) play_calling: PlayCallTracker,
+    pub(crate) officiating: OfficiatingTracker,
+    pub(crate) decision_cooldown: DecisionCooldownTracker,
+    pub(crate) play_call_efficacy: PlayCallEfficacyTracker,
+    pub(crate) last_play_outcome_summary: Option<(Uuid, bool)>,
 }
 
 impl MatchState {
+    pub fn attribute_table_for(&self, player_id: &Uuid) -> &PlayerAttributeTable {
+        static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+        self.teams.player_attribute_table(player_id).unwrap_or(&DEFAULT_TABLE)
+    }
+
+    pub fn manager_attribute_table_for(&self, team_id: Uuid) -> &ManagerAttributeTable {
+        self.teams.manager_attribute_table(team_id)
+    }
+
     pub fn pitch(&self) -> &Pitch {
         &self.pitch
     }
@@ -91,5 +113,29 @@ impl MatchState {
 
     pub fn is_match_finished(&self) -> bool {
         self.clock.is_finished()
+    }
+
+    pub fn decision_cooldown(&self) -> &DecisionCooldownTracker {
+        &self.decision_cooldown
+    }
+
+    pub fn decision_cooldown_mut(&mut self) -> &mut DecisionCooldownTracker {
+        &mut self.decision_cooldown
+    }
+
+    pub fn play_call_efficacy(&self) -> &PlayCallEfficacyTracker {
+        &self.play_call_efficacy
+    }
+
+    pub fn play_call_efficacy_mut(&mut self) -> &mut PlayCallEfficacyTracker {
+        &mut self.play_call_efficacy
+    }
+
+    pub fn last_play_outcome_summary(&self) -> Option<(Uuid, bool)> {
+        self.last_play_outcome_summary
+    }
+
+    pub fn set_last_play_outcome_summary(&mut self, summary: Option<(Uuid, bool)>) {
+        self.last_play_outcome_summary = summary;
     }
 }

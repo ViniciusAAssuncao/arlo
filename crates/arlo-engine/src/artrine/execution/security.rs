@@ -1,15 +1,15 @@
 use crate::artrine::execution::context::ActionExecutionContext;
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::{FatigueState, PhysicalState};
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::group_rating::{
-    calculate_player_duel_rating_with_state, calculate_side_rating_from_index_with_fatigue,
-    identify_lead_player_from_index,
+    calculate_player_duel_rating_from_table, calculate_side_rating,
+    identify_lead_player_from_index, RatingParticipants,
 };
-use crate::resolution::resolver::resolve_duel_with_fatigue;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::positioning_drift::get_drifted_defender_position;
+use crate::spatial::positioning_drift::get_drifted_defender_position_from_table;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::{DurationComponentKind, DurationLedger};
@@ -17,6 +17,7 @@ use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_math::units::{Position as VectorPosition, Speed};
 use rand::Rng;
+use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -40,6 +41,7 @@ pub fn resolve_ball_security<F, R>(
     defenders: &[&Player],
     defense_position_index: &HashMap<Uuid, Position>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, crate::attributes::PlayerAttributeTable>,
     defense_team_id: Uuid,
     context: &DuelContext,
     fatigue_for: &F,
@@ -51,44 +53,56 @@ where
 {
     let (attacker_profile, defender_profile) = get_duel_profiles(security_kind);
     let carrier_state = fatigue_for(&ball_carrier.id());
-    let attacker_rating = calculate_player_duel_rating_with_state(
-        ball_carrier,
-        carrier_position,
+    let attacker_rating = match attribute_tables.get(&ball_carrier.id()) {
+        Some(table) => calculate_player_duel_rating_from_table(
+            ball_carrier,
+            carrier_position,
+            table,
+            attacker_profile,
+            &carrier_state,
+        ),
+        None => crate::resolution::group_rating::calculate_player_duel_rating_with_state(
+            ball_carrier,
+            carrier_position,
+            attribute_keys,
+            attacker_profile,
+            &carrier_state,
+        ),
+    };
+    let defender_rating = calculate_side_rating(
+        RatingParticipants::from_slice_with_index(defenders, defense_position_index)
+            .with_fatigue(fatigue_for)
+            .with_attribute_tables(attribute_tables),
         attribute_keys,
-        &attacker_profile,
-        &carrier_state,
-    );
-    let defender_rating = calculate_side_rating_from_index_with_fatigue(
-        defenders,
-        defense_position_index,
-        attribute_keys,
-        &defender_profile,
-        fatigue_for,
+        defender_profile,
     );
     let lead_defender = identify_lead_player_from_index(
         defenders,
         defense_position_index,
         attribute_keys,
-        &defender_profile,
+        defender_profile,
     );
     let defender_primary = lead_defender.unwrap_or(defenders[0]);
     let defender_state = fatigue_for(&defender_primary.id());
 
-    let raw_outcome = resolve_duel_with_fatigue(
+    let attacker_table = attribute_tables.get(&ball_carrier.id());
+    let defender_table = attribute_tables.get(&defender_primary.id());
+    let req = DuelResolutionRequest::with_states(
         security_kind,
         attacker_rating,
         defender_rating,
         ball_carrier,
         defender_primary,
-        &carrier_state,
-        &defender_state,
+        carrier_state,
+        defender_state,
         attribute_keys,
         context,
-        rng,
-    );
+    )
+    .with_tables(attacker_table, defender_table);
+    let raw_outcome = resolve_duel(req, rng);
 
-    let attacker_ids = vec![ball_carrier.id()];
-    let defender_ids = defenders.iter().map(|p| p.id()).collect();
+    let attacker_ids = smallvec![ball_carrier.id()];
+    let defender_ids: SmallVec<[Uuid; 4]> = defenders.iter().map(|p| p.id()).collect();
     let duel_outcome = AttributedDuelOutcome::new(raw_outcome, attacker_ids, defender_ids);
 
     if raw_outcome.attacker_won() {
@@ -122,6 +136,8 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
+    
     let close_defenders: Vec<&Player> = match nearest_def_opt {
         Some((_, pos))
             if calculate_distance_mirim(carrier_pos_vec, pos) <= PROXIMITY_CONTEST_RADIUS_MIRIM =>
@@ -130,7 +146,8 @@ where
                 .iter()
                 .copied()
                 .filter(|cand| {
-                    get_drifted_defender_position(cand, spatial_map, ctx.attribute_keys, rng)
+                    let table = ctx.attribute_tables.get(&cand.id()).unwrap_or(&DEFAULT_TABLE);
+                    get_drifted_defender_position_from_table(*cand, table, spatial_map, rng)
                         .map(|p| {
                             calculate_distance_mirim(carrier_pos_vec, p)
                                 <= PROXIMITY_CONTEST_RADIUS_MIRIM
@@ -152,8 +169,9 @@ where
 
     if let Some((closest_def, closest_pos)) = nearest_def_opt {
         let closest_def_state = ctx.fatigue(&closest_def.id());
+        let table = ctx.attribute_tables.get(&closest_def.id()).unwrap_or(&DEFAULT_TABLE);
         let closest_def_speed =
-            calculate_effective_player_speed(closest_def, ctx.attribute_keys, &closest_def_state);
+            calculate_effective_player_speed_from_table(closest_def, table, &closest_def_state);
         let sec_duration = derive_duel_duration(
             carrier_pos_vec,
             carrier_speed,
@@ -171,6 +189,7 @@ where
         &close_defenders,
         ctx.defense_position_index,
         ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.defense_team_id,
         &sec_context,
         ctx.fatigue_for,

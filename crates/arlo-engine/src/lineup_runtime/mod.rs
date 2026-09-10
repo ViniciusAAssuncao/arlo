@@ -2,7 +2,7 @@ pub mod dynamic_anchor;
 pub mod fit_calculator;
 pub mod from_tactical_lineup;
 pub mod lineup;
-pub mod position_profile_cache;
+pub mod position_finder;
 pub mod position_similarity;
 pub mod scrimmage_translation;
 pub mod spatial_anchor;
@@ -17,9 +17,7 @@ pub use fit_calculator::{
 };
 pub use from_tactical_lineup::hydrate;
 pub use lineup::{Lineup, LineupAssignment, LineupBuilder};
-pub use position_profile_cache::{
-    get_position_profile, get_position_profiles, get_position_similarity, get_similarity_map,
-};
+pub use position_finder::{find_goalguard, find_player_by_position};
 pub use position_similarity::{
     calculate_position_similarity, calculate_profile_similarity, position_similarity,
 };

@@ -1,10 +1,10 @@
 use crate::artrine::execution::security::resolve_ball_security;
 use crate::artrine::reception_phase::rac_context::RacContext;
-use crate::physical::systems::degradation::calculate_effective_player_speed;
+use crate::physical::systems::degradation::calculate_effective_player_speed_from_table;
 use crate::physical::FatigueState;
 use crate::resolution::duel_timing::derive_duel_duration;
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
-use crate::spatial::positioning_drift::get_drifted_defender_position;
+use crate::spatial::positioning_drift::get_drifted_defender_position_from_table;
 use crate::spatial::proximity::calculate_distance_mirim;
 use arlo_domain::sport_constants::PROXIMITY_CONTEST_RADIUS_MIRIM;
 use arlo_domain::Player;
@@ -29,12 +29,14 @@ where
     F: Fn(&Uuid) -> FatigueState,
     R: Rng + ?Sized,
 {
+    static DEFAULT_TABLE: crate::attributes::PlayerAttributeTable = crate::attributes::PlayerAttributeTable::new_default();
     let close_defenders: Vec<&Player> = ctx
         .defenders
         .iter()
         .copied()
         .filter(|cand| {
-            get_drifted_defender_position(cand, ctx.spatial_map, ctx.attribute_keys, rng)
+            let table = ctx.attribute_tables.get(&cand.id()).unwrap_or(&DEFAULT_TABLE);
+            get_drifted_defender_position_from_table(*cand, table, ctx.spatial_map, rng)
                 .map(|p| {
                     calculate_distance_mirim(receiver_pos_vec, p) <= PROXIMITY_CONTEST_RADIUS_MIRIM
                 })
@@ -56,6 +58,7 @@ where
         sec_defenders,
         ctx.defense_position_index,
         ctx.attribute_keys,
+        ctx.attribute_tables,
         ctx.defense_team_id,
         &sec_context,
         ctx.fatigue_for,
@@ -63,11 +66,12 @@ where
     );
 
     let sec_lead_state = ctx.fatigue(&sec_lead.id());
+    let sec_lead_table = ctx.attribute_tables.get(&sec_lead.id()).unwrap_or(&DEFAULT_TABLE);
     let sec_def_pos =
-        get_drifted_defender_position(sec_lead, ctx.spatial_map, ctx.attribute_keys, rng)
+        get_drifted_defender_position_from_table(sec_lead, sec_lead_table, ctx.spatial_map, rng)
             .unwrap_or(receiver_pos_vec);
     let sec_def_spd =
-        calculate_effective_player_speed(sec_lead, ctx.attribute_keys, &sec_lead_state);
+        calculate_effective_player_speed_from_table(sec_lead, sec_lead_table, &sec_lead_state);
 
     let duration = derive_duel_duration(receiver_pos_vec, rec_spd, sec_def_pos, sec_def_spd);
 

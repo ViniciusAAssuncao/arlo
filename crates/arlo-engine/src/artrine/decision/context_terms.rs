@@ -1,8 +1,6 @@
 use crate::ai::epv::DynamicEpvModel;
 use crate::artrine::constants::{
-    DRIVE_SCARCITY_SERIES_LIMIT, EPV_EPA_DIFF_MULTIPLIER, EPV_LONG_LAUNCH_ADVANCE_MIRIM,
-    EPV_LONG_LAUNCH_PROXIMITY_BONUS, EPV_SELF_CARRY_ADVANCE_MIRIM, EPV_SELF_CARRY_PROXIMITY_BONUS,
-    EPV_SHORT_PASS_ADVANCE_MIRIM, EPV_SHORT_PASS_PROXIMITY_BONUS, SERIES_MAX_DOWNS,
+    DRIVE_SCARCITY_SERIES_LIMIT, EPV_EPA_DIFF_MULTIPLIER, SERIES_MAX_DOWNS,
     SERIES_TARGET_ADVANCE_MIRIM,
 };
 use arlo_domain::{ArtrineDecisionKind, Pitch};
@@ -63,27 +61,27 @@ pub fn total_context_utility(
     match decision {
         ArtrineDecisionKind::SelfCarry => {
             let next_epv = epv_model.calculate_epa(
-                (normalized_proximity + EPV_SELF_CARRY_PROXIMITY_BONUS).min(1.0),
+                (normalized_proximity + 0.05).min(1.0),
                 down,
-                (rem_adv - EPV_SELF_CARRY_ADVANCE_MIRIM).max(0.0),
+                (rem_adv - 5.0).max(0.0),
                 drives_in_current_series + 1,
             );
             (next_epv - base_epv) * EPV_EPA_DIFF_MULTIPLIER
         }
         ArtrineDecisionKind::ShortPass => {
             let next_epv = epv_model.calculate_epa(
-                (normalized_proximity + EPV_SHORT_PASS_PROXIMITY_BONUS).min(1.0),
+                (normalized_proximity + 0.06).min(1.0),
                 down,
-                (rem_adv - EPV_SHORT_PASS_ADVANCE_MIRIM).max(0.0),
+                (rem_adv - 6.0).max(0.0),
                 drives_in_current_series,
             );
             (next_epv - base_epv) * EPV_EPA_DIFF_MULTIPLIER
         }
         ArtrineDecisionKind::LongLaunch => {
             let next_epv = epv_model.calculate_epa(
-                (normalized_proximity + EPV_LONG_LAUNCH_PROXIMITY_BONUS).min(1.0),
+                (normalized_proximity + 0.15).min(1.0),
                 down,
-                (rem_adv - EPV_LONG_LAUNCH_ADVANCE_MIRIM).max(0.0),
+                (rem_adv - 15.0).max(0.0),
                 drives_in_current_series,
             );
             (next_epv - base_epv) * EPV_EPA_DIFF_MULTIPLIER

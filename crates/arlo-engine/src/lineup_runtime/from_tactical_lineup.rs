@@ -2,18 +2,26 @@ use crate::error::{EngineError, EngineResult};
 use crate::lineup_runtime::lineup::{Lineup, LineupAssignment};
 use arlo_domain::{Formation, Player};
 use arlo_tactics::TacticalLineup;
+use std::collections::HashMap;
+use std::sync::Arc;
+use uuid::Uuid;
 
 pub fn hydrate(
     tactical_lineup: &TacticalLineup,
     formation: &Formation,
     roster: &[Player],
 ) -> EngineResult<Lineup> {
+    let mut roster_map: HashMap<Uuid, Arc<Player>> = HashMap::with_capacity(roster.len());
+    for p in roster {
+        roster_map.insert(p.id(), Arc::new(p.clone()));
+    }
+
     let mut assignments = Vec::with_capacity(tactical_lineup.assignments().len());
 
     for assignment in tactical_lineup.assignments() {
-        let player = roster
-            .iter()
-            .find(|p| p.id() == assignment.player_id())
+        let player = roster_map
+            .get(&assignment.player_id())
+            .cloned()
             .ok_or_else(|| EngineError::PlayerNotFound(assignment.player_id()))?;
 
         let slot = formation
@@ -26,8 +34,9 @@ pub fn hydrate(
             })?;
 
         assignments.push(LineupAssignment::new(
+            assignment.formation_slot_index(),
             slot,
-            player.clone(),
+            player,
             assignment.slot_role(),
             *assignment.player_instructions(),
         ));

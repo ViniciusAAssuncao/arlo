@@ -3,7 +3,9 @@ use crate::artrine::execution::context::ActionExecutionContext;
 use crate::artrine::execution::distribution::execute_distribution;
 use crate::artrine::execution::finish::{execute_cross_pipeline, execute_self_finish};
 use crate::artrine::execution::outcome::ArtrineExecutionOutcome;
-use crate::error::{EngineError, EngineResult};
+use crate::attributes::PlayerAttributeTable;
+use crate::error::EngineResult;
+use crate::lineup_runtime::find_goalguard;
 use crate::physical::FatigueState;
 use crate::resolution::DuelContext;
 use crate::spatial::DynamicSpatialMap;
@@ -12,22 +14,10 @@ use arlo_domain::{
     ArtrineDecisionKind, AttributeKey, Player, Position as DomainPosition, SlotRole,
 };
 use arlo_math::units::Position as VectorPosition;
-use arlo_tactics::{PlayerInstructions, TeamInstructions};
+use arlo_tactics::{PlayerInstructions, RouteAssignment, TeamInstructions};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
-
-pub fn find_goalguard<'a>(defenders: &[&'a Player]) -> EngineResult<&'a Player> {
-    defenders
-        .iter()
-        .copied()
-        .find(|p| {
-            p.positions()
-                .iter()
-                .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
-        })
-        .ok_or_else(|| EngineError::MissingRequiredPosition("Goalguard".to_string()))
-}
 
 pub fn execute_artrine_decision<F, R>(
     decision: ArtrineDecisionKind,
@@ -41,6 +31,7 @@ pub fn execute_artrine_decision<F, R>(
     defense_position_index: &HashMap<Uuid, DomainPosition>,
     defense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     pitch: &Pitch,
     spatial_map: &mut DynamicSpatialMap,
     start_pos: VectorPosition,
@@ -55,6 +46,8 @@ pub fn execute_artrine_decision<F, R>(
     fatigue_for: &F,
     defense_pressing_multiplier: f64,
     offense_tempo_value: f64,
+    openness_by_player: &HashMap<Uuid, f64>,
+    offense_route_index: &HashMap<Uuid, RouteAssignment>,
     rng: &mut R,
 ) -> EngineResult<ArtrineExecutionOutcome>
 where
@@ -72,6 +65,7 @@ where
     let ctx = ActionExecutionContext {
         pitch,
         attribute_keys,
+        attribute_tables,
         offense_team_id,
         defense_team_id,
         attacking_positive_x,
@@ -92,6 +86,8 @@ where
         defense_position_index,
         defense_instructions_index,
         goalguard,
+        openness_by_player,
+        offense_route_index,
     };
 
     let outcome = match decision {

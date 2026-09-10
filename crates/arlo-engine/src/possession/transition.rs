@@ -36,11 +36,12 @@ pub fn handle_turnover_without_out(
     let new_role = PossessionRole::new(new_offense, current.role().offense());
     let mut new_series = current.series_state.clone();
     new_series.is_bonus_phase = false;
-    let new_snapshot = PossessionSnapshot::new(
+    let new_snapshot = PossessionSnapshot::with_live_sequence(
         current.ball_state,
         current.clock_state,
         new_role,
         new_series,
+        current.live_sequence.clone(),
     );
 
     let dummy_outcome = PlayOutcome {
@@ -124,11 +125,12 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             *current.role()
         };
 
-        let new_snapshot = PossessionSnapshot::new(
+        let new_snapshot = PossessionSnapshot::with_live_sequence(
             ball_state,
             ClockState::Stopped(clock_stop_reason),
             next_role,
             updated_series,
+            current.live_sequence.clone(),
         );
 
         let impulse_events = instrument_transition(outcome, current, &new_snapshot);
@@ -162,11 +164,12 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             (*current.role(), false)
         };
 
-        let new_snapshot = PossessionSnapshot::new(
+        let new_snapshot = PossessionSnapshot::with_live_sequence(
             BallState::InPlay,
             ClockState::Running,
             next_role,
             updated_series,
+            current.live_sequence.clone(),
         );
 
         let impulse_events = instrument_transition(outcome, current, &new_snapshot);

@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::physical::state::PhysicalState;
 use crate::physical::systems::degradation::physical_attribute_modifier;
 use crate::spatial::decision_vector::extract_attribute_value;
@@ -26,8 +27,9 @@ pub fn compute_player_fatigue_multiplier(
     physical_state: &PhysicalState,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
-    let stamina = extract_attribute_value(player, attribute_keys, AttributeKey::Stamina);
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    let stamina = extract_attribute_value(&table, AttributeKey::Stamina);
     let natural_fitness =
-        extract_attribute_value(player, attribute_keys, AttributeKey::NaturalFitness);
+        extract_attribute_value(&table, AttributeKey::NaturalFitness);
     fatigue_multiplier(physical_state, stamina, natural_fitness)
 }

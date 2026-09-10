@@ -1,6 +1,7 @@
 use crate::instructions::axes::{
-    Aggression, Compactness, CounterAttackIntensity, CounterPressIntensity, DefensiveLineHeight,
-    Directness, FlankBias, Mentality, PressingIntensity, Structure, Tempo, Width,
+    Aeriality, Aggression, Compactness, CounterAttackIntensity, CounterPressIntensity,
+    DefensiveLineHeight, Directness, FlankBias, Mentality, PassingRange, Physicality,
+    PressingIntensity, ScoringPatience, Structure, Tempo, Width,
 };
 use crate::instructions::in_possession::InPossessionInstructions;
 use crate::instructions::mentality_defaults::{
@@ -10,7 +11,7 @@ use crate::instructions::mentality_defaults::{
 };
 use crate::instructions::out_of_possession::OutOfPossessionInstructions;
 use crate::instructions::team_instructions::TeamInstructions;
-use crate::instructions::transition::TransitionInstructions;
+use crate::instructions::transition::{PressBlockShape, TransitionInstructions};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TeamInstructionsBuilder {
@@ -20,12 +21,17 @@ pub struct TeamInstructionsBuilder {
     flank_bias: FlankBias,
     directness: Directness,
     structure: Structure,
+    passing_range: PassingRange,
+    aeriality: Aeriality,
+    physicality: Physicality,
+    scoring_patience: ScoringPatience,
     defensive_line_height: DefensiveLineHeight,
     compactness: Compactness,
     pressing_intensity: PressingIntensity,
     aggression: Aggression,
     counter_attack_intensity: CounterAttackIntensity,
     counter_press_intensity: CounterPressIntensity,
+    press_block_shape: PressBlockShape,
 }
 
 impl TeamInstructionsBuilder {
@@ -37,12 +43,17 @@ impl TeamInstructionsBuilder {
             flank_bias: FlankBias::default(),
             directness: default_directness(&mentality),
             structure: Structure::default(),
+            passing_range: PassingRange::default(),
+            aeriality: Aeriality::default(),
+            physicality: Physicality::new_clamped(0.5),
+            scoring_patience: ScoringPatience::new_clamped(0.5),
             defensive_line_height: default_defensive_line_height(&mentality),
             compactness: Compactness::new_clamped(0.5),
             pressing_intensity: default_pressing_intensity(&mentality),
             aggression: default_aggression(&mentality),
             counter_attack_intensity: default_counter_attack_intensity(&mentality),
             counter_press_intensity: default_counter_press_intensity(&mentality),
+            press_block_shape: PressBlockShape::new_clamped(0.5),
         }
     }
 
@@ -73,6 +84,26 @@ impl TeamInstructionsBuilder {
 
     pub fn with_structure(mut self, structure: Structure) -> Self {
         self.structure = structure;
+        self
+    }
+
+    pub fn with_passing_range(mut self, passing_range: PassingRange) -> Self {
+        self.passing_range = passing_range;
+        self
+    }
+
+    pub fn with_aeriality(mut self, aeriality: Aeriality) -> Self {
+        self.aeriality = aeriality;
+        self
+    }
+
+    pub fn with_physicality(mut self, physicality: Physicality) -> Self {
+        self.physicality = physicality;
+        self
+    }
+
+    pub fn with_scoring_patience(mut self, scoring_patience: ScoringPatience) -> Self {
+        self.scoring_patience = scoring_patience;
         self
     }
 
@@ -115,6 +146,11 @@ impl TeamInstructionsBuilder {
         self
     }
 
+    pub fn with_press_block_shape(mut self, press_block_shape: PressBlockShape) -> Self {
+        self.press_block_shape = press_block_shape;
+        self
+    }
+
     pub fn with_in_possession(mut self, in_possession: InPossessionInstructions) -> Self {
         self.mentality = in_possession.mentality();
         self.tempo = in_possession.tempo();
@@ -122,6 +158,10 @@ impl TeamInstructionsBuilder {
         self.flank_bias = in_possession.flank_bias();
         self.directness = in_possession.directness();
         self.structure = in_possession.structure();
+        self.passing_range = in_possession.passing_range();
+        self.aeriality = in_possession.aeriality();
+        self.physicality = in_possession.physicality();
+        self.scoring_patience = in_possession.scoring_patience();
         self
     }
 
@@ -139,6 +179,7 @@ impl TeamInstructionsBuilder {
     pub fn with_transition(mut self, transition: TransitionInstructions) -> Self {
         self.counter_attack_intensity = transition.counter_attack_intensity();
         self.counter_press_intensity = transition.counter_press_intensity();
+        self.press_block_shape = transition.press_block_shape();
         self
     }
 
@@ -151,6 +192,10 @@ impl TeamInstructionsBuilder {
                 self.flank_bias,
                 self.directness,
                 self.structure,
+                self.passing_range,
+                self.aeriality,
+                self.physicality,
+                self.scoring_patience,
             ),
             OutOfPossessionInstructions::new(
                 self.defensive_line_height,
@@ -161,6 +206,7 @@ impl TeamInstructionsBuilder {
             TransitionInstructions::new(
                 self.counter_attack_intensity,
                 self.counter_press_intensity,
+                self.press_block_shape,
             ),
         )
     }

@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::dynamic_anchor::AnchorComputationContext;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::positioning_drift::anchor_drift_radius_mirim;
@@ -14,9 +15,10 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use uuid::Uuid;
 
-pub fn resolve_offense_player_attractor(
+pub fn resolve_offense_player_attractor_from_table(
     pitch: &Pitch,
     player: &Player,
+    table: &PlayerAttributeTable,
     slot: &FormationSlot,
     scrimmage_x_mirim: f64,
     attacking_positive_x: bool,
@@ -38,29 +40,67 @@ pub fn resolve_offense_player_attractor(
             ctx,
         )
     } else {
-        crate::lineup_runtime::dynamic_anchor::calculate_player_dynamic_attractor(
+        crate::lineup_runtime::dynamic_anchor::calculate_player_dynamic_attractor_from_table(
             pitch,
             player,
+            table,
             slot,
             scrimmage_x_mirim,
             true,
             attacking_positive_x,
-            attribute_keys,
             instructions,
             ctx,
         )
     }
 }
 
-pub fn calculate_offense_attractor_coordinates_for_position(
+pub fn resolve_offense_player_attractor(
     pitch: &Pitch,
     player: &Player,
+    slot: &FormationSlot,
+    scrimmage_x_mirim: f64,
+    attacking_positive_x: bool,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    role_index: &HashMap<Uuid, SlotRole>,
+    ctx: &AnchorComputationContext,
+) -> VectorPosition {
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+    let table = ctx
+        .attribute_tables
+        .and_then(|m| m.get(&player.id()))
+        .cloned()
+        .unwrap_or_else(|| {
+            if attribute_keys.is_empty() {
+                DEFAULT_TABLE
+            } else {
+                PlayerAttributeTable::from_player(player, attribute_keys)
+            }
+        });
+
+    resolve_offense_player_attractor_from_table(
+        pitch,
+        player,
+        &table,
+        slot,
+        scrimmage_x_mirim,
+        attacking_positive_x,
+        attribute_keys,
+        instructions,
+        role_index,
+        ctx,
+    )
+}
+
+pub fn calculate_offense_attractor_coordinates_for_position_from_table(
+    pitch: &Pitch,
+    _player: &Player,
+    table: &PlayerAttributeTable,
     target_position: Position,
     _scrimmage_x_m: f64,
     base_x: f64,
     base_y: f64,
     attacking_positive_x: bool,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
     ctx: &AnchorComputationContext,
 ) -> (f64, f64) {
@@ -70,11 +110,9 @@ pub fn calculate_offense_attractor_coordinates_for_position(
     let push_distance_m = match target_position.line() {
         PositionLine::DefenseLine => {
             let tactical_knowledge =
-                extract_attribute_value(player, attribute_keys, AttributeKey::TacticalKnowledge);
-            let positioning =
-                extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
-            let anticipation =
-                extract_attribute_value(player, attribute_keys, AttributeKey::Anticipation);
+                extract_attribute_value(table, AttributeKey::TacticalKnowledge);
+            let positioning = extract_attribute_value(table, AttributeKey::Positioning);
+            let anticipation = extract_attribute_value(table, AttributeKey::Anticipation);
 
             let push_factor =
                 ((tactical_knowledge * 0.45 + positioning * 0.35 + anticipation * 0.2) / 20.0)
@@ -115,7 +153,7 @@ pub fn calculate_offense_attractor_coordinates_for_position(
 
     let positioning_bias = ctx
         .player_instructions_index
-        .get(&player.id())
+        .get(&_player.id())
         .copied()
         .unwrap_or_default()
         .in_possession()
@@ -130,6 +168,45 @@ pub fn calculate_offense_attractor_coordinates_for_position(
     );
 
     (base_x + x_shift + bias_offset, y_pos)
+}
+
+pub fn calculate_offense_attractor_coordinates_for_position(
+    pitch: &Pitch,
+    player: &Player,
+    target_position: Position,
+    scrimmage_x_m: f64,
+    base_x: f64,
+    base_y: f64,
+    attacking_positive_x: bool,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    ctx: &AnchorComputationContext,
+) -> (f64, f64) {
+    static DEFAULT_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+    let table = ctx
+        .attribute_tables
+        .and_then(|m| m.get(&player.id()))
+        .cloned()
+        .unwrap_or_else(|| {
+            if attribute_keys.is_empty() {
+                DEFAULT_TABLE
+            } else {
+                PlayerAttributeTable::from_player(player, attribute_keys)
+            }
+        });
+
+    calculate_offense_attractor_coordinates_for_position_from_table(
+        pitch,
+        player,
+        &table,
+        target_position,
+        scrimmage_x_m,
+        base_x,
+        base_y,
+        attacking_positive_x,
+        instructions,
+        ctx,
+    )
 }
 
 pub fn calculate_offense_attractor_coordinates(
@@ -158,13 +235,12 @@ pub fn calculate_offense_attractor_coordinates(
     )
 }
 
-pub fn calculate_offense_drift_radius_mirim(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+pub fn calculate_offense_drift_radius_mirim_from_table(
+    table: &PlayerAttributeTable,
     instructions: &TeamInstructions,
     player_instructions: PlayerInstructions,
 ) -> f64 {
-    let positioning = extract_attribute_value(player, attribute_keys, AttributeKey::Positioning);
+    let positioning = extract_attribute_value(table, AttributeKey::Positioning);
     let structure_val = instructions.in_possession().structure().value();
     let base_radius = anchor_drift_radius_mirim(positioning);
     let team_structure_multiplier = (1.0 - structure_val).max(0.0);
@@ -176,17 +252,25 @@ pub fn calculate_offense_drift_radius_mirim(
     base_radius * effective_multiplier
 }
 
-pub fn apply_offensive_positioning_drift<R: Rng + ?Sized>(
-    anchor: VectorPosition,
+pub fn calculate_offense_drift_radius_mirim(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     instructions: &TeamInstructions,
     player_instructions: PlayerInstructions,
+) -> f64 {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    calculate_offense_drift_radius_mirim_from_table(&table, instructions, player_instructions)
+}
+
+pub fn apply_offensive_positioning_drift_from_table<R: Rng + ?Sized>(
+    anchor: VectorPosition,
+    table: &PlayerAttributeTable,
+    instructions: &TeamInstructions,
+    player_instructions: PlayerInstructions,
     rng: &mut R,
 ) -> VectorPosition {
-    let radius_mirim = calculate_offense_drift_radius_mirim(
-        player,
-        attribute_keys,
+    let radius_mirim = calculate_offense_drift_radius_mirim_from_table(
+        table,
         instructions,
         player_instructions,
     );
@@ -201,5 +285,23 @@ pub fn apply_offensive_positioning_drift<R: Rng + ?Sized>(
         anchor.raw().0 + dx_meters,
         anchor.raw().1 + dy_meters,
         anchor.raw().2,
+    )
+}
+
+pub fn apply_offensive_positioning_drift<R: Rng + ?Sized>(
+    anchor: VectorPosition,
+    player: &Player,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    instructions: &TeamInstructions,
+    player_instructions: PlayerInstructions,
+    rng: &mut R,
+) -> VectorPosition {
+    let table = PlayerAttributeTable::from_player(player, attribute_keys);
+    apply_offensive_positioning_drift_from_table(
+        anchor,
+        &table,
+        instructions,
+        player_instructions,
+        rng,
     )
 }

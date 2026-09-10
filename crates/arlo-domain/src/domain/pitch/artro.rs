@@ -88,18 +88,24 @@ impl ArtroRow {
     }
 }
 
+pub fn channel_y_meters(placement: ArtroPlacement, pitch: &Pitch) -> Length {
+    let width_mirim = pitch.width_mirim();
+    let center_y_mirim = width_mirim / 2.0;
+    let y_mirim = match placement {
+        ArtroPlacement::Central => center_y_mirim,
+        ArtroPlacement::LeftLateral => center_y_mirim - DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM,
+        ArtroPlacement::RightLateral => center_y_mirim + DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM,
+    };
+    Length::new(y_mirim * MIRIM_TO_METERS)
+}
+
 pub fn artro_rows_for_pitch(pitch: &Pitch) -> Vec<ArtroRow> {
     let length_mirim = pitch.length_mirim();
-    let width_mirim = pitch.width_mirim();
     let artro_size = Length::new(ARTRO_SIZE_VAINA * VAINA_TO_METERS);
 
-    let center_y_mirim = width_mirim / 2.0;
-    let left_y_mirim = center_y_mirim - DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM;
-    let right_y_mirim = center_y_mirim + DEFAULT_ARTRO_LATERAL_OFFSET_MIRIM;
-
-    let center_y = Length::new(center_y_mirim * MIRIM_TO_METERS);
-    let left_y = Length::new(left_y_mirim * MIRIM_TO_METERS);
-    let right_y = Length::new(right_y_mirim * MIRIM_TO_METERS);
+    let left_y = channel_y_meters(ArtroPlacement::LeftLateral, pitch);
+    let center_y = channel_y_meters(ArtroPlacement::Central, pitch);
+    let right_y = channel_y_meters(ArtroPlacement::RightLateral, pitch);
 
     let row_count = (length_mirim / ARTRO_ROW_SPACING_MIRIM).floor() as usize;
     let mut rows = Vec::with_capacity(row_count);

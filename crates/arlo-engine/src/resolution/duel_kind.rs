@@ -11,6 +11,7 @@ pub enum DuelKind {
     ArtroBreakthrough,
     AerialDuel,
     FinishingAttempt,
+    FieldGoalAttempt,
     ShortDistribution,
     LongDistribution,
     CrossDistribution,
@@ -37,7 +38,9 @@ impl DuelKind {
 
 pub fn logistic_slope_for(kind: DuelKind) -> f64 {
     let factor = match kind {
-        DuelKind::FinishingAttempt | DuelKind::ShortDistribution => 2.7,
+        DuelKind::FinishingAttempt | DuelKind::ShortDistribution | DuelKind::FieldGoalAttempt => {
+            2.7
+        }
         DuelKind::LongDistribution | DuelKind::CrossDistribution | DuelKind::ArtroBreakthrough => {
             2.4
         }

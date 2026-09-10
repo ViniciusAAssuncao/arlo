@@ -24,17 +24,25 @@ pub struct GoalPointScored {
     team_id: Uuid,
     scorer_id: Uuid,
     artrine_id: Uuid,
+    assister_id: Option<Uuid>,
     drives_completed: u32,
     points: u32,
     post: ScoringPost,
 }
 
 impl GoalPointScored {
-    pub fn new(team_id: Uuid, scorer_id: Uuid, artrine_id: Uuid, drives_completed: u32) -> Self {
+    pub fn new(
+        team_id: Uuid,
+        scorer_id: Uuid,
+        artrine_id: Uuid,
+        assister_id: Option<Uuid>,
+        drives_completed: u32,
+    ) -> Self {
         Self {
             team_id,
             scorer_id,
             artrine_id,
+            assister_id,
             drives_completed,
             points: GOAL_POINT_VALUE as u32,
             post: ScoringPost::Goalpost,
@@ -51,6 +59,10 @@ impl GoalPointScored {
 
     pub fn artrine_id(&self) -> Uuid {
         self.artrine_id
+    }
+
+    pub fn assister_id(&self) -> Option<Uuid> {
+        self.assister_id
     }
 
     pub fn drives_completed(&self) -> u32 {

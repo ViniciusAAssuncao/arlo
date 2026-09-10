@@ -32,6 +32,8 @@ rand_distr  = "0.4.3"
 thiserror   = "2.0"
 directories = "5.0.1"
 tracing     = "0.1"
+criterion   = "0.5"
+smallvec    = { version = "1.13", features = ["serde"] }
 
 arlo-domain    = { path = "crates/arlo-domain" }
 arlo-math      = { path = "crates/arlo-math" }

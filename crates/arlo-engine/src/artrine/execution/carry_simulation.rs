@@ -70,7 +70,7 @@ where
     let tick_result = run_spatial_tick_loop_with_context(
         spatial_map,
         &movers,
-        ctx.attribute_keys,
+        ctx.attribute_tables,
         MovementContext::LivePlay,
         ctx.pitch,
         ctx.fatigue_for,

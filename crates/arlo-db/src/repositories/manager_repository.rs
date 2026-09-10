@@ -1,5 +1,7 @@
 use crate::error::{DbError, DbResult};
-use crate::models::{ManagerAttributeRow, ManagerRow};
+use crate::models::{
+    ManagerAttributeRow, ManagerPreferredFormationRow, ManagerRow, ManagerTacticalProfileRow,
+};
 use crate::repositories::attribute_definition_repository;
 use crate::repositories::fetch::{fetch_all, fetch_all_by_param, fetch_optional_by_param};
 use crate::repositories::person_repository;
@@ -40,7 +42,27 @@ async fn assemble_manager(
         attributes.push(ar.to_domain(def)?);
     }
 
-    manager_row.to_domain(person, attributes)
+    let profile_row = fetch_optional_by_param::<ManagerTacticalProfileRow>(
+        pool,
+        "SELECT id, manager_id, offensive_approach, defensive_approach, rotation_policy, artrine_dependency, flexibility_tendency, passing_range_preference, aeriality_preference, structure_preference, physicality_preference, transition_pace_preference, press_block_shape_preference FROM manager_tactical_profiles WHERE manager_id = ?",
+        &manager_row.id,
+    )
+    .await?;
+
+    let tactical_profile = match profile_row {
+        Some(pr) => {
+            let formation_rows = fetch_all_by_param::<ManagerPreferredFormationRow>(
+                pool,
+                "SELECT id, manager_tactical_profile_id, formation_id FROM manager_preferred_formations WHERE manager_tactical_profile_id = ?",
+                &pr.id,
+            )
+            .await?;
+            Some(pr.to_domain(&formation_rows)?)
+        }
+        None => None,
+    };
+
+    manager_row.to_domain(person, attributes, tactical_profile)
 }
 
 pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> DbResult<Option<Manager>> {
