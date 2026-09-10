@@ -3,12 +3,13 @@ use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
     duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
-    ScoringAttemptRequest,
+    ScoringAttemptRequest, ScoringOpportunity,
 };
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::DuelKind;
+use crate::set_piece::attempt_placed_kick;
 use crate::spatial::ball_kinematics::ball_flight_duration;
 use crate::spatial::ball_kinematics::calculate_cross_speed_from_table;
 use crate::spatial::proximity::calculate_distance_mirim;
@@ -92,14 +93,6 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         .accumulated_duration_ledger
         .record_live(DurationComponentKind::CrossFlight, cross_flight);
 
-    let fin_zone = pitch.zone_at_position(finisher_pos);
-    state.possession_mut().live_sequence_mut().record_touch(
-        finisher.id(),
-        TouchActionType::FinishingAttempt,
-        fin_zone,
-        current_time + cross_flight.value(),
-    );
-
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
     let fin_rating = calculate_player_duel_rating_from_table(
         finisher,
@@ -115,6 +108,46 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
 
     let opportunity =
         evaluate_scoring_opportunity(is_bonus_phase, total_drives, total_advance, fin_rating);
+
+    if matches!(
+        opportunity,
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)
+    ) {
+        let assister_id = state
+            .possession()
+            .live_sequence()
+            .primary_assister(finisher.id())
+            .or(Some(current_carrier.id()));
+
+        if let Some((score_dec, fin_duel)) = attempt_placed_kick(
+            state,
+            context,
+            iter_ctx,
+            pass_phase,
+            finisher,
+            defense_players,
+            opportunity,
+            total_drives,
+            total_advance,
+            assister_id,
+            rng,
+        ) {
+            let kicker_id = score_dec.scorer_id().unwrap_or(finisher.id());
+            loop_state.accumulated_duels.push(fin_duel);
+            loop_state.scoring_decision = score_dec;
+            loop_state.last_receiver_id = Some(kicker_id);
+            loop_state.ball_in_play = false;
+        }
+        return;
+    }
+
+    let fin_zone = pitch.zone_at_position(finisher_pos);
+    state.possession_mut().live_sequence_mut().record_touch(
+        finisher.id(),
+        TouchActionType::FinishingAttempt,
+        fin_zone,
+        current_time + cross_flight.value(),
+    );
 
     let goalguard = match find_goalguard(defense_players) {
         Ok(g) => g,
@@ -171,15 +204,6 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
     let attribute_keys = state.attribute_keys().clone();
     let is_bonus_phase = state.possession().is_bonus_phase();
 
-    let zone = pitch.zone_at_position(loop_state.current_carrier_pos);
-    let current_time = state.clock().seconds_in_period();
-    state.possession_mut().live_sequence_mut().record_touch(
-        current_carrier.id(),
-        TouchActionType::FinishingAttempt,
-        zone,
-        current_time,
-    );
-
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
     let fin_rating = calculate_player_duel_rating_from_table(
         current_carrier,
@@ -195,6 +219,46 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
 
     let opportunity =
         evaluate_scoring_opportunity(is_bonus_phase, total_drives, total_advance, fin_rating);
+
+    if matches!(
+        opportunity,
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)
+    ) {
+        let assister_id = state
+            .possession()
+            .live_sequence()
+            .primary_assister(current_carrier.id());
+
+        if let Some((score_dec, fin_duel)) = attempt_placed_kick(
+            state,
+            context,
+            iter_ctx,
+            pass_phase,
+            current_carrier,
+            defense_players,
+            opportunity,
+            total_drives,
+            total_advance,
+            assister_id,
+            rng,
+        ) {
+            let kicker_id = score_dec.scorer_id().unwrap_or(current_carrier.id());
+            loop_state.accumulated_duels.push(fin_duel);
+            loop_state.scoring_decision = score_dec;
+            loop_state.last_receiver_id = Some(kicker_id);
+            loop_state.ball_in_play = false;
+        }
+        return;
+    }
+
+    let zone = pitch.zone_at_position(loop_state.current_carrier_pos);
+    let current_time = state.clock().seconds_in_period();
+    state.possession_mut().live_sequence_mut().record_touch(
+        current_carrier.id(),
+        TouchActionType::FinishingAttempt,
+        zone,
+        current_time,
+    );
 
     let goalguard = match find_goalguard(defense_players) {
         Ok(g) => g,

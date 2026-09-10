@@ -77,6 +77,16 @@ impl ScoringDecision {
             Self::Missed { .. } | Self::NoOpportunity => 0,
         }
     }
+
+    pub fn scorer_id(&self) -> Option<Uuid> {
+        match self {
+            Self::GoalPoint { scorer_id, .. } => Some(*scorer_id),
+            Self::FieldPoint { scorer_id, .. } => Some(*scorer_id),
+            Self::FieldGoal { scorer_id, .. } => Some(*scorer_id),
+            Self::Missed { scorer_id, .. } => Some(*scorer_id),
+            Self::NoOpportunity => None,
+        }
+    }
 }
 
 pub struct ScoringAttemptRequest<'a> {
@@ -173,14 +183,7 @@ pub fn determine_field_goal_post(
     finisher_rating: f64,
     territory_advance_mirim: f64,
 ) -> ScoringPost {
-    let normalized_rating = (finisher_rating / 20.0).clamp(0.0, 1.0);
-    let normalized_distance = (territory_advance_mirim / 10.0).clamp(0.0, 1.0);
-    let score = normalized_rating * 0.6 + normalized_distance * 0.4;
-    if score >= 0.5 {
-        ScoringPost::Goalpost
-    } else {
-        ScoringPost::Fieldpost
-    }
+    crate::set_piece::select_kick_post(finisher_rating, territory_advance_mirim)
 }
 
 pub fn evaluate_scoring_opportunity(
@@ -198,7 +201,7 @@ pub fn evaluate_scoring_opportunity(
             ScoringOpportunity::None
         } else {
             let candidate_post =
-                determine_field_goal_post(finisher_rating, territory_advance_mirim);
+                crate::set_piece::select_kick_post(finisher_rating, territory_advance_mirim);
             let post = if candidate_post == ScoringPost::Goalpost
                 && !can_attempt_field_goal(
                     drives_in_series,

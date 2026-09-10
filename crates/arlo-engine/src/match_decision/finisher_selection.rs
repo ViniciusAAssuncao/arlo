@@ -79,8 +79,8 @@ pub fn calculate_player_finishing_weight(
 
 pub fn select_finisher_from_tables<F, R>(
     candidates: &[&Player],
-    role_index_for_play: Option<&HashMap<Uuid, SlotRole>>,
-    is_bonus_phase: bool,
+    _role_index_for_play: Option<&HashMap<Uuid, SlotRole>>,
+    _is_bonus_phase: bool,
     spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
@@ -95,17 +95,6 @@ where
     F: Fn(&Uuid) -> PhysicalState,
     R: Rng + ?Sized,
 {
-    if is_bonus_phase {
-        if let Some(roles) = role_index_for_play {
-            if let Some(kicker) = candidates
-                .iter()
-                .find(|p| roles.get(&p.id()) == Some(&SlotRole::Kicker))
-            {
-                return Some(kicker.id());
-            }
-        }
-    }
-
     select_target_from_tables(
         candidates,
         spatial_map,

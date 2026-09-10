@@ -4,6 +4,7 @@ use crate::match_decision::scoring::{
     ScoringAttemptRequest, ScoringOpportunity,
 };
 use crate::possession::TouchActionType;
+use crate::set_piece::attempt_placed_kick;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
@@ -49,6 +50,39 @@ pub fn check_distribution_scoring_opportunity<R: Rng + ?Sized>(
     if opportunity != ScoringOpportunity::None
         && dist_to_goal_mirim <= OPEN_PLAY_MAX_FINISH_DISTANCE_MIRIM
     {
+        if matches!(
+            opportunity,
+            ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)
+        ) {
+            let assister_id = state
+                .possession()
+                .live_sequence()
+                .primary_assister(receiver_player.id())
+                .or(Some(current_carrier.id()));
+
+            if let Some((score_dec, fin_duel)) = attempt_placed_kick(
+                state,
+                context,
+                iter_ctx,
+                pass_phase,
+                receiver_player,
+                defense_players,
+                opportunity,
+                total_drives,
+                total_adv,
+                assister_id,
+                rng,
+            ) {
+                if let Some(scorer_id) = score_dec.scorer_id() {
+                    loop_state.last_receiver_id = Some(scorer_id);
+                }
+                loop_state.accumulated_duels.push(fin_duel);
+                loop_state.scoring_decision = score_dec;
+                loop_state.ball_in_play = false;
+            }
+            return;
+        }
+
         let goalguard = match find_goalguard(defense_players) {
             Ok(g) => g,
             Err(_) => return,
