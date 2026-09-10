@@ -171,7 +171,9 @@ fn resolve_participant_rating(
         None => default_state,
     };
     if let Some(tables) = participants.attribute_tables {
-        let table = tables.get(&player.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = tables
+            .get(&player.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         return calculate_player_duel_rating_from_table(player, pos, table, profile, &state);
     }
     calculate_player_duel_rating_with_state(player, pos, attribute_keys, profile, &state)
@@ -235,7 +237,9 @@ pub fn calculate_anchored_side_rating(
 
     let anchor_rating = match helpers.attribute_tables {
         Some(tables) => {
-            let table = tables.get(&anchor.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = tables
+                .get(&anchor.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             calculate_player_duel_rating_from_table(
                 anchor,
                 anchor_position,

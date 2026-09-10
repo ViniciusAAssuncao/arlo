@@ -112,9 +112,7 @@ pub fn find_active_captain<'a>(
     })
 }
 
-pub fn calculate_captaincy_influence_from_table(
-    table: &PlayerAttributeTable,
-) -> f64 {
+pub fn calculate_captaincy_influence_from_table(table: &PlayerAttributeTable) -> f64 {
     let leadership = extract_attribute_value(table, AttributeKey::Leadership);
     let communication = extract_attribute_value(table, AttributeKey::Communication);
     let determination = extract_attribute_value(table, AttributeKey::Determination);
@@ -168,7 +166,10 @@ pub fn calculate_player_contextual_baseline(
 ) -> f64 {
     let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let (influence, is_cap) = match captain {
-        Some(cap) => (calculate_captaincy_influence(cap, attribute_keys), cap.id() == player.id()),
+        Some(cap) => (
+            calculate_captaincy_influence(cap, attribute_keys),
+            cap.id() == player.id(),
+        ),
         None => (0.0, false),
     };
     calculate_player_contextual_baseline_from_table(player, &table, influence, is_cap, is_home)

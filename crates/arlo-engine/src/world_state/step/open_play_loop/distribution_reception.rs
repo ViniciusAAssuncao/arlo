@@ -159,11 +159,7 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
         (12.0 * long_launch_advance_multiplier(passing_range)).max(3.0)
     };
 
-    let pass_speed = calculate_pass_speed(
-        current_carrier,
-        attribute_keys,
-        &carrier_fatigue,
-    );
+    let pass_speed = calculate_pass_speed(current_carrier, attribute_keys, &carrier_fatigue);
     let flight_duration = ball_flight_duration(throw_advance, pass_speed);
 
     let receiver_id = select_target(

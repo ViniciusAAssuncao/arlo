@@ -1,6 +1,7 @@
 use crate::ai::evaluators::{
-    ActionUtilityEvaluator, CarryUtilityEvaluator, CrossUtilityEvaluator, DecisionEvaluationContext,
-    LongLaunchUtilityEvaluator, SelfFinishUtilityEvaluator, ShortPassUtilityEvaluator,
+    ActionUtilityEvaluator, CarryUtilityEvaluator, CrossUtilityEvaluator,
+    DecisionEvaluationContext, LongLaunchUtilityEvaluator, SelfFinishUtilityEvaluator,
+    ShortPassUtilityEvaluator,
 };
 use arlo_domain::ArtrineDecisionKind;
 use smallvec::SmallVec;

@@ -70,10 +70,15 @@ pub fn check_distribution_scoring_opportunity<R: Rng + ?Sized>(
             .primary_assister(receiver_player.id())
             .or(Some(current_carrier.id()));
 
-        let finish_ctx = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+        let finish_ctx = iter_ctx
+            .duel_context
+            .for_duel_kind(DuelKind::FinishingAttempt);
         let rec_fatigue = state.fatigue_lookup().get(&receiver_player.id());
         let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
-        let rec_table = state.teams.player_attribute_tables().get(&receiver_player.id());
+        let rec_table = state
+            .teams
+            .player_attribute_tables()
+            .get(&receiver_player.id());
         let gg_table = state.teams.player_attribute_tables().get(&goalguard.id());
         let req = ScoringAttemptRequest::new(
             receiver_player,

@@ -45,21 +45,12 @@ pub fn player_base_reception_weight_from_table(
             (hands * 0.45 + ant * 0.35 + pos * 0.20).max(0.1)
         }
         ReceptionRole::Finisher => {
-            let finishing = extract_effective_attribute_value(
-                table,
-                AttributeKey::Finishing,
-                effective_state,
-            );
-            let technique = extract_effective_attribute_value(
-                table,
-                AttributeKey::Technique,
-                effective_state,
-            );
-            let composure = extract_effective_attribute_value(
-                table,
-                AttributeKey::Composure,
-                effective_state,
-            );
+            let finishing =
+                extract_effective_attribute_value(table, AttributeKey::Finishing, effective_state);
+            let technique =
+                extract_effective_attribute_value(table, AttributeKey::Technique, effective_state);
+            let composure =
+                extract_effective_attribute_value(table, AttributeKey::Composure, effective_state);
             (finishing * 0.50 + technique * 0.30 + composure * 0.20).max(0.1)
         }
     }
@@ -180,7 +171,7 @@ where
     }
 
     let default_state = PhysicalState::initial();
-    
+
     let weights: Vec<f64> = candidates
         .iter()
         .map(|p| {
@@ -188,7 +179,9 @@ where
                 Some(lookup) => lookup(&p.id()),
                 None => default_state,
             };
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = attribute_tables
+                .get(&p.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             calculate_player_target_weight_from_table(
                 p,
                 table,

@@ -6,10 +6,7 @@ use arlo_math::units::{Position, Speed, Velocity};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn extract_attribute_value(
-    table: &PlayerAttributeTable,
-    target: AttributeKey,
-) -> f64 {
+pub fn extract_attribute_value(table: &PlayerAttributeTable, target: AttributeKey) -> f64 {
     table.get(target)
 }
 

@@ -20,10 +20,7 @@ impl ManagerAttributeTable {
         }
     }
 
-    pub fn from_manager(
-        manager: &Manager,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
-    ) -> Self {
+    pub fn from_manager(manager: &Manager, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Self {
         let mut values = [10.0; AttributeKey::COUNT];
         for attr in manager.attributes() {
             if let Some(&key) = attribute_keys.get(&attr.attribute_definition_id()) {
@@ -33,10 +30,7 @@ impl ManagerAttributeTable {
         Self { values }
     }
 
-    pub fn from_manager_with_index(
-        manager: &Manager,
-        key_index: &AttributeKeyIndex,
-    ) -> Self {
+    pub fn from_manager_with_index(manager: &Manager, key_index: &AttributeKeyIndex) -> Self {
         let mut values = [10.0; AttributeKey::COUNT];
         for key in AttributeKey::all() {
             if let Some(target_id) = key_index.get(key) {

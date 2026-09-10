@@ -142,7 +142,9 @@ pub fn nearest_drifted_opponent_from_tables<'a, R: Rng + ?Sized>(
     candidates
         .iter()
         .filter_map(|&p| {
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = attribute_tables
+                .get(&p.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             get_drifted_defender_position_from_table(p, table, spatial_map, rng).map(|pos| (p, pos))
         })
         .min_by(|(_, pos_a), (_, pos_b)| {

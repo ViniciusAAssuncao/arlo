@@ -52,13 +52,23 @@ impl PlayerSlotRegistry {
         let mut slots = [Uuid::nil(); TOTAL_MATCH_SLOTS];
         let mut lookup = HashMap::with_capacity(TOTAL_MATCH_SLOTS);
 
-        for (i, assignment) in home_lineup.assignments().iter().enumerate().take(SLOTS_PER_TEAM) {
+        for (i, assignment) in home_lineup
+            .assignments()
+            .iter()
+            .enumerate()
+            .take(SLOTS_PER_TEAM)
+        {
             let pid = assignment.player().id();
             slots[i] = pid;
             lookup.insert(pid, i as u8);
         }
 
-        for (i, assignment) in away_lineup.assignments().iter().enumerate().take(SLOTS_PER_TEAM) {
+        for (i, assignment) in away_lineup
+            .assignments()
+            .iter()
+            .enumerate()
+            .take(SLOTS_PER_TEAM)
+        {
             let slot_idx = i + SLOTS_PER_TEAM;
             let pid = assignment.player().id();
             slots[slot_idx] = pid;
@@ -124,12 +134,16 @@ impl PlayerSlotRegistry {
 
     #[inline]
     pub fn is_home_player(&self, player_id: &Uuid) -> bool {
-        self.slot_for(player_id).map(|s| s.is_home()).unwrap_or(false)
+        self.slot_for(player_id)
+            .map(|s| s.is_home())
+            .unwrap_or(false)
     }
 
     #[inline]
     pub fn is_away_player(&self, player_id: &Uuid) -> bool {
-        self.slot_for(player_id).map(|s| s.is_away()).unwrap_or(false)
+        self.slot_for(player_id)
+            .map(|s| s.is_away())
+            .unwrap_or(false)
     }
 
     #[inline]

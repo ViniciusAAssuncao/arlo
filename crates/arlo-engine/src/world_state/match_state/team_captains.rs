@@ -17,7 +17,12 @@ impl TeamRegistry {
                     .find(|a| a.player().captaincy_role() == Some(CaptaincyRole::ViceCaptain))
                     .map(|a| a.player().id())
             })
-            .or_else(|| self.home_lineup.assignments().first().map(|a| a.player().id()))
+            .or_else(|| {
+                self.home_lineup
+                    .assignments()
+                    .first()
+                    .map(|a| a.player().id())
+            })
     }
 
     pub fn away_captain_id(&self) -> Option<Uuid> {
@@ -33,7 +38,12 @@ impl TeamRegistry {
                     .find(|a| a.player().captaincy_role() == Some(CaptaincyRole::ViceCaptain))
                     .map(|a| a.player().id())
             })
-            .or_else(|| self.away_lineup.assignments().first().map(|a| a.player().id()))
+            .or_else(|| {
+                self.away_lineup
+                    .assignments()
+                    .first()
+                    .map(|a| a.player().id())
+            })
     }
 
     pub fn home_captain<'a>(

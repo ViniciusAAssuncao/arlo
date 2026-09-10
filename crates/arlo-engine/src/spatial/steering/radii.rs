@@ -50,8 +50,7 @@ pub fn derive_player_physical_radius_from_table(
     table: &PlayerAttributeTable,
 ) -> f64 {
     let height = player.height_m().clamp(1.4, 2.3);
-    let strength =
-        extract_attribute_value(table, AttributeKey::Strength).clamp(0.0, 20.0);
+    let strength = extract_attribute_value(table, AttributeKey::Strength).clamp(0.0, 20.0);
     height * (0.22 + 0.008 * strength)
 }
 

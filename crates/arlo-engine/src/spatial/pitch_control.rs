@@ -40,7 +40,13 @@ where
     let ant = extract_attribute_value(table, AttributeKey::Anticipation);
     let reaction_time = ((20.0 - ant) * 0.015).max(0.05);
 
-    VoronoiSite::new(position.raw().0, position.raw().1, speed, reaction_time, team_id)
+    VoronoiSite::new(
+        position.raw().0,
+        position.raw().1,
+        speed,
+        reaction_time,
+        team_id,
+    )
 }
 
 pub fn build_player_voronoi_site_from_table<F>(
@@ -72,7 +78,9 @@ where
     players
         .iter()
         .map(|p| {
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = attribute_tables
+                .get(&p.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             build_player_voronoi_site_from_table(*p, table, spatial_map, fatigue_for, team_id)
         })
         .collect()
@@ -147,7 +155,9 @@ where
 
     for &helper in helpers {
         if offense_role_index.get(&helper.id()) == Some(&SlotRole::FalseArtrine) {
-            let table = attribute_tables.get(&helper.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = attribute_tables
+                .get(&helper.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let phantom = crate::team_identity::false_artrine::phantom_voronoi_site_from_table(
                 helper,
                 table,
@@ -208,12 +218,8 @@ pub fn query_control_along_vector(
     let dir_raw = direction.raw();
     let dir_mag = (dir_raw.0 * dir_raw.0 + dir_raw.1 * dir_raw.1).sqrt();
     if dir_mag <= 1e-9 || max_distance_meters <= 0.0 || step_size_meters <= 0.0 {
-        let c0 = compute_point_team_control(
-            attackers,
-            defenders,
-            start_pos.raw().0,
-            start_pos.raw().1,
-        );
+        let c0 =
+            compute_point_team_control(attackers, defenders, start_pos.raw().0, start_pos.raw().1);
         return vec![(0.0, c0)];
     }
 

@@ -1,7 +1,8 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::{
     calculate_critical_speed as calc_crit_speed, calculate_max_w_prime as calc_max_w_prime,
-    calculate_metabolic_work_rate, calculate_player_body_mass, calculate_player_body_mass_from_table,
+    calculate_metabolic_work_rate, calculate_player_body_mass,
+    calculate_player_body_mass_from_table,
     calculate_player_critical_speed as calc_player_crit_speed,
     calculate_player_max_w_prime as calc_player_max_w_prime, estimate_body_mass,
 };

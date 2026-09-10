@@ -8,8 +8,8 @@ use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::DuelKind;
-use crate::spatial::ball_kinematics::calculate_cross_speed_from_table;
 use crate::spatial::ball_kinematics::ball_flight_duration;
+use crate::spatial::ball_kinematics::calculate_cross_speed_from_table;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -61,7 +61,13 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
     );
 
     let finisher = chosen_finisher_id
-        .and_then(|fid| iter_ctx.target_candidates.iter().copied().find(|p| p.id() == fid))
+        .and_then(|fid| {
+            iter_ctx
+                .target_candidates
+                .iter()
+                .copied()
+                .find(|p| p.id() == fid)
+        })
         .unwrap_or(current_carrier);
 
     let carrier_table = state
@@ -106,12 +112,8 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
     let total_advance = state.possession().series_state().advanced_mirins()
         + loop_state.accumulated_mirins_advanced;
 
-    let opportunity = evaluate_scoring_opportunity(
-        is_bonus_phase,
-        total_drives,
-        total_advance,
-        fin_rating,
-    );
+    let opportunity =
+        evaluate_scoring_opportunity(is_bonus_phase, total_drives, total_advance, fin_rating);
 
     let goalguard = match find_goalguard(defense_players) {
         Ok(g) => g,
@@ -124,7 +126,9 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         .primary_assister(finisher.id())
         .or(Some(current_carrier.id()));
 
-    let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+    let finish_context = iter_ctx
+        .duel_context
+        .for_duel_kind(DuelKind::FinishingAttempt);
     let fin_fatigue = state.fatigue_lookup().get(&finisher.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
     let fin_table = state.teams.player_attribute_tables().get(&finisher.id());
@@ -188,12 +192,8 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
     let total_advance = state.possession().series_state().advanced_mirins()
         + loop_state.accumulated_mirins_advanced;
 
-    let opportunity = evaluate_scoring_opportunity(
-        is_bonus_phase,
-        total_drives,
-        total_advance,
-        fin_rating,
-    );
+    let opportunity =
+        evaluate_scoring_opportunity(is_bonus_phase, total_drives, total_advance, fin_rating);
 
     let goalguard = match find_goalguard(defense_players) {
         Ok(g) => g,
@@ -205,10 +205,15 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
         .live_sequence()
         .primary_assister(current_carrier.id());
 
-    let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FinishingAttempt);
+    let finish_context = iter_ctx
+        .duel_context
+        .for_duel_kind(DuelKind::FinishingAttempt);
     let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
-    let carrier_table = state.teams.player_attribute_tables().get(&current_carrier.id());
+    let carrier_table = state
+        .teams
+        .player_attribute_tables()
+        .get(&current_carrier.id());
     let gg_table = state.teams.player_attribute_tables().get(&goalguard.id());
     let req = ScoringAttemptRequest::new(
         current_carrier,

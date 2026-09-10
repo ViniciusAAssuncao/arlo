@@ -49,7 +49,8 @@ impl MatchState {
         let real_time = RealTimeAccumulator::new();
 
         let key_index = AttributeKeyIndex::from_map(&params.attribute_keys);
-        let mut player_attribute_tables = HashMap::with_capacity(params.home.roster.len() + params.away.roster.len());
+        let mut player_attribute_tables =
+            HashMap::with_capacity(params.home.roster.len() + params.away.roster.len());
         for p in params.home.roster.iter().chain(params.away.roster.iter()) {
             player_attribute_tables.insert(
                 p.id(),
@@ -57,8 +58,10 @@ impl MatchState {
             );
         }
 
-        let home_manager_table = ManagerAttributeTable::from_manager_with_index(&params.home.manager, &key_index);
-        let away_manager_table = ManagerAttributeTable::from_manager_with_index(&params.away.manager, &key_index);
+        let home_manager_table =
+            ManagerAttributeTable::from_manager_with_index(&params.home.manager, &key_index);
+        let away_manager_table =
+            ManagerAttributeTable::from_manager_with_index(&params.away.manager, &key_index);
 
         let teams = TeamRegistry::new(
             params.home.team_id,

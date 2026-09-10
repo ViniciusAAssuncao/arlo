@@ -143,10 +143,20 @@ pub fn calculate_player_expected_free_path_from_tables<F>(
 where
     F: Fn(&Uuid) -> FatigueState,
 {
-    let att_sites =
-        build_team_voronoi_sites_from_tables(attackers, attribute_tables, spatial_map, fatigue_for, 0);
-    let def_sites =
-        build_team_voronoi_sites_from_tables(defenders, attribute_tables, spatial_map, fatigue_for, 1);
+    let att_sites = build_team_voronoi_sites_from_tables(
+        attackers,
+        attribute_tables,
+        spatial_map,
+        fatigue_for,
+        0,
+    );
+    let def_sites = build_team_voronoi_sites_from_tables(
+        defenders,
+        attribute_tables,
+        spatial_map,
+        fatigue_for,
+        1,
+    );
     calculate_expected_free_path_to_goal(
         &att_sites,
         &def_sites,

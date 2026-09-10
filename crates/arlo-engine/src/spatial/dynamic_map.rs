@@ -85,11 +85,15 @@ impl DynamicSpatialMap {
     }
 
     pub fn get_position(&self, player_id: &Uuid) -> Option<Position> {
-        self.registry.slot_for(player_id).map(|s| self.positions[s.index()])
+        self.registry
+            .slot_for(player_id)
+            .map(|s| self.positions[s.index()])
     }
 
     pub fn get_velocity(&self, player_id: &Uuid) -> Option<Velocity> {
-        self.registry.slot_for(player_id).map(|s| self.velocities[s.index()])
+        self.registry
+            .slot_for(player_id)
+            .map(|s| self.velocities[s.index()])
     }
 
     pub fn get_momentum(&self, player_id: &Uuid) -> Option<Velocity> {
@@ -97,7 +101,9 @@ impl DynamicSpatialMap {
     }
 
     pub fn get_target(&self, player_id: &Uuid) -> Option<Position> {
-        self.registry.slot_for(player_id).and_then(|s| self.targets[s.index()])
+        self.registry
+            .slot_for(player_id)
+            .and_then(|s| self.targets[s.index()])
     }
 
     pub fn set_position(&mut self, player_id: Uuid, position: Position) {

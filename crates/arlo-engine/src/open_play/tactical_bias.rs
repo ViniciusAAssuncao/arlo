@@ -167,18 +167,10 @@ impl CarrierTacticalBias {
             ArtrineDecisionKind::SelfFinish => {
                 1.0 + positioning_bias * 0.20 + creative_license * 0.15 + involvement * 0.20
             }
-            ArtrineDecisionKind::Cross => {
-                1.0 + creative_license * 0.20 + involvement * 0.10
-            }
-            ArtrineDecisionKind::LongLaunch => {
-                1.0 + creative_license * 0.30 - involvement * 0.05
-            }
-            ArtrineDecisionKind::ShortPass => {
-                1.0 - creative_license * 0.15 + involvement * 0.10
-            }
-            ArtrineDecisionKind::SelfCarry => {
-                1.0 + positioning_bias * 0.15 + involvement * 0.20
-            }
+            ArtrineDecisionKind::Cross => 1.0 + creative_license * 0.20 + involvement * 0.10,
+            ArtrineDecisionKind::LongLaunch => 1.0 + creative_license * 0.30 - involvement * 0.05,
+            ArtrineDecisionKind::ShortPass => 1.0 - creative_license * 0.15 + involvement * 0.10,
+            ArtrineDecisionKind::SelfCarry => 1.0 + positioning_bias * 0.15 + involvement * 0.20,
         };
 
         (base_position_bias * role_multiplier * instruction_modifier).clamp(0.20, 5.00)

@@ -1,4 +1,6 @@
-use crate::psychology::systems::baseline::{default_impulse_baseline_profile, ImpulseBaselineProfile};
+use crate::psychology::systems::baseline::{
+    default_impulse_baseline_profile, ImpulseBaselineProfile,
+};
 use std::sync::OnceLock;
 
 static IMPULSE_BASELINE_PROFILE_CACHE: OnceLock<ImpulseBaselineProfile> = OnceLock::new();

@@ -190,7 +190,9 @@ impl ImpulseTracker {
             let player = a.player();
             let pid = player.id();
             let phys = fatigue.fatigue_for(&pid);
-            let table = teams.player_attribute_table(&pid).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = teams
+                .player_attribute_table(&pid)
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let is_captain = Some(pid) == home_captain_id;
             if let Some(state) = self.home_impulse.get_mut(&pid) {
                 update_player_impulse_contextual_from_table(
@@ -209,7 +211,9 @@ impl ImpulseTracker {
             let player = a.player();
             let pid = player.id();
             let phys = fatigue.fatigue_for(&pid);
-            let table = teams.player_attribute_table(&pid).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = teams
+                .player_attribute_table(&pid)
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let is_captain = Some(pid) == away_captain_id;
             if let Some(state) = self.away_impulse.get_mut(&pid) {
                 update_player_impulse_contextual_from_table(
@@ -237,7 +241,9 @@ impl ImpulseTracker {
     ) -> Option<ImpulseShift> {
         let player = teams.find_player(&player_id)?;
         let is_home = teams.is_home_player(&player_id);
-        let table = teams.player_attribute_table(&player_id).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = teams
+            .player_attribute_table(&player_id)
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let captain_id = if is_home {
             teams.home_captain_id()
         } else {

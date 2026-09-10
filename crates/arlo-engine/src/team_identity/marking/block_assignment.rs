@@ -1,4 +1,6 @@
-use crate::attributes::{ManagerAttributeTable, PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
+use crate::attributes::{
+    ManagerAttributeTable, PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE,
+};
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::spatial::DynamicSpatialMap;
@@ -34,9 +36,7 @@ pub fn eligible_block_marking_defenders<'a>(
         .collect()
 }
 
-pub fn extract_manager_artro_strategy_fidelity_from_table(
-    table: &ManagerAttributeTable,
-) -> f64 {
+pub fn extract_manager_artro_strategy_fidelity_from_table(table: &ManagerAttributeTable) -> f64 {
     let raw = table.get(AttributeKey::ArtroStrategy);
     (raw / ATTRIBUTE_MAX).clamp(0.0, 1.0)
 }
@@ -66,7 +66,9 @@ pub fn derive_block_marking_roles_from_tables(
             .unwrap_or(reference_pos);
         let dist_mirim = calculate_distance_mirim(def_pos, reference_pos);
         let proximity_score = 1.0 / (1.0 + dist_mirim);
-        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&defender.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let aggression_val = extract_attribute_value(table, AttributeKey::ControlledAggression);
         let norm_aggression = (aggression_val / ATTRIBUTE_MAX).clamp(0.0, 1.0);
 

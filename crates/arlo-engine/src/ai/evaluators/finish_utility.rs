@@ -45,8 +45,8 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
         };
 
         let center_y_m = (ctx.pitch_width_mirim * 0.5) * MIRIM_TO_METERS;
-        let angle_offset =
-            ((ctx.carrier_pos_vec.raw().1 - center_y_m).abs() / center_y_m.max(1.0)).clamp(0.0, 1.0);
+        let angle_offset = ((ctx.carrier_pos_vec.raw().1 - center_y_m).abs() / center_y_m.max(1.0))
+            .clamp(0.0, 1.0);
         let shooting_angle_factor = (1.0 - 0.40 * angle_offset).clamp(0.60, 1.0);
 
         let pitch_control = ctx.pitch_control();

@@ -37,7 +37,8 @@ pub fn run_open_play_loop(
     defense_players: &[&Player],
     sink: &mut impl EventSink,
 ) -> EngineResult<(ArtrineDecisionKind, ArtrineExecutionOutcome)> {
-    let mut loop_state = OpenPlayLoopState::new(pass_phase.artrine.id(), pass_phase.reception_point);
+    let mut loop_state =
+        OpenPlayLoopState::new(pass_phase.artrine.id(), pass_phase.reception_point);
 
     while loop_state.ball_in_play
         && loop_state.loop_iteration < MAX_LIVE_ACTION_ITERATIONS
@@ -46,9 +47,11 @@ pub fn run_open_play_loop(
         loop_state.loop_iteration += 1;
 
         let seq = state.event_sequence();
-        let mut iteration_rng = state
-            .rng_provider()
-            .iteration_rng(RngStream::DuelResolution, seq, loop_state.loop_iteration);
+        let mut iteration_rng = state.rng_provider().iteration_rng(
+            RngStream::DuelResolution,
+            seq,
+            loop_state.loop_iteration,
+        );
 
         let current_carrier = match offense_players
             .iter()

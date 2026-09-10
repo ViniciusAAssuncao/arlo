@@ -58,8 +58,7 @@ pub fn resolve_turnover_and_down_events(
             .last()
             .map(|d| ambiguity_from_duel_outcome(d.outcome()))
             .unwrap_or_else(|| Probability::new_clamped(0.0));
-        let on_field_favors_offense =
-            detailed_outcome.turnover.is_none() && !is_possession_change;
+        let on_field_favors_offense = detailed_outcome.turnover.is_none() && !is_possession_change;
         let call = ReviewableCall::new(
             kind,
             ambiguity,
@@ -82,10 +81,6 @@ pub fn resolve_turnover_and_down_events(
 
     if transition_result.countdown_to_size_triggered {
         let reason = determine_countdown_reason(detailed_outcome, is_possession_change);
-        publisher.emit_countdown_event(
-            transition_result.snapshot.offense(),
-            end_x_mirim,
-            reason,
-        );
+        publisher.emit_countdown_event(transition_result.snapshot.offense(), end_x_mirim, reason);
     }
 }

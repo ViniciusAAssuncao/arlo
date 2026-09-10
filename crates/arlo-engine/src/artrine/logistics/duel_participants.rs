@@ -28,7 +28,9 @@ where
         .map(|&p| {
             let pos = spatial_map.get_position(&p.id()).unwrap_or(fallback_pos);
             let st = fatigue_for(&p.id());
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = attribute_tables
+                .get(&p.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let spd = calculate_effective_player_speed_from_table(p, table, &st);
             (p, pos, spd)
         })
@@ -50,7 +52,9 @@ where
     defenders
         .iter()
         .map(|&p| {
-            let table = attribute_tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = attribute_tables
+                .get(&p.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let pos = get_drifted_defender_position_from_table(p, table, spatial_map, rng)
                 .or_else(|| spatial_map.get_position(&p.id()))
                 .unwrap_or(fallback_pos);

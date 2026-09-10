@@ -1,12 +1,11 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::{
-    calculate_player_critical_speed_from_table,
-    calculate_player_max_sprint_speed_from_table,
+    calculate_player_critical_speed_from_table, calculate_player_max_sprint_speed_from_table,
 };
 use crate::physical::state::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::spatial::decision_vector::extract_attribute_value;
-use arlo_domain::{ AttributeKey, Player };
+use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::Speed;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -14,14 +13,14 @@ use uuid::Uuid;
 pub fn is_physical_attribute(key: AttributeKey) -> bool {
     matches!(
         key,
-        AttributeKey::Acceleration |
-            AttributeKey::Pace |
-            AttributeKey::Agility |
-            AttributeKey::Balance |
-            AttributeKey::Strength |
-            AttributeKey::Stamina |
-            AttributeKey::JumpingReach |
-            AttributeKey::NaturalFitness
+        AttributeKey::Acceleration
+            | AttributeKey::Pace
+            | AttributeKey::Agility
+            | AttributeKey::Balance
+            | AttributeKey::Strength
+            | AttributeKey::Stamina
+            | AttributeKey::JumpingReach
+            | AttributeKey::NaturalFitness
     )
 }
 
@@ -45,7 +44,7 @@ pub fn cognitive_technical_modifier_with_impulse(
     state: &PhysicalState,
     concentration: f64,
     impulse_state: &ImpulseState,
-    baseline: f64
+    baseline: f64,
 ) -> f64 {
     let norm_conc = concentration.clamp(0.0, 20.0) / 20.0;
     let critical_threshold = (0.45 - 0.2 * norm_conc).clamp(0.15, 0.6);
@@ -78,7 +77,7 @@ pub fn cognitive_technical_modifier(state: &PhysicalState, concentration: f64) -
         state,
         concentration,
         &ImpulseState::from_baseline(50.0),
-        50.0
+        50.0,
     )
 }
 
@@ -87,7 +86,7 @@ pub fn attribute_degradation_modifier_with_impulse(
     state: &PhysicalState,
     concentration: f64,
     impulse_state: &ImpulseState,
-    baseline: f64
+    baseline: f64,
 ) -> f64 {
     if is_physical_attribute(key) {
         physical_attribute_modifier(state)
@@ -99,7 +98,7 @@ pub fn attribute_degradation_modifier_with_impulse(
 pub fn attribute_degradation_modifier(
     key: AttributeKey,
     state: &PhysicalState,
-    concentration: f64
+    concentration: f64,
 ) -> f64 {
     if is_physical_attribute(key) {
         physical_attribute_modifier(state)
@@ -113,7 +112,7 @@ pub fn extract_effective_attribute_value_with_impulse(
     key: AttributeKey,
     state: &PhysicalState,
     impulse_state: &ImpulseState,
-    baseline: f64
+    baseline: f64,
 ) -> f64 {
     let base_val = extract_attribute_value(table, key);
     let concentration = extract_attribute_value(table, AttributeKey::Concentration);
@@ -122,7 +121,7 @@ pub fn extract_effective_attribute_value_with_impulse(
         state,
         concentration,
         impulse_state,
-        baseline
+        baseline,
     );
     (base_val * modifier).clamp(0.0, 20.0)
 }
@@ -130,7 +129,7 @@ pub fn extract_effective_attribute_value_with_impulse(
 pub fn extract_effective_attribute_value(
     table: &PlayerAttributeTable,
     key: AttributeKey,
-    state: &PhysicalState
+    state: &PhysicalState,
 ) -> f64 {
     let base_val = extract_attribute_value(table, key);
     let concentration = extract_attribute_value(table, AttributeKey::Concentration);
@@ -142,7 +141,7 @@ pub fn calculate_effective_player_speed_with_impulse_from_table(
     player: &Player,
     table: &PlayerAttributeTable,
     state: &PhysicalState,
-    impulse_state: &ImpulseState
+    impulse_state: &ImpulseState,
 ) -> Speed {
     let max_speed = calculate_player_max_sprint_speed_from_table(player, table).value();
     let crit_speed = calculate_player_critical_speed_from_table(player, table, 0).value();
@@ -158,7 +157,7 @@ pub fn calculate_effective_player_speed_with_impulse(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     state: &PhysicalState,
-    impulse_state: &ImpulseState
+    impulse_state: &ImpulseState,
 ) -> Speed {
     let table = PlayerAttributeTable::from_player(player, attribute_keys);
     calculate_effective_player_speed_with_impulse_from_table(player, &table, state, impulse_state)
@@ -167,7 +166,7 @@ pub fn calculate_effective_player_speed_with_impulse(
 pub fn calculate_effective_player_speed_from_table(
     player: &Player,
     table: &PlayerAttributeTable,
-    state: &PhysicalState
+    state: &PhysicalState,
 ) -> Speed {
     let max_speed = calculate_player_max_sprint_speed_from_table(player, table).value();
     let crit_speed = calculate_player_critical_speed_from_table(player, table, 0).value();
@@ -181,7 +180,7 @@ pub fn calculate_effective_player_speed_from_table(
 pub fn calculate_effective_player_speed(
     player: &Player,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
-    state: &PhysicalState
+    state: &PhysicalState,
 ) -> Speed {
     let table = PlayerAttributeTable::from_player(player, attribute_keys);
     calculate_effective_player_speed_from_table(player, &table, state)

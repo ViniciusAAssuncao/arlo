@@ -250,7 +250,8 @@ pub fn translate_scoring_decision_with_sequence(
             drives_completed,
             ..
         } => {
-            let effective_assister = assister_id.or_else(|| live_sequence.primary_assister(*scorer_id));
+            let effective_assister =
+                assister_id.or_else(|| live_sequence.primary_assister(*scorer_id));
             Some(MatchEvent::GoalPoint(GoalPointScored::new(
                 *team_id,
                 *scorer_id,

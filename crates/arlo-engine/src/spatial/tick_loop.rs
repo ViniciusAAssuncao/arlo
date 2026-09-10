@@ -18,8 +18,8 @@ use crate::spatial::movement_context::MovementContext;
 use crate::spatial::player_slot::{PlayerSlot, TOTAL_MATCH_SLOTS};
 use crate::spatial::proximity::{calculate_distance, calculate_distance_mirim};
 use crate::spatial::steering::{
-    calculate_dynamic_boid_steering_velocity_with_context, derive_player_physical_radius_from_table,
-    SpatialNeighbor,
+    calculate_dynamic_boid_steering_velocity_with_context,
+    derive_player_physical_radius_from_table, SpatialNeighbor,
 };
 use crate::spatial::trajectory::{SpatialTrajectory, TickSimulationResult};
 use crate::world_state::context_analyzer::GameStatePressure;
@@ -143,9 +143,12 @@ where
             .unwrap_or_else(Position::zero);
         trajectories.insert(pid, SpatialTrajectory::new(pid, initial_pos));
 
-        let table = attribute_tables.get(&pid).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&pid)
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let state = fatigue_for(&pid);
-        let critical_speed_m_s = calculate_player_critical_speed_from_table(player, table, 0).value();
+        let critical_speed_m_s =
+            calculate_player_critical_speed_from_table(player, table, 0).value();
         let work_rate = extract_attribute_value(table, AttributeKey::WorkRate);
         let positioning = extract_attribute_value(table, AttributeKey::Positioning);
         let agility = extract_attribute_value(table, AttributeKey::Agility);

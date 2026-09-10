@@ -89,10 +89,7 @@ impl FatigueTracker {
         fatigue.add_distance(mirim);
         if let (Some(p), Some(t)) = (player, table) {
             crate::physical::models::aerobic::update_physical_state_aerobic_from_table(
-                fatigue,
-                p,
-                t,
-                0,
+                fatigue, p, t, 0,
             );
         }
         (fatigue.energy(), fatigue.w_prime_balance())
@@ -133,10 +130,10 @@ impl FatigueTracker {
         table: Option<&PlayerAttributeTable>,
     ) -> (f64, f64) {
         if let (Some(p), Some(t)) = (player, table) {
-            let max_w = crate::physical::models::metabolic_power::calculate_player_max_w_prime_from_table(
-                p,
-                t,
-            );
+            let max_w =
+                crate::physical::models::metabolic_power::calculate_player_max_w_prime_from_table(
+                    p, t,
+                );
             let crit_speed =
                 crate::physical::models::metabolic_power::calculate_player_critical_speed_from_table(
                     p,
@@ -144,14 +141,15 @@ impl FatigueTracker {
                     0,
                 )
                 .value();
-            let cost = crate::physical::models::anaerobic::calculate_player_anaerobic_cost_from_table(
-                p,
-                t,
-                duration_seconds,
-                crit_speed + 2.0,
-                crit_speed,
-                intensity,
-            );
+            let cost =
+                crate::physical::models::anaerobic::calculate_player_anaerobic_cost_from_table(
+                    p,
+                    t,
+                    duration_seconds,
+                    crit_speed + 2.0,
+                    crit_speed,
+                    intensity,
+                );
             let fatigue = if is_home {
                 self.home_fatigue.entry(player_id).or_default()
             } else {

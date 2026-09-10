@@ -4,7 +4,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub static DEFAULT_PLAYER_ATTRIBUTE_TABLE: PlayerAttributeTable = PlayerAttributeTable::new_default();
+pub static DEFAULT_PLAYER_ATTRIBUTE_TABLE: PlayerAttributeTable =
+    PlayerAttributeTable::new_default();
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlayerAttributeTable {
@@ -22,10 +23,7 @@ impl PlayerAttributeTable {
         }
     }
 
-    pub fn from_player(
-        player: &Player,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
-    ) -> Self {
+    pub fn from_player(player: &Player, attribute_keys: &HashMap<Uuid, AttributeKey>) -> Self {
         let mut values = [10.0; AttributeKey::COUNT];
         for attr in player.attributes() {
             if let Some(&key) = attribute_keys.get(&attr.attribute_definition_id()) {
@@ -35,10 +33,7 @@ impl PlayerAttributeTable {
         Self { values }
     }
 
-    pub fn from_player_with_index(
-        player: &Player,
-        key_index: &AttributeKeyIndex,
-    ) -> Self {
+    pub fn from_player_with_index(player: &Player, key_index: &AttributeKeyIndex) -> Self {
         let mut values = [10.0; AttributeKey::COUNT];
         for key in AttributeKey::all() {
             if let Some(target_id) = key_index.get(key) {

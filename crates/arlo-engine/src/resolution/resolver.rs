@@ -135,7 +135,11 @@ impl<'a> DuelResolutionRequest<'a> {
     }
 }
 
-pub fn calculate_velocity_mitigation(kind: DuelKind, attacker_won: bool, net_advantage: f64) -> f64 {
+pub fn calculate_velocity_mitigation(
+    kind: DuelKind,
+    attacker_won: bool,
+    net_advantage: f64,
+) -> f64 {
     let base = match kind {
         DuelKind::ArtroBreakthrough | DuelKind::RunBreakthrough => {
             if attacker_won {

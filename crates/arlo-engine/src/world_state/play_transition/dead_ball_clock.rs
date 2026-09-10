@@ -36,20 +36,13 @@ pub fn handle_dead_ball_and_clock(
             .rng_provider()
             .indexed_rng_for(RngStream::PlayCallSelection, seq);
 
-        let extra_offense = ManagerAiEngine::on_stoppage(
-            publisher,
-            detailed_outcome.offense_team_id,
-            &mut ai_rng,
-        );
-        let extra_defense = ManagerAiEngine::on_stoppage(
-            publisher,
-            detailed_outcome.defense_team_id,
-            &mut ai_rng,
-        );
+        let extra_offense =
+            ManagerAiEngine::on_stoppage(publisher, detailed_outcome.offense_team_id, &mut ai_rng);
+        let extra_defense =
+            ManagerAiEngine::on_stoppage(publisher, detailed_outcome.defense_team_id, &mut ai_rng);
         let extra_total = extra_offense + extra_defense;
         if extra_total.value() > 0.0 {
-            play_ledger
-                .record_dead_ball(DurationComponentKind::Huddle, extra_total);
+            play_ledger.record_dead_ball(DurationComponentKind::Huddle, extra_total);
         }
 
         let next_scrimmage_x_mirim =
@@ -60,10 +53,8 @@ pub fn handle_dead_ball_and_clock(
             is_post_turnover,
             detailed_outcome.recovering_player_id,
         );
-        play_ledger
-            .record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
-        play_ledger
-            .record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
+        play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
+        play_ledger.record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
     }
 
     let dead_ball_seconds = play_ledger.total_dead_ball().value();
@@ -71,9 +62,7 @@ pub fn handle_dead_ball_and_clock(
 
     let live_seconds = play_ledger.total_live().value();
     if live_seconds > 0.0 {
-        publisher
-            .state_mut()
-            .advance_impulse_dynamics(live_seconds);
+        publisher.state_mut().advance_impulse_dynamics(live_seconds);
     }
     if dead_ball_seconds > 0.0 {
         publisher

@@ -89,11 +89,12 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
             .game_state_pressure
             .bias_for_decision(ArtrineDecisionKind::SelfCarry, ctx.drives_in_series);
 
-        let drive_urgency_bonus = if ctx.is_true_artrine && ctx.drives_in_series < 3 && artros_crossed > 0 {
-            (artros_crossed as f64) * ((3 - ctx.drives_in_series) as f64) * 0.45 * skill_mult
-        } else {
-            0.0
-        };
+        let drive_urgency_bonus =
+            if ctx.is_true_artrine && ctx.drives_in_series < 3 && artros_crossed > 0 {
+                (artros_crossed as f64) * ((3 - ctx.drives_in_series) as f64) * 0.45 * skill_mult
+            } else {
+                0.0
+            };
 
         let emphasis_multiplier = 1.0 + ctx.play_call_emphasis.self_carry().value();
         let tactical_bias = ctx.carrier_tactical_bias(ArtrineDecisionKind::SelfCarry);

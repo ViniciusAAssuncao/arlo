@@ -210,7 +210,9 @@ where
         let zone_factor = calculate_zone_factor(player_vec_pos, pitch, attacking_positive_x);
         let state = fatigue_for(&player.id());
 
-        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&player.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
 
         let grav = calculate_player_offensive_gravity_with_state_from_table(
             player,

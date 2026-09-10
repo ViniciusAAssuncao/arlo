@@ -15,10 +15,9 @@ pub use attributed_outcome::AttributedDuelOutcome;
 pub use context::DuelContext;
 pub use duel_kind::{logistic_slope_for, DuelKind};
 pub use duel_noise::{
-    player_noise_distribution_from_table_with_impulse,
-    sample_player_noise, sample_player_noise_from_table_with_baseline,
-    sample_player_noise_from_table_with_impulse, sample_player_noise_with_impulse,
-    SkewNormalParams,
+    player_noise_distribution_from_table_with_impulse, sample_player_noise,
+    sample_player_noise_from_table_with_baseline, sample_player_noise_from_table_with_impulse,
+    sample_player_noise_with_impulse, SkewNormalParams,
 };
 pub use duel_profiles::{get_duel_profiles, DuelProfile};
 pub use duel_timing::{derive_duel_duration, nearest_opponent, time_to_close};

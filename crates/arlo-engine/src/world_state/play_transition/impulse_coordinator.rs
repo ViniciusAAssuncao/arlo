@@ -45,9 +45,7 @@ pub fn coordinate_play_impulse(
             .publish_attributed_duel(duel, &offense_players, &defense_players);
     }
 
-    let finisher_id = execution_outcome
-        .receiver_id
-        .unwrap_or(artrine_id);
+    let finisher_id = execution_outcome.receiver_id.unwrap_or(artrine_id);
 
     publish_scoring_impulse(
         publisher.state_mut(),
@@ -57,8 +55,7 @@ pub fn coordinate_play_impulse(
         &offense_players,
     );
 
-    let transition_result =
-        resolve_possession_transition(publisher.state(), detailed_outcome);
+    let transition_result = resolve_possession_transition(publisher.state(), detailed_outcome);
 
     publisher
         .state_mut()

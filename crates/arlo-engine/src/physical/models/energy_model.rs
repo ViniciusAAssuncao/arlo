@@ -29,7 +29,6 @@ pub fn compute_player_fatigue_multiplier(
 ) -> f64 {
     let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let stamina = extract_attribute_value(&table, AttributeKey::Stamina);
-    let natural_fitness =
-        extract_attribute_value(&table, AttributeKey::NaturalFitness);
+    let natural_fitness = extract_attribute_value(&table, AttributeKey::NaturalFitness);
     fatigue_multiplier(physical_state, stamina, natural_fitness)
 }

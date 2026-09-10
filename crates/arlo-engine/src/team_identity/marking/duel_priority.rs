@@ -1,6 +1,9 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::FatigueState;
-use crate::spatial::interception::{identify_kinematic_lead_defender_with_drift, identify_kinematic_lead_defender_with_drift_from_tables};
+use crate::spatial::interception::{
+    identify_kinematic_lead_defender_with_drift,
+    identify_kinematic_lead_defender_with_drift_from_tables,
+};
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Velocity};

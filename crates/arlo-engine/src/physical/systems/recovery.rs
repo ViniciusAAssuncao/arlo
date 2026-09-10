@@ -12,9 +12,7 @@ pub fn calculate_recovery_tau(stamina: f64, natural_fitness: f64) -> f64 {
     tau.clamp(40.0, 240.0)
 }
 
-pub fn calculate_player_recovery_tau_from_table(
-    table: &PlayerAttributeTable,
-) -> f64 {
+pub fn calculate_player_recovery_tau_from_table(table: &PlayerAttributeTable) -> f64 {
     let stamina = extract_attribute_value(table, AttributeKey::Stamina);
     let natural_fitness = extract_attribute_value(table, AttributeKey::NaturalFitness);
     calculate_recovery_tau(stamina, natural_fitness)
@@ -80,7 +78,9 @@ pub fn recover_team_physical_states_from_tables(
     }
     for player in players {
         let state = states.entry(player.id()).or_default();
-        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&player.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         recover_player_physical_state_from_table(state, table, dead_ball_seconds);
     }
 }

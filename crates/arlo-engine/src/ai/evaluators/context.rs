@@ -81,8 +81,11 @@ impl<'a> DecisionEvaluationContext<'a> {
         expected_free_path_mirim: f64,
     ) -> Self {
         let opponent_epa_at_proximity = epv_model.opponent_epa(normalized_proximity);
-        let cached_probability_bounds =
-            Self::calculate_probability_bounds_from_table(carrier, carrier_table, &carrier_physical_state);
+        let cached_probability_bounds = Self::calculate_probability_bounds_from_table(
+            carrier,
+            carrier_table,
+            &carrier_physical_state,
+        );
 
         Self {
             carrier,
@@ -123,11 +126,8 @@ impl<'a> DecisionEvaluationContext<'a> {
         table: &PlayerAttributeTable,
         physical_state: &PhysicalState,
     ) -> (f64, f64) {
-        let consistency = extract_effective_attribute_value(
-            table,
-            AttributeKey::Consistency,
-            physical_state,
-        );
+        let consistency =
+            extract_effective_attribute_value(table, AttributeKey::Consistency, physical_state);
         let profile = crate::caching::impulse_baseline_profile();
         let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
         let impulse_state = ImpulseState::from_baseline(baseline);

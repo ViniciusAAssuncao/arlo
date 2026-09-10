@@ -1,6 +1,8 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::target_selection::{
-    calculate_player_target_weight, calculate_player_target_weight_from_table, player_base_reception_weight, player_base_reception_weight_from_table, select_target_from_tables, ReceptionRole,
+    calculate_player_target_weight, calculate_player_target_weight_from_table,
+    player_base_reception_weight, player_base_reception_weight_from_table,
+    select_target_from_tables, ReceptionRole,
 };
 use crate::physical::PhysicalState;
 use crate::spatial::DynamicSpatialMap;

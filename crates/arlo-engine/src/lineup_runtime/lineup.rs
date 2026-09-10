@@ -137,10 +137,7 @@ impl Lineup {
             }
         }
 
-        let players_cache = assignments
-            .iter()
-            .map(|a| Arc::clone(&a.player))
-            .collect();
+        let players_cache = assignments.iter().map(|a| Arc::clone(&a.player)).collect();
 
         Ok(Self {
             formation,

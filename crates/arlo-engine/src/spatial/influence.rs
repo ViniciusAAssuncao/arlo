@@ -35,7 +35,9 @@ pub fn calculate_point_resistance_from_tables(
 
     for defender in defenders {
         let mean = defender_projected_mean(defender, spatial_map);
-        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&defender.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let variance = defender_variance_from_table(table);
 
         let dx = point.raw().0 - mean.raw().0;
@@ -69,7 +71,8 @@ pub fn calculate_spatial_resistance_between_from_tables(
         let y = start_pos.raw().1 + t * (target_pos.raw().1 - start_pos.raw().1);
         let pt = Position::from_components(x, y, 0.0);
 
-        accumulated += calculate_point_resistance_from_tables(pt, defenders, spatial_map, attribute_tables);
+        accumulated +=
+            calculate_point_resistance_from_tables(pt, defenders, spatial_map, attribute_tables);
     }
 
     accumulated / ((steps + 1) as f64)

@@ -38,10 +38,8 @@ pub fn calculate_carrier_defensive_shift_from_table(
     let positioning = extract_attribute_value(table, AttributeKey::Positioning);
     let anticipation = extract_attribute_value(table, AttributeKey::Anticipation);
     let decisions = extract_attribute_value(table, AttributeKey::Decisions);
-    let tactical_knowledge =
-        extract_attribute_value(table, AttributeKey::TacticalKnowledge);
-    let containment =
-        extract_attribute_value(table, AttributeKey::DefensiveContainment);
+    let tactical_knowledge = extract_attribute_value(table, AttributeKey::TacticalKnowledge);
+    let containment = extract_attribute_value(table, AttributeKey::DefensiveContainment);
 
     let tactical_rating = ((positioning * 0.30
         + anticipation * 0.25
@@ -72,7 +70,8 @@ pub fn calculate_carrier_defensive_shift_from_table(
         }
         Position::MiddleZonerback => {
             let shift_x = base_x + (first_zone_boundary_x_m - base_x) * (0.35 * tactical_rating);
-            let shift_y = base_y + (carrier_y - base_y) * (0.50 * tactical_rating * proximity_factor);
+            let shift_y =
+                base_y + (carrier_y - base_y) * (0.50 * tactical_rating * proximity_factor);
             (shift_x, shift_y)
         }
         Position::OutsideZonerback => {
@@ -180,7 +179,9 @@ pub fn recalibrate_defenders_for_carrier_from_tables(
                     .unwrap_or(Position::Centerback)
             });
 
-        let table = attribute_tables.get(&defender.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&defender.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
 
         let shifted = calculate_carrier_defensive_shift_from_table(
             defender,

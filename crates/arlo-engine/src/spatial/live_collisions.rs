@@ -37,7 +37,9 @@ impl LiveCollision {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum CollisionResolution {
-    Continue { velocity_mitigation: f64 },
+    Continue {
+        velocity_mitigation: f64,
+    },
     Halt {
         turnover_team: Option<Uuid>,
         recovering_player: Option<Uuid>,
@@ -67,7 +69,8 @@ pub fn check_collision(
         };
 
         let v_rel = carrier_vel.raw() - defender_vel.raw();
-        let closing_speed = -(v_rel.0 * normal.0 + v_rel.1 * normal.1 + v_rel.2 * normal.2).min(0.0);
+        let closing_speed =
+            -(v_rel.0 * normal.0 + v_rel.1 * normal.1 + v_rel.2 * normal.2).min(0.0);
         let severity = overlap * (1.0 + closing_speed * 0.35);
 
         Some(LiveCollision::new(

@@ -1,12 +1,14 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue_from_tables;
 use crate::artrine::calculate_normalized_proximity;
-use crate::match_decision::target_selection::{calculate_player_target_weight_from_table, ReceptionRole};
+use crate::match_decision::target_selection::{
+    calculate_player_target_weight_from_table, ReceptionRole,
+};
 use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::resolution::DuelContext;
 use crate::spatial::{
-    calculate_artro_advance_pitch_control_from_tables, calculate_player_expected_free_path_from_tables,
-    find_next_artro_position,
+    calculate_artro_advance_pitch_control_from_tables,
+    calculate_player_expected_free_path_from_tables, find_next_artro_position,
 };
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -105,8 +107,7 @@ impl<'a> OpenPlayIterationContext<'a> {
             &|id| state.fatigue_lookup().get(id),
         );
 
-        let next_artro_pos =
-            find_next_artro_position(carrier_pos, &pitch, context.is_home_offense);
+        let next_artro_pos = find_next_artro_position(carrier_pos, &pitch, context.is_home_offense);
 
         let pitch_control_ahead = calculate_artro_advance_pitch_control_from_tables(
             current_carrier,

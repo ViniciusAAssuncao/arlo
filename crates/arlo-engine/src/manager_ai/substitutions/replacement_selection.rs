@@ -23,8 +23,12 @@ pub fn best_replacement_from_tables<'a>(
         if prof_cmp != std::cmp::Ordering::Equal {
             prof_cmp
         } else {
-            let table_a = attribute_tables.get(&a.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-            let table_b = attribute_tables.get(&b.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table_a = attribute_tables
+                .get(&a.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table_b = attribute_tables
+                .get(&b.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let ca_a = calculate_player_ca_from_table(a.as_ref(), table_a);
             let ca_b = calculate_player_ca_from_table(b.as_ref(), table_b);
             ca_a.partial_cmp(&ca_b).unwrap_or(std::cmp::Ordering::Equal)

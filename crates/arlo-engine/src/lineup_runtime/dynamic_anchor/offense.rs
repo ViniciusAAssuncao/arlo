@@ -267,11 +267,8 @@ pub fn apply_offensive_positioning_drift_from_table<R: Rng + ?Sized>(
     player_instructions: PlayerInstructions,
     rng: &mut R,
 ) -> VectorPosition {
-    let radius_mirim = calculate_offense_drift_radius_mirim_from_table(
-        table,
-        instructions,
-        player_instructions,
-    );
+    let radius_mirim =
+        calculate_offense_drift_radius_mirim_from_table(table, instructions, player_instructions);
     if radius_mirim <= 1e-6 {
         return anchor;
     }

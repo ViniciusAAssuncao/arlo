@@ -1,5 +1,5 @@
-use crate::open_play::CarrierDecisionResult;
 use crate::match_decision::scoring::{ScoringDecision, ScoringOpportunity};
+use crate::open_play::CarrierDecisionResult;
 use crate::possession::snapshot::PossessionSnapshot;
 use crate::possession::transition::PlayOutcome;
 use crate::psychology::systems::event_bus::DispatchedImpulseEvent;

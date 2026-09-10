@@ -5,7 +5,9 @@ use crate::manager_ai::cognition::derive_manager_decision_noise;
 use crate::manager_ai::context::squad_fatigue_summary::SquadFatigueSummary;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::substitutions::fatigue_trigger::urgency_for_player_with_load_management;
-use crate::manager_ai::substitutions::replacement_selection::{best_replacement, best_replacement_from_tables};
+use crate::manager_ai::substitutions::replacement_selection::{
+    best_replacement, best_replacement_from_tables,
+};
 use crate::manager_ai::substitutions::tactical_trigger::tactical_urgency;
 use crate::physical::FatigueState;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
@@ -90,9 +92,11 @@ impl SubstitutionDecisionEngine {
 
                 if !available_candidates.is_empty() {
                     let target_pos = assignment.slot().position();
-                    if let Some(replacement) =
-                        best_replacement_from_tables(target_pos, &available_candidates, attribute_tables)
-                    {
+                    if let Some(replacement) = best_replacement_from_tables(
+                        target_pos,
+                        &available_candidates,
+                        attribute_tables,
+                    ) {
                         used_candidates.insert(replacement.id());
                         let reason = if fat_urg >= tac_urg && fat_urg > 0.0 {
                             SubstitutionReason::Fatigue

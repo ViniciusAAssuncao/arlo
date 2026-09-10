@@ -1,20 +1,16 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::models::metabolic_power::{
-    calculate_desired_cruise_speed,
-    calculate_max_acceleration,
-    calculate_player_body_mass_from_table,
-    calculate_player_critical_speed_from_table,
+    calculate_desired_cruise_speed, calculate_max_acceleration,
+    calculate_player_body_mass_from_table, calculate_player_critical_speed_from_table,
 };
 use crate::physical::state::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::{
-    calculate_player_impulse_baseline_from_table_with_profile,
-};
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
 use crate::spatial::decision_vector::extract_attribute_value;
 use crate::world_state::context_analyzer::GameStatePressure;
-use arlo_domain::{ AttributeKey, Player };
-use arlo_math::units::{ Position, Speed, MIRIM_TO_METERS };
-use serde::{ Deserialize, Serialize };
+use arlo_domain::{AttributeKey, Player};
+use arlo_math::units::{Position, Speed, MIRIM_TO_METERS};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PacingState {
@@ -29,7 +25,7 @@ impl PacingState {
         target_cruise_speed: Speed,
         max_acceleration: f64,
         is_conserving: bool,
-        is_overridden: bool
+        is_overridden: bool,
     ) -> Self {
         Self {
             target_cruise_speed,
@@ -84,7 +80,7 @@ pub struct PacingRequest<'a> {
 pub fn is_player_near_ball(
     player_pos: Position,
     ball_pos: Position,
-    proximity_threshold_mirim: f64
+    proximity_threshold_mirim: f64,
 ) -> bool {
     let dx = player_pos.raw().0 - ball_pos.raw().0;
     let dy = player_pos.raw().1 - ball_pos.raw().1;
@@ -103,7 +99,11 @@ pub fn calculate_pacing_state(request: &PacingRequest<'_>) -> PacingState {
     let norm_impulse_delta = (impulse_delta / 50.0).clamp(-1.0, 1.0);
     let mental_drive = 0.55 * norm_wr + 0.45 * norm_det;
 
-    let base_effort = if request.is_near_ball { 1.0 } else { 0.7 + 0.3 * norm_wr };
+    let base_effort = if request.is_near_ball {
+        1.0
+    } else {
+        0.7 + 0.3 * norm_wr
+    };
 
     let is_conserving = !request.is_near_ball && norm_wr < 0.75;
 
@@ -131,25 +131,24 @@ pub fn calculate_pacing_state(request: &PacingRequest<'_>) -> PacingState {
         (1.0, false)
     };
 
-    let effort_scale = (
-        base_effort *
-        urgency_effort *
-        impulse_effort_mod *
-        request.effort_multiplier
-    ).clamp(0.5, 1.8);
-    let paced_speed_val = (request.base_cruise_speed * effort_scale).clamp(
-        0.5,
-        request.critical_speed * 1.15
-    );
+    let effort_scale =
+        (base_effort * urgency_effort * impulse_effort_mod * request.effort_multiplier)
+            .clamp(0.5, 1.8);
+    let paced_speed_val =
+        (request.base_cruise_speed * effort_scale).clamp(0.5, request.critical_speed * 1.15);
     let target_cruise_speed = Speed::new(paced_speed_val);
 
-    let paced_accel = (
-        request.raw_max_acceleration *
-        (0.75 + 0.25 * effort_scale) *
-        request.fatigue_multiplier.clamp(0.3, 1.0)
-    ).clamp(0.8, request.raw_max_acceleration * 1.3);
+    let paced_accel = (request.raw_max_acceleration
+        * (0.75 + 0.25 * effort_scale)
+        * request.fatigue_multiplier.clamp(0.3, 1.0))
+    .clamp(0.8, request.raw_max_acceleration * 1.3);
 
-    PacingState::new(target_cruise_speed, paced_accel, is_conserving, is_overridden)
+    PacingState::new(
+        target_cruise_speed,
+        paced_accel,
+        is_conserving,
+        is_overridden,
+    )
 }
 
 pub fn calculate_player_pacing_state_from_table(
@@ -160,7 +159,7 @@ pub fn calculate_player_pacing_state_from_table(
     state: &PhysicalState,
     impulse_state: &ImpulseState,
     effort_multiplier: f64,
-    current_time_unix_seconds: i64
+    current_time_unix_seconds: i64,
 ) -> PacingState {
     let work_rate = extract_attribute_value(table, AttributeKey::WorkRate);
     let determination = extract_attribute_value(table, AttributeKey::Determination);
@@ -170,11 +169,9 @@ pub fn calculate_player_pacing_state_from_table(
     let str_attr = extract_attribute_value(table, AttributeKey::Strength);
     let mass = calculate_player_body_mass_from_table(player, table);
 
-    let v_crit = calculate_player_critical_speed_from_table(
-        player,
-        table,
-        current_time_unix_seconds
-    ).value();
+    let v_crit =
+        calculate_player_critical_speed_from_table(player, table, current_time_unix_seconds)
+            .value();
     let base_cruise = calculate_desired_cruise_speed(v_crit, work_rate, positioning);
     let raw_max_accel = calculate_max_acceleration(accel_attr, agility_attr, str_attr, mass, 1.0);
 

@@ -36,10 +36,12 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
 
     let zone = pitch.zone_at_position(carrier_pos);
     let current_time = state.clock().seconds_in_period();
-    state
-        .possession_mut()
-        .live_sequence_mut()
-        .record_touch(current_carrier.id(), TouchActionType::Carry, zone, current_time);
+    state.possession_mut().live_sequence_mut().record_touch(
+        current_carrier.id(),
+        TouchActionType::Carry,
+        zone,
+        current_time,
+    );
 
     let target_channel_y_m = compute_carry_target_lane(carrier_pos, &pitch);
     let target_carry_pos = compute_forward_target_pos(
@@ -49,9 +51,8 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         context.is_home_offense,
     );
 
-    let mut movers = Vec::with_capacity(
-        1 + iter_ctx.target_candidates.len() + defense_players.len(),
-    );
+    let mut movers =
+        Vec::with_capacity(1 + iter_ctx.target_candidates.len() + defense_players.len());
     movers.push((current_carrier, target_carry_pos));
 
     for &helper in &iter_ctx.target_candidates {
@@ -61,11 +62,8 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
             } else {
                 -10.0 * 0.7 * MIRIM_TO_METERS
             };
-            let helper_target = VectorPosition::from_components(
-                pos.raw().0 + offset_x,
-                pos.raw().1,
-                0.0,
-            );
+            let helper_target =
+                VectorPosition::from_components(pos.raw().0 + offset_x, pos.raw().1, 0.0);
             movers.push((helper, helper_target));
         }
     }
@@ -82,11 +80,16 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
     );
 
     for &defender in defense_players {
-        let def_target = def_targets.get(&defender.id()).copied().unwrap_or(target_carry_pos);
+        let def_target = def_targets
+            .get(&defender.id())
+            .copied()
+            .unwrap_or(target_carry_pos);
         movers.push((defender, def_target));
     }
 
-    state.spatial_map_mut().set_position(current_carrier.id(), carrier_pos);
+    state
+        .spatial_map_mut()
+        .set_position(current_carrier.id(), carrier_pos);
 
     let defense_pressing_value = (iter_ctx.defense_pressing_multiplier - 1.0).max(0.0);
     let offense_ids: HashSet<Uuid> = std::iter::once(current_carrier.id())
@@ -102,10 +105,7 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         }
     };
 
-    let def_ids: Vec<Uuid> = defense_players
-        .iter()
-        .map(|p| p.id())
-        .collect();
+    let def_ids: Vec<Uuid> = defense_players.iter().map(|p| p.id()).collect();
 
     let carrier_pos_domain = context
         .offense_pos_index
@@ -124,9 +124,8 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
     let duel_ctx = iter_ctx.duel_context;
     let fatigue_tracker = state.fatigue.clone();
 
-    let carrier_table: PlayerAttributeTable = state
-        .attribute_table_for(&current_carrier.id())
-        .clone();
+    let carrier_table: PlayerAttributeTable =
+        state.attribute_table_for(&current_carrier.id()).clone();
     let defender_tables: HashMap<Uuid, PlayerAttributeTable> = defense_players
         .iter()
         .map(|p| (p.id(), state.attribute_table_for(&p.id()).clone()))
@@ -194,7 +193,9 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         }
     }
 
-    loop_state.accumulated_trajectories.extend(tick_result.trajectories().clone());
+    loop_state
+        .accumulated_trajectories
+        .extend(tick_result.trajectories().clone());
     loop_state.accumulated_duels.extend(local_duels);
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CarrierMovement,

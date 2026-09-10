@@ -25,19 +25,14 @@ pub fn select_carrier_decision<R: Rng + ?Sized>(
     rng: &mut R,
     sink: &mut impl EventSink,
 ) -> ArtrineDecisionKind {
-    let total_drives =
-        state.drives_in_current_series() + loop_state.accumulated_drives_recorded;
+    let total_drives = state.drives_in_current_series() + loop_state.accumulated_drives_recorded;
     let total_advance = state.possession().series_state().advanced_mirins()
         + loop_state.accumulated_mirins_advanced;
     let is_last_down = state.possession().series_state().is_last_down();
     let is_bonus_phase = state.possession().is_bonus_phase();
 
-    let available_kinds = available_decision_kinds(
-        total_drives,
-        total_advance,
-        is_last_down,
-        is_bonus_phase,
-    );
+    let available_kinds =
+        available_decision_kinds(total_drives, total_advance, is_last_down, is_bonus_phase);
 
     let epv_model = DynamicEpvModel::new(iter_ctx.offensive_gravity_mult);
     let remaining_advance = (state

@@ -30,7 +30,7 @@ pub enum ImpulseEventKind {
     TurnoverWon,
     SeriesSuccess,
     SeriesFailure,
-MilestoneStreak,
+    MilestoneStreak,
     BigPlayCompleted,
     BigPlayAllowed,
 }
@@ -201,9 +201,18 @@ pub fn calculate_contextual_loss_aversion_lambda_from_table(
     exhaustion: f64,
     captain_influence: f64,
 ) -> f64 {
-    let composure = extract_effective_attribute_value(table, AttributeKey::Composure, &PhysicalState::initial());
-    let determination = extract_effective_attribute_value(table, AttributeKey::Determination, &PhysicalState::initial());
-    let bravery = extract_effective_attribute_value(table, AttributeKey::Bravery, &PhysicalState::initial());
+    let composure = extract_effective_attribute_value(
+        table,
+        AttributeKey::Composure,
+        &PhysicalState::initial(),
+    );
+    let determination = extract_effective_attribute_value(
+        table,
+        AttributeKey::Determination,
+        &PhysicalState::initial(),
+    );
+    let bravery =
+        extract_effective_attribute_value(table, AttributeKey::Bravery, &PhysicalState::initial());
     let base_lambda = calculate_loss_aversion_lambda(composure, determination, bravery, exhaustion);
     let captain_modifier = captain_influence * CAPTAINCY_LOSS_AVERSION_BUFFER;
     (base_lambda - captain_modifier).clamp(1.1, 3.8)
@@ -242,26 +251,13 @@ pub fn apply_impulse_event_contextual_from_table_at(
     let is_positive = event.kind().is_positive();
     let sign = if is_positive { 1.0 } else { -1.0 };
 
-    let determination = extract_effective_attribute_value(
-        table,
-        AttributeKey::Determination,
-        physical_state,
-    );
-    let bravery = extract_effective_attribute_value(
-        table,
-        AttributeKey::Bravery,
-        physical_state,
-    );
-    let composure = extract_effective_attribute_value(
-        table,
-        AttributeKey::Composure,
-        physical_state,
-    );
-    let consistency = extract_effective_attribute_value(
-        table,
-        AttributeKey::Consistency,
-        physical_state,
-    );
+    let determination =
+        extract_effective_attribute_value(table, AttributeKey::Determination, physical_state);
+    let bravery = extract_effective_attribute_value(table, AttributeKey::Bravery, physical_state);
+    let composure =
+        extract_effective_attribute_value(table, AttributeKey::Composure, physical_state);
+    let consistency =
+        extract_effective_attribute_value(table, AttributeKey::Consistency, physical_state);
 
     let exhaustion = calculate_physical_exhaustion(physical_state);
 

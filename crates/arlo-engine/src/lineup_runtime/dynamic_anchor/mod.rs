@@ -162,7 +162,9 @@ pub fn compute_dynamic_anchors_from_tables(
     for assignment in lineup.assignments() {
         let player = assignment.player();
         let slot = assignment.slot();
-        let table = attribute_tables.get(&player.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&player.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let attractor = if is_offense {
             resolve_offense_player_attractor_from_table(
                 pitch,
@@ -254,7 +256,10 @@ pub fn compute_dynamic_anchors(
     let mut tables = HashMap::with_capacity(lineup.len());
     for assignment in lineup.assignments() {
         let pid = assignment.player().id();
-        tables.insert(pid, PlayerAttributeTable::from_player(assignment.player(), attribute_keys));
+        tables.insert(
+            pid,
+            PlayerAttributeTable::from_player(assignment.player(), attribute_keys),
+        );
     }
 
     compute_dynamic_anchors_from_tables(

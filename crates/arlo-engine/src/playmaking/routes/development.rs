@@ -3,7 +3,9 @@ use crate::physical::systems::degradation::calculate_effective_player_speed_from
 use crate::physical::FatigueState;
 use crate::playmaking::routes::geometry::resolve_route_waypoints;
 use crate::spatial::decision_vector::derive_velocity_towards_target;
-use crate::spatial::pitch_control::{build_player_voronoi_site_at_from_table, build_player_voronoi_site_from_table};
+use crate::spatial::pitch_control::{
+    build_player_voronoi_site_at_from_table, build_player_voronoi_site_from_table,
+};
 use crate::spatial::positioning_drift::get_drifted_defender_position_from_table;
 use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
@@ -45,7 +47,9 @@ where
             let d2 = (waypoints.break_point.raw() - waypoints.stem_point.raw()).magnitude();
 
             let fatigue = fatigue_for(&runner.id());
-            let table = attribute_tables.get(&runner.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+            let table = attribute_tables
+                .get(&runner.id())
+                .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let effective_speed =
                 calculate_effective_player_speed_from_table(runner, table, &fatigue);
             let distance_traveled = effective_speed.value() * available_duration.value();
@@ -96,7 +100,9 @@ where
 
     let mut att_sites = Vec::with_capacity(offense_route_runners.len());
     for runner in offense_route_runners {
-        let table = attribute_tables.get(&runner.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&runner.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         att_sites.push(build_player_voronoi_site_from_table(
             runner,
             table,
@@ -108,7 +114,9 @@ where
 
     let mut def_sites = Vec::with_capacity(defenders.len());
     for def in defenders {
-        let table = attribute_tables.get(&def.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let table = attribute_tables
+            .get(&def.id())
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         let def_pos = get_drifted_defender_position_from_table(def, table, spatial_map, rng)
             .or_else(|| spatial_map.get_position(&def.id()))
             .unwrap_or_else(VectorPosition::zero);

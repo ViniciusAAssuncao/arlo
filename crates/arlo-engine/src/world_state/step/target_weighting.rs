@@ -1,5 +1,7 @@
 use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
-use crate::match_decision::target_selection::{calculate_player_target_weight_from_table, ReceptionRole};
+use crate::match_decision::target_selection::{
+    calculate_player_target_weight_from_table, ReceptionRole,
+};
 use crate::playmaking::routes::simulate_route_development_from_tables;
 use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -25,7 +27,9 @@ pub fn resolve_decision_target_weights(
             .iter()
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
-                let table = tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+                let table = tables
+                    .get(&p.id())
+                    .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
                 calculate_player_target_weight_from_table(
                     p,
                     table,
@@ -81,7 +85,9 @@ pub fn resolve_decision_target_weights(
             .iter()
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
-                let table = tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+                let table = tables
+                    .get(&p.id())
+                    .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
                 calculate_player_target_weight_from_table(
                     p,
                     table,
