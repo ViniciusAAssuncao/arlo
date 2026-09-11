@@ -123,4 +123,10 @@ impl MatchScoreboard {
         self.last_action_score_occurred = true;
         self.last_scoring_team = Some(team_id);
     }
+
+    pub fn restore(&mut self, home: TeamScore, away: TeamScore, drives: u32) {
+        self.home_score = home;
+        self.away_score = away;
+        self.drives_in_current_series = drives;
+    }
 }

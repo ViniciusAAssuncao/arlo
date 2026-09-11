@@ -50,4 +50,8 @@ impl MatchState {
         self.scoreboard
             .record_field_goal(team_id == self.teams.home_team_id(), post, team_id);
     }
+
+    pub fn restore_scoreboard(&mut self, home: TeamScore, away: TeamScore, drives: u32) {
+        self.scoreboard.restore(home, away, drives);
+    }
 }
