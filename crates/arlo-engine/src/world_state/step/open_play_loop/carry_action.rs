@@ -135,6 +135,7 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
     let head_referee_table = state.head_referee_attribute_table();
     let peace_referee_table = state.peace_referee_attribute_table();
     let game_state_pressure = iter_ctx.game_state_pressure;
+    let fault_catalog = state.fault_catalog_arc();
 
     let mut local_duels = Vec::new();
     let mut local_fouls: Vec<FoulResolution> = Vec::new();
@@ -157,6 +158,7 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
             head_referee_table,
             peace_referee_table,
             game_state_pressure,
+            &fault_catalog,
             rng,
         );
         local_duels.extend(outcome.duels);

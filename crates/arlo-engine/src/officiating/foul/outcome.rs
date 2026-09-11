@@ -1,4 +1,5 @@
 use crate::resolution::DuelKind;
+use arlo_domain::PunishmentKind;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -12,6 +13,9 @@ pub struct FoulResolution {
     pub trigger_probability: f64,
     pub original_call_correct: bool,
     pub peace_referee_intervened: bool,
+    pub fault_definition_id: Option<Uuid>,
+    pub punishment_kind: Option<PunishmentKind>,
+    pub punishment_magnitude: Option<i32>,
 }
 
 impl FoulResolution {
@@ -24,6 +28,9 @@ impl FoulResolution {
         trigger_probability: f64,
         original_call_correct: bool,
         peace_referee_intervened: bool,
+        fault_definition_id: Option<Uuid>,
+        punishment_kind: Option<PunishmentKind>,
+        punishment_magnitude: Option<i32>,
     ) -> Self {
         Self {
             offending_player_id,
@@ -34,6 +41,9 @@ impl FoulResolution {
             trigger_probability,
             original_call_correct,
             peace_referee_intervened,
+            fault_definition_id,
+            punishment_kind,
+            punishment_magnitude,
         }
     }
 
@@ -75,5 +85,17 @@ impl FoulResolution {
         } else {
             self.original_call_correct
         }
+    }
+
+    pub fn fault_definition_id(&self) -> Option<Uuid> {
+        self.fault_definition_id
+    }
+
+    pub fn punishment_kind(&self) -> Option<PunishmentKind> {
+        self.punishment_kind
+    }
+
+    pub fn punishment_magnitude(&self) -> Option<i32> {
+        self.punishment_magnitude
     }
 }

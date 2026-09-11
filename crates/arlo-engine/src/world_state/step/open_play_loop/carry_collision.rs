@@ -9,7 +9,7 @@ use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::live_collisions::{CollisionResolution, LiveCollision};
 use crate::world_state::context_analyzer::GameStatePressure;
-use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
+use arlo_domain::{AttributeKey, FaultCatalog, Player, Position as DomainPosition};
 use rand::Rng;
 use smallvec::smallvec;
 use std::collections::HashMap;
@@ -52,6 +52,7 @@ pub fn resolve_carry_collision<F, R>(
     head_referee_table: RefereeAttributeTable,
     peace_referee_table: RefereeAttributeTable,
     game_state_pressure: GameStatePressure,
+    fault_catalog: &FaultCatalog,
     rng: &mut R,
 ) -> CarryCollisionResult
 where
@@ -122,7 +123,7 @@ where
         col.contact_severity,
         game_state_pressure,
     );
-    let foul = evaluate_and_resolve_foul(&foul_ctx, rng);
+    let foul = evaluate_and_resolve_foul(&foul_ctx, fault_catalog, rng);
 
     let attributed = AttributedDuelOutcome::new(
         duel_raw,

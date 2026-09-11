@@ -1,4 +1,9 @@
-use arlo_domain::sport_constants::ATTRIBUTE_SATURATION_THRESHOLD;
+use arlo_domain::sport_constants::{
+    ATTRIBUTE_SATURATION_THRESHOLD, DUEL_PHYSICALITY_BASELINE_ARTRO_BREAKTHROUGH,
+    DUEL_PHYSICALITY_BASELINE_BALL_SECURITY_CARRY,
+    DUEL_PHYSICALITY_BASELINE_BALL_SECURITY_DISTRIBUTION,
+    DUEL_PHYSICALITY_BASELINE_CENTRAL_BLOCK, DUEL_PHYSICALITY_BASELINE_LATERAL_BLOCK,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -33,6 +38,19 @@ impl DuelKind {
                 | DuelKind::BallSecurityCarry
                 | DuelKind::BallSecurityDistribution
         )
+    }
+
+    pub fn physicality_baseline(&self) -> f64 {
+        match self {
+            DuelKind::ArtroBreakthrough => DUEL_PHYSICALITY_BASELINE_ARTRO_BREAKTHROUGH,
+            DuelKind::CentralBlock => DUEL_PHYSICALITY_BASELINE_CENTRAL_BLOCK,
+            DuelKind::LateralBlock => DUEL_PHYSICALITY_BASELINE_LATERAL_BLOCK,
+            DuelKind::BallSecurityCarry => DUEL_PHYSICALITY_BASELINE_BALL_SECURITY_CARRY,
+            DuelKind::BallSecurityDistribution => {
+                DUEL_PHYSICALITY_BASELINE_BALL_SECURITY_DISTRIBUTION
+            }
+            _ => 0.0,
+        }
     }
 }
 
