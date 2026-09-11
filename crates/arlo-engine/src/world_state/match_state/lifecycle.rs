@@ -1,4 +1,6 @@
-use crate::attributes::{AttributeKeyIndex, ManagerAttributeTable, PlayerAttributeTable};
+use crate::attributes::{
+    AttributeKeyIndex, ManagerAttributeTable, PlayerAttributeTable, RefereeAttributeTable,
+};
 use crate::error::EngineResult;
 use crate::lineup_runtime::hydrate;
 use crate::possession::PossessionSnapshot;
@@ -13,6 +15,7 @@ use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
 use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker;
 use crate::world_state::match_state::play_calling::PlayCallTracker;
+use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::setup_params::MatchSetupParams;
 use crate::world_state::match_state::state::MatchState;
@@ -63,6 +66,18 @@ impl MatchState {
         let away_manager_table =
             ManagerAttributeTable::from_manager_with_index(&params.away.manager, &key_index);
 
+        let head_referee_table =
+            RefereeAttributeTable::from_referee_with_index(&params.head_referee, &key_index);
+        let peace_referee_table =
+            RefereeAttributeTable::from_referee_with_index(&params.peace_referee, &key_index);
+
+        let referees = RefereeRegistry::new(
+            params.head_referee,
+            params.peace_referee,
+            head_referee_table,
+            peace_referee_table,
+        );
+
         let teams = TeamRegistry::new(
             params.home.team_id,
             params.away.team_id,
@@ -94,6 +109,7 @@ impl MatchState {
 
         Ok(Self {
             teams,
+            referees,
             home_squad,
             away_squad,
             pitch: params.pitch,

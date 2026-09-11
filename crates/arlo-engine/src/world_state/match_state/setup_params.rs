@@ -1,6 +1,6 @@
 use crate::rng::MatchSeed;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, Formation, Manager, MatchFormatRules, Player};
+use arlo_domain::{AttributeKey, Formation, Manager, MatchFormatRules, Player, Referee};
 use arlo_tactics::{PlayCall, TacticalLineup, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -46,6 +46,8 @@ impl TeamSetupParams {
 pub struct MatchSetupParams {
     pub home: TeamSetupParams,
     pub away: TeamSetupParams,
+    pub head_referee: Referee,
+    pub peace_referee: Referee,
     pub pitch: Pitch,
     pub attribute_keys: HashMap<Uuid, AttributeKey>,
     pub format_rules: MatchFormatRules,
@@ -56,6 +58,8 @@ impl MatchSetupParams {
     pub fn new(
         home: TeamSetupParams,
         away: TeamSetupParams,
+        head_referee: Referee,
+        peace_referee: Referee,
         pitch: Pitch,
         attribute_keys: HashMap<Uuid, AttributeKey>,
         format_rules: MatchFormatRules,
@@ -64,6 +68,8 @@ impl MatchSetupParams {
         Self {
             home,
             away,
+            head_referee,
+            peace_referee,
             pitch,
             attribute_keys,
             format_rules,

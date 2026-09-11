@@ -13,6 +13,7 @@ use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
 use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker;
 use crate::world_state::match_state::play_calling::PlayCallTracker;
+use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
@@ -24,6 +25,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatchState {
     pub(crate) teams: TeamRegistry,
+    pub(crate) referees: RefereeRegistry,
     pub(crate) home_squad: MatchdaySquad,
     pub(crate) away_squad: MatchdaySquad,
     pub(crate) pitch: Pitch,
