@@ -60,6 +60,8 @@ pub fn parse_attribute_key(code: &str) -> DbResult<AttributeKey> {
         "judging_ability" => Ok(AttributeKey::JudgingAbility),
         "judging_potential" => Ok(AttributeKey::JudgingPotential),
         "discipline" => Ok(AttributeKey::Discipline),
+        "rigor" => Ok(AttributeKey::Rigor),
+        "authority" => Ok(AttributeKey::Authority),
         _ => Err(DbError::InvalidEnum(format!(
             "Invalid attribute key: {code}"
         ))),
@@ -125,5 +127,7 @@ pub fn attribute_key_to_code(key: AttributeKey) -> &'static str {
         AttributeKey::JudgingAbility => "judging_ability",
         AttributeKey::JudgingPotential => "judging_potential",
         AttributeKey::Discipline => "discipline",
+        AttributeKey::Rigor => "rigor",
+        AttributeKey::Authority => "authority",
     }
 }

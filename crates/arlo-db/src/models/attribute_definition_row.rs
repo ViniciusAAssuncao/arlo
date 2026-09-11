@@ -34,6 +34,7 @@ impl AttributeDefinitionRow {
         let applies_to = match self.applies_to.as_str() {
             "Player" => AttributeTarget::Player,
             "Manager" => AttributeTarget::Manager,
+            "Referee" => AttributeTarget::Referee,
             _ => {
                 return Err(DbError::InvalidEnum(format!(
                     "Invalid attribute target: {}",

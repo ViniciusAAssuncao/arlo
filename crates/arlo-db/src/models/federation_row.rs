@@ -1,5 +1,6 @@
-use crate::error::{DbError, DbResult};
-use arlo_domain::{Federation, Scope};
+use crate::error::DbResult;
+use crate::models::scope_code::parse_scope;
+use arlo_domain::Federation;
 use sqlx::FromRow;
 use uuid::Uuid;
 
@@ -16,18 +17,7 @@ pub struct FederationRow {
 impl FederationRow {
     pub fn to_domain(&self) -> DbResult<Federation> {
         let id = Uuid::parse_str(&self.id)?;
-        let scope = match self.scope.as_str() {
-            "Regional" => Scope::Regional,
-            "National" => Scope::National,
-            "Continental" => Scope::Continental,
-            "International" => Scope::International,
-            _ => {
-                return Err(DbError::InvalidEnum(format!(
-                    "Invalid scope: {}",
-                    self.scope
-                )))
-            }
-        };
+        let scope = parse_scope(&self.scope)?;
         let continent_id = match &self.continent_id {
             Some(cid) => Some(Uuid::parse_str(cid)?),
             None => None,
