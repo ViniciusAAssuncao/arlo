@@ -1,16 +1,26 @@
 use crate::aggregator::StatAggregator;
-use crate::manager::{ManagerDecisionAggregator, PlayCallOutcomeAggregator};
+use crate::manager::{ ManagerDecisionAggregator, PlayCallOutcomeAggregator };
+use crate::officiating::{ PlayerFoulAggregator, RefereeStatsAggregator };
 use crate::player::{
-    PlayerArtrineDecisionAggregator, PlayerAssistsAggregator, PlayerDrivesAggregator,
-    PlayerDuelAggregator, PlayerImpulseAggregator, PlayerPhysicalAggregator,
-    PlayerReceivingAggregator, PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
+    PlayerArtrineDecisionAggregator,
+    PlayerAssistsAggregator,
+    PlayerDrivesAggregator,
+    PlayerDuelAggregator,
+    PlayerImpulseAggregator,
+    PlayerPhysicalAggregator,
+    PlayerReceivingAggregator,
+    PlayerScoringAttemptsAggregator,
+    PlayerTouchesAggregator,
 };
 use crate::snapshot::{
-    IntoSnapshot, PeriodicMatchSnapshot, PlayerMatchSnapshot, TeamMatchSnapshot,
+    IntoSnapshot,
+    PeriodicMatchSnapshot,
+    PlayerMatchSnapshot,
+    TeamMatchSnapshot,
 };
 use crate::team::TeamPossessionAggregator;
-use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
-use std::collections::{HashMap, HashSet};
+use arlo_events::{ MatchClockInstant, MatchEvent, MatchEventEnvelope };
+use std::collections::{ HashMap, HashSet };
 use uuid::Uuid;
 
 #[derive(Default)]
@@ -36,6 +46,8 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerPhysicalAggregator::new());
         registry.register_aggregator(PlayerImpulseAggregator::new());
         registry.register_aggregator(PlayerAssistsAggregator::new());
+        registry.register_aggregator(PlayerFoulAggregator::new());
+        registry.register_aggregator(RefereeStatsAggregator::new());
         registry.register_aggregator(TeamPossessionAggregator::new());
         registry.register_aggregator(ManagerDecisionAggregator::new());
         registry.register_aggregator(PlayCallOutcomeAggregator::new());
@@ -82,7 +94,7 @@ impl AggregatorRegistry {
 
     pub fn handle_envelopes<'a>(
         &mut self,
-        envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>,
+        envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>
     ) {
         for envelope in envelopes {
             self.handle_envelope(envelope);
@@ -134,6 +146,9 @@ impl AggregatorRegistry {
             ids.extend(agg.all_player_stats().keys().copied());
         }
         if let Some(agg) = self.get::<PlayerAssistsAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerFoulAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
         ids
@@ -232,6 +247,12 @@ impl AggregatorRegistry {
             snap.goalpoint_assists = a.goalpoint_assists;
         }
 
+        if let Some(agg) = self.get::<PlayerFoulAggregator>() {
+            let f = agg.get_or_default(player_id);
+            snap.fouls_committed = f.fouls_committed;
+            snap.fouls_drawn = f.fouls_drawn;
+        }
+
         if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {
             let ad = agg.get_or_default(player_id);
             snap.artrine_decisions_total = ad.total_decisions;
@@ -312,13 +333,13 @@ impl AggregatorRegistry {
     pub fn capture_periodic_snapshot(
         &self,
         sequence_number: u64,
-        clock: MatchClockInstant,
+        clock: MatchClockInstant
     ) -> PeriodicMatchSnapshot {
         PeriodicMatchSnapshot::new(
             sequence_number,
             clock,
             self.player_snapshots_vec(),
-            self.team_snapshots_vec(),
+            self.team_snapshots_vec()
         )
     }
 }

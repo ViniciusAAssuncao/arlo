@@ -95,3 +95,20 @@ pub struct PlayerAssistSnapshot {
     pub player_id: Uuid,
     pub goalpoint_assists: u32,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerFoulSnapshot {
+    pub player_id: Uuid,
+    pub fouls_committed: u32,
+    pub fouls_drawn: u32,
+    pub correct_calls_committed: u32,
+    pub incorrect_calls_committed: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RefereeMatchSnapshot {
+    pub calls_made: u32,
+    pub calls_correct: u32,
+    pub calls_incorrect: u32,
+    pub peace_referee_interventions: u32,
+}
