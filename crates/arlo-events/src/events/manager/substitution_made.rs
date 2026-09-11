@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub enum SubstitutionReason {
     Fatigue,
     Tactical,
+    Disciplinary,
 }
 
 impl SubstitutionReason {
@@ -13,6 +14,7 @@ impl SubstitutionReason {
         match self {
             Self::Fatigue => "Fatigue",
             Self::Tactical => "Tactical",
+            Self::Disciplinary => "Disciplinary",
         }
     }
 }

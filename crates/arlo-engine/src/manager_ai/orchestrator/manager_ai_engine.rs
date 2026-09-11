@@ -69,6 +69,7 @@ impl ManagerAiEngine {
                 publisher.state().away_squad().clone()
             };
             let fatigue_lookup = publisher.state().fatigue_lookup();
+            let availability_lookup = |id: &Uuid| publisher.state().availability_for(id);
 
             let plans = SubstitutionDecisionEngine::evaluate_plans_from_tables(
                 &context,
@@ -77,6 +78,7 @@ impl ManagerAiEngine {
                 &squad,
                 publisher.state().teams.player_attribute_tables(),
                 |id| fatigue_lookup.get(id),
+                &availability_lookup,
                 rng,
             );
 

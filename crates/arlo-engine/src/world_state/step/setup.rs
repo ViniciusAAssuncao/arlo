@@ -5,7 +5,7 @@ use crate::world_state::step::play_resolution::{
 };
 use arlo_domain::{Player, Position as DomainPosition, SlotRole};
 use arlo_tactics::{DecisionEmphasis, PlayCall, PlayerInstructions, RouteAssignment};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -23,6 +23,7 @@ pub struct CallToActionContext {
     pub active_play_call: Option<PlayCall>,
     pub offense_route_index: Arc<HashMap<Uuid, RouteAssignment>>,
     pub decision_emphasis: DecisionEmphasis,
+    pub unavailable_ids: Arc<HashSet<Uuid>>,
 }
 
 impl CallToActionContext {
@@ -31,6 +32,7 @@ impl CallToActionContext {
             .assignments()
             .iter()
             .map(|a| a.player())
+            .filter(|p| !self.unavailable_ids.contains(&p.id()))
             .collect()
     }
 
@@ -39,6 +41,7 @@ impl CallToActionContext {
             .assignments()
             .iter()
             .map(|a| a.player())
+            .filter(|p| !self.unavailable_ids.contains(&p.id()))
             .collect()
     }
 }
@@ -86,6 +89,8 @@ pub fn setup_call_to_action_context(state: &mut MatchState) -> CallToActionConte
     let decision_emphasis =
         resolve_decision_emphasis_for_play(active_play_call.as_ref(), offense_instructions);
 
+    let unavailable_ids = Arc::new(state.unavailable_player_ids());
+
     CallToActionContext {
         is_home_offense,
         offense_team_id,
@@ -100,5 +105,6 @@ pub fn setup_call_to_action_context(state: &mut MatchState) -> CallToActionConte
         active_play_call,
         offense_route_index,
         decision_emphasis,
+        unavailable_ids,
     }
 }
