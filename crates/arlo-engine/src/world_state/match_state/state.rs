@@ -9,6 +9,7 @@ use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
 use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
+use crate::world_state::match_state::foul_review::FoulReviewTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
@@ -46,6 +47,7 @@ pub struct MatchState {
     pub(crate) availability: PlayerAvailabilityTracker,
     pub(crate) play_calling: PlayCallTracker,
     pub(crate) officiating: OfficiatingTracker,
+    pub(crate) foul_review: FoulReviewTracker,
     pub(crate) decision_cooldown: DecisionCooldownTracker,
     pub(crate) play_call_efficacy: PlayCallEfficacyTracker,
     pub(crate) last_play_outcome_summary: Option<(Uuid, bool)>,

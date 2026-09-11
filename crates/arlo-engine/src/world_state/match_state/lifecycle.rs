@@ -11,6 +11,7 @@ use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
 use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
+use crate::world_state::match_state::foul_review::FoulReviewTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
@@ -106,6 +107,7 @@ impl MatchState {
         let scoreboard = MatchScoreboard::new();
         let play_calling = PlayCallTracker::new();
         let officiating = OfficiatingTracker::new();
+        let foul_review = FoulReviewTracker::new();
         let decision_cooldown = DecisionCooldownTracker::new();
         let play_call_efficacy = PlayCallEfficacyTracker::new();
 
@@ -130,6 +132,7 @@ impl MatchState {
             availability,
             play_calling,
             officiating,
+            foul_review,
             decision_cooldown,
             play_call_efficacy,
             last_play_outcome_summary: None,

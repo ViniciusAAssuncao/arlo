@@ -12,6 +12,7 @@ use crate::error::EngineResult;
 use crate::manager_ai::orchestrator::ManagerAiEngine;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::officiating::punishment::capture_play_reversal_snapshot;
 use crate::rng::RngStream;
 use crate::time::DurationLedger;
 use crate::world_state::cta_pass::resolve_pass_phase;
@@ -57,6 +58,8 @@ pub fn step_call_to_action(
     if state.is_match_finished() {
         return Ok(build_finished_match_outcome(state));
     }
+
+    let pre_play_snapshot = capture_play_reversal_snapshot(state);
 
     let (last_play_call_id, last_play_failed) = state
         .last_play_outcome_summary()
@@ -135,6 +138,7 @@ pub fn step_call_to_action(
         context.offense_team_id,
         context.defense_team_id,
         active_play_call_id,
+        pre_play_snapshot,
         sink,
     );
 
