@@ -16,6 +16,7 @@ pub fn translate_reviewable_call_kind(kind: EngineReviewableCallKind) -> EventRe
             EventReviewableCallKind::OutOfBoundsClassification
         }
         EngineReviewableCallKind::DriveValidity => EventReviewableCallKind::DriveValidity,
+        EngineReviewableCallKind::FoulClassification => EventReviewableCallKind::FoulClassification,
     }
 }
 

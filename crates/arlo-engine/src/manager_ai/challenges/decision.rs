@@ -9,6 +9,18 @@ use arlo_domain::sport_constants::manager_cognition::{
 use arlo_domain::sport_constants::CHALLENGE_CALLS_PER_MATCH;
 use rand::Rng;
 
+pub fn base_challenge_stimulus<R: Rng + ?Sized>(
+    context: &ManagerDecisionContext,
+    rng: &mut R,
+) -> f64 {
+    let total_challenges = CHALLENGE_CALLS_PER_MATCH.max(1) as f64;
+    let challenge_ratio = (context.remaining_challenges as f64) / total_challenges;
+    let leverage_mult =
+        1.0 + context.situational_awareness.leverage() * CHALLENGE_LEVERAGE_WEIGHT;
+    let noise = derive_manager_decision_noise(context.manager_snapshot.discipline).sample(rng);
+    (challenge_ratio * leverage_mult + noise).clamp(0.0, 1.0)
+}
+
 pub struct ChallengeDecisionEngine;
 
 impl ChallengeDecisionEngine {
@@ -22,12 +34,7 @@ impl ChallengeDecisionEngine {
             return false;
         }
 
-        let total_challenges = CHALLENGE_CALLS_PER_MATCH.max(1) as f64;
-        let challenge_ratio = (context.remaining_challenges as f64) / total_challenges;
-        let leverage_mult =
-            1.0 + context.situational_awareness.leverage() * CHALLENGE_LEVERAGE_WEIGHT;
-        let noise = derive_manager_decision_noise(context.manager_snapshot.discipline).sample(rng);
-        let stimulus = (challenge_ratio * leverage_mult + noise).clamp(0.0, 1.0);
+        let stimulus = base_challenge_stimulus(context, rng);
 
         let prob = action_probability(
             stimulus,

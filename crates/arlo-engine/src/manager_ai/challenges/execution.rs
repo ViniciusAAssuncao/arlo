@@ -70,6 +70,7 @@ pub fn execute_challenge<R: Rng + ?Sized>(
             ReviewableCallKind::DriveValidity => {
                 publisher.state_mut().reverse_drive();
             }
+            ReviewableCallKind::FoulClassification => {}
         }
     }
 
