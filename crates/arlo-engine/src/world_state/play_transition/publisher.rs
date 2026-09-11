@@ -11,7 +11,9 @@ use crate::match_decision::event_translation::{
     translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
-use crate::officiating::event_translation::translate_foul_raised;
+use crate::officiating::event_translation::{
+    translate_availability_changed, translate_foul_raised,
+};
 use crate::officiating::foul::FoulResolution;
 use crate::officiating::ReviewableCallKind;
 use crate::psychology::event_translation::{
@@ -20,6 +22,7 @@ use crate::psychology::event_translation::{
 use crate::psychology::systems::critical::ImpulseCriticalReached as EngineImpulseCritical;
 use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
+use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::PitchZone;
@@ -291,6 +294,17 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         category: PlayCallCategory,
     ) {
         let event = translate_play_call_selected(team_id, play_call_id, play_call_name, category);
+        self.publish(event);
+    }
+
+    pub fn emit_player_availability_changed(
+        &mut self,
+        player_id: Uuid,
+        team_id: Uuid,
+        previous: AvailabilityState,
+        new: AvailabilityState,
+    ) {
+        let event = translate_availability_changed(player_id, team_id, previous, new);
         self.publish(event);
     }
 }

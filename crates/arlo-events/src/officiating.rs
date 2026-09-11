@@ -1,8 +1,9 @@
 use crate::action::DuelKind;
+use arlo_domain::PunishmentKind;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoulRaised {
     offending_player_id: Uuid,
     offending_team_id: Uuid,
@@ -11,6 +12,9 @@ pub struct FoulRaised {
     duel_kind: DuelKind,
     original_call_correct: bool,
     peace_referee_intervened: bool,
+    fault_definition_id: Option<Uuid>,
+    punishment_kind: Option<PunishmentKind>,
+    punishment_magnitude: Option<i32>,
 }
 
 impl FoulRaised {
@@ -22,6 +26,9 @@ impl FoulRaised {
         duel_kind: DuelKind,
         original_call_correct: bool,
         peace_referee_intervened: bool,
+        fault_definition_id: Option<Uuid>,
+        punishment_kind: Option<PunishmentKind>,
+        punishment_magnitude: Option<i32>,
     ) -> Self {
         Self {
             offending_player_id,
@@ -31,6 +38,9 @@ impl FoulRaised {
             duel_kind,
             original_call_correct,
             peace_referee_intervened,
+            fault_definition_id,
+            punishment_kind,
+            punishment_magnitude,
         }
     }
 
@@ -65,9 +75,21 @@ impl FoulRaised {
     pub fn final_call_correct(&self) -> bool {
         self.peace_referee_intervened || self.original_call_correct
     }
+
+    pub fn fault_definition_id(&self) -> Option<Uuid> {
+        self.fault_definition_id
+    }
+
+    pub fn punishment_kind(&self) -> Option<PunishmentKind> {
+        self.punishment_kind
+    }
+
+    pub fn punishment_magnitude(&self) -> Option<i32> {
+        self.punishment_magnitude
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OfficiatingEvent {
     FoulRaised(FoulRaised),
 }

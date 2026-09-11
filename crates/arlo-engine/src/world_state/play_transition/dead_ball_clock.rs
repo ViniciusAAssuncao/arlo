@@ -80,6 +80,18 @@ pub fn handle_dead_ball_and_clock(
         .add(play_ledger.total());
     *publisher.state_mut().possession_mut() = next_snapshot;
 
+    let transitions = publisher
+        .state_mut()
+        .tick_player_availability(live_seconds);
+    for (player_id, is_home, prev, new) in transitions {
+        let team_id = if is_home {
+            publisher.state().home_team_id()
+        } else {
+            publisher.state().away_team_id()
+        };
+        publisher.emit_player_availability_changed(player_id, team_id, prev, new);
+    }
+
     if period_ended {
         resolve_period_end(publisher.state_mut());
     }

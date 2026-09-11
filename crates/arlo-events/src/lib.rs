@@ -1,4 +1,5 @@
 pub mod action;
+pub mod availability;
 pub mod envelope;
 pub mod events;
 pub mod in_memory_sink;
@@ -15,6 +16,7 @@ pub use action::{
 };
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use arlo_domain::PitchZone;
+pub use availability::{AvailabilityStatus, PlayerAvailabilityChanged};
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
 pub use events::manager::*;
 pub use in_memory_sink::InMemorySink;
@@ -63,6 +65,7 @@ pub enum MatchEvent {
     TacticalProfileActivated(TacticalProfileActivated),
     PlayCallSelected(PlayCallSelected),
     FoulRaised(FoulRaised),
+    PlayerAvailabilityChanged(PlayerAvailabilityChanged),
 }
 
 impl MatchEvent {
@@ -130,6 +133,10 @@ impl MatchEvent {
         matches!(self, Self::FoulRaised(_))
     }
 
+    pub fn is_availability(&self) -> bool {
+        matches!(self, Self::PlayerAvailabilityChanged(_))
+    }
+
     pub fn event_type_name(&self) -> &'static str {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
@@ -158,6 +165,7 @@ impl MatchEvent {
             Self::TacticalProfileActivated(_) => "TacticalProfileActivated",
             Self::PlayCallSelected(_) => "PlayCallSelected",
             Self::FoulRaised(_) => "FoulRaised",
+            Self::PlayerAvailabilityChanged(_) => "PlayerAvailabilityChanged",
         }
     }
 }
@@ -315,6 +323,12 @@ impl From<PlayCallSelected> for MatchEvent {
 impl From<FoulRaised> for MatchEvent {
     fn from(ev: FoulRaised) -> Self {
         Self::FoulRaised(ev)
+    }
+}
+
+impl From<PlayerAvailabilityChanged> for MatchEvent {
+    fn from(ev: PlayerAvailabilityChanged) -> Self {
+        Self::PlayerAvailabilityChanged(ev)
     }
 }
 

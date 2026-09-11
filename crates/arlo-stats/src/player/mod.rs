@@ -1,5 +1,6 @@
 pub mod artrine_decisions;
 pub mod assists;
+pub mod availability;
 pub mod drives;
 pub mod duel_record;
 pub mod impulse;
@@ -14,6 +15,7 @@ pub use artrine_decisions::{
 pub use assists::{
     PlayerAssistAggregator, PlayerAssistStats, PlayerAssistsAggregator, PlayerAssistsStats,
 };
+pub use availability::{PlayerAvailabilityAggregator, PlayerAvailabilityStats};
 pub use drives::{PlayerDriveStats, PlayerDrivesAggregator};
 pub use duel_record::{DuelKindStats, PlayerDuelAggregator, PlayerDuelStats};
 pub use impulse::{
