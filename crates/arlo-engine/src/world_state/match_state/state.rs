@@ -6,6 +6,7 @@ use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
+use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
 use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
@@ -42,6 +43,7 @@ pub struct MatchState {
     pub(crate) scoreboard: MatchScoreboard,
     pub(crate) fatigue: FatigueTracker,
     pub(crate) impulse: ImpulseTracker,
+    pub(crate) availability: PlayerAvailabilityTracker,
     pub(crate) play_calling: PlayCallTracker,
     pub(crate) officiating: OfficiatingTracker,
     pub(crate) decision_cooldown: DecisionCooldownTracker,
@@ -128,6 +130,14 @@ impl MatchState {
 
     pub fn is_match_finished(&self) -> bool {
         self.clock.is_finished()
+    }
+
+    pub fn availability(&self) -> &PlayerAvailabilityTracker {
+        &self.availability
+    }
+
+    pub fn availability_mut(&mut self) -> &mut PlayerAvailabilityTracker {
+        &mut self.availability
     }
 
     pub fn decision_cooldown(&self) -> &DecisionCooldownTracker {

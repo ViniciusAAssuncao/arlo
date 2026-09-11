@@ -1,3 +1,5 @@
+pub mod availability;
+pub mod availability_queries;
 pub mod decision_cooldown;
 pub mod decision_cooldown_queries;
 pub mod fatigue;
@@ -24,6 +26,7 @@ pub mod team_position_indices;
 pub mod team_queries;
 pub mod teams;
 
+pub use availability::{AvailabilityState, PlayerAvailabilityTracker};
 pub use decision_cooldown::DecisionCooldownTracker;
 pub use fatigue::{FatigueLookup, FatigueTracker};
 pub use impulse::ImpulseTracker;

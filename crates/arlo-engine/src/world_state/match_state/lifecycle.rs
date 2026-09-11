@@ -8,6 +8,7 @@ use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
+use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
 use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
@@ -101,6 +102,7 @@ impl MatchState {
 
         let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &params.attribute_keys);
         let fatigue = FatigueTracker::new();
+        let availability = PlayerAvailabilityTracker::new();
         let scoreboard = MatchScoreboard::new();
         let play_calling = PlayCallTracker::new();
         let officiating = OfficiatingTracker::new();
@@ -125,6 +127,7 @@ impl MatchState {
             scoreboard,
             fatigue,
             impulse,
+            availability,
             play_calling,
             officiating,
             decision_cooldown,

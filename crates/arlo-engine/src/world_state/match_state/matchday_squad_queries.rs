@@ -66,6 +66,7 @@ impl MatchState {
 
         self.substitute_fatigue_player(outgoing, incoming_id, is_home);
         self.substitute_impulse_player(outgoing, incoming_id, is_home);
+        self.substitute_availability_player(outgoing, incoming_id, is_home);
         self.spatial_map.substitute_player(outgoing, incoming_id);
 
         Ok(())
