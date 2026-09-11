@@ -1,10 +1,14 @@
-use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
+use crate::attributes::{
+    PlayerAttributeTable, RefereeAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE,
+};
+use crate::officiating::foul::{evaluate_and_resolve_foul, FoulEvaluationContext, FoulResolution};
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::live_collisions::{CollisionResolution, LiveCollision};
+use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
 use rand::Rng;
 use smallvec::smallvec;
@@ -15,11 +19,20 @@ use uuid::Uuid;
 pub struct CarryCollisionResult {
     pub duels: Vec<AttributedDuelOutcome>,
     pub resolution: CollisionResolution,
+    pub foul: Option<FoulResolution>,
 }
 
 impl CarryCollisionResult {
-    pub fn new(duels: Vec<AttributedDuelOutcome>, resolution: CollisionResolution) -> Self {
-        Self { duels, resolution }
+    pub fn new(
+        duels: Vec<AttributedDuelOutcome>,
+        resolution: CollisionResolution,
+        foul: Option<FoulResolution>,
+    ) -> Self {
+        Self {
+            duels,
+            resolution,
+            foul,
+        }
     }
 }
 
@@ -36,6 +49,9 @@ pub fn resolve_carry_collision<F, R>(
     fatigue_for: &F,
     duel_ctx: &DuelContext,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
+    head_referee_table: RefereeAttributeTable,
+    peace_referee_table: RefereeAttributeTable,
+    game_state_pressure: GameStatePressure,
     rng: &mut R,
 ) -> CarryCollisionResult
 where
@@ -90,6 +106,24 @@ where
     .with_tables(Some(carrier_table), Some(def_table_ref));
     let duel_raw = resolve_duel(req, rng);
 
+    let foul_ctx = FoulEvaluationContext::new(
+        current_carrier.id(),
+        current_carrier.team_id().unwrap_or_default(),
+        def_player.id(),
+        def_player.team_id().unwrap_or(defense_team_id),
+        *carrier_table,
+        *def_table_ref,
+        carrier_fatigue,
+        def_fatigue,
+        head_referee_table,
+        peace_referee_table,
+        duel_raw,
+        c_context,
+        col.contact_severity,
+        game_state_pressure,
+    );
+    let foul = evaluate_and_resolve_foul(&foul_ctx, rng);
+
     let attributed = AttributedDuelOutcome::new(
         duel_raw,
         smallvec![current_carrier.id()],
@@ -105,6 +139,7 @@ where
             CollisionResolution::Continue {
                 velocity_mitigation: mit,
             },
+            foul,
         )
     } else {
         let (sec_off, sec_def) = get_duel_profiles(DuelKind::BallSecurityCarry);
@@ -160,6 +195,7 @@ where
                 turnover_team,
                 recovering_player,
             },
+            foul,
         )
     }
 }

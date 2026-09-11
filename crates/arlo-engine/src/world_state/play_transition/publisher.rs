@@ -11,6 +11,8 @@ use crate::match_decision::event_translation::{
     translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
+use crate::officiating::event_translation::translate_foul_raised;
+use crate::officiating::foul::FoulResolution;
 use crate::officiating::ReviewableCallKind;
 use crate::psychology::event_translation::{
     translate_impulse_critical_reached, translate_impulse_shift_recorded,
@@ -104,6 +106,11 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
                 self.publish(reception_event);
             }
         }
+    }
+
+    pub fn emit_foul_raised(&mut self, resolution: &FoulResolution) {
+        let event = translate_foul_raised(resolution);
+        self.publish(event);
     }
 
     pub fn emit_scoring_event(&mut self, scoring_decision: &ScoringDecision) {

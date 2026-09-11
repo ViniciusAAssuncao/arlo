@@ -1,5 +1,6 @@
 use crate::artrine::detect_drive_crossings;
 use crate::attributes::PlayerAttributeTable;
+use crate::officiating::foul::FoulResolution;
 use crate::open_play::{compute_carry_target_lane, compute_forward_target_pos};
 use crate::possession::TouchActionType;
 use crate::spatial::{
@@ -131,7 +132,12 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         .map(|p| (p.id(), state.attribute_table_for(&p.id()).clone()))
         .collect();
 
+    let head_referee_table = state.head_referee_attribute_table();
+    let peace_referee_table = state.peace_referee_attribute_table();
+    let game_state_pressure = iter_ctx.game_state_pressure;
+
     let mut local_duels = Vec::new();
+    let mut local_fouls: Vec<FoulResolution> = Vec::new();
     let mut collision_resolution = None;
 
     let collision_cb = |_s_map: &mut DynamicSpatialMap, col: &LiveCollision, spd: &mut f64| {
@@ -148,9 +154,15 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
             &|id| fatigue_tracker.fatigue_for(id),
             &duel_ctx,
             &attribute_keys,
+            head_referee_table,
+            peace_referee_table,
+            game_state_pressure,
             rng,
         );
         local_duels.extend(outcome.duels);
+        if let Some(foul) = outcome.foul.clone() {
+            local_fouls.push(foul);
+        }
         let res = outcome.resolution;
         collision_resolution = Some(res);
         res
@@ -197,6 +209,7 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         .accumulated_trajectories
         .extend(tick_result.trajectories().clone());
     loop_state.accumulated_duels.extend(local_duels);
+    loop_state.accumulated_fouls.extend(local_fouls);
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CarrierMovement,
         Duration::new(tick_result.elapsed_seconds()),

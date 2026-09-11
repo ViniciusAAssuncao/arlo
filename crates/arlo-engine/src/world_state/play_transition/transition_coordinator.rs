@@ -82,6 +82,12 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         );
     }
 
+    fn emit_fouls(&mut self) {
+        for foul in &self.execution_outcome.fouls {
+            self.publisher.emit_foul_raised(foul);
+        }
+    }
+
     fn process_scoring(&mut self) {
         enrich_scoring_decision_assister(
             &mut self.execution_outcome.scoring_decision,
@@ -122,6 +128,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
 
     pub fn run(mut self) -> DetailedPlayOutcome {
         self.apply_strains();
+        self.emit_fouls();
         self.process_scoring();
 
         let live_seconds = self.play_ledger.total_live().value();
