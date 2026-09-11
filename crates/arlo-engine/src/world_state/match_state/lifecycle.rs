@@ -115,6 +115,7 @@ impl MatchState {
             pitch: params.pitch,
             attribute_keys: params.attribute_keys,
             format_rules: params.format_rules,
+            fault_catalog: params.fault_catalog,
             possession,
             spatial_map,
             clock,

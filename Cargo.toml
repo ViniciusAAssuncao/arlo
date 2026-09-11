@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/arlo",
+    "crates/arlo-catalog",
     "crates/arlo-runtime",
     "crates/arlo-domain",
     "crates/arlo-math",

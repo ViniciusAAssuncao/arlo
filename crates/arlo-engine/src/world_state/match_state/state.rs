@@ -17,9 +17,10 @@ use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, MatchFormatRules};
+use arlo_domain::{AttributeKey, FaultCatalog, MatchFormatRules};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -31,6 +32,7 @@ pub struct MatchState {
     pub(crate) pitch: Pitch,
     pub(crate) attribute_keys: HashMap<Uuid, AttributeKey>,
     pub(crate) format_rules: MatchFormatRules,
+    pub(crate) fault_catalog: Arc<FaultCatalog>,
     pub(crate) possession: PossessionSnapshot,
     pub(crate) spatial_map: DynamicSpatialMap,
     pub(crate) clock: MatchClock,
@@ -68,6 +70,14 @@ impl MatchState {
 
     pub fn format_rules(&self) -> &MatchFormatRules {
         &self.format_rules
+    }
+
+    pub fn fault_catalog(&self) -> &FaultCatalog {
+        &self.fault_catalog
+    }
+
+    pub fn fault_catalog_arc(&self) -> Arc<FaultCatalog> {
+        Arc::clone(&self.fault_catalog)
     }
 
     pub fn possession(&self) -> &PossessionSnapshot {

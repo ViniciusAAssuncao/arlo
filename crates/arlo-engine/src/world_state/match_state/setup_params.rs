@@ -1,9 +1,12 @@
 use crate::rng::MatchSeed;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, Formation, Manager, MatchFormatRules, Player, Referee};
+use arlo_domain::{
+    AttributeKey, FaultCatalog, Formation, Manager, MatchFormatRules, Player, Referee,
+};
 use arlo_tactics::{PlayCall, TacticalLineup, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -51,6 +54,7 @@ pub struct MatchSetupParams {
     pub pitch: Pitch,
     pub attribute_keys: HashMap<Uuid, AttributeKey>,
     pub format_rules: MatchFormatRules,
+    pub fault_catalog: Arc<FaultCatalog>,
     pub seed: MatchSeed,
 }
 
@@ -63,6 +67,7 @@ impl MatchSetupParams {
         pitch: Pitch,
         attribute_keys: HashMap<Uuid, AttributeKey>,
         format_rules: MatchFormatRules,
+        fault_catalog: Arc<FaultCatalog>,
         seed: MatchSeed,
     ) -> Self {
         Self {
@@ -73,6 +78,7 @@ impl MatchSetupParams {
             pitch,
             attribute_keys,
             format_rules,
+            fault_catalog,
             seed,
         }
     }
