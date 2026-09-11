@@ -45,6 +45,10 @@ pub fn coordinate_play_impulse(
             .publish_attributed_duel(duel, &offense_players, &defense_players);
     }
 
+    for foul in &execution_outcome.fouls {
+        publisher.state_mut().impulse_bus_mut().publish_foul(foul);
+    }
+
     let finisher_id = execution_outcome.receiver_id.unwrap_or(artrine_id);
 
     publish_scoring_impulse(
