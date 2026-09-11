@@ -1,3 +1,5 @@
+#![allow(ambiguous_glob_reexports)]
+
 pub mod ai;
 pub mod artrine;
 pub mod attributes;
