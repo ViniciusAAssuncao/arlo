@@ -1,6 +1,6 @@
 use crate::aggregator::StatAggregator;
 use crate::snapshot::{IntoSnapshot, PlayerFoulSnapshot};
-use arlo_events::{DuelKind, MatchEvent};
+use arlo_events::{FoulOrigin, MatchEvent};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -12,7 +12,7 @@ pub struct PlayerFoulStats {
     pub fouls_drawn: u32,
     pub correct_calls_committed: u32,
     pub incorrect_calls_committed: u32,
-    pub by_duel_kind: HashMap<DuelKind, u32>,
+    pub by_origin: HashMap<FoulOrigin, u32>,
 }
 
 impl PlayerFoulStats {
@@ -23,7 +23,7 @@ impl PlayerFoulStats {
             fouls_drawn: 0,
             correct_calls_committed: 0,
             incorrect_calls_committed: 0,
-            by_duel_kind: HashMap::new(),
+            by_origin: HashMap::new(),
         }
     }
 
@@ -47,12 +47,12 @@ impl PlayerFoulStats {
         self.incorrect_calls_committed
     }
 
-    pub fn by_duel_kind(&self) -> &HashMap<DuelKind, u32> {
-        &self.by_duel_kind
+    pub fn by_origin(&self) -> &HashMap<FoulOrigin, u32> {
+        &self.by_origin
     }
 
-    pub fn fouls_for_duel_kind(&self, kind: DuelKind) -> u32 {
-        self.by_duel_kind.get(&kind).copied().unwrap_or(0)
+    pub fn fouls_for_origin(&self, origin: FoulOrigin) -> u32 {
+        self.by_origin.get(&origin).copied().unwrap_or(0)
     }
 }
 
@@ -106,7 +106,7 @@ impl PlayerFoulAggregator {
     pub fn record_foul_committed(
         &mut self,
         player_id: Uuid,
-        duel_kind: DuelKind,
+        origin: FoulOrigin,
         final_call_correct: bool,
     ) {
         let stats = self.get_mut_or_create(player_id);
@@ -116,7 +116,7 @@ impl PlayerFoulAggregator {
         } else {
             stats.incorrect_calls_committed += 1;
         }
-        *stats.by_duel_kind.entry(duel_kind).or_insert(0) += 1;
+        *stats.by_origin.entry(origin).or_insert(0) += 1;
     }
 
     pub fn record_foul_drawn(&mut self, player_id: Uuid) {
@@ -141,7 +141,7 @@ impl StatAggregator for PlayerFoulAggregator {
         if let MatchEvent::FoulRaised(e) = event {
             self.record_foul_committed(
                 e.offending_player_id(),
-                e.duel_kind(),
+                e.origin(),
                 e.final_call_correct(),
             );
             self.record_foul_drawn(e.opposing_player_id());

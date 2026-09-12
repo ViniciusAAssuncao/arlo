@@ -1,4 +1,4 @@
-use crate::resolution::DuelKind;
+use crate::officiating::foul::origin::FoulOrigin;
 use arlo_domain::PunishmentKind;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -9,7 +9,7 @@ pub struct FoulResolution {
     pub offending_team_id: Uuid,
     pub opposing_player_id: Uuid,
     pub opposing_team_id: Uuid,
-    pub engine_duel_kind: DuelKind,
+    pub origin: FoulOrigin,
     pub trigger_probability: f64,
     pub original_call_correct: bool,
     pub peace_referee_intervened: bool,
@@ -24,7 +24,7 @@ impl FoulResolution {
         offending_team_id: Uuid,
         opposing_player_id: Uuid,
         opposing_team_id: Uuid,
-        engine_duel_kind: DuelKind,
+        origin: FoulOrigin,
         trigger_probability: f64,
         original_call_correct: bool,
         peace_referee_intervened: bool,
@@ -37,7 +37,7 @@ impl FoulResolution {
             offending_team_id,
             opposing_player_id,
             opposing_team_id,
-            engine_duel_kind,
+            origin,
             trigger_probability,
             original_call_correct,
             peace_referee_intervened,
@@ -63,8 +63,8 @@ impl FoulResolution {
         self.opposing_team_id
     }
 
-    pub fn engine_duel_kind(&self) -> DuelKind {
-        self.engine_duel_kind
+    pub fn origin(&self) -> FoulOrigin {
+        self.origin
     }
 
     pub fn trigger_probability(&self) -> f64 {

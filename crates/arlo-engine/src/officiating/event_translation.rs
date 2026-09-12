@@ -1,8 +1,19 @@
 use crate::match_decision::event_translation::translate_duel_kind;
-use crate::officiating::foul::FoulResolution;
+use crate::officiating::foul::{FoulOrigin as EngineFoulOrigin, FoulResolution};
 use crate::world_state::match_state::availability::AvailabilityState;
-use arlo_events::{AvailabilityStatus, FoulRaised, PlayerAvailabilityChanged};
+use arlo_events::{
+    AvailabilityStatus, FoulOrigin as EventFoulOrigin, FoulRaised, PlayerAvailabilityChanged,
+};
 use uuid::Uuid;
+
+pub fn translate_foul_origin(origin: EngineFoulOrigin) -> EventFoulOrigin {
+    match origin {
+        EngineFoulOrigin::ContactDuel(kind) => {
+            EventFoulOrigin::ContactDuel(translate_duel_kind(kind))
+        }
+        EngineFoulOrigin::LineFault => EventFoulOrigin::LineFault,
+    }
+}
 
 pub fn translate_foul_raised(resolution: &FoulResolution) -> FoulRaised {
     FoulRaised::new(
@@ -10,7 +21,7 @@ pub fn translate_foul_raised(resolution: &FoulResolution) -> FoulRaised {
         resolution.offending_team_id,
         resolution.opposing_player_id,
         resolution.opposing_team_id,
-        translate_duel_kind(resolution.engine_duel_kind),
+        translate_foul_origin(resolution.origin()),
         resolution.original_call_correct,
         resolution.peace_referee_intervened,
         resolution.fault_definition_id,

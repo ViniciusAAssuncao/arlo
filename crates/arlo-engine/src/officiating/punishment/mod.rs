@@ -54,6 +54,7 @@ pub fn apply_punishment(
         PunishmentKind::InvalidatePreviousPlay => {
             apply_invalidate_previous_play(state, pre_play_snapshot);
         }
+        PunishmentKind::KickFoulAwarded => {}
     }
 
     PunishmentLedgerEntry {

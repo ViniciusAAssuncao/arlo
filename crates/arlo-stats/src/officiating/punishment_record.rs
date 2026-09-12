@@ -93,6 +93,7 @@ impl PlayerPunishmentStats {
             PunishmentKind::InvalidatePreviousPlay => {
                 self.total_plays_invalidated += 1;
             }
+            PunishmentKind::KickFoulAwarded => {}
         }
     }
 }

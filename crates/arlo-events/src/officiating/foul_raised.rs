@@ -1,4 +1,4 @@
-use crate::action::DuelKind;
+use crate::officiating::foul_origin::FoulOrigin;
 use arlo_domain::PunishmentKind;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -9,7 +9,7 @@ pub struct FoulRaised {
     offending_team_id: Uuid,
     opposing_player_id: Uuid,
     opposing_team_id: Uuid,
-    duel_kind: DuelKind,
+    origin: FoulOrigin,
     original_call_correct: bool,
     peace_referee_intervened: bool,
     fault_definition_id: Option<Uuid>,
@@ -23,7 +23,7 @@ impl FoulRaised {
         offending_team_id: Uuid,
         opposing_player_id: Uuid,
         opposing_team_id: Uuid,
-        duel_kind: DuelKind,
+        origin: FoulOrigin,
         original_call_correct: bool,
         peace_referee_intervened: bool,
         fault_definition_id: Option<Uuid>,
@@ -35,7 +35,7 @@ impl FoulRaised {
             offending_team_id,
             opposing_player_id,
             opposing_team_id,
-            duel_kind,
+            origin,
             original_call_correct,
             peace_referee_intervened,
             fault_definition_id,
@@ -60,8 +60,8 @@ impl FoulRaised {
         self.opposing_team_id
     }
 
-    pub fn duel_kind(&self) -> DuelKind {
-        self.duel_kind
+    pub fn origin(&self) -> FoulOrigin {
+        self.origin
     }
 
     pub fn original_call_correct(&self) -> bool {
@@ -86,16 +86,5 @@ impl FoulRaised {
 
     pub fn punishment_magnitude(&self) -> Option<i32> {
         self.punishment_magnitude
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum OfficiatingEvent {
-    FoulRaised(FoulRaised),
-}
-
-impl From<FoulRaised> for OfficiatingEvent {
-    fn from(ev: FoulRaised) -> Self {
-        Self::FoulRaised(ev)
     }
 }

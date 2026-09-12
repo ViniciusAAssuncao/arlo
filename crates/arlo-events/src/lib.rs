@@ -20,7 +20,7 @@ pub use availability::{AvailabilityStatus, PlayerAvailabilityChanged};
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
 pub use events::manager::*;
 pub use in_memory_sink::InMemorySink;
-pub use officiating::{FoulRaised, OfficiatingEvent};
+pub use officiating::{FoulOrigin, FoulRaised, OfficiatingEvent};
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
     CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent,

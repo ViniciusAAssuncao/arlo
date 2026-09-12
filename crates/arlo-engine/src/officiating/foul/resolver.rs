@@ -1,6 +1,7 @@
 use crate::ai::cognitive::action_probability;
 use crate::officiating::foul::attribution::{resolve_offending_side, FoulOffendingSide};
 use crate::officiating::foul::context::FoulEvaluationContext;
+use crate::officiating::foul::origin::FoulOrigin;
 use crate::officiating::foul::outcome::FoulResolution;
 use crate::officiating::foul::punishment_selection::select_punishment;
 use crate::officiating::foul::severity_estimation::estimate_foul_severity;
@@ -73,7 +74,7 @@ pub fn evaluate_and_resolve_foul<R: Rng + ?Sized>(
         offending_team_id,
         opposing_player_id,
         opposing_team_id,
-        ctx.duel_outcome.kind(),
+        FoulOrigin::ContactDuel(ctx.duel_outcome.kind()),
         trigger_probability,
         original_call_correct,
         peace_referee_intervened,
