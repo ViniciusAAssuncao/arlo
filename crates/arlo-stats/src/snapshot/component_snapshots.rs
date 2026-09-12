@@ -1,4 +1,4 @@
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -140,4 +140,15 @@ pub struct PlayerAvailabilitySnapshot {
 pub struct PlayerKickFoulSnapshot {
     pub player_id: Uuid,
     pub kick_foul_takes: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PlayerInjurySnapshot {
+    pub player_id: Uuid,
+    pub total_injuries: u32,
+    pub contact_injuries: u32,
+    pub non_contact_injuries: u32,
+    pub grade_1_injuries: u32,
+    pub grade_2_injuries: u32,
+    pub grade_3_injuries: u32,
 }

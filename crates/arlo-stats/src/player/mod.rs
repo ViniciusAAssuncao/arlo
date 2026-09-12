@@ -4,6 +4,7 @@ pub mod availability;
 pub mod drives;
 pub mod duel_record;
 pub mod impulse;
+pub mod injury_record;
 pub mod physical_exertion;
 pub mod receiving;
 pub mod scoring_attempts;
@@ -22,6 +23,7 @@ pub use impulse::{
     ImpulseAggregator, ImpulseRun, PlayerImpulseAggregator, PlayerImpulseStats, TeamImpulseRun,
     TeamImpulseStats,
 };
+pub use injury_record::{PlayerInjuryAggregator, PlayerInjuryStats};
 pub use physical_exertion::{
     PlayerPhysicalAggregator, PlayerPhysicalExertionAggregator, PlayerPhysicalStats,
 };
