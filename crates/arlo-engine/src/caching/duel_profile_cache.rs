@@ -10,7 +10,7 @@ static DUEL_PROFILES_CACHE: OnceLock<HashMap<DuelKind, (DuelProfile, DuelProfile
 
 fn build_duel_profiles(kind: DuelKind) -> (DuelProfile, DuelProfile) {
     match kind {
-        DuelKind::PassProtection => (
+        DuelKind::PassProtection | DuelKind::KickBlockAttempt => (
             offense_duels::pass_protection_profile(),
             defense_duels::pass_rush_profile(),
         ),
@@ -85,6 +85,7 @@ fn init_duel_profiles_cache() -> HashMap<DuelKind, (DuelProfile, DuelProfile)> {
         DuelKind::CrossDistribution,
         DuelKind::BallSecurityCarry,
         DuelKind::BallSecurityDistribution,
+        DuelKind::KickBlockAttempt,
     ];
     let mut map = HashMap::with_capacity(kinds.len());
     for kind in kinds {

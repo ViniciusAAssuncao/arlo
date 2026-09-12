@@ -3,6 +3,7 @@ use arlo_domain::sport_constants::{
     DUEL_PHYSICALITY_BASELINE_BALL_SECURITY_CARRY,
     DUEL_PHYSICALITY_BASELINE_BALL_SECURITY_DISTRIBUTION,
     DUEL_PHYSICALITY_BASELINE_CENTRAL_BLOCK, DUEL_PHYSICALITY_BASELINE_LATERAL_BLOCK,
+    KICK_BLOCK_ATTEMPT_LOGISTIC_FACTOR,
 };
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +23,7 @@ pub enum DuelKind {
     CrossDistribution,
     BallSecurityCarry,
     BallSecurityDistribution,
+    KickBlockAttempt,
 }
 
 impl DuelKind {
@@ -66,6 +68,7 @@ pub fn logistic_slope_for(kind: DuelKind) -> f64 {
         DuelKind::PassProtection | DuelKind::RunBreakthrough | DuelKind::AerialDuel => 2.0,
         DuelKind::LateralBlock => 1.9,
         DuelKind::CentralBlock | DuelKind::BallSecurityCarry => 1.8,
+        DuelKind::KickBlockAttempt => KICK_BLOCK_ATTEMPT_LOGISTIC_FACTOR,
     };
     factor / ATTRIBUTE_SATURATION_THRESHOLD
 }
