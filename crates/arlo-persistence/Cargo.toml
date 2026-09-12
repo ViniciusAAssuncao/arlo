@@ -7,7 +7,9 @@ license.workspace = true
 
 [dependencies]
 arlo-domain.workspace = true
+arlo-engine.workspace = true
 arlo-events.workspace = true
+arlo-match-runner.workspace = true
 arlo-stats.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true
