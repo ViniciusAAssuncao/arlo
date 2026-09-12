@@ -1,6 +1,7 @@
 use crate::attributes::{
     ManagerAttributeTable, PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE,
 };
+use crate::kick_foul::KickFoulTracker;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
@@ -51,6 +52,7 @@ pub struct MatchState {
     pub(crate) decision_cooldown: DecisionCooldownTracker,
     pub(crate) play_call_efficacy: PlayCallEfficacyTracker,
     pub(crate) last_play_outcome_summary: Option<(Uuid, bool)>,
+    pub(crate) kick_foul: KickFoulTracker,
 }
 
 impl MatchState {
@@ -164,5 +166,13 @@ impl MatchState {
 
     pub fn set_last_play_outcome_summary(&mut self, summary: Option<(Uuid, bool)>) {
         self.last_play_outcome_summary = summary;
+    }
+
+    pub fn kick_foul(&self) -> &KickFoulTracker {
+        &self.kick_foul
+    }
+
+    pub fn kick_foul_mut(&mut self) -> &mut KickFoulTracker {
+        &mut self.kick_foul
     }
 }

@@ -2,6 +2,7 @@ use crate::attributes::{
     AttributeKeyIndex, ManagerAttributeTable, PlayerAttributeTable, RefereeAttributeTable,
 };
 use crate::error::EngineResult;
+use crate::kick_foul::KickFoulTracker;
 use crate::lineup_runtime::hydrate;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
@@ -110,6 +111,7 @@ impl MatchState {
         let foul_review = FoulReviewTracker::new();
         let decision_cooldown = DecisionCooldownTracker::new();
         let play_call_efficacy = PlayCallEfficacyTracker::new();
+        let kick_foul = KickFoulTracker::new();
 
         Ok(Self {
             teams,
@@ -136,6 +138,7 @@ impl MatchState {
             decision_cooldown,
             play_call_efficacy,
             last_play_outcome_summary: None,
+            kick_foul,
         })
     }
 }

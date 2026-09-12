@@ -1,5 +1,6 @@
 pub mod expulsion;
 pub mod invalidate_previous_play;
+pub mod kick_foul_awarded;
 pub mod ledger;
 pub mod loss_of_down;
 pub mod loss_of_drive;
@@ -9,6 +10,7 @@ pub mod yardage_loss;
 
 pub use expulsion::apply_expulsion;
 pub use invalidate_previous_play::apply_invalidate_previous_play;
+pub use kick_foul_awarded::apply_kick_foul_awarded;
 pub use ledger::{reverse_punishment, PunishmentLedgerEntry};
 pub use loss_of_down::apply_loss_of_down;
 pub use loss_of_drive::apply_loss_of_drive;
@@ -54,7 +56,9 @@ pub fn apply_punishment(
         PunishmentKind::InvalidatePreviousPlay => {
             apply_invalidate_previous_play(state, pre_play_snapshot);
         }
-        PunishmentKind::KickFoulAwarded => {}
+        PunishmentKind::KickFoulAwarded => {
+            apply_kick_foul_awarded(state, offending_team_id);
+        }
     }
 
     PunishmentLedgerEntry {

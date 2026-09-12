@@ -36,6 +36,9 @@ impl PunishmentLedgerEntry {
 }
 
 pub fn reverse_punishment(state: &mut MatchState, entry: &PunishmentLedgerEntry) {
+    if entry.kind == PunishmentKind::KickFoulAwarded {
+        state.clear_kick_foul_pending();
+    }
     if let Some(snapshot) = &entry.undo_snapshot {
         apply_play_reversal(state, snapshot);
     }

@@ -8,6 +8,7 @@ pub mod foul_review;
 pub mod foul_review_queries;
 pub mod impulse;
 pub mod impulse_queries;
+pub mod kick_foul_queries;
 pub mod lifecycle;
 pub mod matchday_squad;
 pub mod matchday_squad_queries;
