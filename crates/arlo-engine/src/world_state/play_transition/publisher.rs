@@ -21,7 +21,9 @@ use crate::officiating::event_translation::{
     translate_availability_changed, translate_foul_raised,
 };
 use crate::officiating::foul::FoulResolution;
-use crate::officiating::ReviewableCallKind;
+use crate::officiating::{
+    translate_added_time_awarded, PeriodStoppageLog, ReviewableCallKind, StoppageEventKind,
+};
 use crate::psychology::event_translation::{
     translate_impulse_critical_reached, translate_impulse_shift_recorded,
 };
@@ -118,17 +120,22 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
     }
 
     pub fn emit_foul_raised(&mut self, resolution: &FoulResolution) {
+        self.state.record_stoppage_event(StoppageEventKind::Foul);
         let event = translate_foul_raised(resolution);
         self.publish(event);
     }
 
     pub fn emit_injury_incident(&mut self, resolution: &InjuryIncidentResolution) {
         self.state.injure_player(resolution.injured_player_id);
+        self.state.record_stoppage_event(StoppageEventKind::Injury);
         let event = translate_injury_incident(resolution);
         self.publish(event);
     }
 
     pub fn emit_scoring_event(&mut self, scoring_decision: &ScoringDecision) {
+        if scoring_decision.is_scored() {
+            self.state.record_stoppage_event(StoppageEventKind::Scoring);
+        }
         if let Some(match_event) = translate_scoring_decision(scoring_decision) {
             self.publish(match_event);
         }
@@ -277,6 +284,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         remaining_time_calls_after: u32,
         reason: TimeCallReason,
     ) {
+        self.state.record_stoppage_event(StoppageEventKind::TimeCall);
         let event = translate_time_call_used(team_id, remaining_time_calls_after, reason);
         self.publish(event);
     }
@@ -288,6 +296,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         success: bool,
         remaining_challenges_after: u32,
     ) {
+        self.state.record_stoppage_event(StoppageEventKind::Challenge);
         let event =
             translate_challenge_resolved(team_id, call_kind, success, remaining_challenges_after);
         self.publish(event);
@@ -326,12 +335,23 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
     }
 
     pub fn emit_kick_foul_awarded(&mut self, pending: &KickFoulPending, offending_team_id: Uuid) {
+        self.state.record_stoppage_event(StoppageEventKind::KickFoulAwarded);
         let event = translate_kick_foul_awarded(pending, offending_team_id);
         self.publish(event);
     }
 
     pub fn emit_kick_foul_decision_made(&mut self, taker_id: Uuid, decision: KickFoulDecisionKind) {
         let event = translate_kick_foul_decision_made(taker_id, decision);
+        self.publish(event);
+    }
+
+    pub fn emit_added_time_awarded(
+        &mut self,
+        period: u32,
+        awarded_seconds: f64,
+        log: &PeriodStoppageLog,
+    ) {
+        let event = translate_added_time_awarded(period, awarded_seconds, log);
         self.publish(event);
     }
 }

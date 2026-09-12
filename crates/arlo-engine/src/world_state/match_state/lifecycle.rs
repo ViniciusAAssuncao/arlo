@@ -4,6 +4,7 @@ use crate::attributes::{
 use crate::error::EngineResult;
 use crate::kick_foul::KickFoulTracker;
 use crate::lineup_runtime::hydrate;
+use crate::officiating::AddedTimeTracker;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
@@ -112,6 +113,7 @@ impl MatchState {
         let decision_cooldown = DecisionCooldownTracker::new();
         let play_call_efficacy = PlayCallEfficacyTracker::new();
         let kick_foul = KickFoulTracker::new();
+        let added_time = AddedTimeTracker::new();
 
         Ok(Self {
             teams,
@@ -141,6 +143,7 @@ impl MatchState {
             play_call_efficacy,
             last_play_outcome_summary: None,
             kick_foul,
+            added_time,
         })
     }
 }

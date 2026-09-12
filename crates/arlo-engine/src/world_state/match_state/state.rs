@@ -2,6 +2,7 @@ use crate::attributes::{
     ManagerAttributeTable, PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE,
 };
 use crate::kick_foul::KickFoulTracker;
+use crate::officiating::AddedTimeTracker;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
@@ -57,6 +58,7 @@ pub struct MatchState {
     pub(crate) play_call_efficacy: PlayCallEfficacyTracker,
     pub(crate) last_play_outcome_summary: Option<(Uuid, bool)>,
     pub(crate) kick_foul: KickFoulTracker,
+    pub(crate) added_time: AddedTimeTracker,
 }
 
 impl MatchState {
