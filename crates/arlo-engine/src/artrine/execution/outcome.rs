@@ -1,4 +1,6 @@
+use crate::injury::outcome::InjuryIncidentResolution;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::officiating::foul::FoulResolution;
 use crate::resolution::AttributedDuelOutcome;
 use crate::spatial::SpatialTrajectory;
 use crate::time::DurationLedger;
@@ -31,6 +33,8 @@ pub struct ArtrineExecutionOutcome {
     pub duration_ledger: DurationLedger,
     pub end_position: VectorPosition,
     pub duels: Vec<AttributedDuelOutcome>,
+    pub fouls: Vec<FoulResolution>,
+    pub injuries: Vec<InjuryIncidentResolution>,
     pub receiver_id: Option<Uuid>,
     pub distribution_flight: Option<DistributionFlightInfo>,
     pub kinematic_trajectories: HashMap<Uuid, SpatialTrajectory>,
@@ -54,6 +58,8 @@ impl ArtrineExecutionOutcome {
             duration_ledger,
             end_position,
             duels,
+            fouls: Vec::new(),
+            injuries: Vec::new(),
             receiver_id: None,
             distribution_flight: None,
             kinematic_trajectories: HashMap::new(),

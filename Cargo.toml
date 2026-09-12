@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/arlo",
+    "crates/arlo-catalog",
     "crates/arlo-runtime",
     "crates/arlo-domain",
     "crates/arlo-math",
@@ -11,6 +12,8 @@ members = [
     "crates/arlo-formatter",
     "crates/arlo-events",
     "crates/arlo-stats",
+    "crates/arlo-persistence",
+    "crates/arlo-match-runner",
 ]
 
 [workspace.package]
@@ -20,27 +23,28 @@ authors = ["Hadab Institute"]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-serde       = { version = "1.0.197", features = ["derive"] }
-uuid        = { version = "1.8.0", features = ["v4", "serde"] }
-chrono      = { version = "0.4.35", features = ["serde"] }
-sqlx        = { version = "0.8.6", features = ["runtime-tokio", "sqlite", "uuid", "chrono", "migrate", "macros"] }
-tokio       = { version = "1.36.0", features = ["rt-multi-thread", "macros", "fs"] }
-rayon       = "1.10.0"
-rand        = "0.8.5"
-rand_chacha = "0.3.1"
-rand_distr  = "0.4.3"
-thiserror   = "2.0"
-directories = "5.0.1"
-tracing     = "0.1"
-criterion   = "0.5"
-smallvec    = { version = "1.13", features = ["serde"] }
+serde             = { version = "1.0.197", features = ["derive"] }
+uuid              = { version = "1.8.0", features = ["v4", "serde"] }
+chrono            = { version = "0.4.35", features = ["serde"] }
+sqlx              = { version = "0.8.6", features = ["runtime-tokio", "sqlite", "uuid", "chrono", "migrate", "macros"] }
+tokio             = { version = "1.36.0", features = ["rt-multi-thread", "macros", "fs"] }
+rayon             = "1.10.0"
+rand              = "0.8.5"
+rand_chacha       = "0.3.1"
+rand_distr        = "0.4.3"
+thiserror         = "2.0"
+directories       = "5.0.1"
+tracing           = "0.1"
+criterion         = "0.5"
+smallvec          = { version = "1.13", features = ["serde"] }
 
-arlo-domain    = { path = "crates/arlo-domain" }
-arlo-math      = { path = "crates/arlo-math" }
-arlo-db        = { path = "crates/arlo-db" }
-arlo-tactics   = { path = "crates/arlo-tactics" }
-arlo-engine    = { path = "crates/arlo-engine" }
-arlo-formatter = { path = "crates/arlo-formatter" }
-arlo-runtime   = { path = "crates/arlo-runtime" }
-arlo-events    = { path = "crates/arlo-events" }
-arlo-stats     = { path = "crates/arlo-stats" }
+arlo-domain       = { path = "crates/arlo-domain" }
+arlo-math         = { path = "crates/arlo-math" }
+arlo-db           = { path = "crates/arlo-db" }
+arlo-tactics      = { path = "crates/arlo-tactics" }
+arlo-engine       = { path = "crates/arlo-engine" }
+arlo-formatter    = { path = "crates/arlo-formatter" }
+arlo-runtime      = { path = "crates/arlo-runtime" }
+arlo-events       = { path = "crates/arlo-events" }
+arlo-stats        = { path = "crates/arlo-stats" }
+arlo-match-runner = { path = "crates/arlo-match-runner" }

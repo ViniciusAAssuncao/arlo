@@ -22,6 +22,7 @@ pub enum DuelKind {
     CrossDistribution,
     BallSecurityCarry,
     BallSecurityDistribution,
+    KickBlockAttempt,
 }
 
 impl DuelKind {
@@ -41,6 +42,7 @@ impl DuelKind {
             Self::CrossDistribution => "CrossDistribution",
             Self::BallSecurityCarry => "BallSecurityCarry",
             Self::BallSecurityDistribution => "BallSecurityDistribution",
+            Self::KickBlockAttempt => "KickBlockAttempt",
         }
     }
 }

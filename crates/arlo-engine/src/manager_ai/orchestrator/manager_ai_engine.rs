@@ -1,6 +1,9 @@
-use crate::manager_ai::challenges::execute_challenge;
 use crate::manager_ai::cognition::{derive_cooldown_seconds, ManagerDecisionKind};
 use crate::manager_ai::context::ManagerDecisionContext;
+use crate::manager_ai::orchestrator::foul_challenge_stage::evaluate_foul_challenge_stage;
+use crate::manager_ai::orchestrator::injury_substitution_stage::evaluate_injury_substitution_stage;
+use crate::manager_ai::orchestrator::kick_foul_realignment_stage::evaluate_kick_foul_realignment_stage;
+use crate::manager_ai::orchestrator::reviewable_call_stage::evaluate_reviewable_call_challenge_stage;
 use crate::manager_ai::play_calling::{
     execute_play_call_selection, rank_playbook, PlayCallDecisionEngine,
 };
@@ -12,7 +15,7 @@ use crate::manager_ai::time_calls::{execute_time_call, TimeCallDecisionEngine};
 use crate::time::DurationLedger;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use crate::world_state::situational::build_situational_context;
-use arlo_events::EventSink;
+use arlo_events::{EventSink, TimeCallReason};
 use arlo_math::units::Duration;
 use arlo_tactics::PlayCallCategory;
 use rand::Rng;
@@ -30,22 +33,11 @@ impl ManagerAiEngine {
         let is_home = team_id == publisher.state().home_team_id();
         let period_duration_seconds = publisher.state().clock().period_duration_seconds();
 
-        if let Some((call_team_id, call)) = publisher.state().last_reviewable_call().cloned() {
-            if call_team_id == team_id {
-                let context = ManagerDecisionContext::build(publisher.state(), team_id);
-                let challenge_cooldown = derive_cooldown_seconds(
-                    period_duration_seconds,
-                    context.manager_snapshot.challenge_judgment,
-                );
-                if publisher.state().is_decision_ready(
-                    team_id,
-                    ManagerDecisionKind::Challenge,
-                    challenge_cooldown,
-                ) {
-                    execute_challenge(publisher, &context, team_id, &call, rng);
-                }
-            }
-        }
+        evaluate_reviewable_call_challenge_stage(publisher, team_id, period_duration_seconds, rng);
+
+        evaluate_foul_challenge_stage(publisher, team_id, period_duration_seconds, rng);
+
+        evaluate_injury_substitution_stage(publisher, team_id);
 
         let context = ManagerDecisionContext::build(publisher.state(), team_id);
 
@@ -69,6 +61,7 @@ impl ManagerAiEngine {
                 publisher.state().away_squad().clone()
             };
             let fatigue_lookup = publisher.state().fatigue_lookup();
+            let availability_lookup = |id: &Uuid| publisher.state().availability_for(id);
 
             let plans = SubstitutionDecisionEngine::evaluate_plans_from_tables(
                 &context,
@@ -77,6 +70,7 @@ impl ManagerAiEngine {
                 &squad,
                 publisher.state().teams.player_attribute_tables(),
                 |id| fatigue_lookup.get(id),
+                &availability_lookup,
                 rng,
             );
 
@@ -135,6 +129,10 @@ impl ManagerAiEngine {
             }
         }
 
+        let realignment_dead_ball =
+            evaluate_kick_foul_realignment_stage(publisher, team_id, is_home, rng);
+        extra_dead_ball = extra_dead_ball + realignment_dead_ball;
+
         let time_cooldown = derive_cooldown_seconds(
             period_duration_seconds,
             context.manager_snapshot.time_call_management,
@@ -148,7 +146,13 @@ impl ManagerAiEngine {
                 && publisher.state().last_scoring_team() != Some(team_id);
             if TimeCallDecisionEngine::evaluate(&context, just_conceded, rng) {
                 let mut ledger = DurationLedger::new();
-                if execute_time_call(publisher, team_id, is_home, &mut ledger) {
+                if execute_time_call(
+                    publisher,
+                    team_id,
+                    is_home,
+                    &mut ledger,
+                    TimeCallReason::Standard,
+                ) {
                     extra_dead_ball = extra_dead_ball + ledger.total_dead_ball();
                     publisher
                         .state_mut()

@@ -70,6 +70,10 @@ pub fn execute_distribution_action<R: Rng + ?Sized>(
             loop_state.turnover_team = result.turnover_team;
             loop_state.recovering_player = result.recovering_player;
         }
+        if let Some(foul) = result.foul {
+            loop_state.current_carrier_pos = result.reception_point;
+            loop_state.accumulated_fouls.push(foul);
+        }
         return;
     }
 

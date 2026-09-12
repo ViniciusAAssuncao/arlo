@@ -6,6 +6,7 @@ pub enum ReviewableCallKind {
     TurnoverClassification,
     OutOfBoundsClassification,
     DriveValidity,
+    FoulClassification,
 }
 
 impl ReviewableCallKind {
@@ -14,6 +15,7 @@ impl ReviewableCallKind {
             Self::TurnoverClassification => "TurnoverClassification",
             Self::OutOfBoundsClassification => "OutOfBoundsClassification",
             Self::DriveValidity => "DriveValidity",
+            Self::FoulClassification => "FoulClassification",
         }
     }
 }

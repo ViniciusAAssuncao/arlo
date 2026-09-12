@@ -14,6 +14,8 @@ pub enum ImpulseEventKind {
     MilestoneStreak,
     BigPlayCompleted,
     BigPlayAllowed,
+    FoulCommitted,
+    FoulDrawn,
 }
 
 impl ImpulseEventKind {
@@ -30,6 +32,8 @@ impl ImpulseEventKind {
             Self::MilestoneStreak => "MilestoneStreak",
             Self::BigPlayCompleted => "BigPlayCompleted",
             Self::BigPlayAllowed => "BigPlayAllowed",
+            Self::FoulCommitted => "FoulCommitted",
+            Self::FoulDrawn => "FoulDrawn",
         }
     }
 
@@ -42,6 +46,7 @@ impl ImpulseEventKind {
                 | Self::SeriesSuccess
                 | Self::MilestoneStreak
                 | Self::BigPlayCompleted
+                | Self::FoulDrawn
         )
     }
 }

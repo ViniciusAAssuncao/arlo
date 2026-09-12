@@ -2,7 +2,7 @@ use crate::officiating::ReviewableCallKind as EngineReviewableCallKind;
 use arlo_events::{
     ChallengeResolved, MatchClockInstant, PlayCallCategory as EventPlayCallCategory,
     PlayCallSelected, ReviewableCallKind as EventReviewableCallKind, SubstitutionMade,
-    SubstitutionReason, TacticalProfileActivated, TimeCallUsed,
+    SubstitutionReason, TacticalProfileActivated, TimeCallReason, TimeCallUsed,
 };
 use arlo_tactics::PlayCallCategory as TacticalPlayCallCategory;
 use uuid::Uuid;
@@ -16,6 +16,7 @@ pub fn translate_reviewable_call_kind(kind: EngineReviewableCallKind) -> EventRe
             EventReviewableCallKind::OutOfBoundsClassification
         }
         EngineReviewableCallKind::DriveValidity => EventReviewableCallKind::DriveValidity,
+        EngineReviewableCallKind::FoulClassification => EventReviewableCallKind::FoulClassification,
     }
 }
 
@@ -38,8 +39,12 @@ pub fn translate_substitution_made(
     SubstitutionMade::new(team_id, player_out, player_in, match_clock, reason)
 }
 
-pub fn translate_time_call_used(team_id: Uuid, remaining_time_calls_after: u32) -> TimeCallUsed {
-    TimeCallUsed::new(team_id, remaining_time_calls_after)
+pub fn translate_time_call_used(
+    team_id: Uuid,
+    remaining_time_calls_after: u32,
+    reason: TimeCallReason,
+) -> TimeCallUsed {
+    TimeCallUsed::new(team_id, remaining_time_calls_after, reason)
 }
 
 pub fn translate_challenge_resolved(

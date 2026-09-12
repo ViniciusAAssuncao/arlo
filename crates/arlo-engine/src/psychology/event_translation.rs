@@ -22,6 +22,8 @@ pub fn translate_impulse_event_kind(kind: EngineImpulseEventKind) -> PublicImpul
         EngineImpulseEventKind::MilestoneStreak => PublicImpulseEventKind::MilestoneStreak,
         EngineImpulseEventKind::BigPlayCompleted => PublicImpulseEventKind::BigPlayCompleted,
         EngineImpulseEventKind::BigPlayAllowed => PublicImpulseEventKind::BigPlayAllowed,
+        EngineImpulseEventKind::FoulCommitted => PublicImpulseEventKind::FoulCommitted,
+        EngineImpulseEventKind::FoulDrawn => PublicImpulseEventKind::FoulDrawn,
     }
 }
 

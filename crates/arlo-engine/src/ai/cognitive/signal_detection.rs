@@ -3,6 +3,7 @@ use arlo_domain::sport_constants::{
     SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
 };
 use arlo_math::stats::Probability;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::f64::consts::SQRT_2;
 
@@ -26,6 +27,19 @@ fn error_function(x: f64) -> f64 {
 
 fn standard_normal_cdf(x: f64) -> f64 {
     0.5 * (1.0 + error_function(x / SQRT_2))
+}
+
+pub fn sample_detection_outcome<R: Rng + ?Sized>(
+    model: &SignalDetectionModel,
+    signal_present: bool,
+    rng: &mut R,
+) -> bool {
+    let rate = if signal_present {
+        model.hit_rate()
+    } else {
+        model.false_alarm_rate()
+    };
+    rate.sample(rng)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

@@ -1,0 +1,14 @@
+[package]
+name = "arlo-match-runner"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+arlo-domain.workspace = true
+arlo-engine.workspace = true
+arlo-events.workspace = true
+arlo-stats.workspace = true
+rand.workspace = true
+thiserror.workspace = true

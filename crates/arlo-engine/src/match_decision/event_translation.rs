@@ -29,6 +29,7 @@ pub fn translate_duel_kind(kind: EngineDuelKind) -> PublicDuelKind {
         EngineDuelKind::CrossDistribution => PublicDuelKind::CrossDistribution,
         EngineDuelKind::BallSecurityCarry => PublicDuelKind::BallSecurityCarry,
         EngineDuelKind::BallSecurityDistribution => PublicDuelKind::BallSecurityDistribution,
+        EngineDuelKind::KickBlockAttempt => PublicDuelKind::KickBlockAttempt,
     }
 }
 

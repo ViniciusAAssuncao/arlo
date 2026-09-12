@@ -1,0 +1,27 @@
+pub mod match_availability_change_row;
+pub mod match_challenge_row;
+pub mod match_foul_row;
+pub mod match_impulse_critical_event_row;
+pub mod match_injury_row;
+pub mod match_kick_foul_award_row;
+pub mod match_kick_foul_decision_row;
+pub mod match_play_call_selection_row;
+pub mod match_scoring_play_row;
+pub mod match_substitution_row;
+pub mod match_tactical_profile_activation_row;
+pub mod match_time_call_row;
+pub mod match_turnover_row;
+
+pub use match_availability_change_row::MatchAvailabilityChangeRow;
+pub use match_challenge_row::MatchChallengeRow;
+pub use match_foul_row::MatchFoulRow;
+pub use match_impulse_critical_event_row::MatchImpulseCriticalEventRow;
+pub use match_injury_row::MatchInjuryRow;
+pub use match_kick_foul_award_row::MatchKickFoulAwardRow;
+pub use match_kick_foul_decision_row::MatchKickFoulDecisionRow;
+pub use match_play_call_selection_row::MatchPlayCallSelectionRow;
+pub use match_scoring_play_row::MatchScoringPlayRow;
+pub use match_substitution_row::MatchSubstitutionRow;
+pub use match_tactical_profile_activation_row::MatchTacticalProfileActivationRow;
+pub use match_time_call_row::MatchTimeCallRow;
+pub use match_turnover_row::MatchTurnoverRow;

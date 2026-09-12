@@ -1,7 +1,11 @@
 pub mod action;
+pub mod availability;
 pub mod envelope;
 pub mod events;
 pub mod in_memory_sink;
+pub mod injury;
+pub mod kick_foul;
+pub mod officiating;
 pub mod physical;
 pub mod possession;
 pub mod psychology;
@@ -14,9 +18,13 @@ pub use action::{
 };
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use arlo_domain::PitchZone;
+pub use availability::{AvailabilityStatus, PlayerAvailabilityChanged};
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
 pub use events::manager::*;
 pub use in_memory_sink::InMemorySink;
+pub use injury::InjuryIncidentRecorded;
+pub use kick_foul::{KickFoulAwarded, KickFoulDecisionMade, KickFoulEvent};
+pub use officiating::{FoulOrigin, FoulRaised, OfficiatingEvent};
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
     CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent,
@@ -60,6 +68,11 @@ pub enum MatchEvent {
     ChallengeResolved(ChallengeResolved),
     TacticalProfileActivated(TacticalProfileActivated),
     PlayCallSelected(PlayCallSelected),
+    FoulRaised(FoulRaised),
+    PlayerAvailabilityChanged(PlayerAvailabilityChanged),
+    KickFoulAwarded(KickFoulAwarded),
+    KickFoulDecisionMade(KickFoulDecisionMade),
+    InjuryIncidentRecorded(InjuryIncidentRecorded),
 }
 
 impl MatchEvent {
@@ -73,6 +86,7 @@ impl MatchEvent {
                 | Self::ArtrineDecisionMade(_)
                 | Self::DriveRecorded(_)
                 | Self::DuelResolved(_)
+                | Self::KickFoulDecisionMade(_)
         )
     }
 
@@ -123,6 +137,22 @@ impl MatchEvent {
         )
     }
 
+    pub fn is_officiating(&self) -> bool {
+        matches!(self, Self::FoulRaised(_) | Self::KickFoulAwarded(_))
+    }
+
+    pub fn is_availability(&self) -> bool {
+        matches!(self, Self::PlayerAvailabilityChanged(_))
+    }
+
+    pub fn is_kick_foul(&self) -> bool {
+        matches!(self, Self::KickFoulAwarded(_) | Self::KickFoulDecisionMade(_))
+    }
+
+    pub fn is_injury(&self) -> bool {
+        matches!(self, Self::InjuryIncidentRecorded(_))
+    }
+
     pub fn event_type_name(&self) -> &'static str {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
@@ -150,6 +180,11 @@ impl MatchEvent {
             Self::ChallengeResolved(_) => "ChallengeResolved",
             Self::TacticalProfileActivated(_) => "TacticalProfileActivated",
             Self::PlayCallSelected(_) => "PlayCallSelected",
+            Self::FoulRaised(_) => "FoulRaised",
+            Self::PlayerAvailabilityChanged(_) => "PlayerAvailabilityChanged",
+            Self::KickFoulAwarded(_) => "KickFoulAwarded",
+            Self::KickFoulDecisionMade(_) => "KickFoulDecisionMade",
+            Self::InjuryIncidentRecorded(_) => "InjuryIncidentRecorded",
         }
     }
 }
@@ -304,6 +339,36 @@ impl From<PlayCallSelected> for MatchEvent {
     }
 }
 
+impl From<FoulRaised> for MatchEvent {
+    fn from(ev: FoulRaised) -> Self {
+        Self::FoulRaised(ev)
+    }
+}
+
+impl From<PlayerAvailabilityChanged> for MatchEvent {
+    fn from(ev: PlayerAvailabilityChanged) -> Self {
+        Self::PlayerAvailabilityChanged(ev)
+    }
+}
+
+impl From<KickFoulAwarded> for MatchEvent {
+    fn from(ev: KickFoulAwarded) -> Self {
+        Self::KickFoulAwarded(ev)
+    }
+}
+
+impl From<KickFoulDecisionMade> for MatchEvent {
+    fn from(ev: KickFoulDecisionMade) -> Self {
+        Self::KickFoulDecisionMade(ev)
+    }
+}
+
+impl From<InjuryIncidentRecorded> for MatchEvent {
+    fn from(ev: InjuryIncidentRecorded) -> Self {
+        Self::InjuryIncidentRecorded(ev)
+    }
+}
+
 impl From<PhysicalEvent> for MatchEvent {
     fn from(ev: PhysicalEvent) -> Self {
         match ev {
@@ -367,6 +432,23 @@ impl From<ManagerEvent> for MatchEvent {
             ManagerEvent::ChallengeResolved(e) => Self::ChallengeResolved(e),
             ManagerEvent::TacticalProfileActivated(e) => Self::TacticalProfileActivated(e),
             ManagerEvent::PlayCallSelected(e) => Self::PlayCallSelected(e),
+        }
+    }
+}
+
+impl From<OfficiatingEvent> for MatchEvent {
+    fn from(ev: OfficiatingEvent) -> Self {
+        match ev {
+            OfficiatingEvent::FoulRaised(e) => Self::FoulRaised(e),
+        }
+    }
+}
+
+impl From<KickFoulEvent> for MatchEvent {
+    fn from(ev: KickFoulEvent) -> Self {
+        match ev {
+            KickFoulEvent::Awarded(e) => Self::KickFoulAwarded(e),
+            KickFoulEvent::DecisionMade(e) => Self::KickFoulDecisionMade(e),
         }
     }
 }

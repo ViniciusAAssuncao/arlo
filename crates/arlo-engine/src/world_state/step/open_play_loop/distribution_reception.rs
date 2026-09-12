@@ -1,5 +1,8 @@
 use crate::artrine::{resolve_primary_lead_defender_from_tables, DistributionFlightInfo};
+use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::target_selection::{select_target, ReceptionRole};
+use crate::officiating::foul::FoulResolution;
+use crate::officiating::line_fault::{evaluate_and_resolve_line_fault, LineFaultEvaluationContext};
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
@@ -8,11 +11,15 @@ use crate::resolution::group_rating::{
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
+use crate::spatial::line_fault::{identify_last_defender, is_line_fault};
 use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
+use arlo_domain::sport_constants::{
+    LONG_LAUNCH_BASE_ADVANCE_MIRIM, LONG_LAUNCH_MIN_ADVANCE_MIRIM, MINIMUM_ENGAGEMENT_SECONDS,
+    SHORT_PASS_BASE_ADVANCE_MIRIM, SHORT_PASS_MIN_ADVANCE_MIRIM,
+};
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Velocity, MIRIM_TO_METERS};
 use rand::Rng;
@@ -32,6 +39,7 @@ pub struct DistributionReceptionResult<'a> {
     pub turnover_team: Option<Uuid>,
     pub recovering_player: Option<Uuid>,
     pub receiver_rating: f64,
+    pub foul: Option<FoulResolution>,
 }
 
 pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
@@ -147,6 +155,7 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
             turnover_team: None,
             recovering_player: None,
             receiver_rating: 0.0,
+            foul: None,
         };
     }
 
@@ -154,9 +163,11 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     let passing_range = offense_instructions.in_possession().passing_range();
 
     let throw_advance = if chosen_decision == ArtrineDecisionKind::ShortPass {
-        (4.0 * short_pass_advance_multiplier(passing_range)).max(1.0)
+        (SHORT_PASS_BASE_ADVANCE_MIRIM * short_pass_advance_multiplier(passing_range))
+            .max(SHORT_PASS_MIN_ADVANCE_MIRIM)
     } else {
-        (12.0 * long_launch_advance_multiplier(passing_range)).max(3.0)
+        (LONG_LAUNCH_BASE_ADVANCE_MIRIM * long_launch_advance_multiplier(passing_range))
+            .max(LONG_LAUNCH_MIN_ADVANCE_MIRIM)
     };
 
     let pass_speed = calculate_pass_speed(current_carrier, attribute_keys, &carrier_fatigue);
@@ -185,6 +196,80 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
         .unwrap_or(current_carrier);
 
     let is_aerial = chosen_decision == ArtrineDecisionKind::LongLaunch;
+
+    let rec_pos = state
+        .spatial_map()
+        .get_position(&receiver_id)
+        .unwrap_or(carrier_pos);
+
+    let goalguard_id = find_goalguard(defense_players).map(|g| g.id()).ok();
+    let outfield_defenders: Vec<&Player> = defense_players
+        .iter()
+        .copied()
+        .filter(|p| Some(p.id()) != goalguard_id)
+        .collect();
+
+    if let Some(last_defender) = identify_last_defender(
+        &outfield_defenders,
+        state.spatial_map(),
+        context.is_home_offense,
+    ) {
+        let receiver_table = state.attribute_table_for(&receiver_id);
+        let defender_table = state.attribute_table_for(&last_defender.id());
+        let defender_pos = state
+            .spatial_map()
+            .get_position(&last_defender.id())
+            .unwrap_or(carrier_pos);
+
+        let (is_fault, margin) = is_line_fault(
+            receiver_player,
+            receiver_table,
+            rec_pos,
+            last_defender,
+            defender_table,
+            defender_pos,
+            context.is_home_offense,
+        );
+
+        if is_fault {
+            let head_referee_table = state.head_referee_attribute_table();
+            let peace_referee_table = state.peace_referee_attribute_table();
+            let lf_ctx = LineFaultEvaluationContext::new(
+                receiver_id,
+                receiver_player.team_id().unwrap_or(context.offense_team_id),
+                last_defender.id(),
+                last_defender.team_id().unwrap_or(context.defense_team_id),
+                margin,
+                &head_referee_table,
+                &peace_referee_table,
+            );
+            if let Some(foul_res) = evaluate_and_resolve_line_fault(&lf_ctx, rng) {
+                return DistributionReceptionResult {
+                    receiver: receiver_player,
+                    caught: false,
+                    reception_point: rec_pos,
+                    duels,
+                    advance_mirim: 0.0,
+                    flight_duration,
+                    engagement_duration,
+                    flight_info: Some(DistributionFlightInfo {
+                        receiver_id,
+                        passer_id: current_carrier.id(),
+                        decision_kind: chosen_decision,
+                        is_aerial,
+                        reception_point: rec_pos,
+                        distance_mirim: throw_advance,
+                        caught: false,
+                    }),
+                    turnover_team: Some(context.defense_team_id),
+                    recovering_player: None,
+                    receiver_rating: 0.0,
+                    foul: Some(foul_res),
+                };
+            }
+        }
+    }
+
     let rec_duel_kind = if is_aerial {
         DuelKind::AerialDuel
     } else {
@@ -237,11 +322,6 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     );
     duels.push(rec_attributed);
 
-    let rec_pos = state
-        .spatial_map()
-        .get_position(&receiver_id)
-        .unwrap_or(carrier_pos);
-
     let caught = raw_rec_duel.attacker_won();
     let flight_info = DistributionFlightInfo {
         receiver_id,
@@ -271,5 +351,6 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
         turnover_team,
         recovering_player,
         receiver_rating: rec_att_rating,
+        foul: None,
     }
 }

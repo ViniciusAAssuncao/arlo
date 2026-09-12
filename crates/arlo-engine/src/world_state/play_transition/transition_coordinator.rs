@@ -1,8 +1,10 @@
 use crate::artrine::ArtrineExecutionOutcome;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
+use crate::officiating::punishment::{apply_punishment, PlayReversalSnapshot};
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationLedger;
 use crate::world_state::cta_pass::PassPhaseResult;
+use crate::world_state::match_state::foul_review::FoulReviewRecord;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::dead_ball_clock::handle_dead_ball_and_clock;
 use crate::world_state::play_transition::fatigue_applier::{
@@ -17,7 +19,7 @@ use crate::world_state::play_transition::scoring_handler::{
     apply_match_score, enrich_scoring_decision_assister,
 };
 use crate::world_state::play_transition::turnover_and_down_events::resolve_turnover_and_down_events;
-use arlo_domain::ArtrineDecisionKind;
+use arlo_domain::{ArtrineDecisionKind, PunishmentKind};
 use arlo_events::EventSink;
 use uuid::Uuid;
 
@@ -30,6 +32,7 @@ pub struct TransitionPipeline<'a, 'b, S: EventSink> {
     active_play_call_id: Option<Uuid>,
     play_duels: Vec<AttributedDuelOutcome>,
     play_ledger: DurationLedger,
+    pre_play_snapshot: PlayReversalSnapshot,
 }
 
 impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
@@ -41,6 +44,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         offense_team_id: Uuid,
         defense_team_id: Uuid,
         active_play_call_id: Option<Uuid>,
+        pre_play_snapshot: PlayReversalSnapshot,
         sink: &'a mut S,
     ) -> Self {
         let mut play_duels = Vec::with_capacity(1 + execution_outcome.duels.len());
@@ -59,6 +63,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
             active_play_call_id,
             play_duels,
             play_ledger,
+            pre_play_snapshot,
         }
     }
 
@@ -80,6 +85,49 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
             &mut self.publisher,
             &self.execution_outcome.kinematic_trajectories,
         );
+    }
+
+    fn emit_fouls(&mut self) {
+        for foul in &self.execution_outcome.fouls {
+            self.publisher.emit_foul_raised(foul);
+        }
+    }
+
+    fn emit_injuries(&mut self) {
+        for injury in &self.execution_outcome.injuries {
+            self.publisher.emit_injury_incident(injury);
+        }
+    }
+
+    fn apply_fault_punishments(&mut self) {
+        for foul in &self.execution_outcome.fouls {
+            if let Some(kind) = foul.punishment_kind {
+                let entry = apply_punishment(
+                    self.publisher.state_mut(),
+                    foul.offending_player_id,
+                    foul.offending_team_id,
+                    kind,
+                    foul.punishment_magnitude,
+                    &self.pre_play_snapshot,
+                );
+                if kind == PunishmentKind::KickFoulAwarded {
+                    if let Some(pending) = self.publisher.state().kick_foul_pending().copied() {
+                        self.publisher
+                            .emit_kick_foul_awarded(&pending, foul.offending_team_id);
+                    }
+                }
+                if !foul.peace_referee_intervened {
+                    let record = FoulReviewRecord::new(
+                        foul.offending_player_id,
+                        entry,
+                        foul.original_call_correct,
+                    );
+                    self.publisher
+                        .state_mut()
+                        .set_last_reviewable_foul(foul.offending_team_id, record);
+                }
+            }
+        }
     }
 
     fn process_scoring(&mut self) {
@@ -122,6 +170,9 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
 
     pub fn run(mut self) -> DetailedPlayOutcome {
         self.apply_strains();
+        self.emit_fouls();
+        self.emit_injuries();
+        self.apply_fault_punishments();
         self.process_scoring();
 
         let live_seconds = self.play_ledger.total_live().value();
@@ -173,6 +224,7 @@ pub fn apply_play_transition(
     offense_team_id: Uuid,
     defense_team_id: Uuid,
     active_play_call_id: Option<Uuid>,
+    pre_play_snapshot: PlayReversalSnapshot,
     sink: &mut impl EventSink,
 ) -> DetailedPlayOutcome {
     TransitionPipeline::new(
@@ -183,6 +235,7 @@ pub fn apply_play_transition(
         offense_team_id,
         defense_team_id,
         active_play_call_id,
+        pre_play_snapshot,
         sink,
     )
     .run()

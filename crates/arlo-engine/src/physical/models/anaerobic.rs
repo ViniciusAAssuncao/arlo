@@ -43,7 +43,7 @@ pub fn calculate_duel_intensity_multiplier(duel_kind: DuelKind) -> f64 {
         DuelKind::ArtroBreakthrough => 2.2,
         DuelKind::RunBreakthrough => 2.0,
         DuelKind::CentralBlock | DuelKind::LateralBlock => 1.8,
-        DuelKind::PassProtection => 1.7,
+        DuelKind::PassProtection | DuelKind::KickBlockAttempt => 1.7,
         DuelKind::RouteContest | DuelKind::AerialDuel => 1.6,
         DuelKind::BallSecurityCarry | DuelKind::BallSecurityDistribution => 1.5,
         DuelKind::ShortDistribution
