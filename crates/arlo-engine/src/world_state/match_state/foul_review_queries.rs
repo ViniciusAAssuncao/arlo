@@ -4,14 +4,14 @@ use uuid::Uuid;
 
 impl MatchState {
     pub fn last_reviewable_foul(&self) -> Option<&(Uuid, FoulReviewRecord)> {
-        self.foul_review.last_reviewable_foul()
+        self.foul_review.entry()
     }
 
     pub fn set_last_reviewable_foul(&mut self, team_id: Uuid, record: FoulReviewRecord) {
-        self.foul_review.set_last_reviewable_foul(team_id, record);
+        self.foul_review.set(team_id, record);
     }
 
     pub fn clear_last_reviewable_foul(&mut self) {
-        self.foul_review.clear_last_reviewable_foul();
+        self.foul_review.clear();
     }
 }

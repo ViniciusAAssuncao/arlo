@@ -2,6 +2,7 @@ use arlo_domain::{FaultCatalog, FaultSeverity, PunishmentKind};
 use arlo_math::stats::sample_categorical;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -48,7 +49,7 @@ pub fn select_punishment<R: Rng + ?Sized>(
     let def_id = definitions[def_idx];
 
     let all_options = catalog.punishment_options(&def_id);
-    let options: Vec<_> = all_options
+    let options: SmallVec<[&arlo_domain::FaultPunishmentOption; 7]> = all_options
         .iter()
         .filter(|opt| is_open_play || opt.kind() != PunishmentKind::KickFoulAwarded)
         .collect();
@@ -57,7 +58,7 @@ pub fn select_punishment<R: Rng + ?Sized>(
         return None;
     }
 
-    let weights: Vec<f64> = options
+    let weights: SmallVec<[f64; 7]> = options
         .iter()
         .map(|opt| opt.kind().relative_severity().max(0.0))
         .collect();

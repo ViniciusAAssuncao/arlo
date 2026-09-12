@@ -7,11 +7,12 @@ use crate::kick_foul::resolution::participants::select_kick_foul_participants;
 use crate::kick_foul::resolution::restart_phase::resolve_kick_foul_restart;
 use crate::kick_foul::resolution::shoot_phase::resolve_kick_foul_shot;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::resolution::DuelContext;
+use crate::resolution::{AttributedDuelOutcome, DuelContext};
 use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::{KickFoulDecisionKind, Player};
 use rand::Rng;
+use smallvec::{smallvec, SmallVec};
 
 pub fn resolve_kick_foul<R: Rng + ?Sized>(
     state: &MatchState,
@@ -89,13 +90,13 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                 &duel_context,
                 rng,
             );
-            let mut duels = vec![block_duel.clone()];
+            let mut duels: SmallVec<[AttributedDuelOutcome; 2]> = smallvec![block_duel.clone()];
 
             if !block_duel.outcome().attacker_won() {
                 Ok(KickFoulResolutionOutcome::new(
                     ScoringDecision::NoOpportunity,
                     None,
-                    duels,
+                    duels.into_vec(),
                     true,
                     decision,
                     taker_id,
@@ -116,7 +117,7 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                 Ok(KickFoulResolutionOutcome::new(
                     scoring_decision,
                     None,
-                    duels,
+                    duels.into_vec(),
                     false,
                     decision,
                     taker_id,
@@ -140,12 +141,13 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                 &duel_context,
                 rng,
             );
-            let duels = restart.duels.clone();
+            let duels: SmallVec<[AttributedDuelOutcome; 2]> =
+                restart.duels.iter().cloned().collect();
 
             Ok(KickFoulResolutionOutcome::new(
                 ScoringDecision::NoOpportunity,
                 Some(restart),
-                duels,
+                duels.into_vec(),
                 false,
                 decision,
                 taker_id,

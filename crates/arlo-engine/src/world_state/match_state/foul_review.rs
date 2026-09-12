@@ -1,4 +1,5 @@
 use crate::officiating::punishment::PunishmentLedgerEntry;
+use crate::world_state::match_state::review_slot::ReviewSlot;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -35,25 +36,4 @@ impl FoulReviewRecord {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-pub struct FoulReviewTracker {
-    last_reviewable_foul: Option<(Uuid, FoulReviewRecord)>,
-}
-
-impl FoulReviewTracker {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn last_reviewable_foul(&self) -> Option<&(Uuid, FoulReviewRecord)> {
-        self.last_reviewable_foul.as_ref()
-    }
-
-    pub fn set_last_reviewable_foul(&mut self, team_id: Uuid, record: FoulReviewRecord) {
-        self.last_reviewable_foul = Some((team_id, record));
-    }
-
-    pub fn clear_last_reviewable_foul(&mut self) {
-        self.last_reviewable_foul = None;
-    }
-}
+pub type FoulReviewTracker = ReviewSlot<FoulReviewRecord>;
