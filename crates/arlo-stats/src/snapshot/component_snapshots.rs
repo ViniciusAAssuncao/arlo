@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{ Deserialize, Serialize };
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -134,4 +134,10 @@ pub struct PlayerAvailabilitySnapshot {
     pub total_suspended_seconds: f64,
     pub expulsion_count: u32,
     pub is_currently_expelled: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerKickFoulSnapshot {
+    pub player_id: Uuid,
+    pub kick_foul_takes: u32,
 }

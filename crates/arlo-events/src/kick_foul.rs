@@ -1,5 +1,4 @@
 use arlo_domain::{KickFoulDecisionKind, KickFoulScoringTier};
-use arlo_math::units::Position as VectorPosition;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -7,22 +6,25 @@ use uuid::Uuid;
 pub struct KickFoulAwarded {
     awarded_team_id: Uuid,
     offending_team_id: Uuid,
-    spot: VectorPosition,
     scoring_tier: KickFoulScoringTier,
+    spot_x_mirim: f64,
+    spot_y_mirim: f64,
 }
 
 impl KickFoulAwarded {
     pub fn new(
         awarded_team_id: Uuid,
         offending_team_id: Uuid,
-        spot: VectorPosition,
         scoring_tier: KickFoulScoringTier,
+        spot_x_mirim: f64,
+        spot_y_mirim: f64,
     ) -> Self {
         Self {
             awarded_team_id,
             offending_team_id,
-            spot,
             scoring_tier,
+            spot_x_mirim,
+            spot_y_mirim,
         }
     }
 
@@ -34,45 +36,36 @@ impl KickFoulAwarded {
         self.offending_team_id
     }
 
-    pub fn spot(&self) -> VectorPosition {
-        self.spot
-    }
-
     pub fn scoring_tier(&self) -> KickFoulScoringTier {
         self.scoring_tier
     }
+
+    pub fn spot_x_mirim(&self) -> f64 {
+        self.spot_x_mirim
+    }
+
+    pub fn spot_y_mirim(&self) -> f64 {
+        self.spot_y_mirim
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KickFoulDecisionMade {
     taker_id: Uuid,
-    decision_kind: KickFoulDecisionKind,
-    scoring_tier: KickFoulScoringTier,
+    decision: KickFoulDecisionKind,
 }
 
 impl KickFoulDecisionMade {
-    pub fn new(
-        taker_id: Uuid,
-        decision_kind: KickFoulDecisionKind,
-        scoring_tier: KickFoulScoringTier,
-    ) -> Self {
-        Self {
-            taker_id,
-            decision_kind,
-            scoring_tier,
-        }
+    pub fn new(taker_id: Uuid, decision: KickFoulDecisionKind) -> Self {
+        Self { taker_id, decision }
     }
 
     pub fn taker_id(&self) -> Uuid {
         self.taker_id
     }
 
-    pub fn decision_kind(&self) -> KickFoulDecisionKind {
-        self.decision_kind
-    }
-
-    pub fn scoring_tier(&self) -> KickFoulScoringTier {
-        self.scoring_tier
+    pub fn decision(&self) -> KickFoulDecisionKind {
+        self.decision
     }
 }
 

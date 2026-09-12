@@ -20,11 +20,7 @@ pub fn resolve_and_apply_kick_foul<R: Rng + ?Sized>(
     let outcome_res = resolve_kick_foul(publisher.state(), pending, rng);
 
     if let Ok(outcome) = outcome_res {
-        publisher.emit_kick_foul_decision_made(
-            outcome.taker_id,
-            outcome.decision,
-            pending.scoring_tier(),
-        );
+        publisher.emit_kick_foul_decision_made(outcome.taker_id, outcome.decision);
 
         publisher.emit_duel_events(&outcome.duels, outcome.taker_id);
 

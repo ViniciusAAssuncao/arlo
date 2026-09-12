@@ -1,7 +1,8 @@
 use crate::aggregator::StatAggregator;
 use crate::manager::{ManagerDecisionAggregator, PlayCallOutcomeAggregator};
 use crate::officiating::{
-    PlayerFoulAggregator, PlayerPunishmentAggregator, RefereeStatsAggregator,
+    PlayerFoulAggregator, PlayerKickFoulAggregator, PlayerPunishmentAggregator,
+    RefereeStatsAggregator,
 };
 use crate::player::{
     PlayerArtrineDecisionAggregator, PlayerAssistsAggregator, PlayerAvailabilityAggregator,
@@ -43,6 +44,7 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerFoulAggregator::new());
         registry.register_aggregator(PlayerPunishmentAggregator::new());
         registry.register_aggregator(PlayerAvailabilityAggregator::new());
+        registry.register_aggregator(PlayerKickFoulAggregator::new());
         registry.register_aggregator(RefereeStatsAggregator::new());
         registry.register_aggregator(TeamPossessionAggregator::new());
         registry.register_aggregator(ManagerDecisionAggregator::new());
@@ -151,6 +153,9 @@ impl AggregatorRegistry {
             ids.extend(agg.all_stats().keys().copied());
         }
         if let Some(agg) = self.get::<PlayerAvailabilityAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerKickFoulAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
         ids
@@ -269,6 +274,11 @@ impl AggregatorRegistry {
             let a = agg.get_or_default(player_id);
             snap.total_suspended_seconds = a.total_suspended_seconds;
             snap.is_expelled = a.is_currently_expelled;
+        }
+
+        if let Some(agg) = self.get::<PlayerKickFoulAggregator>() {
+            let kf = agg.get_or_default(player_id);
+            snap.kick_foul_takes = kf.kick_foul_takes;
         }
 
         if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {

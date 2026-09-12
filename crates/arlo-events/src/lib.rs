@@ -142,6 +142,10 @@ impl MatchEvent {
         matches!(self, Self::PlayerAvailabilityChanged(_))
     }
 
+    pub fn is_kick_foul(&self) -> bool {
+        matches!(self, Self::KickFoulAwarded(_) | Self::KickFoulDecisionMade(_))
+    }
+
     pub fn event_type_name(&self) -> &'static str {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
