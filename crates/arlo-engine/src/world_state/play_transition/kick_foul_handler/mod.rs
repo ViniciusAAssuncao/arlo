@@ -1,7 +1,9 @@
+pub mod possession_replacement;
 pub mod restart_outcome;
 pub mod score_outcome;
 pub mod turnover_outcome;
 
+pub use possession_replacement::replace_possession_preserving_ball_and_clock;
 pub use restart_outcome::apply_restart_outcome;
 pub use score_outcome::apply_score_outcome;
 pub use turnover_outcome::apply_turnover_outcome;

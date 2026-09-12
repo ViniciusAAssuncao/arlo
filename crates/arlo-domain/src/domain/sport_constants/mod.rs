@@ -1,6 +1,7 @@
 pub mod ability;
 pub mod artro;
 pub mod block_marking;
+pub mod challenge_judgment;
 pub mod clock;
 pub mod downs;
 pub mod duel_physicality;
@@ -33,6 +34,7 @@ pub mod timing;
 pub use ability::*;
 pub use artro::*;
 pub use block_marking::*;
+pub use challenge_judgment::*;
 pub use clock::*;
 pub use downs::*;
 pub use duel_physicality::*;
