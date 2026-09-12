@@ -28,13 +28,14 @@ pub mod world_state;
 
 pub use attributes::*;
 pub use caching::*;
-pub use error::{ EngineError, EngineResult };
+pub use error::{EngineError, EngineResult};
 pub use injury::*;
 pub use kick_foul::*;
 pub use officiating::*;
 pub use open_play::*;
 pub use playmaking::*;
 pub use psychology::*;
-pub use rng::{ derive_sub_seed, derive_sub_seed_indexed, MatchSeed, RngProvider, RngStream };
+pub use rng::{derive_sub_seed, derive_sub_seed_indexed, MatchSeed, RngProvider, RngStream};
 pub use set_piece::*;
 pub use time::*;
+pub use world_state::*;

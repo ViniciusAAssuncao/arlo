@@ -1,3 +1,5 @@
+#![allow(ambiguous_glob_reexports)]
+
 pub mod error;
 pub mod models;
 pub mod repositories;
