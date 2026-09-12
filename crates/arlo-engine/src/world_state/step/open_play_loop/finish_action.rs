@@ -3,8 +3,9 @@ use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
     duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
-    ScoringAttemptRequest, ScoringOpportunity,
+    ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
 };
+use crate::officiating::line_fault::{evaluate_and_resolve_line_fault, LineFaultEvaluationContext};
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
@@ -12,6 +13,7 @@ use crate::resolution::DuelKind;
 use crate::set_piece::attempt_placed_kick;
 use crate::spatial::ball_kinematics::ball_flight_duration;
 use crate::spatial::ball_kinematics::calculate_cross_speed_from_table;
+use crate::spatial::line_fault::{identify_last_defender, is_line_fault};
 use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -92,6 +94,56 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
     loop_state
         .accumulated_duration_ledger
         .record_live(DurationComponentKind::CrossFlight, cross_flight);
+
+    let goalguard_id = find_goalguard(defense_players).map(|g| g.id()).ok();
+    let outfield_defenders: Vec<&Player> = defense_players
+        .iter()
+        .copied()
+        .filter(|p| Some(p.id()) != goalguard_id)
+        .collect();
+
+    if let Some(last_defender) = identify_last_defender(
+        &outfield_defenders,
+        state.spatial_map(),
+        context.is_home_offense,
+    ) {
+        let finisher_table = state.attribute_table_for(&finisher.id());
+        let defender_table = state.attribute_table_for(&last_defender.id());
+        let defender_pos = state
+            .spatial_map()
+            .get_position(&last_defender.id())
+            .unwrap_or(carrier_pos);
+
+        let (is_fault, margin) = is_line_fault(
+            finisher,
+            finisher_table,
+            finisher_pos,
+            last_defender,
+            defender_table,
+            defender_pos,
+            context.is_home_offense,
+        );
+
+        if is_fault {
+            let lf_ctx = LineFaultEvaluationContext::new(
+                finisher.id(),
+                finisher.team_id().unwrap_or(context.offense_team_id),
+                last_defender.id(),
+                last_defender.team_id().unwrap_or(context.defense_team_id),
+                margin,
+                state.head_referee_attribute_table(),
+                state.peace_referee_attribute_table(),
+            );
+            if let Some(foul) = evaluate_and_resolve_line_fault(&lf_ctx, rng) {
+                loop_state.scoring_decision = ScoringDecision::NoOpportunity;
+                loop_state.turnover_team = Some(context.defense_team_id);
+                loop_state.current_carrier_pos = finisher_pos;
+                loop_state.accumulated_fouls.push(foul);
+                loop_state.ball_in_play = false;
+                return;
+            }
+        }
+    }
 
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
     let fin_rating = calculate_player_duel_rating_from_table(

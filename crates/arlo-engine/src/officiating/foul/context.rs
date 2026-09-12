@@ -20,6 +20,7 @@ pub struct FoulEvaluationContext {
     pub duel_context: DuelContext,
     pub contact_severity: f64,
     pub game_state_pressure: GameStatePressure,
+    pub is_open_play: bool,
 }
 
 impl FoulEvaluationContext {
@@ -38,6 +39,7 @@ impl FoulEvaluationContext {
         duel_context: DuelContext,
         contact_severity: f64,
         game_state_pressure: GameStatePressure,
+        is_open_play: bool,
     ) -> Self {
         Self {
             carrier_id,
@@ -54,6 +56,7 @@ impl FoulEvaluationContext {
             duel_context,
             contact_severity,
             game_state_pressure,
+            is_open_play,
         }
     }
 }

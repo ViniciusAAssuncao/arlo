@@ -42,7 +42,7 @@ pub fn evaluate_and_resolve_foul<R: Rng + ?Sized>(
         };
 
     let severity = estimate_foul_severity(ctx, offending_side);
-    let punishment = select_punishment(catalog, severity, rng);
+    let punishment = select_punishment(catalog, severity, ctx.is_open_play, rng);
 
     let (fault_definition_id, punishment_kind, punishment_magnitude) = match punishment {
         Some(p) => (Some(p.fault_definition_id), Some(p.kind), p.magnitude),

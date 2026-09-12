@@ -36,6 +36,7 @@ impl PunishmentSelection {
 pub fn select_punishment<R: Rng + ?Sized>(
     catalog: &FaultCatalog,
     severity: FaultSeverity,
+    is_open_play: bool,
     rng: &mut R,
 ) -> Option<PunishmentSelection> {
     let definitions = catalog.definitions_for_severity(severity);
@@ -46,7 +47,12 @@ pub fn select_punishment<R: Rng + ?Sized>(
     let def_idx = rng.gen_range(0..definitions.len());
     let def_id = definitions[def_idx];
 
-    let options = catalog.punishment_options(&def_id);
+    let all_options = catalog.punishment_options(&def_id);
+    let options: Vec<_> = all_options
+        .iter()
+        .filter(|opt| is_open_play || opt.kind() != PunishmentKind::KickFoulAwarded)
+        .collect();
+
     if options.is_empty() {
         return None;
     }
@@ -57,7 +63,7 @@ pub fn select_punishment<R: Rng + ?Sized>(
         .collect();
 
     let chosen_opt_idx = sample_categorical(&weights, rng).unwrap_or(0);
-    let chosen_opt = &options[chosen_opt_idx];
+    let chosen_opt = options[chosen_opt_idx];
 
     let magnitude = match (chosen_opt.magnitude_min(), chosen_opt.magnitude_max()) {
         (Some(min), Some(max)) => {

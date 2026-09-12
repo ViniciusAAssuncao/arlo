@@ -122,6 +122,7 @@ where
         c_context,
         col.contact_severity,
         game_state_pressure,
+        true,
     );
     let foul = evaluate_and_resolve_foul(&foul_ctx, fault_catalog, rng);
 
