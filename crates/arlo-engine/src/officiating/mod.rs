@@ -7,13 +7,15 @@ pub mod line_fault;
 pub mod punishment;
 pub mod resolution;
 pub mod reviewable_call;
+pub mod stimulus;
 
 pub use ambiguity::ambiguity_from_duel_outcome;
 pub use assignment::draw_match_referees;
 pub use event_translation::translate_foul_raised;
 pub use foul::*;
-pub use heads_or_tails::flip_officiating_coin;
+pub use heads_or_tails::{flip_officiating_coin, resolve_peace_referee_review};
 pub use line_fault::*;
 pub use punishment::*;
 pub use resolution::resolve_true_ruling;
 pub use reviewable_call::{ReviewableCall, ReviewableCallKind};
+pub use stimulus::saturating_stimulus;
