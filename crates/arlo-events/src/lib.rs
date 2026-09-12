@@ -3,6 +3,7 @@ pub mod availability;
 pub mod envelope;
 pub mod events;
 pub mod in_memory_sink;
+pub mod injury;
 pub mod kick_foul;
 pub mod officiating;
 pub mod physical;
@@ -21,6 +22,7 @@ pub use availability::{AvailabilityStatus, PlayerAvailabilityChanged};
 pub use envelope::{MatchClockInstant, MatchEventEnvelope};
 pub use events::manager::*;
 pub use in_memory_sink::InMemorySink;
+pub use injury::InjuryIncidentRecorded;
 pub use kick_foul::{KickFoulAwarded, KickFoulDecisionMade, KickFoulEvent};
 pub use officiating::{FoulOrigin, FoulRaised, OfficiatingEvent};
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
@@ -70,6 +72,7 @@ pub enum MatchEvent {
     PlayerAvailabilityChanged(PlayerAvailabilityChanged),
     KickFoulAwarded(KickFoulAwarded),
     KickFoulDecisionMade(KickFoulDecisionMade),
+    InjuryIncidentRecorded(InjuryIncidentRecorded),
 }
 
 impl MatchEvent {
@@ -146,6 +149,10 @@ impl MatchEvent {
         matches!(self, Self::KickFoulAwarded(_) | Self::KickFoulDecisionMade(_))
     }
 
+    pub fn is_injury(&self) -> bool {
+        matches!(self, Self::InjuryIncidentRecorded(_))
+    }
+
     pub fn event_type_name(&self) -> &'static str {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
@@ -177,6 +184,7 @@ impl MatchEvent {
             Self::PlayerAvailabilityChanged(_) => "PlayerAvailabilityChanged",
             Self::KickFoulAwarded(_) => "KickFoulAwarded",
             Self::KickFoulDecisionMade(_) => "KickFoulDecisionMade",
+            Self::InjuryIncidentRecorded(_) => "InjuryIncidentRecorded",
         }
     }
 }
@@ -352,6 +360,12 @@ impl From<KickFoulAwarded> for MatchEvent {
 impl From<KickFoulDecisionMade> for MatchEvent {
     fn from(ev: KickFoulDecisionMade) -> Self {
         Self::KickFoulDecisionMade(ev)
+    }
+}
+
+impl From<InjuryIncidentRecorded> for MatchEvent {
+    fn from(ev: InjuryIncidentRecorded) -> Self {
+        Self::InjuryIncidentRecorded(ev)
     }
 }
 

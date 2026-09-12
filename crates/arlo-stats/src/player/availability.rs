@@ -56,7 +56,7 @@ impl PlayerAvailabilityStats {
                 self.expulsion_count += 1;
                 self.is_currently_expelled = true;
             }
-            AvailabilityStatus::Active => {}
+            AvailabilityStatus::Active | AvailabilityStatus::Injured => {}
         }
     }
 }

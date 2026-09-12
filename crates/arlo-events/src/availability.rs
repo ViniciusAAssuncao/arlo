@@ -6,6 +6,7 @@ pub enum AvailabilityStatus {
     Active,
     Suspended,
     Expelled,
+    Injured,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -7,6 +7,7 @@ pub enum SubstitutionReason {
     Fatigue,
     Tactical,
     Disciplinary,
+    Injury,
 }
 
 impl SubstitutionReason {
@@ -15,6 +16,7 @@ impl SubstitutionReason {
             Self::Fatigue => "Fatigue",
             Self::Tactical => "Tactical",
             Self::Disciplinary => "Disciplinary",
+            Self::Injury => "Injury",
         }
     }
 }
