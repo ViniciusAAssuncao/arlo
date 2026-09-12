@@ -4,28 +4,11 @@ use crate::match_decision::scoring::{
     duel_kind_for_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
 };
 use crate::resolution::duel_profiles::offense_duels::{field_goal_profile, finishing_attempt_profile};
-use crate::resolution::duel_profiles::DuelProfile;
 use crate::resolution::{AttributedDuelOutcome, DuelContext};
 use arlo_domain::{AttributeKey, KickFoulScoringTier, Player};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
-
-fn calculate_profile_rating(table: &PlayerAttributeTable, profile: &DuelProfile) -> f64 {
-    let mut total_weight = 0.0;
-    let mut accumulated = 0.0;
-    for w in profile.weights() {
-        if w.weight > 0.0 {
-            accumulated += table.get(w.key) * w.weight;
-            total_weight += w.weight;
-        }
-    }
-    if total_weight > 0.0 {
-        accumulated / total_weight
-    } else {
-        0.0
-    }
-}
 
 pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
     kicker: &Player,
@@ -49,7 +32,7 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
         KickFoulScoringTier::Standard => field_goal_profile(),
     };
 
-    let finisher_rating = calculate_profile_rating(kicker_table, &profile);
+    let finisher_rating = profile.rate(kicker_table);
     let opportunity = evaluate_kick_foul_scoring_opportunity(tier, finisher_rating);
 
     let finish_context = duel_context.for_duel_kind(duel_kind_for_opportunity(opportunity));

@@ -1,5 +1,6 @@
 use crate::officiating::foul::attribution::{recklessness_score, FoulOffendingSide};
 use crate::officiating::foul::context::FoulEvaluationContext;
+use crate::weighting::calculate_weighted_average;
 use arlo_domain::sport_constants::{
     FAULT_SEVERITY_FLAGRANT_THRESHOLD, FAULT_SEVERITY_MODERATE_THRESHOLD,
     FAULT_SEVERITY_SEVERE_THRESHOLD, FOUL_INTENSITY_CONTACT_SEVERITY_WEIGHT,
@@ -18,18 +19,12 @@ pub fn estimate_foul_severity(
     let contact = ctx.contact_severity.clamp(0.0, 1.0);
     let baseline = ctx.duel_outcome.kind().physicality_baseline().clamp(0.0, 1.0);
 
-    let total_weight = FOUL_INTENSITY_CONTACT_SEVERITY_WEIGHT
-        + FOUL_INTENSITY_RECKLESSNESS_WEIGHT
-        + FOUL_INTENSITY_DUEL_BASELINE_WEIGHT;
-
-    let intensity = if total_weight > 0.0 {
-        (contact * FOUL_INTENSITY_CONTACT_SEVERITY_WEIGHT
-            + recklessness * FOUL_INTENSITY_RECKLESSNESS_WEIGHT
-            + baseline * FOUL_INTENSITY_DUEL_BASELINE_WEIGHT)
-            / total_weight
-    } else {
-        0.0
-    };
+    let intensity = calculate_weighted_average(&[
+        (contact, FOUL_INTENSITY_CONTACT_SEVERITY_WEIGHT),
+        (recklessness, FOUL_INTENSITY_RECKLESSNESS_WEIGHT),
+        (baseline, FOUL_INTENSITY_DUEL_BASELINE_WEIGHT),
+    ])
+    .unwrap_or(0.0);
 
     let normalized_intensity = intensity.clamp(0.0, 1.0);
 

@@ -53,6 +53,7 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         &defense_players,
         offense_role_index,
         tables,
+        rng,
     )?;
 
     let taker_id = participants.kicker.id();

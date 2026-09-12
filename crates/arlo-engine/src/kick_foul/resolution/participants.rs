@@ -2,6 +2,8 @@ use crate::attributes::PlayerAttributeTable;
 use crate::error::{EngineError, EngineResult};
 use crate::lineup_runtime::find_goalguard;
 use arlo_domain::{AttributeKey, Player, Position, SlotRole};
+use arlo_math::stats::sample_categorical;
+use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -31,38 +33,47 @@ impl<'a> KickFoulParticipants<'a> {
     }
 }
 
-pub fn select_kicker<'a>(
+pub fn select_kicker<'a, R: Rng + ?Sized>(
     offense_players: &[&'a Player],
     offense_role_index: &HashMap<Uuid, SlotRole>,
     tables: &HashMap<Uuid, PlayerAttributeTable>,
+    rng: &mut R,
 ) -> Option<&'a Player> {
-    if let Some(&kicker) = offense_players
-        .iter()
-        .find(|p| offense_role_index.get(&p.id()) == Some(&SlotRole::Kicker))
+    if let Some(designated_id) =
+        crate::set_piece::kicker_selection::select_kicker(offense_players, Some(offense_role_index))
     {
-        return Some(kicker);
+        return offense_players
+            .iter()
+            .copied()
+            .find(|p| p.id() == designated_id);
     }
 
-    offense_players.iter().copied().max_by(|a, b| {
-        let table_a = tables.get(&a.id());
-        let table_b = tables.get(&b.id());
-        let score_a = table_a
-            .map(|t| t.get(AttributeKey::GoalKicking) + t.get(AttributeKey::Finishing))
-            .unwrap_or(0.0);
-        let score_b = table_b
-            .map(|t| t.get(AttributeKey::GoalKicking) + t.get(AttributeKey::Finishing))
-            .unwrap_or(0.0);
-        score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
-    })
+    if offense_players.is_empty() {
+        return None;
+    }
+
+    let weights: Vec<f64> = offense_players
+        .iter()
+        .map(|p| {
+            let table = tables.get(&p.id());
+            table
+                .map(|t| t.get(AttributeKey::GoalKicking) + t.get(AttributeKey::Finishing))
+                .unwrap_or(0.0)
+        })
+        .collect();
+
+    let idx = sample_categorical(&weights, rng).unwrap_or(0);
+    offense_players.get(idx).copied()
 }
 
-pub fn select_kick_foul_participants<'a>(
+pub fn select_kick_foul_participants<'a, R: Rng + ?Sized>(
     offense_players: &[&'a Player],
     defense_players: &[&'a Player],
     offense_role_index: &HashMap<Uuid, SlotRole>,
     tables: &HashMap<Uuid, PlayerAttributeTable>,
+    rng: &mut R,
 ) -> EngineResult<KickFoulParticipants<'a>> {
-    let kicker = select_kicker(offense_players, offense_role_index, tables)
+    let kicker = select_kicker(offense_players, offense_role_index, tables, rng)
         .or_else(|| offense_players.first().copied())
         .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{:?}", Position::CenterOffense)))?;
 
