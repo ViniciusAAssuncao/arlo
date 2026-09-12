@@ -12,7 +12,10 @@ use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_mu
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
+use arlo_domain::sport_constants::{
+    LONG_LAUNCH_BASE_ADVANCE_MIRIM, LONG_LAUNCH_MIN_ADVANCE_MIRIM, MINIMUM_ENGAGEMENT_SECONDS,
+    SHORT_PASS_BASE_ADVANCE_MIRIM, SHORT_PASS_MIN_ADVANCE_MIRIM,
+};
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Velocity, MIRIM_TO_METERS};
 use rand::Rng;
@@ -154,9 +157,11 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     let passing_range = offense_instructions.in_possession().passing_range();
 
     let throw_advance = if chosen_decision == ArtrineDecisionKind::ShortPass {
-        (4.0 * short_pass_advance_multiplier(passing_range)).max(1.0)
+        (SHORT_PASS_BASE_ADVANCE_MIRIM * short_pass_advance_multiplier(passing_range))
+            .max(SHORT_PASS_MIN_ADVANCE_MIRIM)
     } else {
-        (12.0 * long_launch_advance_multiplier(passing_range)).max(3.0)
+        (LONG_LAUNCH_BASE_ADVANCE_MIRIM * long_launch_advance_multiplier(passing_range))
+            .max(LONG_LAUNCH_MIN_ADVANCE_MIRIM)
     };
 
     let pass_speed = calculate_pass_speed(current_carrier, attribute_keys, &carrier_fatigue);
