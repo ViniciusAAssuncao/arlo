@@ -1,3 +1,4 @@
+pub mod added_time_repository;
 pub mod availability_changes_repository;
 pub mod fouls_repository;
 pub mod impulse_critical_repository;
@@ -8,6 +9,7 @@ pub mod scoring_plays_repository;
 pub mod substitutions_repository;
 pub mod turnovers_repository;
 
+pub use added_time_repository as match_added_time;
 pub use availability_changes_repository as match_availability_changes;
 pub use fouls_repository as match_fouls;
 pub use impulse_critical_repository as match_impulse_critical_events;
