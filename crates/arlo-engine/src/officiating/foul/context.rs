@@ -2,6 +2,7 @@ use crate::attributes::{PlayerAttributeTable, RefereeAttributeTable};
 use crate::physical::PhysicalState;
 use crate::resolution::{DuelContext, DuelOutcome};
 use crate::world_state::context_analyzer::GameStatePressure;
+use arlo_domain::PitchZone;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,6 +22,7 @@ pub struct FoulEvaluationContext<'a> {
     pub contact_severity: f64,
     pub game_state_pressure: GameStatePressure,
     pub is_open_play: bool,
+    pub defender_zone: PitchZone,
 }
 
 impl<'a> FoulEvaluationContext<'a> {
@@ -40,6 +42,7 @@ impl<'a> FoulEvaluationContext<'a> {
         contact_severity: f64,
         game_state_pressure: GameStatePressure,
         is_open_play: bool,
+        defender_zone: PitchZone,
     ) -> Self {
         Self {
             carrier_id,
@@ -57,6 +60,7 @@ impl<'a> FoulEvaluationContext<'a> {
             contact_severity,
             game_state_pressure,
             is_open_play,
+            defender_zone,
         }
     }
 }

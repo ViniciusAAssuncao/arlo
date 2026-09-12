@@ -3,10 +3,11 @@ use crate::officiating::foul::context::FoulEvaluationContext;
 use crate::weighting::calculate_weighted_average;
 use arlo_domain::sport_constants::{
     FAULT_SEVERITY_FLAGRANT_THRESHOLD, FAULT_SEVERITY_MODERATE_THRESHOLD,
-    FAULT_SEVERITY_SEVERE_THRESHOLD, FOUL_INTENSITY_CONTACT_SEVERITY_WEIGHT,
-    FOUL_INTENSITY_DUEL_BASELINE_WEIGHT, FOUL_INTENSITY_RECKLESSNESS_WEIGHT,
+    FAULT_SEVERITY_SEVERE_THRESHOLD, FIRST_ZONE_FOUL_SEVERITY_MULTIPLIER,
+    FOUL_INTENSITY_CONTACT_SEVERITY_WEIGHT, FOUL_INTENSITY_DUEL_BASELINE_WEIGHT,
+    FOUL_INTENSITY_RECKLESSNESS_WEIGHT,
 };
-use arlo_domain::FaultSeverity;
+use arlo_domain::{FaultSeverity, PitchZone};
 
 pub fn estimate_foul_severity(
     ctx: &FoulEvaluationContext<'_>,
@@ -26,7 +27,13 @@ pub fn estimate_foul_severity(
     ])
     .unwrap_or(0.0);
 
-    let normalized_intensity = intensity.clamp(0.0, 1.0);
+    let zone_multiplier = if ctx.defender_zone == PitchZone::FirstZone {
+        FIRST_ZONE_FOUL_SEVERITY_MULTIPLIER
+    } else {
+        1.0
+    };
+
+    let normalized_intensity = (intensity * zone_multiplier).clamp(0.0, 1.0);
 
     if normalized_intensity >= FAULT_SEVERITY_FLAGRANT_THRESHOLD {
         FaultSeverity::Flagrant

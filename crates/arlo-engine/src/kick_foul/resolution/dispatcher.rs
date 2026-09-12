@@ -8,6 +8,7 @@ use crate::kick_foul::resolution::restart_phase::resolve_kick_foul_restart;
 use crate::kick_foul::resolution::shoot_phase::resolve_kick_foul_shot;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::{AttributedDuelOutcome, DuelContext};
+use crate::team_identity::geometry::lateral_ratio_from_center;
 use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::{KickFoulDecisionKind, Player};
@@ -61,8 +62,13 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
     let kicker_table = state.attribute_table_for(&taker_id);
 
     let pressure = analyze_match_state(state);
-    let utilities =
-        evaluate_kick_foul_decision_utilities(kicker_table, pending.scoring_tier(), &pressure);
+    let lateral_ratio = lateral_ratio_from_center(pending.spot().raw().1, pitch.width().value());
+    let utilities = evaluate_kick_foul_decision_utilities(
+        kicker_table,
+        pending.scoring_tier(),
+        &pressure,
+        lateral_ratio,
+    );
     let decision = sample_kick_foul_decision(kicker_table, &utilities, rng);
 
     let offense_instructions = state.instructions_for_team(offense_team_id);

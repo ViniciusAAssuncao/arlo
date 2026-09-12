@@ -159,6 +159,7 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
             &peace_referee_table,
             game_state_pressure,
             &fault_catalog,
+            &pitch,
             rng,
         );
         local_duels.extend(outcome.duels);

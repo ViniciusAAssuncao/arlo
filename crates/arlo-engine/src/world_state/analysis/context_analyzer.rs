@@ -1,6 +1,7 @@
 use crate::world_state::constants::*;
 use crate::world_state::MatchState;
 use arlo_domain::sport_constants::{
+    KICK_FOUL_CROSS_LATERAL_BIAS_BASE, KICK_FOUL_CROSS_LATERAL_BIAS_SCALE,
     KICK_FOUL_SHOOT_GOAL_POINT_BIAS_WEIGHT_FIRST_ZONE,
     KICK_FOUL_SHOOT_GOAL_POINT_BIAS_WEIGHT_STANDARD,
 };
@@ -144,6 +145,7 @@ impl GameStatePressure {
         &self,
         kind: KickFoulDecisionKind,
         tier: KickFoulScoringTier,
+        lateral_ratio: f64,
     ) -> f64 {
         let raw = match kind {
             KickFoulDecisionKind::Shoot => {
@@ -157,7 +159,11 @@ impl GameStatePressure {
                 };
                 self.self_finish_bias * (1.0 - weight) + self.goal_point_bias * weight
             }
-            KickFoulDecisionKind::Cross => self.cross_bias,
+            KickFoulDecisionKind::Cross => {
+                let lateral_factor = KICK_FOUL_CROSS_LATERAL_BIAS_BASE
+                    + KICK_FOUL_CROSS_LATERAL_BIAS_SCALE * lateral_ratio.clamp(0.0, 1.0);
+                self.cross_bias * lateral_factor
+            }
             KickFoulDecisionKind::ShortPass => self.short_pass_bias,
             KickFoulDecisionKind::LongLaunch => self.long_launch_bias,
         };

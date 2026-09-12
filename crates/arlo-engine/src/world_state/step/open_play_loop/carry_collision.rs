@@ -9,6 +9,7 @@ use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::live_collisions::{CollisionResolution, LiveCollision};
 use crate::world_state::context_analyzer::GameStatePressure;
+use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, FaultCatalog, Player, Position as DomainPosition};
 use rand::Rng;
 use smallvec::smallvec;
@@ -53,6 +54,7 @@ pub fn resolve_carry_collision<F, R>(
     peace_referee_table: &RefereeAttributeTable,
     game_state_pressure: GameStatePressure,
     fault_catalog: &FaultCatalog,
+    pitch: &Pitch,
     rng: &mut R,
 ) -> CarryCollisionResult
 where
@@ -107,6 +109,8 @@ where
     .with_tables(Some(carrier_table), Some(def_table_ref));
     let duel_raw = resolve_duel(req, rng);
 
+    let defender_zone = pitch.zone_at_position(col.defender_position);
+
     let foul_ctx = FoulEvaluationContext::new(
         current_carrier.id(),
         current_carrier.team_id().unwrap_or_default(),
@@ -123,6 +127,7 @@ where
         col.contact_severity,
         game_state_pressure,
         true,
+        defender_zone,
     );
     let foul = evaluate_and_resolve_foul(&foul_ctx, fault_catalog, rng);
 

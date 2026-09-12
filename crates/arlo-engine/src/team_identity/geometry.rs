@@ -47,3 +47,9 @@ pub fn lateral_flank_shift(flank_bias_value: f64, y_m: f64, pitch_width_m: f64) 
         y_m + bias * (pitch_width_m - y_m)
     }
 }
+
+pub fn lateral_ratio_from_center(y_meters: f64, pitch_width_meters: f64) -> f64 {
+    let center_y_m = pitch_width_meters * 0.5;
+    let dist_from_center_m = (y_meters - center_y_m).abs();
+    (dist_from_center_m / center_y_m.max(1.0)).clamp(0.0, 1.0)
+}
