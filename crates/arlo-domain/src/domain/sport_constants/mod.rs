@@ -1,4 +1,5 @@
 pub mod ability;
+pub mod added_time;
 pub mod artro;
 pub mod block_marking;
 pub mod challenge_judgment;
@@ -34,6 +35,7 @@ pub mod time_management;
 pub mod timing;
 
 pub use ability::*;
+pub use added_time::*;
 pub use artro::*;
 pub use block_marking::*;
 pub use challenge_judgment::*;
