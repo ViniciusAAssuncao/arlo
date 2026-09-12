@@ -47,11 +47,6 @@ pub fn evaluate_foul_trigger_probability(ctx: &FoulEvaluationContext) -> f64 {
         + rigor_term
 }
 
-pub fn calculate_foul_trigger_probability(ctx: &FoulEvaluationContext) -> Probability {
-    let logit = evaluate_foul_trigger_probability(ctx);
-    Probability::new_clamped(logistic(logit))
-}
-
 pub fn sample_foul_trigger<R: Rng + ?Sized>(ctx: &FoulEvaluationContext, rng: &mut R) -> bool {
     let base_logit = evaluate_foul_trigger_probability(ctx);
 
