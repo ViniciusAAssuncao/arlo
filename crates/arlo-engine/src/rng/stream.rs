@@ -18,6 +18,7 @@ pub enum RngStream {
     RefereeAssignment,
     FaultResolution,
     KickFoulResolution,
+    AddedTimeDecision,
 }
 
 impl RngStream {
@@ -34,10 +35,11 @@ impl RngStream {
             Self::RefereeAssignment => 9,
             Self::FaultResolution => 10,
             Self::KickFoulResolution => 11,
+            Self::AddedTimeDecision => 12,
         }
     }
 
-    pub fn all() -> [Self; 11] {
+    pub fn all() -> [Self; 12] {
         [
             Self::DuelResolution,
             Self::FinisherSelection,
@@ -50,6 +52,7 @@ impl RngStream {
             Self::RefereeAssignment,
             Self::FaultResolution,
             Self::KickFoulResolution,
+            Self::AddedTimeDecision,
         ]
     }
 }

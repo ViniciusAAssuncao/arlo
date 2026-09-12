@@ -1,3 +1,4 @@
+pub mod added_time;
 pub mod ambiguity;
 pub mod assignment;
 pub mod event_translation;
@@ -9,6 +10,7 @@ pub mod resolution;
 pub mod reviewable_call;
 pub mod stimulus;
 
+pub use added_time::*;
 pub use ambiguity::ambiguity_from_duel_outcome;
 pub use assignment::draw_match_referees;
 pub use event_translation::translate_foul_raised;

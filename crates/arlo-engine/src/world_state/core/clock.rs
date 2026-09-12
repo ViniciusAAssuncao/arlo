@@ -17,6 +17,8 @@ pub struct MatchClock {
     overtime_periods: u32,
     overtime_period_duration_seconds: f64,
     time_calls_per_period: u32,
+    added_time_seconds: f64,
+    added_time_decided: bool,
 }
 
 impl MatchClock {
@@ -37,6 +39,8 @@ impl MatchClock {
             overtime_period_duration_seconds: (format_rules.overtime_period_duration_minutes() * 60)
                 as f64,
             time_calls_per_period: format_rules.time_calls_per_period(),
+            added_time_seconds: 0.0,
+            added_time_decided: false,
         }
     }
 
@@ -73,11 +77,12 @@ impl MatchClock {
     }
 
     pub fn period_duration_seconds(&self) -> f64 {
-        if self.is_overtime() {
+        let base = if self.is_overtime() {
             self.overtime_period_duration_seconds
         } else {
             self.regulation_period_duration_seconds
-        }
+        };
+        base + self.added_time_seconds
     }
 
     pub fn remaining_seconds_in_period(&self) -> f64 {
@@ -113,6 +118,8 @@ impl MatchClock {
         self.seconds_in_period = 0.0;
         self.home_time_calls = self.time_calls_per_period;
         self.away_time_calls = self.time_calls_per_period;
+        self.added_time_seconds = 0.0;
+        self.added_time_decided = false;
         true
     }
 
@@ -152,6 +159,22 @@ impl MatchClock {
 
     pub fn to_instant(&self) -> MatchClockInstant {
         MatchClockInstant::new(self.period, self.seconds_in_period)
+    }
+
+    pub fn added_time_seconds(&self) -> f64 {
+        self.added_time_seconds
+    }
+
+    pub fn is_added_time_decided(&self) -> bool {
+        self.added_time_decided
+    }
+
+    pub fn apply_added_time(&mut self, seconds: f64) {
+        self.added_time_seconds += seconds;
+    }
+
+    pub fn mark_added_time_decided(&mut self) {
+        self.added_time_decided = true;
     }
 }
 
