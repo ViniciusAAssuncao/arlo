@@ -232,14 +232,16 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
         );
 
         if is_fault {
+            let head_referee_table = state.head_referee_attribute_table();
+            let peace_referee_table = state.peace_referee_attribute_table();
             let lf_ctx = LineFaultEvaluationContext::new(
                 receiver_id,
                 receiver_player.team_id().unwrap_or(context.offense_team_id),
                 last_defender.id(),
                 last_defender.team_id().unwrap_or(context.defense_team_id),
                 margin,
-                state.head_referee_attribute_table(),
-                state.peace_referee_attribute_table(),
+                &head_referee_table,
+                &peace_referee_table,
             );
             if let Some(foul_res) = evaluate_and_resolve_line_fault(&lf_ctx, rng) {
                 return DistributionReceptionResult {

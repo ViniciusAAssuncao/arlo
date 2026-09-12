@@ -13,12 +13,12 @@ use arlo_math::stats::noise::sample_gaussian_noise;
 use arlo_math::Probability;
 use rand::Rng;
 
-pub fn evaluate_foul_trigger_probability(ctx: &FoulEvaluationContext) -> f64 {
+pub fn evaluate_foul_trigger_probability(ctx: &FoulEvaluationContext<'_>) -> f64 {
     let net_advantage_term =
         ctx.duel_outcome.net_advantage().abs() * FOUL_NET_ADVANTAGE_LOGIT_SCALE;
 
     let recklessness =
-        recklessness_score(&ctx.carrier_table) + recklessness_score(&ctx.defender_table);
+        recklessness_score(ctx.carrier_table) + recklessness_score(ctx.defender_table);
     let recklessness_term = recklessness * FOUL_RECKLESSNESS_LOGIT_SCALE;
 
     let physicality_term = ctx.duel_context.physicality_logit_offset();
@@ -47,7 +47,7 @@ pub fn evaluate_foul_trigger_probability(ctx: &FoulEvaluationContext) -> f64 {
         + rigor_term
 }
 
-pub fn sample_foul_trigger<R: Rng + ?Sized>(ctx: &FoulEvaluationContext, rng: &mut R) -> bool {
+pub fn sample_foul_trigger<R: Rng + ?Sized>(ctx: &FoulEvaluationContext<'_>, rng: &mut R) -> bool {
     let base_logit = evaluate_foul_trigger_probability(ctx);
 
     let consistency = ctx

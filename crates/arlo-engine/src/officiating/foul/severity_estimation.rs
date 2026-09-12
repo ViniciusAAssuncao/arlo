@@ -9,12 +9,12 @@ use arlo_domain::sport_constants::{
 use arlo_domain::FaultSeverity;
 
 pub fn estimate_foul_severity(
-    ctx: &FoulEvaluationContext,
+    ctx: &FoulEvaluationContext<'_>,
     offending_side: FoulOffendingSide,
 ) -> FaultSeverity {
     let recklessness = match offending_side {
-        FoulOffendingSide::Carrier => recklessness_score(&ctx.carrier_table),
-        FoulOffendingSide::Defender => recklessness_score(&ctx.defender_table),
+        FoulOffendingSide::Carrier => recklessness_score(ctx.carrier_table),
+        FoulOffendingSide::Defender => recklessness_score(ctx.defender_table),
     };
     let contact = ctx.contact_severity.clamp(0.0, 1.0);
     let baseline = ctx.duel_outcome.kind().physicality_baseline().clamp(0.0, 1.0);

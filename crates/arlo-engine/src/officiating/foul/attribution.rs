@@ -19,11 +19,11 @@ pub fn recklessness_score(table: &PlayerAttributeTable) -> f64 {
 }
 
 pub fn resolve_offending_side<R: Rng + ?Sized>(
-    ctx: &FoulEvaluationContext,
+    ctx: &FoulEvaluationContext<'_>,
     rng: &mut R,
 ) -> FoulOffendingSide {
-    let defender_reckless = recklessness_score(&ctx.defender_table);
-    let carrier_reckless = recklessness_score(&ctx.carrier_table);
+    let defender_reckless = recklessness_score(ctx.defender_table);
+    let carrier_reckless = recklessness_score(ctx.carrier_table);
     let prob = bradley_terry_with_offset(
         defender_reckless,
         carrier_reckless,

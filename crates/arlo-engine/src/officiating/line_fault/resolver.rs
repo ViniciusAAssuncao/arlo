@@ -9,7 +9,7 @@ use arlo_math::units::MIRIM_TO_METERS;
 use rand::Rng;
 
 pub fn evaluate_and_resolve_line_fault<R: Rng + ?Sized>(
-    ctx: &LineFaultEvaluationContext,
+    ctx: &LineFaultEvaluationContext<'_>,
     rng: &mut R,
 ) -> Option<FoulResolution> {
     if ctx.offside_margin_meters <= 0.0 {
@@ -21,7 +21,7 @@ pub fn evaluate_and_resolve_line_fault<R: Rng + ?Sized>(
     let stimulus = saturating_stimulus(normalized);
 
     let (original_call_correct, peace_referee_intervened) =
-        resolve_peace_referee_review(stimulus, &ctx.peace_referee_table, rng);
+        resolve_peace_referee_review(stimulus, ctx.peace_referee_table, rng);
 
     Some(FoulResolution::new(
         ctx.receiver_id,

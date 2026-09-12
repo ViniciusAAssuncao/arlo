@@ -12,7 +12,7 @@ use arlo_math::stats::contrast::logistic;
 use rand::Rng;
 
 pub fn evaluate_and_resolve_foul<R: Rng + ?Sized>(
-    ctx: &FoulEvaluationContext,
+    ctx: &FoulEvaluationContext<'_>,
     catalog: &FaultCatalog,
     rng: &mut R,
 ) -> Option<FoulResolution> {
@@ -53,7 +53,7 @@ pub fn evaluate_and_resolve_foul<R: Rng + ?Sized>(
     let stimulus = saturating_stimulus(raw_stimulus);
 
     let (original_call_correct, peace_referee_intervened) =
-        resolve_peace_referee_review(stimulus, &ctx.peace_referee_table, rng);
+        resolve_peace_referee_review(stimulus, ctx.peace_referee_table, rng);
 
     let trigger_probability = logistic(evaluate_foul_trigger_probability(ctx));
 

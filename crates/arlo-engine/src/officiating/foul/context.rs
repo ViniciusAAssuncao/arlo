@@ -5,17 +5,17 @@ use crate::world_state::context_analyzer::GameStatePressure;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FoulEvaluationContext {
+pub struct FoulEvaluationContext<'a> {
     pub carrier_id: Uuid,
     pub carrier_team_id: Uuid,
     pub defender_id: Uuid,
     pub defender_team_id: Uuid,
-    pub carrier_table: PlayerAttributeTable,
-    pub defender_table: PlayerAttributeTable,
+    pub carrier_table: &'a PlayerAttributeTable,
+    pub defender_table: &'a PlayerAttributeTable,
     pub carrier_physical_state: PhysicalState,
     pub defender_physical_state: PhysicalState,
-    pub head_referee_table: RefereeAttributeTable,
-    pub peace_referee_table: RefereeAttributeTable,
+    pub head_referee_table: &'a RefereeAttributeTable,
+    pub peace_referee_table: &'a RefereeAttributeTable,
     pub duel_outcome: DuelOutcome,
     pub duel_context: DuelContext,
     pub contact_severity: f64,
@@ -23,18 +23,18 @@ pub struct FoulEvaluationContext {
     pub is_open_play: bool,
 }
 
-impl FoulEvaluationContext {
+impl<'a> FoulEvaluationContext<'a> {
     pub fn new(
         carrier_id: Uuid,
         carrier_team_id: Uuid,
         defender_id: Uuid,
         defender_team_id: Uuid,
-        carrier_table: PlayerAttributeTable,
-        defender_table: PlayerAttributeTable,
+        carrier_table: &'a PlayerAttributeTable,
+        defender_table: &'a PlayerAttributeTable,
         carrier_physical_state: PhysicalState,
         defender_physical_state: PhysicalState,
-        head_referee_table: RefereeAttributeTable,
-        peace_referee_table: RefereeAttributeTable,
+        head_referee_table: &'a RefereeAttributeTable,
+        peace_referee_table: &'a RefereeAttributeTable,
         duel_outcome: DuelOutcome,
         duel_context: DuelContext,
         contact_severity: f64,
