@@ -38,6 +38,11 @@ impl MatchState {
         self.availability.expel_player(player_id, is_home);
     }
 
+    pub fn injure_player(&mut self, player_id: Uuid) {
+        let is_home = self.teams.is_home_player(&player_id);
+        self.availability.injure_player(player_id, is_home);
+    }
+
     pub fn restore_player_availability(&mut self, player_id: Uuid, state: AvailabilityState) {
         let is_home = self.teams.is_home_player(&player_id);
         self.availability.restore_player(player_id, is_home, state);

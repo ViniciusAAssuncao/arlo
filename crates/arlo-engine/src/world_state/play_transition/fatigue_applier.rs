@@ -1,8 +1,13 @@
+use crate::injury::exertion::{evaluate_and_resolve_exertion_injury, ExertionInjuryContext};
+use crate::physical::models::aerobic::calculate_player_age;
 use crate::physical::models::anaerobic::calculate_duel_intensity_multiplier;
+use crate::physical::models::metabolic_power::calculate_player_critical_speed_from_table;
 use crate::resolution::AttributedDuelOutcome;
+use crate::rng::RngStream;
 use crate::spatial::SpatialTrajectory;
 use crate::team_identity::intensity_multiplier_scale;
 use crate::world_state::play_transition::publisher::EventPublisher;
+use arlo_domain::sport_constants::SPATIAL_TICK_DURATION_SECONDS;
 use arlo_events::EventSink;
 use arlo_math::units::Position;
 use std::collections::HashMap;
@@ -126,6 +131,60 @@ pub fn apply_kinematic_movement_strain(
                 zone,
                 peak_spd,
             );
+        }
+
+        let player_opt = publisher.state().teams.find_player(pid);
+        let player_table = *publisher.state().attribute_table_for(pid);
+        let player_fatigue = publisher.state().fatigue_for(pid);
+        let injury_profile = publisher.state().player_injury_profile(pid);
+        let team_id = if publisher.state().teams.is_home_player(pid) {
+            publisher.state().home_team_id()
+        } else {
+            publisher.state().away_team_id()
+        };
+
+        let critical_speed = if let Some(p) = player_opt {
+            calculate_player_critical_speed_from_table(p, &player_table, 0).value()
+        } else {
+            5.0
+        };
+
+        let age_years = if let Some(p) = player_opt {
+            calculate_player_age(p, 0)
+        } else {
+            25.0
+        };
+
+        let exposure_duration_seconds =
+            (traj.positions().len().saturating_sub(1) as f64) * SPATIAL_TICK_DURATION_SECONDS;
+
+        if exposure_duration_seconds > 0.0 {
+            let exertion_ctx = ExertionInjuryContext::new(
+                *pid,
+                team_id,
+                &player_table,
+                player_fatigue,
+                injury_profile,
+                peak_spd,
+                critical_speed,
+                high_dist,
+                supra_time,
+                exposure_duration_seconds,
+                age_years,
+            );
+
+            let seq = publisher.state().event_sequence();
+            let mut exertion_rng = publisher
+                .state()
+                .rng_provider()
+                .indexed_rng_for(RngStream::DuelResolution, seq);
+
+            let catalog = publisher.state().injury_catalog().clone();
+            if let Some(injury_resolution) =
+                evaluate_and_resolve_exertion_injury(&exertion_ctx, &catalog, &mut exertion_rng)
+            {
+                publisher.emit_injury_incident(&injury_resolution);
+            }
         }
     }
 }

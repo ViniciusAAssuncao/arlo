@@ -4,6 +4,8 @@ use arlo_domain::sport_constants::{DISCIPLINARY_ACTIVE_URGENCY, DISCIPLINARY_SUS
 pub fn disciplinary_urgency(state: AvailabilityState) -> f64 {
     match state {
         AvailabilityState::Suspended { .. } => DISCIPLINARY_SUSPENSION_URGENCY,
-        AvailabilityState::Active | AvailabilityState::Expelled => DISCIPLINARY_ACTIVE_URGENCY,
+        AvailabilityState::Active | AvailabilityState::Expelled | AvailabilityState::Injured => {
+            DISCIPLINARY_ACTIVE_URGENCY
+        }
     }
 }

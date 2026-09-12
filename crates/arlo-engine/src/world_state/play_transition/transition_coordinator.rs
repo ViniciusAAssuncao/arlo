@@ -93,6 +93,12 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         }
     }
 
+    fn emit_injuries(&mut self) {
+        for injury in &self.execution_outcome.injuries {
+            self.publisher.emit_injury_incident(injury);
+        }
+    }
+
     fn apply_fault_punishments(&mut self) {
         for foul in &self.execution_outcome.fouls {
             if let Some(kind) = foul.punishment_kind {
@@ -165,6 +171,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
     pub fn run(mut self) -> DetailedPlayOutcome {
         self.apply_strains();
         self.emit_fouls();
+        self.emit_injuries();
         self.apply_fault_punishments();
         self.process_scoring();
 

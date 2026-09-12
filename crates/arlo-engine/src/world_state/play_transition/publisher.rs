@@ -1,57 +1,40 @@
 use crate::artrine::DistributionFlightInfo;
+use crate::injury::event_translation::translate_injury_incident;
+use crate::injury::outcome::InjuryIncidentResolution;
 use crate::kick_foul::event_translation::{
-    translate_kick_foul_awarded,
-    translate_kick_foul_decision_made,
+    translate_kick_foul_awarded, translate_kick_foul_decision_made,
 };
 use crate::kick_foul::KickFoulPending;
 use crate::manager_ai::event_translation::{
-    translate_challenge_resolved,
-    translate_play_call_selected,
-    translate_substitution_made,
-    translate_tactical_profile_activated,
-    translate_time_call_used,
+    translate_challenge_resolved, translate_play_call_selected, translate_substitution_made,
+    translate_tactical_profile_activated, translate_time_call_used,
 };
 use crate::match_decision::event_translation::{
-    create_envelope,
-    translate_countdown_started,
-    translate_distribution_completed,
-    translate_down_advanced,
-    translate_drive_recorded,
-    translate_duel_resolved,
-    translate_out_of_bounds,
-    translate_physical_strain_recorded,
-    translate_possession_time,
-    translate_reception_resolved,
-    translate_recovery_interval_processed,
-    translate_scoring_decision,
+    create_envelope, translate_countdown_started, translate_distribution_completed,
+    translate_down_advanced, translate_drive_recorded, translate_duel_resolved,
+    translate_out_of_bounds, translate_physical_strain_recorded, translate_possession_time,
+    translate_reception_resolved, translate_recovery_interval_processed, translate_scoring_decision,
     translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
 use crate::officiating::event_translation::{
-    translate_availability_changed,
-    translate_foul_raised,
+    translate_availability_changed, translate_foul_raised,
 };
 use crate::officiating::foul::FoulResolution;
 use crate::officiating::ReviewableCallKind;
 use crate::psychology::event_translation::{
-    translate_impulse_critical_reached,
-    translate_impulse_shift_recorded,
+    translate_impulse_critical_reached, translate_impulse_shift_recorded,
 };
 use crate::psychology::systems::critical::ImpulseCriticalReached as EngineImpulseCritical;
-use crate::psychology::systems::events::{ ImpulseEvent, ImpulseShift };
-use crate::resolution::{ AttributedDuelOutcome, DuelKind };
+use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
+use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
-use arlo_domain::{ KickFoulDecisionKind, PitchZone };
+use arlo_domain::{KickFoulDecisionKind, PitchZone};
 use arlo_events::{
-    CountdownReason,
-    EventArtroPlacement,
-    EventSink,
-    MatchClockInstant,
-    MatchEvent,
-    SubstitutionReason,
-    TimeCallReason,
+    CountdownReason, EventArtroPlacement, EventSink, MatchClockInstant, MatchEvent,
+    SubstitutionReason, TimeCallReason,
 };
 use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::PlayCallCategory;
@@ -94,7 +77,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
                 row_index,
                 EventArtroPlacement::Central,
                 self.state.drives_in_current_series(),
-                rx
+                rx,
             );
             self.publish(drive_event);
         }
@@ -110,11 +93,14 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
             let duel_event = translate_duel_resolved(
                 duel.outcome(),
                 duel.attacker_ids().to_vec(),
-                duel.defender_ids().to_vec()
+                duel.defender_ids().to_vec(),
             );
             self.publish(duel_event);
 
-            if matches!(duel.outcome().kind(), DuelKind::RouteContest | DuelKind::AerialDuel) {
+            if matches!(
+                duel.outcome().kind(),
+                DuelKind::RouteContest | DuelKind::AerialDuel
+            ) {
                 let receiver_id = duel
                     .attacker_ids()
                     .first()
@@ -124,7 +110,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
                     receiver_id,
                     default_receiver_id,
                     duel.outcome().attacker_won(),
-                    duel.outcome().kind() == DuelKind::AerialDuel
+                    duel.outcome().kind() == DuelKind::AerialDuel,
                 );
                 self.publish(reception_event);
             }
@@ -133,6 +119,12 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
 
     pub fn emit_foul_raised(&mut self, resolution: &FoulResolution) {
         let event = translate_foul_raised(resolution);
+        self.publish(event);
+    }
+
+    pub fn emit_injury_incident(&mut self, resolution: &InjuryIncidentResolution) {
+        self.state.injure_player(resolution.injured_player_id);
+        let event = translate_injury_incident(resolution);
         self.publish(event);
     }
 
@@ -149,7 +141,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         recovering_player_id: Option<Uuid>,
         lost_by_player_id: Option<Uuid>,
         in_live_play: bool,
-        point: VectorPosition
+        point: VectorPosition,
     ) {
         let turnover_event = translate_turnover(
             offense_team_id,
@@ -157,7 +149,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
             recovering_player_id,
             lost_by_player_id,
             in_live_play,
-            point
+            point,
         );
         self.publish(turnover_event);
     }
@@ -167,14 +159,10 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         offense_team_id: Uuid,
         last_player_id: Option<Uuid>,
         point: VectorPosition,
-        was_immediate: bool
+        was_immediate: bool,
     ) {
-        let oob_event = translate_out_of_bounds(
-            offense_team_id,
-            last_player_id,
-            point,
-            was_immediate
-        );
+        let oob_event =
+            translate_out_of_bounds(offense_team_id, last_player_id, point, was_immediate);
         self.publish(oob_event);
     }
 
@@ -185,7 +173,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         mirins_advanced_this_down: f64,
         total_advanced_in_series: f64,
         is_first_down: bool,
-        end_x_mirim: f64
+        end_x_mirim: f64,
     ) {
         let down_advanced_event = translate_down_advanced(
             previous_down,
@@ -193,7 +181,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
             mirins_advanced_this_down,
             total_advanced_in_series,
             is_first_down,
-            end_x_mirim
+            end_x_mirim,
         );
         self.publish(down_advanced_event);
     }
@@ -202,7 +190,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         &mut self,
         offense_team_id: Uuid,
         end_x_mirim: f64,
-        reason: CountdownReason
+        reason: CountdownReason,
     ) {
         let countdown_event = translate_countdown_started(offense_team_id, end_x_mirim, reason);
         self.publish(countdown_event);
@@ -223,7 +211,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         low_intensity_distance_mirim: f64,
         metabolic_energy_joules: f64,
         zone: PitchZone,
-        peak_speed_meters_per_sec: f64
+        peak_speed_meters_per_sec: f64,
     ) {
         let strain_ev = translate_physical_strain_recorded(
             player_id,
@@ -234,7 +222,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
             low_intensity_distance_mirim,
             metabolic_energy_joules,
             zone,
-            peak_speed_meters_per_sec
+            peak_speed_meters_per_sec,
         );
         self.publish(strain_ev);
     }
@@ -244,13 +232,13 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         player_id: Uuid,
         recovery_amount: f64,
         duration_seconds: f64,
-        new_w_bal: f64
+        new_w_bal: f64,
     ) {
         let rec_ev = translate_recovery_interval_processed(
             player_id,
             recovery_amount,
             duration_seconds,
-            new_w_bal
+            new_w_bal,
         );
         self.publish(rec_ev);
     }
@@ -259,7 +247,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         &mut self,
         player_id: Uuid,
         shift: &ImpulseShift,
-        event: &ImpulseEvent
+        event: &ImpulseEvent,
     ) {
         let shift_event = translate_impulse_shift_recorded(player_id, shift, event);
         self.publish(shift_event);
@@ -276,15 +264,10 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         player_out: Uuid,
         player_in: Uuid,
         match_clock: MatchClockInstant,
-        reason: SubstitutionReason
+        reason: SubstitutionReason,
     ) {
-        let event = translate_substitution_made(
-            team_id,
-            player_out,
-            player_in,
-            match_clock,
-            reason
-        );
+        let event =
+            translate_substitution_made(team_id, player_out, player_in, match_clock, reason);
         self.publish(event);
     }
 
@@ -292,7 +275,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         &mut self,
         team_id: Uuid,
         remaining_time_calls_after: u32,
-        reason: TimeCallReason
+        reason: TimeCallReason,
     ) {
         let event = translate_time_call_used(team_id, remaining_time_calls_after, reason);
         self.publish(event);
@@ -303,14 +286,10 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         team_id: Uuid,
         call_kind: ReviewableCallKind,
         success: bool,
-        remaining_challenges_after: u32
+        remaining_challenges_after: u32,
     ) {
-        let event = translate_challenge_resolved(
-            team_id,
-            call_kind,
-            success,
-            remaining_challenges_after
-        );
+        let event =
+            translate_challenge_resolved(team_id, call_kind, success, remaining_challenges_after);
         self.publish(event);
     }
 
@@ -318,7 +297,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         &mut self,
         team_id: Uuid,
         profile_id: Uuid,
-        profile_name: impl Into<String>
+        profile_name: impl Into<String>,
     ) {
         let event = translate_tactical_profile_activated(team_id, profile_id, profile_name);
         self.publish(event);
@@ -329,7 +308,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         team_id: Uuid,
         play_call_id: Uuid,
         play_call_name: impl Into<String>,
-        category: PlayCallCategory
+        category: PlayCallCategory,
     ) {
         let event = translate_play_call_selected(team_id, play_call_id, play_call_name, category);
         self.publish(event);
@@ -340,7 +319,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         player_id: Uuid,
         team_id: Uuid,
         previous: AvailabilityState,
-        new: AvailabilityState
+        new: AvailabilityState,
     ) {
         let event = translate_availability_changed(player_id, team_id, previous, new);
         self.publish(event);

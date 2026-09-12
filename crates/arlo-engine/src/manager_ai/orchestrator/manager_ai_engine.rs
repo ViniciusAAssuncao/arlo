@@ -1,6 +1,7 @@
 use crate::manager_ai::cognition::{derive_cooldown_seconds, ManagerDecisionKind};
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::orchestrator::foul_challenge_stage::evaluate_foul_challenge_stage;
+use crate::manager_ai::orchestrator::injury_substitution_stage::evaluate_injury_substitution_stage;
 use crate::manager_ai::orchestrator::kick_foul_realignment_stage::evaluate_kick_foul_realignment_stage;
 use crate::manager_ai::orchestrator::reviewable_call_stage::evaluate_reviewable_call_challenge_stage;
 use crate::manager_ai::play_calling::{
@@ -35,6 +36,8 @@ impl ManagerAiEngine {
         evaluate_reviewable_call_challenge_stage(publisher, team_id, period_duration_seconds, rng);
 
         evaluate_foul_challenge_stage(publisher, team_id, period_duration_seconds, rng);
+
+        evaluate_injury_substitution_stage(publisher, team_id);
 
         let context = ManagerDecisionContext::build(publisher.state(), team_id);
 

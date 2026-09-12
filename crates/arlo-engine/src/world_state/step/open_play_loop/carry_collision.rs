@@ -1,7 +1,10 @@
 use crate::attributes::{
     PlayerAttributeTable, RefereeAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE,
 };
+use crate::injury::contact::{evaluate_and_resolve_contact_injury, ContactInjuryContext};
+use crate::injury::outcome::InjuryIncidentResolution;
 use crate::officiating::foul::{evaluate_and_resolve_foul, FoulEvaluationContext, FoulResolution};
+use crate::physical::models::aerobic::calculate_player_age;
 use crate::physical::FatigueState;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
@@ -10,7 +13,10 @@ use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::spatial::live_collisions::{CollisionResolution, LiveCollision};
 use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, FaultCatalog, Player, Position as DomainPosition};
+use arlo_domain::{
+    AttributeKey, FaultCatalog, InjuryCatalog, Player, PlayerInjuryProfile,
+    Position as DomainPosition,
+};
 use rand::Rng;
 use smallvec::smallvec;
 use std::collections::HashMap;
@@ -21,6 +27,7 @@ pub struct CarryCollisionResult {
     pub duels: Vec<AttributedDuelOutcome>,
     pub resolution: CollisionResolution,
     pub foul: Option<FoulResolution>,
+    pub injuries: Vec<InjuryIncidentResolution>,
 }
 
 impl CarryCollisionResult {
@@ -28,11 +35,13 @@ impl CarryCollisionResult {
         duels: Vec<AttributedDuelOutcome>,
         resolution: CollisionResolution,
         foul: Option<FoulResolution>,
+        injuries: Vec<InjuryIncidentResolution>,
     ) -> Self {
         Self {
             duels,
             resolution,
             foul,
+            injuries,
         }
     }
 }
@@ -42,9 +51,11 @@ pub fn resolve_carry_collision<F, R>(
     spd: &mut f64,
     current_carrier: &Player,
     carrier_table: &PlayerAttributeTable,
+    carrier_injury_profile: PlayerInjuryProfile,
     carrier_pos_domain: DomainPosition,
     defense_players: &[&Player],
     defender_tables: &HashMap<Uuid, PlayerAttributeTable>,
+    defender_injury_profiles: &HashMap<Uuid, PlayerInjuryProfile>,
     defense_pos_index: &HashMap<Uuid, DomainPosition>,
     defense_team_id: Uuid,
     fatigue_for: &F,
@@ -54,6 +65,7 @@ pub fn resolve_carry_collision<F, R>(
     peace_referee_table: &RefereeAttributeTable,
     game_state_pressure: GameStatePressure,
     fault_catalog: &FaultCatalog,
+    injury_catalog: &InjuryCatalog,
     pitch: &Pitch,
     rng: &mut R,
 ) -> CarryCollisionResult
@@ -131,6 +143,39 @@ where
     );
     let foul = evaluate_and_resolve_foul(&foul_ctx, fault_catalog, rng);
 
+    let def_injury_profile = defender_injury_profiles
+        .get(&def_player.id())
+        .copied()
+        .unwrap_or_default();
+
+    let contact_ctx = ContactInjuryContext::new(
+        col,
+        current_carrier.id(),
+        current_carrier.team_id().unwrap_or_default(),
+        carrier_table,
+        carrier_fatigue,
+        carrier_injury_profile,
+        calculate_player_age(current_carrier, 0),
+        def_player.id(),
+        def_player.team_id().unwrap_or(defense_team_id),
+        def_table_ref,
+        def_fatigue,
+        def_injury_profile,
+        calculate_player_age(def_player, 0),
+    );
+
+    let mut injuries = Vec::new();
+    if let Some(carrier_inj) =
+        evaluate_and_resolve_contact_injury(true, &contact_ctx, injury_catalog, rng)
+    {
+        injuries.push(carrier_inj);
+    }
+    if let Some(def_inj) =
+        evaluate_and_resolve_contact_injury(false, &contact_ctx, injury_catalog, rng)
+    {
+        injuries.push(def_inj);
+    }
+
     let attributed = AttributedDuelOutcome::new(
         duel_raw,
         smallvec![current_carrier.id()],
@@ -147,6 +192,7 @@ where
                 velocity_mitigation: mit,
             },
             foul,
+            injuries,
         )
     } else {
         let (sec_off, sec_def) = get_duel_profiles(DuelKind::BallSecurityCarry);
@@ -203,6 +249,7 @@ where
                 recovering_player,
             },
             foul,
+            injuries,
         )
     }
 }

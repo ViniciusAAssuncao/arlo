@@ -122,6 +122,8 @@ impl MatchState {
             attribute_keys: params.attribute_keys,
             format_rules: params.format_rules,
             fault_catalog: params.fault_catalog,
+            injury_catalog: params.injury_catalog,
+            player_injury_profiles: params.player_injury_profiles,
             possession,
             spatial_map,
             clock,

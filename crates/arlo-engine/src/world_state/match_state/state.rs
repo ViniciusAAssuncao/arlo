@@ -20,7 +20,9 @@ use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, FaultCatalog, MatchFormatRules};
+use arlo_domain::{
+    AttributeKey, FaultCatalog, InjuryCatalog, MatchFormatRules, PlayerInjuryProfile,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -36,6 +38,8 @@ pub struct MatchState {
     pub(crate) attribute_keys: HashMap<Uuid, AttributeKey>,
     pub(crate) format_rules: MatchFormatRules,
     pub(crate) fault_catalog: Arc<FaultCatalog>,
+    pub(crate) injury_catalog: Arc<InjuryCatalog>,
+    pub(crate) player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
     pub(crate) possession: PossessionSnapshot,
     pub(crate) spatial_map: DynamicSpatialMap,
     pub(crate) clock: MatchClock,

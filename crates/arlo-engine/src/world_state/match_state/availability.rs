@@ -10,6 +10,7 @@ pub enum AvailabilityState {
         remaining_seconds: f64,
     },
     Expelled,
+    Injured,
 }
 
 impl AvailabilityState {
@@ -23,6 +24,10 @@ impl AvailabilityState {
 
     pub fn is_expelled(&self) -> bool {
         matches!(self, Self::Expelled)
+    }
+
+    pub fn is_injured(&self) -> bool {
+        matches!(self, Self::Injured)
     }
 }
 
@@ -74,6 +79,15 @@ impl PlayerAvailabilityTracker {
             &mut self.away_availability
         };
         map.insert(player_id, AvailabilityState::Expelled);
+    }
+
+    pub fn injure_player(&mut self, player_id: Uuid, is_home: bool) {
+        let map = if is_home {
+            &mut self.home_availability
+        } else {
+            &mut self.away_availability
+        };
+        map.insert(player_id, AvailabilityState::Injured);
     }
 
     pub fn restore_player(&mut self, player_id: Uuid, is_home: bool, state: AvailabilityState) {

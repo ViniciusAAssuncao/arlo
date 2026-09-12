@@ -48,5 +48,6 @@ fn map_availability_state(state: AvailabilityState) -> (AvailabilityStatus, Opti
             (AvailabilityStatus::Suspended, Some(remaining_seconds))
         }
         AvailabilityState::Expelled => (AvailabilityStatus::Expelled, None),
+        AvailabilityState::Injured => (AvailabilityStatus::Injured, None),
     }
 }

@@ -1,7 +1,8 @@
 use crate::rng::MatchSeed;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{
-    AttributeKey, FaultCatalog, Formation, Manager, MatchFormatRules, Player, Referee,
+    AttributeKey, FaultCatalog, Formation, InjuryCatalog, Manager, MatchFormatRules, Player,
+    PlayerInjuryProfile, Referee,
 };
 use arlo_tactics::{PlayCall, TacticalLineup, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
@@ -55,6 +56,8 @@ pub struct MatchSetupParams {
     pub attribute_keys: HashMap<Uuid, AttributeKey>,
     pub format_rules: MatchFormatRules,
     pub fault_catalog: Arc<FaultCatalog>,
+    pub injury_catalog: Arc<InjuryCatalog>,
+    pub player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
     pub seed: MatchSeed,
 }
 
@@ -68,6 +71,7 @@ impl MatchSetupParams {
         attribute_keys: HashMap<Uuid, AttributeKey>,
         format_rules: MatchFormatRules,
         fault_catalog: Arc<FaultCatalog>,
+        injury_catalog: Arc<InjuryCatalog>,
         seed: MatchSeed,
     ) -> Self {
         Self {
@@ -79,7 +83,17 @@ impl MatchSetupParams {
             attribute_keys,
             format_rules,
             fault_catalog,
+            injury_catalog,
+            player_injury_profiles: HashMap::new(),
             seed,
         }
+    }
+
+    pub fn with_player_injury_profiles(
+        mut self,
+        player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
+    ) -> Self {
+        self.player_injury_profiles = player_injury_profiles;
+        self
     }
 }

@@ -114,6 +114,7 @@ pub fn step_call_to_action(
                 end_position: pass_phase.scrimmage_point,
                 duels: Vec::new(),
                 fouls: Vec::new(),
+                injuries: Vec::new(),
                 receiver_id: None,
                 distribution_flight: None,
                 kinematic_trajectories: HashMap::new(),
