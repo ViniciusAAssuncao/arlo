@@ -1,3 +1,4 @@
+pub mod incidents;
 pub mod manager;
 pub mod match_lineup_usage_row;
 pub mod match_row;
@@ -8,6 +9,7 @@ pub mod officiating;
 pub mod player;
 pub mod team;
 
+pub use incidents::*;
 pub use manager::*;
 pub use match_lineup_usage_row::MatchLineupUsageRow;
 pub use match_row::MatchRow;
