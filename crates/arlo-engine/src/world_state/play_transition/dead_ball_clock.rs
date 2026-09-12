@@ -5,6 +5,7 @@ use crate::rng::RngStream;
 use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::period_resolution::resolve_period_end;
 use crate::world_state::play_transition::fatigue_applier::apply_dead_ball_recovery;
+use crate::world_state::play_transition::kick_foul_handler::resolve_and_apply_kick_foul;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use crate::world_state::play_transition::scoring_handler::post_transition_score_reset;
 use crate::world_state::reorganization::derive_and_apply_reorganization;
@@ -27,6 +28,8 @@ pub fn handle_dead_ball_and_clock(
         transition_result.snapshot,
     );
 
+    *publisher.state_mut().possession_mut() = next_snapshot;
+
     let is_post_turnover = detailed_outcome.turnover.is_some();
 
     if transition_result.countdown_to_size_triggered {
@@ -45,8 +48,16 @@ pub fn handle_dead_ball_and_clock(
             play_ledger.record_dead_ball(DurationComponentKind::Huddle, extra_total);
         }
 
+        if let Some(pending) = publisher.state().kick_foul_pending().copied() {
+            let mut kick_foul_rng = publisher
+                .state()
+                .rng_provider()
+                .indexed_rng_for(RngStream::KickFoulResolution, seq);
+            resolve_and_apply_kick_foul(publisher, &pending, &mut kick_foul_rng);
+        }
+
         let next_scrimmage_x_mirim =
-            next_snapshot.series_state().scrimmage_point().raw().0 / MIRIM_TO_METERS;
+            publisher.state().possession().scrimmage_point().raw().0 / MIRIM_TO_METERS;
         let (reorg_duration, huddle_duration) = derive_and_apply_reorganization(
             publisher,
             next_scrimmage_x_mirim,
@@ -78,7 +89,6 @@ pub fn handle_dead_ball_and_clock(
         .state_mut()
         .real_time_mut()
         .add(play_ledger.total());
-    *publisher.state_mut().possession_mut() = next_snapshot;
 
     let transitions = publisher
         .state_mut()

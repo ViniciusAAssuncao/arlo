@@ -1,4 +1,5 @@
 use crate::artrine::DistributionFlightInfo;
+use crate::kick_foul::KickFoulPending;
 use crate::manager_ai::event_translation::{
     translate_challenge_resolved, translate_play_call_selected, translate_substitution_made,
     translate_tactical_profile_activated, translate_time_call_used,
@@ -25,10 +26,10 @@ use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
-use arlo_domain::PitchZone;
+use arlo_domain::{KickFoulDecisionKind, KickFoulScoringTier, PitchZone};
 use arlo_events::{
-    CountdownReason, EventArtroPlacement, EventSink, MatchClockInstant, MatchEvent,
-    SubstitutionReason,
+    CountdownReason, EventArtroPlacement, EventSink, KickFoulAwarded, KickFoulDecisionMade,
+    MatchClockInstant, MatchEvent, SubstitutionReason,
 };
 use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::PlayCallCategory;
@@ -305,6 +306,30 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         new: AvailabilityState,
     ) {
         let event = translate_availability_changed(player_id, team_id, previous, new);
+        self.publish(event);
+    }
+
+    pub fn emit_kick_foul_awarded(
+        &mut self,
+        pending: &KickFoulPending,
+        offending_team_id: Uuid,
+    ) {
+        let event = KickFoulAwarded::new(
+            pending.awarded_team_id(),
+            offending_team_id,
+            pending.spot(),
+            pending.scoring_tier(),
+        );
+        self.publish(event);
+    }
+
+    pub fn emit_kick_foul_decision_made(
+        &mut self,
+        taker_id: Uuid,
+        decision: KickFoulDecisionKind,
+        scoring_tier: KickFoulScoringTier,
+    ) {
+        let event = KickFoulDecisionMade::new(taker_id, decision, scoring_tier);
         self.publish(event);
     }
 }

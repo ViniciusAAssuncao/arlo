@@ -19,7 +19,7 @@ use crate::world_state::play_transition::scoring_handler::{
     apply_match_score, enrich_scoring_decision_assister,
 };
 use crate::world_state::play_transition::turnover_and_down_events::resolve_turnover_and_down_events;
-use arlo_domain::ArtrineDecisionKind;
+use arlo_domain::{ArtrineDecisionKind, PunishmentKind};
 use arlo_events::EventSink;
 use uuid::Uuid;
 
@@ -104,6 +104,12 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
                     foul.punishment_magnitude,
                     &self.pre_play_snapshot,
                 );
+                if kind == PunishmentKind::KickFoulAwarded {
+                    if let Some(pending) = self.publisher.state().kick_foul_pending().copied() {
+                        self.publisher
+                            .emit_kick_foul_awarded(&pending, foul.offending_team_id);
+                    }
+                }
                 if !foul.peace_referee_intervened {
                     let record = FoulReviewRecord::new(
                         foul.offending_player_id,
@@ -159,6 +165,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
     pub fn run(mut self) -> DetailedPlayOutcome {
         self.apply_strains();
         self.emit_fouls();
+        self.apply_fault_punishments();
         self.process_scoring();
 
         let live_seconds = self.play_ledger.total_live().value();
@@ -197,8 +204,6 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
             transition_result,
             &mut self.play_ledger,
         );
-
-        self.apply_fault_punishments();
 
         detailed_outcome
     }
