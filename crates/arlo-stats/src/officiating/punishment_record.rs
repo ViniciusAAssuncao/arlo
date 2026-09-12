@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::officiating::keyed_registry::{KeyedStat, KeyedStatRegistry};
 use crate::snapshot::{IntoSnapshot, PlayerPunishmentSnapshot};
 use arlo_domain::PunishmentKind;
 use arlo_events::MatchEvent;
@@ -98,6 +99,12 @@ impl PlayerPunishmentStats {
     }
 }
 
+impl KeyedStat for PlayerPunishmentStats {
+    fn new_for(player_id: Uuid) -> Self {
+        Self::new(player_id)
+    }
+}
+
 impl IntoSnapshot for PlayerPunishmentStats {
     type Snapshot = PlayerPunishmentSnapshot;
 
@@ -120,35 +127,26 @@ impl IntoSnapshot for PlayerPunishmentStats {
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PlayerPunishmentAggregator {
-    stats: HashMap<Uuid, PlayerPunishmentStats>,
+    registry: KeyedStatRegistry<PlayerPunishmentStats>,
 }
 
 impl PlayerPunishmentAggregator {
     pub fn new() -> Self {
         Self {
-            stats: HashMap::new(),
+            registry: KeyedStatRegistry::new(),
         }
     }
 
     pub fn get(&self, player_id: &Uuid) -> Option<&PlayerPunishmentStats> {
-        self.stats.get(player_id)
+        self.registry.get(player_id)
     }
 
     pub fn get_or_default(&self, player_id: &Uuid) -> PlayerPunishmentStats {
-        self.stats
-            .get(player_id)
-            .cloned()
-            .unwrap_or_else(|| PlayerPunishmentStats::new(*player_id))
+        self.registry.get_or_default(player_id)
     }
 
     pub fn all_stats(&self) -> &HashMap<Uuid, PlayerPunishmentStats> {
-        &self.stats
-    }
-
-    fn get_mut_or_create(&mut self, player_id: Uuid) -> &mut PlayerPunishmentStats {
-        self.stats
-            .entry(player_id)
-            .or_insert_with(|| PlayerPunishmentStats::new(player_id))
+        self.registry.all_stats()
     }
 
     pub fn record_punishment(
@@ -157,7 +155,7 @@ impl PlayerPunishmentAggregator {
         kind: PunishmentKind,
         magnitude: Option<i32>,
     ) {
-        let stats = self.get_mut_or_create(player_id);
+        let stats = self.registry.entry_or_default(player_id);
         stats.record_punishment(kind, magnitude);
     }
 }
@@ -166,7 +164,8 @@ impl IntoSnapshot for PlayerPunishmentAggregator {
     type Snapshot = HashMap<Uuid, PlayerPunishmentSnapshot>;
 
     fn into_snapshot(&self) -> Self::Snapshot {
-        self.stats
+        self.registry
+            .all_stats()
             .iter()
             .map(|(&id, stats)| (id, stats.into_snapshot()))
             .collect()
@@ -187,6 +186,6 @@ impl StatAggregator for PlayerPunishmentAggregator {
     }
 
     fn reset(&mut self) {
-        self.stats.clear();
+        self.registry.clear();
     }
 }

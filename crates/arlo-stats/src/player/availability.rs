@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::officiating::keyed_registry::{KeyedStat, KeyedStatRegistry};
 use crate::snapshot::{IntoSnapshot, PlayerAvailabilitySnapshot};
 use arlo_events::{AvailabilityStatus, MatchEvent};
 use serde::{Deserialize, Serialize};
@@ -60,6 +61,12 @@ impl PlayerAvailabilityStats {
     }
 }
 
+impl KeyedStat for PlayerAvailabilityStats {
+    fn new_for(player_id: Uuid) -> Self {
+        Self::new(player_id)
+    }
+}
+
 impl IntoSnapshot for PlayerAvailabilityStats {
     type Snapshot = PlayerAvailabilitySnapshot;
 
@@ -75,35 +82,26 @@ impl IntoSnapshot for PlayerAvailabilityStats {
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PlayerAvailabilityAggregator {
-    stats: HashMap<Uuid, PlayerAvailabilityStats>,
+    registry: KeyedStatRegistry<PlayerAvailabilityStats>,
 }
 
 impl PlayerAvailabilityAggregator {
     pub fn new() -> Self {
         Self {
-            stats: HashMap::new(),
+            registry: KeyedStatRegistry::new(),
         }
     }
 
     pub fn get(&self, player_id: &Uuid) -> Option<&PlayerAvailabilityStats> {
-        self.stats.get(player_id)
+        self.registry.get(player_id)
     }
 
     pub fn get_or_default(&self, player_id: &Uuid) -> PlayerAvailabilityStats {
-        self.stats
-            .get(player_id)
-            .cloned()
-            .unwrap_or_else(|| PlayerAvailabilityStats::new(*player_id))
+        self.registry.get_or_default(player_id)
     }
 
     pub fn all_stats(&self) -> &HashMap<Uuid, PlayerAvailabilityStats> {
-        &self.stats
-    }
-
-    fn get_mut_or_create(&mut self, player_id: Uuid) -> &mut PlayerAvailabilityStats {
-        self.stats
-            .entry(player_id)
-            .or_insert_with(|| PlayerAvailabilityStats::new(player_id))
+        self.registry.all_stats()
     }
 
     pub fn record_change(
@@ -113,7 +111,7 @@ impl PlayerAvailabilityAggregator {
         new_status: AvailabilityStatus,
         remaining_seconds: Option<f64>,
     ) {
-        let stats = self.get_mut_or_create(player_id);
+        let stats = self.registry.entry_or_default(player_id);
         stats.record_transition(previous, new_status, remaining_seconds);
     }
 }
@@ -122,7 +120,8 @@ impl IntoSnapshot for PlayerAvailabilityAggregator {
     type Snapshot = HashMap<Uuid, PlayerAvailabilitySnapshot>;
 
     fn into_snapshot(&self) -> Self::Snapshot {
-        self.stats
+        self.registry
+            .all_stats()
             .iter()
             .map(|(&id, stats)| (id, stats.into_snapshot()))
             .collect()
@@ -142,6 +141,6 @@ impl StatAggregator for PlayerAvailabilityAggregator {
     }
 
     fn reset(&mut self) {
-        self.stats.clear();
+        self.registry.clear();
     }
 }

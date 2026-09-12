@@ -1,4 +1,5 @@
 use crate::aggregator::StatAggregator;
+use crate::officiating::keyed_registry::{KeyedStat, KeyedStatRegistry};
 use crate::snapshot::{IntoSnapshot, PlayerFoulSnapshot};
 use arlo_events::{FoulOrigin, MatchEvent};
 use serde::{Deserialize, Serialize};
@@ -56,6 +57,12 @@ impl PlayerFoulStats {
     }
 }
 
+impl KeyedStat for PlayerFoulStats {
+    fn new_for(player_id: Uuid) -> Self {
+        Self::new(player_id)
+    }
+}
+
 impl IntoSnapshot for PlayerFoulStats {
     type Snapshot = PlayerFoulSnapshot;
 
@@ -72,35 +79,26 @@ impl IntoSnapshot for PlayerFoulStats {
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PlayerFoulAggregator {
-    stats: HashMap<Uuid, PlayerFoulStats>,
+    registry: KeyedStatRegistry<PlayerFoulStats>,
 }
 
 impl PlayerFoulAggregator {
     pub fn new() -> Self {
         Self {
-            stats: HashMap::new(),
+            registry: KeyedStatRegistry::new(),
         }
     }
 
     pub fn get(&self, player_id: &Uuid) -> Option<&PlayerFoulStats> {
-        self.stats.get(player_id)
+        self.registry.get(player_id)
     }
 
     pub fn get_or_default(&self, player_id: &Uuid) -> PlayerFoulStats {
-        self.stats
-            .get(player_id)
-            .cloned()
-            .unwrap_or_else(|| PlayerFoulStats::new(*player_id))
+        self.registry.get_or_default(player_id)
     }
 
     pub fn all_stats(&self) -> &HashMap<Uuid, PlayerFoulStats> {
-        &self.stats
-    }
-
-    fn get_mut_or_create(&mut self, player_id: Uuid) -> &mut PlayerFoulStats {
-        self.stats
-            .entry(player_id)
-            .or_insert_with(|| PlayerFoulStats::new(player_id))
+        self.registry.all_stats()
     }
 
     pub fn record_foul_committed(
@@ -109,7 +107,7 @@ impl PlayerFoulAggregator {
         origin: FoulOrigin,
         final_call_correct: bool,
     ) {
-        let stats = self.get_mut_or_create(player_id);
+        let stats = self.registry.entry_or_default(player_id);
         stats.fouls_committed += 1;
         if final_call_correct {
             stats.correct_calls_committed += 1;
@@ -120,7 +118,7 @@ impl PlayerFoulAggregator {
     }
 
     pub fn record_foul_drawn(&mut self, player_id: Uuid) {
-        let stats = self.get_mut_or_create(player_id);
+        let stats = self.registry.entry_or_default(player_id);
         stats.fouls_drawn += 1;
     }
 }
@@ -129,7 +127,8 @@ impl IntoSnapshot for PlayerFoulAggregator {
     type Snapshot = HashMap<Uuid, PlayerFoulSnapshot>;
 
     fn into_snapshot(&self) -> Self::Snapshot {
-        self.stats
+        self.registry
+            .all_stats()
             .iter()
             .map(|(&id, stats)| (id, stats.into_snapshot()))
             .collect()
@@ -149,6 +148,6 @@ impl StatAggregator for PlayerFoulAggregator {
     }
 
     fn reset(&mut self) {
-        self.stats.clear();
+        self.registry.clear();
     }
 }
