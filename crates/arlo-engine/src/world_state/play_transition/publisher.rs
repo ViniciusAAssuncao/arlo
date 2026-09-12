@@ -29,7 +29,7 @@ use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::{KickFoulDecisionKind, KickFoulScoringTier, PitchZone};
 use arlo_events::{
     CountdownReason, EventArtroPlacement, EventSink, KickFoulAwarded, KickFoulDecisionMade,
-    MatchClockInstant, MatchEvent, SubstitutionReason,
+    MatchClockInstant, MatchEvent, SubstitutionReason, TimeCallReason,
 };
 use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::PlayCallCategory;
@@ -260,8 +260,13 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         self.publish(event);
     }
 
-    pub fn emit_time_call_used(&mut self, team_id: Uuid, remaining_time_calls_after: u32) {
-        let event = translate_time_call_used(team_id, remaining_time_calls_after);
+    pub fn emit_time_call_used(
+        &mut self,
+        team_id: Uuid,
+        remaining_time_calls_after: u32,
+        reason: TimeCallReason,
+    ) {
+        let event = translate_time_call_used(team_id, remaining_time_calls_after, reason);
         self.publish(event);
     }
 

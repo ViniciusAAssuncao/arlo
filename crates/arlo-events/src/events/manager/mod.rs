@@ -8,7 +8,7 @@ pub use challenge_resolved::{ChallengeResolved, ReviewableCallKind};
 pub use play_call_selected::{PlayCallCategory, PlayCallSelected};
 pub use substitution_made::{SubstitutionMade, SubstitutionReason};
 pub use tactical_profile_activated::TacticalProfileActivated;
-pub use time_call_used::TimeCallUsed;
+pub use time_call_used::{TimeCallReason, TimeCallUsed};
 
 use serde::{Deserialize, Serialize};
 
