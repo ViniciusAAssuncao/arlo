@@ -1,4 +1,5 @@
 use crate::match_decision::scoring::ScoringDecision;
+use crate::officiating::foul::FoulResolution;
 use crate::physical::PhysicalState;
 use crate::possession::drive::ArtrineCarrier;
 use crate::psychology::state::ImpulseState;
@@ -6,6 +7,7 @@ use crate::psychology::systems::events::{
     apply_impulse_event_at, ImpulseEvent, ImpulseEventKind, ImpulseShift,
 };
 use crate::resolution::AttributedDuelOutcome;
+use arlo_domain::sport_constants::FOUL_IMPULSE_EPV_DELTA;
 use arlo_domain::{AttributeKey, Player, Position};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -130,6 +132,25 @@ impl ImpulseEventBus {
             let event = ImpulseEvent::new(def_kind, def_surprisal, epv_delta, involved);
             self.publish(pid, event);
         }
+    }
+
+    pub fn publish_foul(&mut self, resolution: &FoulResolution) {
+        let p = resolution.trigger_probability().clamp(0.0001, 0.9999);
+        let surprisal = -p.ln();
+        let committed_event = ImpulseEvent::new(
+            ImpulseEventKind::FoulCommitted,
+            surprisal,
+            FOUL_IMPULSE_EPV_DELTA,
+            true,
+        );
+        let drawn_event = ImpulseEvent::new(
+            ImpulseEventKind::FoulDrawn,
+            surprisal,
+            FOUL_IMPULSE_EPV_DELTA,
+            true,
+        );
+        self.publish(resolution.offending_player_id(), committed_event);
+        self.publish(resolution.opposing_player_id(), drawn_event);
     }
 
     pub fn publish_scoring_decision(

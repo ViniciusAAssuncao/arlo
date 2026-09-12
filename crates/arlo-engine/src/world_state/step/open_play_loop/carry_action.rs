@@ -1,5 +1,7 @@
 use crate::artrine::detect_drive_crossings;
 use crate::attributes::PlayerAttributeTable;
+use crate::injury::outcome::InjuryIncidentResolution;
+use crate::officiating::foul::FoulResolution;
 use crate::open_play::{compute_carry_target_lane, compute_forward_target_pos};
 use crate::possession::TouchActionType;
 use crate::spatial::{
@@ -14,7 +16,7 @@ use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationC
 use crate::world_state::step::open_play_loop::carry_collision::resolve_carry_collision;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::{Player, Position as DomainPosition};
+use arlo_domain::{Player, PlayerInjuryProfile, Position as DomainPosition};
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
@@ -125,13 +127,27 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
     let fatigue_tracker = state.fatigue.clone();
 
     let carrier_table: PlayerAttributeTable =
-        state.attribute_table_for(&current_carrier.id()).clone();
+        *state.attribute_table_for(&current_carrier.id());
     let defender_tables: HashMap<Uuid, PlayerAttributeTable> = defense_players
         .iter()
-        .map(|p| (p.id(), state.attribute_table_for(&p.id()).clone()))
+        .map(|p| (p.id(), *state.attribute_table_for(&p.id())))
         .collect();
 
+    let carrier_injury_profile = state.player_injury_profile(&current_carrier.id());
+    let defender_injury_profiles: HashMap<Uuid, PlayerInjuryProfile> = defense_players
+        .iter()
+        .map(|p| (p.id(), state.player_injury_profile(&p.id())))
+        .collect();
+
+    let head_referee_table = state.head_referee_attribute_table();
+    let peace_referee_table = state.peace_referee_attribute_table();
+    let game_state_pressure = iter_ctx.game_state_pressure;
+    let fault_catalog = state.fault_catalog_arc();
+    let injury_catalog = state.injury_catalog_arc();
+
     let mut local_duels = Vec::new();
+    let mut local_fouls: Vec<FoulResolution> = Vec::new();
+    let mut local_injuries: Vec<InjuryIncidentResolution> = Vec::new();
     let mut collision_resolution = None;
 
     let collision_cb = |_s_map: &mut DynamicSpatialMap, col: &LiveCollision, spd: &mut f64| {
@@ -140,17 +156,29 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
             spd,
             current_carrier,
             &carrier_table,
+            carrier_injury_profile,
             carrier_pos_domain,
             defense_players,
             &defender_tables,
+            &defender_injury_profiles,
             defense_pos_index,
             defense_team_id,
             &|id| fatigue_tracker.fatigue_for(id),
             &duel_ctx,
             &attribute_keys,
+            &head_referee_table,
+            &peace_referee_table,
+            game_state_pressure,
+            &fault_catalog,
+            &injury_catalog,
+            &pitch,
             rng,
         );
         local_duels.extend(outcome.duels);
+        if let Some(foul) = outcome.foul.clone() {
+            local_fouls.push(foul);
+        }
+        local_injuries.extend(outcome.injuries);
         let res = outcome.resolution;
         collision_resolution = Some(res);
         res
@@ -197,6 +225,8 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         .accumulated_trajectories
         .extend(tick_result.trajectories().clone());
     loop_state.accumulated_duels.extend(local_duels);
+    loop_state.accumulated_fouls.extend(local_fouls);
+    loop_state.accumulated_injuries.extend(local_injuries);
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CarrierMovement,
         Duration::new(tick_result.elapsed_seconds()),

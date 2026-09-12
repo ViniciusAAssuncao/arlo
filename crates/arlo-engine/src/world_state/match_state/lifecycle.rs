@@ -1,18 +1,24 @@
-use crate::attributes::{AttributeKeyIndex, ManagerAttributeTable, PlayerAttributeTable};
+use crate::attributes::{
+    AttributeKeyIndex, ManagerAttributeTable, PlayerAttributeTable, RefereeAttributeTable,
+};
 use crate::error::EngineResult;
+use crate::kick_foul::KickFoulTracker;
 use crate::lineup_runtime::hydrate;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
 use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
+use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
 use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
+use crate::world_state::match_state::foul_review::FoulReviewTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
 use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker;
 use crate::world_state::match_state::play_calling::PlayCallTracker;
+use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::setup_params::MatchSetupParams;
 use crate::world_state::match_state::state::MatchState;
@@ -63,6 +69,18 @@ impl MatchState {
         let away_manager_table =
             ManagerAttributeTable::from_manager_with_index(&params.away.manager, &key_index);
 
+        let head_referee_table =
+            RefereeAttributeTable::from_referee_with_index(&params.head_referee, &key_index);
+        let peace_referee_table =
+            RefereeAttributeTable::from_referee_with_index(&params.peace_referee, &key_index);
+
+        let referees = RefereeRegistry::new(
+            params.head_referee,
+            params.peace_referee,
+            head_referee_table,
+            peace_referee_table,
+        );
+
         let teams = TeamRegistry::new(
             params.home.team_id,
             params.away.team_id,
@@ -86,19 +104,26 @@ impl MatchState {
 
         let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &params.attribute_keys);
         let fatigue = FatigueTracker::new();
+        let availability = PlayerAvailabilityTracker::new();
         let scoreboard = MatchScoreboard::new();
         let play_calling = PlayCallTracker::new();
         let officiating = OfficiatingTracker::new();
+        let foul_review = FoulReviewTracker::new();
         let decision_cooldown = DecisionCooldownTracker::new();
         let play_call_efficacy = PlayCallEfficacyTracker::new();
+        let kick_foul = KickFoulTracker::new();
 
         Ok(Self {
             teams,
+            referees,
             home_squad,
             away_squad,
             pitch: params.pitch,
             attribute_keys: params.attribute_keys,
             format_rules: params.format_rules,
+            fault_catalog: params.fault_catalog,
+            injury_catalog: params.injury_catalog,
+            player_injury_profiles: params.player_injury_profiles,
             possession,
             spatial_map,
             clock,
@@ -108,11 +133,14 @@ impl MatchState {
             scoreboard,
             fatigue,
             impulse,
+            availability,
             play_calling,
             officiating,
+            foul_review,
             decision_cooldown,
             play_call_efficacy,
             last_play_outcome_summary: None,
+            kick_foul,
         })
     }
 }

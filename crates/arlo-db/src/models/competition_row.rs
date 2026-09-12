@@ -1,5 +1,6 @@
 use crate::error::{DbError, DbResult};
-use arlo_domain::{Competition, CompetitionKind, Scope};
+use crate::models::scope_code::parse_scope;
+use arlo_domain::{Competition, CompetitionKind};
 use sqlx::FromRow;
 use uuid::Uuid;
 
@@ -22,18 +23,7 @@ impl CompetitionRow {
             Some(cid) => Some(Uuid::parse_str(cid)?),
             None => None,
         };
-        let scope = match self.scope.as_str() {
-            "Regional" => Scope::Regional,
-            "National" => Scope::National,
-            "Continental" => Scope::Continental,
-            "International" => Scope::International,
-            _ => {
-                return Err(DbError::InvalidEnum(format!(
-                    "Invalid scope: {}",
-                    self.scope
-                )))
-            }
-        };
+        let scope = parse_scope(&self.scope)?;
         let kind = match self.kind.as_str() {
             "League" => CompetitionKind::League,
             "Cup" => CompetitionKind::Cup,

@@ -1,8 +1,10 @@
 pub mod artrine_decisions;
 pub mod assists;
+pub mod availability;
 pub mod drives;
 pub mod duel_record;
 pub mod impulse;
+pub mod injury_record;
 pub mod physical_exertion;
 pub mod receiving;
 pub mod scoring_attempts;
@@ -14,12 +16,14 @@ pub use artrine_decisions::{
 pub use assists::{
     PlayerAssistAggregator, PlayerAssistStats, PlayerAssistsAggregator, PlayerAssistsStats,
 };
+pub use availability::{PlayerAvailabilityAggregator, PlayerAvailabilityStats};
 pub use drives::{PlayerDriveStats, PlayerDrivesAggregator};
 pub use duel_record::{DuelKindStats, PlayerDuelAggregator, PlayerDuelStats};
 pub use impulse::{
     ImpulseAggregator, ImpulseRun, PlayerImpulseAggregator, PlayerImpulseStats, TeamImpulseRun,
     TeamImpulseStats,
 };
+pub use injury_record::{PlayerInjuryAggregator, PlayerInjuryStats};
 pub use physical_exertion::{
     PlayerPhysicalAggregator, PlayerPhysicalExertionAggregator, PlayerPhysicalStats,
 };

@@ -95,3 +95,60 @@ pub struct PlayerAssistSnapshot {
     pub player_id: Uuid,
     pub goalpoint_assists: u32,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerFoulSnapshot {
+    pub player_id: Uuid,
+    pub fouls_committed: u32,
+    pub fouls_drawn: u32,
+    pub correct_calls_committed: u32,
+    pub incorrect_calls_committed: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RefereeMatchSnapshot {
+    pub calls_made: u32,
+    pub calls_correct: u32,
+    pub calls_incorrect: u32,
+    pub peace_referee_interventions: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlayerPunishmentSnapshot {
+    pub player_id: Uuid,
+    pub yardage_loss_count: u32,
+    pub loss_of_down_count: u32,
+    pub loss_of_drive_count: u32,
+    pub time_penalty_count: u32,
+    pub expulsion_count: u32,
+    pub invalidate_play_count: u32,
+    pub total_yardage_loss_mirim: f64,
+    pub total_loss_of_down_count: u32,
+    pub total_time_penalty_seconds: f64,
+    pub total_loss_of_drive_count: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct PlayerAvailabilitySnapshot {
+    pub player_id: Uuid,
+    pub total_suspended_seconds: f64,
+    pub expulsion_count: u32,
+    pub is_currently_expelled: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlayerKickFoulSnapshot {
+    pub player_id: Uuid,
+    pub kick_foul_takes: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PlayerInjurySnapshot {
+    pub player_id: Uuid,
+    pub total_injuries: u32,
+    pub contact_injuries: u32,
+    pub non_contact_injuries: u32,
+    pub grade_1_injuries: u32,
+    pub grade_2_injuries: u32,
+    pub grade_3_injuries: u32,
+}

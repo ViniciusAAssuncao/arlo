@@ -1,6 +1,6 @@
 use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::play_transition::publisher::EventPublisher;
-use arlo_events::EventSink;
+use arlo_events::{EventSink, TimeCallReason};
 use arlo_math::units::Duration;
 use uuid::Uuid;
 
@@ -9,6 +9,7 @@ pub fn execute_time_call(
     team_id: Uuid,
     is_home: bool,
     ledger: &mut DurationLedger,
+    reason: TimeCallReason,
 ) -> bool {
     let used = publisher.state_mut().clock_mut().use_time_call(is_home);
     if used {
@@ -26,7 +27,7 @@ pub fn execute_time_call(
             publisher.state().clock().away_time_calls()
         };
 
-        publisher.emit_time_call_used(team_id, remaining_after);
+        publisher.emit_time_call_used(team_id, remaining_after, reason);
         true
     } else {
         false

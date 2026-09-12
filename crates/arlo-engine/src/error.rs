@@ -24,6 +24,10 @@ pub enum EngineError {
     AnchorCountMismatch { expected: usize, actual: usize },
     #[error("Missing required position '{0}' in lineup")]
     MissingRequiredPosition(String),
+    #[error("Insufficient referee candidates to draw match officials")]
+    InsufficientRefereeCandidates,
+    #[error("Cannot substitute expelled player '{0}'")]
+    CannotSubstituteExpelledPlayer(Uuid),
 }
 
 pub type EngineResult<T> = Result<T, EngineError>;

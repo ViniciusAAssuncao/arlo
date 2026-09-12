@@ -1,5 +1,7 @@
 use crate::artrine::{ArtrineExecutionOutcome, DistributionFlightInfo};
+use crate::injury::outcome::InjuryIncidentResolution;
 use crate::match_decision::scoring::ScoringDecision;
+use crate::officiating::foul::FoulResolution;
 use crate::resolution::AttributedDuelOutcome;
 use crate::spatial::SpatialTrajectory;
 use crate::time::DurationLedger;
@@ -16,6 +18,8 @@ pub struct OpenPlayLoopState {
     pub accumulated_drives_recorded: u32,
     pub accumulated_drive_row_indices: SmallVec<[usize; 4]>,
     pub accumulated_duels: Vec<AttributedDuelOutcome>,
+    pub accumulated_fouls: Vec<FoulResolution>,
+    pub accumulated_injuries: Vec<InjuryIncidentResolution>,
     pub accumulated_duration_ledger: DurationLedger,
     pub accumulated_trajectories: HashMap<Uuid, SpatialTrajectory>,
     pub scoring_decision: ScoringDecision,
@@ -37,6 +41,8 @@ impl OpenPlayLoopState {
             accumulated_drives_recorded: 0,
             accumulated_drive_row_indices: SmallVec::new(),
             accumulated_duels: Vec::new(),
+            accumulated_fouls: Vec::new(),
+            accumulated_injuries: Vec::new(),
             accumulated_duration_ledger: DurationLedger::new(),
             accumulated_trajectories: HashMap::new(),
             scoring_decision: ScoringDecision::NoOpportunity,
@@ -61,6 +67,8 @@ impl OpenPlayLoopState {
             duration_ledger: self.accumulated_duration_ledger,
             end_position: self.current_carrier_pos,
             duels: self.accumulated_duels,
+            fouls: self.accumulated_fouls,
+            injuries: self.accumulated_injuries,
             receiver_id: self.last_receiver_id,
             distribution_flight: self.last_distribution_flight,
             kinematic_trajectories: self.accumulated_trajectories,

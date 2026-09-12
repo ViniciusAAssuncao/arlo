@@ -1,9 +1,13 @@
 use crate::rng::MatchSeed;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::{AttributeKey, Formation, Manager, MatchFormatRules, Player};
+use arlo_domain::{
+    AttributeKey, FaultCatalog, Formation, InjuryCatalog, Manager, MatchFormatRules, Player,
+    PlayerInjuryProfile, Referee,
+};
 use arlo_tactics::{PlayCall, TacticalLineup, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -46,9 +50,14 @@ impl TeamSetupParams {
 pub struct MatchSetupParams {
     pub home: TeamSetupParams,
     pub away: TeamSetupParams,
+    pub head_referee: Referee,
+    pub peace_referee: Referee,
     pub pitch: Pitch,
     pub attribute_keys: HashMap<Uuid, AttributeKey>,
     pub format_rules: MatchFormatRules,
+    pub fault_catalog: Arc<FaultCatalog>,
+    pub injury_catalog: Arc<InjuryCatalog>,
+    pub player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
     pub seed: MatchSeed,
 }
 
@@ -56,18 +65,35 @@ impl MatchSetupParams {
     pub fn new(
         home: TeamSetupParams,
         away: TeamSetupParams,
+        head_referee: Referee,
+        peace_referee: Referee,
         pitch: Pitch,
         attribute_keys: HashMap<Uuid, AttributeKey>,
         format_rules: MatchFormatRules,
+        fault_catalog: Arc<FaultCatalog>,
+        injury_catalog: Arc<InjuryCatalog>,
         seed: MatchSeed,
     ) -> Self {
         Self {
             home,
             away,
+            head_referee,
+            peace_referee,
             pitch,
             attribute_keys,
             format_rules,
+            fault_catalog,
+            injury_catalog,
+            player_injury_profiles: HashMap::new(),
             seed,
         }
+    }
+
+    pub fn with_player_injury_profiles(
+        mut self,
+        player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
+    ) -> Self {
+        self.player_injury_profiles = player_injury_profiles;
+        self
     }
 }

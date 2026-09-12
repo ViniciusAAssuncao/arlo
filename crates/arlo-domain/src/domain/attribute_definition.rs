@@ -18,6 +18,7 @@ pub enum AttributeCategory {
 pub enum AttributeTarget {
     Player,
     Manager,
+    Referee,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

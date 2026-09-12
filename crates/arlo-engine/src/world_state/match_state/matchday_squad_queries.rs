@@ -1,4 +1,5 @@
-use crate::error::EngineResult;
+use crate::error::{EngineError, EngineResult};
+use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::state::MatchState;
 use arlo_domain::Player;
@@ -36,6 +37,10 @@ impl MatchState {
         outgoing: Uuid,
         incoming: Arc<Player>,
     ) -> EngineResult<()> {
+        if self.availability_for(&outgoing) == AvailabilityState::Expelled {
+            return Err(EngineError::CannotSubstituteExpelledPlayer(outgoing));
+        }
+
         let is_home = team_id == self.teams.home_team_id();
         let current_lineup = if is_home {
             self.teams.home_lineup()
@@ -66,6 +71,7 @@ impl MatchState {
 
         self.substitute_fatigue_player(outgoing, incoming_id, is_home);
         self.substitute_impulse_player(outgoing, incoming_id, is_home);
+        self.substitute_availability_player(outgoing, incoming_id, is_home);
         self.spatial_map.substitute_player(outgoing, incoming_id);
 
         Ok(())

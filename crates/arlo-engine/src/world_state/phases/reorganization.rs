@@ -224,13 +224,23 @@ pub fn derive_and_apply_reorganization(
 
     let mut movers = Vec::with_capacity(home_lineup.len() + away_lineup.len());
     for assignment in home_lineup.assignments() {
-        if let Some(&target) = home_targets.get(&assignment.player().id()) {
-            movers.push((assignment.player(), target));
+        if publisher
+            .state()
+            .is_player_available(&assignment.player().id())
+        {
+            if let Some(&target) = home_targets.get(&assignment.player().id()) {
+                movers.push((assignment.player(), target));
+            }
         }
     }
     for assignment in away_lineup.assignments() {
-        if let Some(&target) = away_targets.get(&assignment.player().id()) {
-            movers.push((assignment.player(), target));
+        if publisher
+            .state()
+            .is_player_available(&assignment.player().id())
+        {
+            if let Some(&target) = away_targets.get(&assignment.player().id()) {
+                movers.push((assignment.player(), target));
+            }
         }
     }
 

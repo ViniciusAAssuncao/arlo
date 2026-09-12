@@ -59,10 +59,12 @@ pub enum AttributeKey {
     JudgingAbility,
     JudgingPotential,
     Discipline,
+    Rigor,
+    Authority,
 }
 
 impl AttributeKey {
-    pub const COUNT: usize = 57;
+    pub const COUNT: usize = 59;
 
     pub const fn all() -> [AttributeKey; Self::COUNT] {
         [
@@ -123,6 +125,8 @@ impl AttributeKey {
             AttributeKey::JudgingAbility,
             AttributeKey::JudgingPotential,
             AttributeKey::Discipline,
+            AttributeKey::Rigor,
+            AttributeKey::Authority,
         ]
     }
 
@@ -185,6 +189,8 @@ impl AttributeKey {
             AttributeKey::JudgingAbility => 54,
             AttributeKey::JudgingPotential => 55,
             AttributeKey::Discipline => 56,
+            AttributeKey::Rigor => 57,
+            AttributeKey::Authority => 58,
         }
     }
 }

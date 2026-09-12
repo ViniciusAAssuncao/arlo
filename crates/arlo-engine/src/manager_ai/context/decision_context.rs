@@ -16,6 +16,7 @@ pub struct ManagerDecisionContext {
     pub remaining_time_calls: u32,
     pub remaining_challenges: u32,
     pub situational_awareness: SituationalAwareness,
+    pub is_bonus_phase: bool,
 }
 
 impl ManagerDecisionContext {
@@ -37,6 +38,7 @@ impl ManagerDecisionContext {
             remaining_time_calls,
             remaining_challenges,
             situational_awareness: SituationalAwareness::default(),
+            is_bonus_phase: false,
         }
     }
 
@@ -59,6 +61,7 @@ impl ManagerDecisionContext {
             remaining_time_calls,
             remaining_challenges,
             situational_awareness,
+            is_bonus_phase: false,
         }
     }
 
@@ -86,6 +89,7 @@ impl ManagerDecisionContext {
             state.clock().away_challenges()
         };
         let situational_awareness = SituationalAwareness::build(state, team_id);
+        let is_bonus_phase = state.possession().is_bonus_phase();
 
         Self {
             team_id,
@@ -96,6 +100,7 @@ impl ManagerDecisionContext {
             remaining_time_calls,
             remaining_challenges,
             situational_awareness,
+            is_bonus_phase,
         }
     }
 }

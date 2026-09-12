@@ -1,4 +1,10 @@
 use crate::artrine::DistributionFlightInfo;
+use crate::injury::event_translation::translate_injury_incident;
+use crate::injury::outcome::InjuryIncidentResolution;
+use crate::kick_foul::event_translation::{
+    translate_kick_foul_awarded, translate_kick_foul_decision_made,
+};
+use crate::kick_foul::KickFoulPending;
 use crate::manager_ai::event_translation::{
     translate_challenge_resolved, translate_play_call_selected, translate_substitution_made,
     translate_tactical_profile_activated, translate_time_call_used,
@@ -7,10 +13,14 @@ use crate::match_decision::event_translation::{
     create_envelope, translate_countdown_started, translate_distribution_completed,
     translate_down_advanced, translate_drive_recorded, translate_duel_resolved,
     translate_out_of_bounds, translate_physical_strain_recorded, translate_possession_time,
-    translate_reception_resolved, translate_recovery_interval_processed,
-    translate_scoring_decision, translate_turnover,
+    translate_reception_resolved, translate_recovery_interval_processed, translate_scoring_decision,
+    translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
+use crate::officiating::event_translation::{
+    translate_availability_changed, translate_foul_raised,
+};
+use crate::officiating::foul::FoulResolution;
 use crate::officiating::ReviewableCallKind;
 use crate::psychology::event_translation::{
     translate_impulse_critical_reached, translate_impulse_shift_recorded,
@@ -18,12 +28,13 @@ use crate::psychology::event_translation::{
 use crate::psychology::systems::critical::ImpulseCriticalReached as EngineImpulseCritical;
 use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
+use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
-use arlo_domain::PitchZone;
+use arlo_domain::{KickFoulDecisionKind, PitchZone};
 use arlo_events::{
     CountdownReason, EventArtroPlacement, EventSink, MatchClockInstant, MatchEvent,
-    SubstitutionReason,
+    SubstitutionReason, TimeCallReason,
 };
 use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::PlayCallCategory;
@@ -60,7 +71,7 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
     pub fn emit_drives(&mut self, artrine_id: Uuid, drive_row_indices: &[usize]) {
         for &row_index in drive_row_indices {
             self.state.increment_drives();
-            let rx = (row_index as f64 + 1.0) * ARTRO_ROW_SPACING_MIRIM;
+            let rx = ((row_index as f64) + 1.0) * ARTRO_ROW_SPACING_MIRIM;
             let drive_event = translate_drive_recorded(
                 artrine_id,
                 row_index,
@@ -104,6 +115,17 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
                 self.publish(reception_event);
             }
         }
+    }
+
+    pub fn emit_foul_raised(&mut self, resolution: &FoulResolution) {
+        let event = translate_foul_raised(resolution);
+        self.publish(event);
+    }
+
+    pub fn emit_injury_incident(&mut self, resolution: &InjuryIncidentResolution) {
+        self.state.injure_player(resolution.injured_player_id);
+        let event = translate_injury_incident(resolution);
+        self.publish(event);
     }
 
     pub fn emit_scoring_event(&mut self, scoring_decision: &ScoringDecision) {
@@ -249,8 +271,13 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         self.publish(event);
     }
 
-    pub fn emit_time_call_used(&mut self, team_id: Uuid, remaining_time_calls_after: u32) {
-        let event = translate_time_call_used(team_id, remaining_time_calls_after);
+    pub fn emit_time_call_used(
+        &mut self,
+        team_id: Uuid,
+        remaining_time_calls_after: u32,
+        reason: TimeCallReason,
+    ) {
+        let event = translate_time_call_used(team_id, remaining_time_calls_after, reason);
         self.publish(event);
     }
 
@@ -284,6 +311,27 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         category: PlayCallCategory,
     ) {
         let event = translate_play_call_selected(team_id, play_call_id, play_call_name, category);
+        self.publish(event);
+    }
+
+    pub fn emit_player_availability_changed(
+        &mut self,
+        player_id: Uuid,
+        team_id: Uuid,
+        previous: AvailabilityState,
+        new: AvailabilityState,
+    ) {
+        let event = translate_availability_changed(player_id, team_id, previous, new);
+        self.publish(event);
+    }
+
+    pub fn emit_kick_foul_awarded(&mut self, pending: &KickFoulPending, offending_team_id: Uuid) {
+        let event = translate_kick_foul_awarded(pending, offending_team_id);
+        self.publish(event);
+    }
+
+    pub fn emit_kick_foul_decision_made(&mut self, taker_id: Uuid, decision: KickFoulDecisionKind) {
+        let event = translate_kick_foul_decision_made(taker_id, decision);
         self.publish(event);
     }
 }

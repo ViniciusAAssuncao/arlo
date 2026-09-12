@@ -39,6 +39,7 @@ pub async fn list_by_applies_to(
     let target_str = match target {
         AttributeTarget::Player => "Player",
         AttributeTarget::Manager => "Manager",
+        AttributeTarget::Referee => "Referee",
     };
     let rows = fetch_all_by_param::<AttributeDefinitionRow>(
         pool,

@@ -1,16 +1,33 @@
 use crate::aggregator::StatAggregator;
-use crate::manager::{ManagerDecisionAggregator, PlayCallOutcomeAggregator};
+use crate::manager::{ ManagerDecisionAggregator, PlayCallOutcomeAggregator };
+use crate::officiating::{
+    PlayerFoulAggregator,
+    PlayerKickFoulAggregator,
+    PlayerPunishmentAggregator,
+    RefereeStatsAggregator,
+};
 use crate::player::{
-    PlayerArtrineDecisionAggregator, PlayerAssistsAggregator, PlayerDrivesAggregator,
-    PlayerDuelAggregator, PlayerImpulseAggregator, PlayerPhysicalAggregator,
-    PlayerReceivingAggregator, PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
+    PlayerArtrineDecisionAggregator,
+    PlayerAssistsAggregator,
+    PlayerAvailabilityAggregator,
+    PlayerDrivesAggregator,
+    PlayerDuelAggregator,
+    PlayerImpulseAggregator,
+    PlayerInjuryAggregator,
+    PlayerPhysicalAggregator,
+    PlayerReceivingAggregator,
+    PlayerScoringAttemptsAggregator,
+    PlayerTouchesAggregator,
 };
 use crate::snapshot::{
-    IntoSnapshot, PeriodicMatchSnapshot, PlayerMatchSnapshot, TeamMatchSnapshot,
+    IntoSnapshot,
+    PeriodicMatchSnapshot,
+    PlayerMatchSnapshot,
+    TeamMatchSnapshot,
 };
 use crate::team::TeamPossessionAggregator;
-use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
-use std::collections::{HashMap, HashSet};
+use arlo_events::{ MatchClockInstant, MatchEvent, MatchEventEnvelope };
+use std::collections::{ HashMap, HashSet };
 use uuid::Uuid;
 
 #[derive(Default)]
@@ -36,6 +53,12 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerPhysicalAggregator::new());
         registry.register_aggregator(PlayerImpulseAggregator::new());
         registry.register_aggregator(PlayerAssistsAggregator::new());
+        registry.register_aggregator(PlayerFoulAggregator::new());
+        registry.register_aggregator(PlayerPunishmentAggregator::new());
+        registry.register_aggregator(PlayerAvailabilityAggregator::new());
+        registry.register_aggregator(PlayerKickFoulAggregator::new());
+        registry.register_aggregator(PlayerInjuryAggregator::new());
+        registry.register_aggregator(RefereeStatsAggregator::new());
         registry.register_aggregator(TeamPossessionAggregator::new());
         registry.register_aggregator(ManagerDecisionAggregator::new());
         registry.register_aggregator(PlayCallOutcomeAggregator::new());
@@ -82,7 +105,7 @@ impl AggregatorRegistry {
 
     pub fn handle_envelopes<'a>(
         &mut self,
-        envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>,
+        envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>
     ) {
         for envelope in envelopes {
             self.handle_envelope(envelope);
@@ -134,6 +157,21 @@ impl AggregatorRegistry {
             ids.extend(agg.all_player_stats().keys().copied());
         }
         if let Some(agg) = self.get::<PlayerAssistsAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerFoulAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerPunishmentAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerAvailabilityAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerKickFoulAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerInjuryAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
         ids
@@ -232,6 +270,43 @@ impl AggregatorRegistry {
             snap.goalpoint_assists = a.goalpoint_assists;
         }
 
+        if let Some(agg) = self.get::<PlayerFoulAggregator>() {
+            let f = agg.get_or_default(player_id);
+            snap.fouls_committed = f.fouls_committed;
+            snap.fouls_drawn = f.fouls_drawn;
+        }
+
+        if let Some(agg) = self.get::<PlayerPunishmentAggregator>() {
+            let p = agg.get_or_default(player_id);
+            snap.punishment_yardage_loss_mirim = p.total_yardage_loss_mirim;
+            snap.punishment_loss_of_down_count = p.total_loss_of_down_count;
+            snap.punishment_loss_of_drive_count = p.total_loss_of_drive_count;
+            snap.punishment_time_penalty_seconds = p.total_time_penalty_seconds;
+            snap.punishment_expulsion_count = p.total_expulsions;
+            snap.punishment_invalidated_play_count = p.total_plays_invalidated;
+        }
+
+        if let Some(agg) = self.get::<PlayerAvailabilityAggregator>() {
+            let a = agg.get_or_default(player_id);
+            snap.total_suspended_seconds = a.total_suspended_seconds;
+            snap.is_expelled = a.is_currently_expelled;
+        }
+
+        if let Some(agg) = self.get::<PlayerKickFoulAggregator>() {
+            let kf = agg.get_or_default(player_id);
+            snap.kick_foul_takes = kf.kick_foul_takes;
+        }
+
+        if let Some(agg) = self.get::<PlayerInjuryAggregator>() {
+            let inj = agg.get_or_default(player_id);
+            snap.total_injuries = inj.total_injuries;
+            snap.contact_injuries = inj.contact_injuries;
+            snap.non_contact_injuries = inj.non_contact_injuries;
+            snap.grade_1_injuries = inj.grade_1_injuries;
+            snap.grade_2_injuries = inj.grade_2_injuries;
+            snap.grade_3_injuries = inj.grade_3_injuries;
+        }
+
         if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {
             let ad = agg.get_or_default(player_id);
             snap.artrine_decisions_total = ad.total_decisions;
@@ -312,13 +387,13 @@ impl AggregatorRegistry {
     pub fn capture_periodic_snapshot(
         &self,
         sequence_number: u64,
-        clock: MatchClockInstant,
+        clock: MatchClockInstant
     ) -> PeriodicMatchSnapshot {
         PeriodicMatchSnapshot::new(
             sequence_number,
             clock,
             self.player_snapshots_vec(),
-            self.team_snapshots_vec(),
+            self.team_snapshots_vec()
         )
     }
 }
