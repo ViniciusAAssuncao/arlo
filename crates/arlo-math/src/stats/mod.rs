@@ -6,6 +6,7 @@ pub mod contrast;
 pub mod noise;
 pub mod probability;
 pub mod similarity;
+pub mod hazard;
 
 pub use ambiguity::uncertainty_from_probability;
 pub use bayesian::BetaBelief;
@@ -20,3 +21,4 @@ pub use noise::{
 };
 pub use probability::Probability;
 pub use similarity::cosine_similarity;
+pub use hazard::*;
