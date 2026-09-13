@@ -21,6 +21,7 @@ pub mod kick_foul_scoring_tier;
 pub mod league;
 pub mod manager;
 pub mod manager_attribute_value;
+pub mod manager_control_mode;
 pub mod manager_profile;
 pub mod match_format_rules;
 pub mod person;
@@ -66,6 +67,7 @@ pub use kick_foul_scoring_tier::KickFoulScoringTier;
 pub use league::League;
 pub use manager::{Manager, ManagerBuilder};
 pub use manager_attribute_value::ManagerAttributeValue;
+pub use manager_control_mode::ManagerControlMode;
 pub use manager_profile::{
     ArtrineDependency, DefensiveApproach, ManagerTacticalProfile, OffensiveApproach, RotationPolicy,
 };
