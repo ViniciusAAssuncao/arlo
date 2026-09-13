@@ -1,15 +1,18 @@
 pub mod open_play_loop;
 pub mod play_resolution;
+pub mod readiness;
 pub mod setup;
+pub mod step_outcome;
 pub mod target_weighting;
 
 pub use open_play_loop::run_open_play_loop;
 pub use play_resolution::*;
+pub use readiness::peek_pending_manager_decisions;
 pub use setup::{setup_call_to_action_context, CallToActionContext};
+pub use step_outcome::PlayStepOutcome;
 pub use target_weighting::resolve_decision_target_weights;
 
 use crate::error::EngineResult;
-use crate::manager_ai::human_control::try_apply_human_play_call;
 use crate::manager_ai::orchestrator::ManagerAiEngine;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
@@ -19,7 +22,7 @@ use crate::time::DurationLedger;
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::{apply_play_transition, EventPublisher};
-use arlo_domain::{ArtrineDecisionKind, ManagerControlMode};
+use arlo_domain::ArtrineDecisionKind;
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
 use arlo_math::units::MIRIM_TO_METERS;
@@ -57,9 +60,15 @@ pub fn step_call_to_action(
     state: &mut MatchState,
     manager_decision_inbox: &ManagerDecisionInbox,
     sink: &mut impl EventSink,
-) -> EngineResult<DetailedPlayOutcome> {
+) -> EngineResult<PlayStepOutcome> {
     if state.is_match_finished() {
-        return Ok(build_finished_match_outcome(state));
+        return Ok(PlayStepOutcome::Resolved(build_finished_match_outcome(state)));
+    }
+
+    let pending =
+        readiness::resolve_pending_manager_decisions(state, sink, manager_decision_inbox);
+    if !pending.is_empty() {
+        return Ok(PlayStepOutcome::Pending(pending));
     }
 
     let pre_play_snapshot = capture_play_reversal_snapshot(state);
@@ -74,10 +83,6 @@ pub fn step_call_to_action(
     let mut ai_rng = state
         .rng_provider()
         .indexed_rng_for(RngStream::PlayCallSelection, seq);
-
-    if state.control_mode_for_team(offense_id) != ManagerControlMode::Ai {
-        try_apply_human_play_call(state, offense_id, manager_decision_inbox);
-    }
 
     {
         let mut publisher = EventPublisher::new(state, sink);
@@ -151,5 +156,5 @@ pub fn step_call_to_action(
         sink,
     );
 
-    Ok(detailed_outcome)
+    Ok(PlayStepOutcome::Resolved(detailed_outcome))
 }

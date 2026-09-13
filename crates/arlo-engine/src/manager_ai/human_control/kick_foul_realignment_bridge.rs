@@ -15,6 +15,12 @@ pub fn try_apply_human_kick_foul_realignment(
     if inbox.take_kick_foul_realignment(team_id).is_none() {
         return false;
     }
+    let Some(pending) = publisher.state().kick_foul_pending().copied() else {
+        return false;
+    };
+    if pending.awarded_team_id() != team_id {
+        return false;
+    }
     let mut ledger = DurationLedger::new();
     if execute_time_call(
         publisher,
