@@ -15,6 +15,7 @@ pub struct CalendarSystemRow {
     pub days_per_occurrence: i32,
     pub intercalation_placement_kind: String,
     pub intercalation_placement_month_order_index: Option<i32>,
+    pub intercalation_disrupts_week_cycle: bool,
     pub created_at_unix_seconds: i64,
 }
 
