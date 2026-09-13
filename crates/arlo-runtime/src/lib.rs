@@ -11,6 +11,7 @@ pub use session::GameSimulationSession;
 pub fn run(rt: &tokio::runtime::Runtime) -> Result<(), RuntimeError> {
     rt.block_on(async {
         let pool = arlo_db::save::resolve_current_save_pool().await?;
+        arlo_controller::persistence::run_migrations(&pool).await?;
         let _context = Context::new(pool, tokio::runtime::Handle::current());
         Ok(())
     })
