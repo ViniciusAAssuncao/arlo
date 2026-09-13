@@ -11,6 +11,7 @@ use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
 use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
+use crate::world_state::match_state::forced_substitution_tracker::ForcedSubstitutionTracker;
 use crate::world_state::match_state::foul_review::FoulReviewTracker;
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
@@ -59,6 +60,7 @@ pub struct MatchState {
     pub(crate) last_play_outcome_summary: Option<(Uuid, bool)>,
     pub(crate) kick_foul: KickFoulTracker,
     pub(crate) added_time: AddedTimeTracker,
+    pub(crate) forced_substitution_tracker: ForcedSubstitutionTracker,
 }
 
 impl MatchState {

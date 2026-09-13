@@ -47,7 +47,7 @@ impl ManagerAiEngine {
             rng,
         );
 
-        evaluate_injury_substitution_stage(publisher, team_id);
+        evaluate_injury_substitution_stage(publisher, team_id, manager_decision_inbox);
 
         evaluate_substitution_stage(
             publisher,
