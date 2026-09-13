@@ -9,6 +9,7 @@ pub use setup::{setup_call_to_action_context, CallToActionContext};
 pub use target_weighting::resolve_decision_target_weights;
 
 use crate::error::EngineResult;
+use crate::manager_ai::human_control::try_apply_human_play_call;
 use crate::manager_ai::orchestrator::ManagerAiEngine;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
@@ -18,8 +19,9 @@ use crate::time::DurationLedger;
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::{apply_play_transition, EventPublisher};
-use arlo_domain::ArtrineDecisionKind;
+use arlo_domain::{ArtrineDecisionKind, ManagerControlMode};
 use arlo_events::EventSink;
+use arlo_manager_control::ManagerDecisionInbox;
 use arlo_math::units::MIRIM_TO_METERS;
 use smallvec::SmallVec;
 use std::collections::HashMap;
@@ -53,6 +55,7 @@ fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
 
 pub fn step_call_to_action(
     state: &mut MatchState,
+    manager_decision_inbox: &ManagerDecisionInbox,
     sink: &mut impl EventSink,
 ) -> EngineResult<DetailedPlayOutcome> {
     if state.is_match_finished() {
@@ -71,6 +74,10 @@ pub fn step_call_to_action(
     let mut ai_rng = state
         .rng_provider()
         .indexed_rng_for(RngStream::PlayCallSelection, seq);
+
+    if state.control_mode_for_team(offense_id) != ManagerControlMode::Ai {
+        try_apply_human_play_call(state, offense_id, manager_decision_inbox);
+    }
 
     {
         let mut publisher = EventPublisher::new(state, sink);
@@ -140,6 +147,7 @@ pub fn step_call_to_action(
         context.defense_team_id,
         active_play_call_id,
         pre_play_snapshot,
+        manager_decision_inbox,
         sink,
     );
 

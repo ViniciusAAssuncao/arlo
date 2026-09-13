@@ -11,6 +11,7 @@ use crate::world_state::play_transition::publisher::EventPublisher;
 use crate::world_state::play_transition::scoring_handler::post_transition_score_reset;
 use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_events::EventSink;
+use arlo_manager_control::ManagerDecisionInbox;
 use arlo_math::units::MIRIM_TO_METERS;
 
 pub fn handle_dead_ball_and_clock(
@@ -18,6 +19,7 @@ pub fn handle_dead_ball_and_clock(
     detailed_outcome: &DetailedPlayOutcome,
     transition_result: TransitionResult,
     play_ledger: &mut DurationLedger,
+    manager_decision_inbox: &ManagerDecisionInbox,
 ) {
     let is_possession_change =
         transition_result.snapshot.role().offense() != detailed_outcome.offense_team_id;
@@ -40,10 +42,18 @@ pub fn handle_dead_ball_and_clock(
             .rng_provider()
             .indexed_rng_for(RngStream::PlayCallSelection, seq);
 
-        let extra_offense =
-            ManagerAiEngine::on_stoppage(publisher, detailed_outcome.offense_team_id, &mut ai_rng);
-        let extra_defense =
-            ManagerAiEngine::on_stoppage(publisher, detailed_outcome.defense_team_id, &mut ai_rng);
+        let extra_offense = ManagerAiEngine::on_stoppage(
+            publisher,
+            detailed_outcome.offense_team_id,
+            manager_decision_inbox,
+            &mut ai_rng,
+        );
+        let extra_defense = ManagerAiEngine::on_stoppage(
+            publisher,
+            detailed_outcome.defense_team_id,
+            manager_decision_inbox,
+            &mut ai_rng,
+        );
         let extra_total = extra_offense + extra_defense;
         if extra_total.value() > 0.0 {
             play_ledger.record_dead_ball(DurationComponentKind::Huddle, extra_total);
