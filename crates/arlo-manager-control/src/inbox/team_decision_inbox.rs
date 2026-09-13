@@ -1,12 +1,13 @@
 use crate::intents::{
-    ChallengeIntent, KickFoulRealignmentIntent, PlayCallIntent, SubstitutionIntent,
-    TacticalSwitchIntent, TimeCallIntent,
+    ChallengeIntent, ForcedSubstitutionIntent, KickFoulRealignmentIntent, PlayCallIntent,
+    SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TeamDecisionInbox {
     substitutions: Vec<SubstitutionIntent>,
+    forced_substitutions: Vec<ForcedSubstitutionIntent>,
     time_call: Option<TimeCallIntent>,
     challenge: Option<ChallengeIntent>,
     tactical_switch: Option<TacticalSwitchIntent>,
@@ -28,6 +29,17 @@ impl TeamDecisionInbox {
         intents: impl IntoIterator<Item = SubstitutionIntent>,
     ) {
         self.substitutions.extend(intents);
+    }
+
+    pub fn submit_forced_substitution(&mut self, intent: ForcedSubstitutionIntent) {
+        self.forced_substitutions.push(intent);
+    }
+
+    pub fn submit_forced_substitutions(
+        &mut self,
+        intents: impl IntoIterator<Item = ForcedSubstitutionIntent>,
+    ) {
+        self.forced_substitutions.extend(intents);
     }
 
     pub fn submit_time_call(&mut self, intent: TimeCallIntent) {
@@ -54,6 +66,10 @@ impl TeamDecisionInbox {
         std::mem::take(&mut self.substitutions)
     }
 
+    pub fn take_forced_substitutions(&mut self) -> Vec<ForcedSubstitutionIntent> {
+        std::mem::take(&mut self.forced_substitutions)
+    }
+
     pub fn take_time_call(&mut self) -> Option<TimeCallIntent> {
         self.time_call.take()
     }
@@ -78,6 +94,10 @@ impl TeamDecisionInbox {
         &self.substitutions
     }
 
+    pub fn forced_substitutions(&self) -> &[ForcedSubstitutionIntent] {
+        &self.forced_substitutions
+    }
+
     pub fn time_call(&self) -> Option<TimeCallIntent> {
         self.time_call
     }
@@ -100,6 +120,7 @@ impl TeamDecisionInbox {
 
     pub fn clear(&mut self) {
         self.substitutions.clear();
+        self.forced_substitutions.clear();
         self.time_call = None;
         self.challenge = None;
         self.tactical_switch = None;

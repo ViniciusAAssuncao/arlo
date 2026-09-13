@@ -1,7 +1,7 @@
 use crate::inbox::team_decision_inbox::TeamDecisionInbox;
 use crate::intents::{
-    ChallengeIntent, KickFoulRealignmentIntent, PlayCallIntent, SubstitutionIntent,
-    TacticalSwitchIntent, TimeCallIntent,
+    ChallengeIntent, ForcedSubstitutionIntent, KickFoulRealignmentIntent, PlayCallIntent,
+    SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -31,6 +31,26 @@ impl ManagerDecisionInbox {
     ) {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
         teams.entry(team_id).or_default().submit_substitutions(intents);
+    }
+
+    pub fn submit_forced_substitution(&self, team_id: Uuid, intent: ForcedSubstitutionIntent) {
+        let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams
+            .entry(team_id)
+            .or_default()
+            .submit_forced_substitution(intent);
+    }
+
+    pub fn submit_forced_substitutions(
+        &self,
+        team_id: Uuid,
+        intents: impl IntoIterator<Item = ForcedSubstitutionIntent>,
+    ) {
+        let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams
+            .entry(team_id)
+            .or_default()
+            .submit_forced_substitutions(intents);
     }
 
     pub fn submit_time_call(&self, team_id: Uuid, intent: TimeCallIntent) {
@@ -68,6 +88,11 @@ impl ManagerDecisionInbox {
     pub fn take_substitutions(&self, team_id: Uuid) -> Vec<SubstitutionIntent> {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
         teams.entry(team_id).or_default().take_substitutions()
+    }
+
+    pub fn take_forced_substitutions(&self, team_id: Uuid) -> Vec<ForcedSubstitutionIntent> {
+        let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.entry(team_id).or_default().take_forced_substitutions()
     }
 
     pub fn take_time_call(&self, team_id: Uuid) -> Option<TimeCallIntent> {
