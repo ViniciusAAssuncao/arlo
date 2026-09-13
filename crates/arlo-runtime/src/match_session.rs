@@ -1,5 +1,4 @@
-use arlo_engine::match_decision::DetailedPlayOutcome;
-use arlo_engine::world_state::{step_call_to_action, MatchState};
+use arlo_engine::world_state::{step_call_to_action, MatchState, PlayStepOutcome};
 use arlo_engine::EngineResult;
 use arlo_events::InMemorySink;
 use arlo_manager_control::ManagerDecisionInbox;
@@ -77,7 +76,7 @@ impl MatchSession {
         self.state.is_match_finished()
     }
 
-    pub fn step(&mut self) -> EngineResult<DetailedPlayOutcome> {
+    pub fn step(&mut self) -> EngineResult<PlayStepOutcome> {
         let prev_count = self.sink.len();
         let outcome = step_call_to_action(&mut self.state, &self.inbox, &mut self.sink)?;
         for envelope in &self.sink.events()[prev_count..] {
@@ -86,10 +85,15 @@ impl MatchSession {
         Ok(outcome)
     }
 
-    pub fn step_until_finished(&mut self) -> EngineResult<Vec<DetailedPlayOutcome>> {
+    pub fn step_until_finished(&mut self) -> EngineResult<Vec<PlayStepOutcome>> {
         let mut outcomes = Vec::new();
         while !self.is_finished() {
-            outcomes.push(self.step()?);
+            let outcome = self.step()?;
+            let is_pending = outcome.is_pending();
+            outcomes.push(outcome);
+            if is_pending {
+                break;
+            }
         }
         Ok(outcomes)
     }

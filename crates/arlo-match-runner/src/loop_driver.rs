@@ -1,7 +1,7 @@
 use crate::dual_sink::DualEventSink;
 use crate::error::{MatchRunnerError, MatchRunnerResult};
 use crate::match_run_result::MatchRunResult;
-use arlo_engine::{step_call_to_action, MatchState};
+use arlo_engine::{step_call_to_action, MatchState, PlayStepOutcome};
 use arlo_events::InMemorySink;
 use arlo_manager_control::ManagerDecisionInbox;
 use arlo_stats::AggregatorRegistry;
@@ -81,8 +81,14 @@ pub fn run_loop_with_inbox<R: Rng + ?Sized>(
         if iterations >= max_iterations {
             return Err(MatchRunnerError::MaxIterationsExceeded { max_iterations });
         }
-        step_call_to_action(state, inbox, &mut dual_sink)?;
-        iterations += 1;
+        match step_call_to_action(state, inbox, &mut dual_sink)? {
+            PlayStepOutcome::Resolved(_) => {
+                iterations += 1;
+            }
+            PlayStepOutcome::Pending(decisions) => {
+                return Err(MatchRunnerError::AwaitingManagerDecision { decisions });
+            }
+        }
     }
 
     Ok(iterations)
