@@ -6,9 +6,11 @@ pub enum ResolvedCalendarDate {
         year: i64,
         month_order_index: u32,
         day_of_month: u32,
+        week_day_index: u32,
     },
     IntercalaryDay {
         year: i64,
         intercalary_index: u32,
+        week_day_index: Option<u32>,
     },
 }

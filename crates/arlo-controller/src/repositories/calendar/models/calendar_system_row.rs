@@ -1,4 +1,6 @@
-use crate::domain::calendar::{CalendarMonthDefinition, CalendarSystem, IntercalationRule};
+use crate::domain::calendar::{
+    CalendarMonthDefinition, CalendarSystem, CalendarWeekDayDefinition, IntercalationRule,
+};
 use crate::error::ControllerResult;
 use crate::repositories::calendar::models::intercalation_placement_code::parse_intercalation_placement;
 use sqlx::FromRow;
@@ -23,6 +25,7 @@ impl CalendarSystemRow {
     pub fn to_domain(
         &self,
         months: Vec<CalendarMonthDefinition>,
+        week_days: Vec<CalendarWeekDayDefinition>,
     ) -> ControllerResult<CalendarSystem> {
         let id = Uuid::parse_str(&self.id)?;
         let placement = parse_intercalation_placement(
@@ -35,6 +38,7 @@ impl CalendarSystemRow {
             self.cycle_reference_year,
             self.days_per_occurrence as u32,
             placement,
+            self.intercalation_disrupts_week_cycle,
         );
 
         CalendarSystem::new(
@@ -42,6 +46,7 @@ impl CalendarSystemRow {
             &self.name,
             self.description.clone(),
             months,
+            week_days,
             intercalation_rule,
         )
     }

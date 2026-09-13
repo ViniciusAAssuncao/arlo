@@ -12,6 +12,7 @@ pub fn encode(
         ResolvedCalendarDate::IntercalaryDay {
             year,
             intercalary_index,
+            ..
         } => {
             let leap = is_leap_year(calendar.intercalation_rule(), *year);
             let intercalary_days = if leap {
@@ -57,6 +58,7 @@ pub fn encode(
             year,
             month_order_index,
             day_of_month,
+            ..
         } => {
             if *day_of_month == 0 {
                 return Err(ControllerError::Validation(

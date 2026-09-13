@@ -1,13 +1,16 @@
 use crate::domain::calendar::calendar_month::CalendarMonthDefinition;
+use crate::domain::calendar::calendar_week_day::CalendarWeekDayDefinition;
 use crate::domain::calendar::intercalation_placement::IntercalationPlacement;
 use crate::domain::calendar::intercalation_rule::IntercalationRule;
 use crate::error::{ControllerError, ControllerResult};
 
 pub fn validate_calendar_system(
     months: &[CalendarMonthDefinition],
+    week_days: &[CalendarWeekDayDefinition],
     intercalation_rule: &IntercalationRule,
 ) -> ControllerResult<()> {
     validate_months(months)?;
+    validate_week_days(week_days)?;
     validate_intercalation_rule(intercalation_rule, months)?;
     Ok(())
 }
@@ -32,6 +35,26 @@ pub fn validate_months(months: &[CalendarMonthDefinition]) -> ControllerResult<(
             return Err(ControllerError::Validation(format!(
                 "Month '{}' must have day_count greater than 0",
                 month.name()
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+pub fn validate_week_days(week_days: &[CalendarWeekDayDefinition]) -> ControllerResult<()> {
+    if week_days.is_empty() {
+        return Err(ControllerError::Validation(
+            "Week day list must not be empty".to_string(),
+        ));
+    }
+
+    for (expected_index, week_day) in week_days.iter().enumerate() {
+        if week_day.order_index() != expected_index as u32 {
+            return Err(ControllerError::Validation(format!(
+                "Week day order_index must be sequential starting from 0, expected {} but got {}",
+                expected_index,
+                week_day.order_index()
             )));
         }
     }

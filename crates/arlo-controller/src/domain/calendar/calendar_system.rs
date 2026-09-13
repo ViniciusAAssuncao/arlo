@@ -1,5 +1,6 @@
 use crate::domain::calendar::calendar_month::CalendarMonthDefinition;
 use crate::domain::calendar::calendar_validation::validate_calendar_system;
+use crate::domain::calendar::calendar_week_day::CalendarWeekDayDefinition;
 use crate::domain::calendar::intercalation_rule::IntercalationRule;
 use crate::error::ControllerResult;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,7 @@ pub struct CalendarSystem {
     name: String,
     description: Option<String>,
     months: Vec<CalendarMonthDefinition>,
+    week_days: Vec<CalendarWeekDayDefinition>,
     intercalation_rule: IntercalationRule,
 }
 
@@ -20,15 +22,17 @@ impl CalendarSystem {
         name: impl Into<String>,
         description: Option<String>,
         months: Vec<CalendarMonthDefinition>,
+        week_days: Vec<CalendarWeekDayDefinition>,
         intercalation_rule: IntercalationRule,
     ) -> ControllerResult<Self> {
-        validate_calendar_system(&months, &intercalation_rule)?;
+        validate_calendar_system(&months, &week_days, &intercalation_rule)?;
 
         Ok(Self {
             id,
             name: name.into(),
             description,
             months,
+            week_days,
             intercalation_rule,
         })
     }
@@ -47,6 +51,10 @@ impl CalendarSystem {
 
     pub fn months(&self) -> &[CalendarMonthDefinition] {
         &self.months
+    }
+
+    pub fn week_days(&self) -> &[CalendarWeekDayDefinition] {
+        &self.week_days
     }
 
     pub fn intercalation_rule(&self) -> &IntercalationRule {

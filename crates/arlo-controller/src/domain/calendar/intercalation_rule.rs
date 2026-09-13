@@ -8,6 +8,7 @@ pub struct IntercalationRule {
     cycle_reference_year: i64,
     days_per_occurrence: u32,
     placement: IntercalationPlacement,
+    disrupts_week_cycle: bool,
 }
 
 impl IntercalationRule {
@@ -17,6 +18,7 @@ impl IntercalationRule {
         cycle_reference_year: i64,
         days_per_occurrence: u32,
         placement: IntercalationPlacement,
+        disrupts_week_cycle: bool,
     ) -> Self {
         Self {
             leap_units_per_cycle,
@@ -24,6 +26,7 @@ impl IntercalationRule {
             cycle_reference_year,
             days_per_occurrence,
             placement,
+            disrupts_week_cycle,
         }
     }
 
@@ -45,5 +48,9 @@ impl IntercalationRule {
 
     pub fn placement(&self) -> IntercalationPlacement {
         self.placement
+    }
+
+    pub fn disrupts_week_cycle(&self) -> bool {
+        self.disrupts_week_cycle
     }
 }
