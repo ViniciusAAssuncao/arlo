@@ -60,5 +60,27 @@ pub fn evaluate_pool(
                 .collect();
             Ok(matches)
         }
+        QualificationPoolRule::PositionRange {
+            start_position,
+            end_position,
+        } => {
+            let start = *start_position as usize;
+            let end = *end_position as usize;
+            if start == 0 || end < start {
+                return Err(ControllerError::Validation(format!(
+                    "Invalid position range: {}-{}",
+                    start, end
+                )));
+            }
+            if global_sorted.len() < end {
+                return Err(ControllerError::Validation(format!(
+                    "Not enough teams in standings ({}) to qualify position range {}-{}",
+                    global_sorted.len(),
+                    start,
+                    end
+                )));
+            }
+            Ok(global_sorted[(start - 1)..end].to_vec())
+        }
     }
 }

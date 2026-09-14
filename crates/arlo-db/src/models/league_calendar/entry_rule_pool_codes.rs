@@ -9,6 +9,7 @@ pub enum QualificationPoolKind {
     GroupWinners,
     GroupRunnersUp,
     BestAtGroupPosition,
+    PositionRange,
 }
 
 pub fn parse_qualification_pool_kind(code: &str) -> DbResult<QualificationPoolKind> {
@@ -21,6 +22,7 @@ pub fn parse_qualification_pool_kind(code: &str) -> DbResult<QualificationPoolKi
         "BestAtGroupPosition" | "best_at_group_position" => {
             Ok(QualificationPoolKind::BestAtGroupPosition)
         }
+        "PositionRange" | "position_range" => Ok(QualificationPoolKind::PositionRange),
         _ => Err(DbError::InvalidEnum(format!(
             "Invalid qualification pool kind: {code}"
         ))),
@@ -35,18 +37,27 @@ pub fn qualification_pool_kind_to_code(kind: QualificationPoolKind) -> &'static 
         QualificationPoolKind::GroupWinners => "GroupWinners",
         QualificationPoolKind::GroupRunnersUp => "GroupRunnersUp",
         QualificationPoolKind::BestAtGroupPosition => "BestAtGroupPosition",
+        QualificationPoolKind::PositionRange => "PositionRange",
     }
 }
 
 pub fn qualification_pool_rule_to_codes(
     rule: &QualificationPoolRule,
-) -> (&'static str, Option<i32>, Option<i32>) {
+) -> (
+    &'static str,
+    Option<i32>,
+    Option<i32>,
+    Option<i32>,
+    Option<i32>,
+) {
     match rule {
-        QualificationPoolRule::AllTeams => ("AllTeams", None, None),
-        QualificationPoolRule::TopN { count } => ("TopN", Some(*count as i32), None),
-        QualificationPoolRule::BottomN { count } => ("BottomN", Some(*count as i32), None),
-        QualificationPoolRule::GroupWinners => ("GroupWinners", None, None),
-        QualificationPoolRule::GroupRunnersUp => ("GroupRunnersUp", None, None),
+        QualificationPoolRule::AllTeams => ("AllTeams", None, None, None, None),
+        QualificationPoolRule::TopN { count } => ("TopN", Some(*count as i32), None, None, None),
+        QualificationPoolRule::BottomN { count } => {
+            ("BottomN", Some(*count as i32), None, None, None)
+        }
+        QualificationPoolRule::GroupWinners => ("GroupWinners", None, None, None, None),
+        QualificationPoolRule::GroupRunnersUp => ("GroupRunnersUp", None, None, None, None),
         QualificationPoolRule::BestAtGroupPosition {
             position_index,
             count,
@@ -54,6 +65,18 @@ pub fn qualification_pool_rule_to_codes(
             "BestAtGroupPosition",
             Some(*count as i32),
             Some(*position_index as i32),
+            None,
+            None,
+        ),
+        QualificationPoolRule::PositionRange {
+            start_position,
+            end_position,
+        } => (
+            "PositionRange",
+            None,
+            None,
+            Some(*start_position as i32),
+            Some(*end_position as i32),
         ),
     }
 }

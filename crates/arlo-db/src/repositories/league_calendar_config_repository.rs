@@ -21,7 +21,7 @@ pub async fn get_by_competition_id(
 ) -> DbResult<Option<LeagueCalendarConfig>> {
     let config_row = fetch_optional_by_param::<LeagueCalendarConfigRow>(
         pool,
-        "SELECT id, competition_id, schedule_algorithm_kind, season_start_month_order_index, season_start_day_of_month, season_length_weeks, max_games_per_team_per_week, games_per_week_conflict_scope, postponement_strategy_kind, neutral_opener_enabled, neutral_opener_selection_strategy, spa_win_weight, spa_draw_weight, spa_loss_weight, spa_feo_k_factor, qta_home_win_weight, qta_away_win_weight, qta_home_draw_weight, qta_away_draw_weight, qta_home_loss_weight, qta_away_loss_weight, created_at_unix_seconds FROM league_calendar_configs WHERE competition_id = ?",
+        "SELECT id, competition_id, schedule_algorithm_kind, season_start_month_order_index, season_start_day_of_month, season_length_weeks, max_games_per_team_per_week, games_per_week_conflict_scope, postponement_strategy_kind, neutral_opener_enabled, neutral_opener_selection_strategy, spa_win_weight, spa_draw_weight, spa_loss_weight, spa_feo_k_factor, qta_home_win_weight, qta_away_win_weight, qta_home_draw_weight, qta_away_draw_weight, qta_home_loss_weight, qta_away_loss_weight, standings_stage_order_index, promotion_rule_kind, promotion_count, promotion_playoff_stage_order_index, promotion_target_league_id, relegation_rule_kind, relegation_count, relegation_playoff_stage_order_index, relegation_target_league_id, created_at_unix_seconds FROM league_calendar_configs WHERE competition_id = ?",
         &competition_id.to_string(),
     )
     .await?;
@@ -92,7 +92,7 @@ pub async fn get_by_competition_id(
     for stage_row in stage_rows {
         let pool_rows = fetch_all_by_param::<EntryRulePoolRow>(
             pool,
-            "SELECT id, league_calendar_stage_definition_id, pool_order_index, pool_kind, count, position_index FROM league_calendar_stage_entry_rule_pools WHERE league_calendar_stage_definition_id = ? ORDER BY pool_order_index ASC",
+            "SELECT id, league_calendar_stage_definition_id, pool_order_index, pool_kind, count, position_index, range_start_position, range_end_position FROM league_calendar_stage_entry_rule_pools WHERE league_calendar_stage_definition_id = ? ORDER BY pool_order_index ASC",
             &stage_row.id,
         )
         .await?;

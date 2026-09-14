@@ -5,8 +5,10 @@ use crate::domain::league_calendar::league_calendar_group_reference_validation::
     validate_entry_rule_group_references, validate_group_order_indices_sequential,
     validate_no_duplicate_team_across_groups, validate_schedule_block_group_references,
 };
+use crate::domain::league_calendar::league_movement_rule::LeagueMovementRule;
 use crate::domain::league_calendar::neutral_opener_policy::NeutralOpenerPolicy;
 use crate::domain::league_calendar::postponement_policy::PostponementPolicy;
+use crate::domain::league_calendar::promotion_relegation_policy::PromotionRelegationPolicy;
 use crate::domain::league_calendar::qta_weighting_policy::QtaWeightingPolicy;
 use crate::domain::league_calendar::schedule_algorithm_kind::ScheduleAlgorithmKind;
 use crate::domain::league_calendar::season_timing::SeasonTiming;
@@ -30,6 +32,7 @@ pub struct LeagueCalendarConfig {
     spa_scoring_policy: SpaScoringPolicy,
     qta_weighting_policy: QtaWeightingPolicy,
     tie_break_criteria: Vec<TieBreakCriterion>,
+    promotion_relegation_policy: PromotionRelegationPolicy,
     stages: Vec<StageDefinition>,
     groups: Vec<CompetitionGroup>,
 }
@@ -46,6 +49,7 @@ impl LeagueCalendarConfig {
         spa_scoring_policy: SpaScoringPolicy,
         qta_weighting_policy: QtaWeightingPolicy,
         tie_break_criteria: Vec<TieBreakCriterion>,
+        promotion_relegation_policy: PromotionRelegationPolicy,
         stages: Vec<StageDefinition>,
         groups: Vec<CompetitionGroup>,
     ) -> DomainResult<Self> {
@@ -78,6 +82,39 @@ impl LeagueCalendarConfig {
             }
         }
 
+        let stage_order_indices_exist = |target_index: u32| {
+            stages.iter().any(|s| s.stage_order_index() == target_index)
+        };
+
+        if !stage_order_indices_exist(promotion_relegation_policy.standings_stage_order_index()) {
+            return Err(DomainError::InvalidInvariant {
+                field: "promotion_relegation_policy.standings_stage_order_index".to_string(),
+                violation: InvariantViolation::UnexpectedValue,
+            });
+        }
+
+        if let LeagueMovementRule::PlayoffStage { stage_order_index, .. } =
+            promotion_relegation_policy.promotion_rule()
+        {
+            if !stage_order_indices_exist(stage_order_index) {
+                return Err(DomainError::InvalidInvariant {
+                    field: "promotion_relegation_policy.promotion_rule.stage_order_index".to_string(),
+                    violation: InvariantViolation::UnexpectedValue,
+                });
+            }
+        }
+
+        if let LeagueMovementRule::PlayoffStage { stage_order_index, .. } =
+            promotion_relegation_policy.relegation_rule()
+        {
+            if !stage_order_indices_exist(stage_order_index) {
+                return Err(DomainError::InvalidInvariant {
+                    field: "promotion_relegation_policy.relegation_rule.stage_order_index".to_string(),
+                    violation: InvariantViolation::UnexpectedValue,
+                });
+            }
+        }
+
         validate_no_duplicate_team_across_groups(&groups)?;
         validate_group_order_indices_sequential(&groups)?;
         validate_schedule_block_group_references(&stages, &groups)?;
@@ -94,6 +131,7 @@ impl LeagueCalendarConfig {
             spa_scoring_policy,
             qta_weighting_policy,
             tie_break_criteria,
+            promotion_relegation_policy,
             stages,
             groups,
         })
@@ -137,6 +175,10 @@ impl LeagueCalendarConfig {
 
     pub fn tie_break_criteria(&self) -> &[TieBreakCriterion] {
         &self.tie_break_criteria
+    }
+
+    pub fn promotion_relegation_policy(&self) -> &PromotionRelegationPolicy {
+        &self.promotion_relegation_policy
     }
 
     pub fn stages(&self) -> &[StageDefinition] {

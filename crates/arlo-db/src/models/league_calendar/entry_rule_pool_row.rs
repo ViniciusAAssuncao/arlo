@@ -1,7 +1,6 @@
-use crate::error::{ DbError, DbResult };
+use crate::error::{DbError, DbResult};
 use crate::models::league_calendar::entry_rule_pool_codes::{
-    parse_qualification_pool_kind,
-    QualificationPoolKind,
+    parse_qualification_pool_kind, QualificationPoolKind,
 };
 use arlo_domain::QualificationPoolRule;
 use sqlx::FromRow;
@@ -14,6 +13,8 @@ pub struct EntryRulePoolRow {
     pub pool_kind: String,
     pub count: Option<i32>,
     pub position_index: Option<i32>,
+    pub range_start_position: Option<i32>,
+    pub range_end_position: Option<i32>,
 }
 
 impl EntryRulePoolRow {
@@ -45,12 +46,28 @@ impl EntryRulePoolRow {
                 })?;
                 let position_index = self.position_index.ok_or_else(|| {
                     DbError::InvalidData(
-                        "BestAtGroupPosition pool rule requires position_index".to_string()
+                        "BestAtGroupPosition pool rule requires position_index".to_string(),
                     )
                 })?;
                 Ok(QualificationPoolRule::BestAtGroupPosition {
                     position_index: position_index as u32,
                     count: count as u32,
+                })
+            }
+            QualificationPoolKind::PositionRange => {
+                let start = self.range_start_position.ok_or_else(|| {
+                    DbError::InvalidData(
+                        "PositionRange pool rule requires range_start_position".to_string(),
+                    )
+                })?;
+                let end = self.range_end_position.ok_or_else(|| {
+                    DbError::InvalidData(
+                        "PositionRange pool rule requires range_end_position".to_string(),
+                    )
+                })?;
+                Ok(QualificationPoolRule::PositionRange {
+                    start_position: start as u32,
+                    end_position: end as u32,
                 })
             }
         }

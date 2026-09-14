@@ -1,6 +1,6 @@
 use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::league_calendar::qualification_pool_rule::QualificationPoolRule;
-use crate::domain::validation::validate_integer_range;
+use crate::domain::league_calendar::qualification_pool_rule_validation::validate_qualification_pool_rule;
 use crate::error::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
 
@@ -19,20 +19,7 @@ impl StageEntryRule {
         }
 
         for pool in &pools {
-            match pool {
-                QualificationPoolRule::TopN { count } => {
-                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
-                }
-                QualificationPoolRule::BottomN { count } => {
-                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
-                }
-                QualificationPoolRule::BestAtGroupPosition { count, .. } => {
-                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
-                }
-                QualificationPoolRule::AllTeams
-                | QualificationPoolRule::GroupWinners
-                | QualificationPoolRule::GroupRunnersUp => {}
-            }
+            validate_qualification_pool_rule(pool)?;
         }
 
         Ok(Self { pools })

@@ -1,10 +1,9 @@
 use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::league_calendar::knockout_leg_format::KnockoutLegFormat;
-use crate::domain::league_calendar::qualification_pool_rule::QualificationPoolRule;
+use crate::domain::league_calendar::qualification_pool_rule_validation::validate_qualification_pool_rule;
 use crate::domain::league_calendar::schedule_block::ScheduleBlock;
 use crate::domain::league_calendar::stage_entry_rule::StageEntryRule;
 use crate::domain::league_calendar::stage_type::StageType;
-use crate::domain::validation::validate_integer_range;
 use crate::error::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
 
@@ -26,20 +25,7 @@ impl StageDefinition {
         schedule_blocks: Option<Vec<ScheduleBlock>>,
     ) -> DomainResult<Self> {
         for pool in entry_rule.pools() {
-            match pool {
-                QualificationPoolRule::TopN { count } => {
-                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
-                }
-                QualificationPoolRule::BottomN { count } => {
-                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
-                }
-                QualificationPoolRule::BestAtGroupPosition { count, .. } => {
-                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
-                }
-                QualificationPoolRule::AllTeams
-                | QualificationPoolRule::GroupWinners
-                | QualificationPoolRule::GroupRunnersUp => {}
-            }
+            validate_qualification_pool_rule(pool)?;
         }
 
         match stage_type {

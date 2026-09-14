@@ -8,6 +8,7 @@ pub enum QualificationPoolRule {
     GroupWinners,
     GroupRunnersUp,
     BestAtGroupPosition { position_index: u32, count: u32 },
+    PositionRange { start_position: u32, end_position: u32 },
 }
 
 impl QualificationPoolRule {
