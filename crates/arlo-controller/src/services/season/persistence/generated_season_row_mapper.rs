@@ -8,9 +8,14 @@ use arlo_persistence::models::season::{FixtureRow, SeasonInstanceRow, SeasonStag
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn map_fixture_to_row(fixture: &Fixture) -> FixtureRow {
-    let (home_score, away_score) = match fixture.result() {
-        Some(res) => (Some(res.home_score()), Some(res.away_score())),
-        None => (None, None),
+    let (home_score, away_score, home_goal_points, away_goal_points) = match fixture.result() {
+        Some(res) => (
+            Some(res.home_score()),
+            Some(res.away_score()),
+            Some(res.home_goal_points()),
+            Some(res.away_goal_points()),
+        ),
+        None => (None, None, None, None),
     };
 
     FixtureRow::new(
@@ -25,6 +30,8 @@ pub fn map_fixture_to_row(fixture: &Fixture) -> FixtureRow {
         fixture_status_to_code(fixture.status()),
         home_score,
         away_score,
+        home_goal_points,
+        away_goal_points,
     )
 }
 

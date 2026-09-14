@@ -1,10 +1,8 @@
-use crate::domain::calendar::CalendarDate;
-use crate::domain::season::{Fixture, FixtureResult, FixtureStatus};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::season::conflict::postponement_resolver::resolve_conflicts_and_postpone;
-use crate::services::season::persistence::persist_conflict_scan_result;
+use crate::services::season::persistence::{map_row_to_fixture, persist_conflict_scan_result};
 pub use crate::services::season::conflict::ConflictScanReport;
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -70,36 +68,8 @@ pub async fn handle_conflict_scan(
             arlo_persistence::repositories::season::fixtures::list_by_stage_id(pool, stage_id)
                 .await?;
 
-        for row in fixture_rows {
-            let f_id = Uuid::parse_str(&row.id)?;
-            let s_id = Uuid::parse_str(&row.season_stage_id)?;
-            let home_id = Uuid::parse_str(&row.home_team_id)?;
-            let away_id = Uuid::parse_str(&row.away_team_id)?;
-            let status = match row.status.as_str() {
-                "Scheduled" => FixtureStatus::Scheduled,
-                "Postponed" => FixtureStatus::Postponed,
-                "Completed" => FixtureStatus::Completed,
-                "Cancelled" => FixtureStatus::Cancelled,
-                _ => FixtureStatus::Scheduled,
-            };
-            let result = match (row.home_score, row.away_score) {
-                (Some(h), Some(a)) => Some(FixtureResult::new(h as u32, a as u32, None)),
-                _ => None,
-            };
-            let scheduled_date =
-                CalendarDate::new(row.scheduled_year, row.scheduled_day_of_year as u32);
-
-            domain_fixtures.push(Fixture::new(
-                f_id,
-                s_id,
-                row.round_index as u32,
-                home_id,
-                away_id,
-                row.is_neutral_venue,
-                scheduled_date,
-                status,
-                result,
-            ));
+        for row in &fixture_rows {
+            domain_fixtures.push(map_row_to_fixture(row)?);
         }
     }
 

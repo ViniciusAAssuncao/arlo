@@ -16,8 +16,10 @@ pub async fn insert(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> Persi
             scheduled_day_of_year,
             status,
             home_score,
-            away_score
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+            away_score,
+            home_goal_points,
+            away_goal_points
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&row.id)
     .bind(&row.season_stage_id)
@@ -30,6 +32,8 @@ pub async fn insert(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> Persi
     .bind(&row.status)
     .bind(row.home_score)
     .bind(row.away_score)
+    .bind(row.home_goal_points)
+    .bind(row.away_goal_points)
     .execute(&mut **tx)
     .await?;
 
@@ -54,7 +58,9 @@ pub async fn update(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> Persi
             scheduled_day_of_year = ?,
             status = ?,
             home_score = ?,
-            away_score = ?
+            away_score = ?,
+            home_goal_points = ?,
+            away_goal_points = ?
         WHERE id = ?"#,
     )
     .bind(row.round_index)
@@ -63,6 +69,8 @@ pub async fn update(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> Persi
     .bind(&row.status)
     .bind(row.home_score)
     .bind(row.away_score)
+    .bind(row.home_goal_points)
+    .bind(row.away_goal_points)
     .bind(&row.id)
     .execute(&mut **tx)
     .await?;
@@ -82,7 +90,7 @@ pub async fn update_batch(
 
 pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> PersistenceResult<Option<FixtureRow>> {
     let row = sqlx::query_as::<_, FixtureRow>(
-        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, scheduled_year, scheduled_day_of_year, status, home_score, away_score FROM fixtures WHERE id = ?",
+        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points FROM fixtures WHERE id = ?",
     )
     .bind(id.to_string())
     .fetch_optional(pool)
@@ -96,7 +104,7 @@ pub async fn list_by_stage_id(
     stage_id: Uuid,
 ) -> PersistenceResult<Vec<FixtureRow>> {
     let rows = sqlx::query_as::<_, FixtureRow>(
-        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, scheduled_year, scheduled_day_of_year, status, home_score, away_score FROM fixtures WHERE season_stage_id = ? ORDER BY round_index, scheduled_year, scheduled_day_of_year ASC",
+        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points FROM fixtures WHERE season_stage_id = ? ORDER BY round_index, scheduled_year, scheduled_day_of_year ASC",
     )
     .bind(stage_id.to_string())
     .fetch_all(pool)

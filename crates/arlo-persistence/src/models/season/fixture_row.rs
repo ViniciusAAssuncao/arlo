@@ -15,6 +15,8 @@ pub struct FixtureRow {
     pub status: String,
     pub home_score: Option<i32>,
     pub away_score: Option<i32>,
+    pub home_goal_points: Option<i32>,
+    pub away_goal_points: Option<i32>,
 }
 
 impl FixtureRow {
@@ -31,6 +33,8 @@ impl FixtureRow {
         status: impl Into<String>,
         home_score: Option<u32>,
         away_score: Option<u32>,
+        home_goal_points: Option<u32>,
+        away_goal_points: Option<u32>,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -44,6 +48,8 @@ impl FixtureRow {
             status: status.into(),
             home_score: home_score.map(|s| s as i32),
             away_score: away_score.map(|s| s as i32),
+            home_goal_points: home_goal_points.map(|s| s as i32),
+            away_goal_points: away_goal_points.map(|s| s as i32),
         }
     }
 }
