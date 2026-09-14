@@ -9,6 +9,7 @@ use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStor
 use arlo_persistence::models::calendar::SaveCalendarStateRow;
 use arlo_persistence::repositories::calendar::save_calendar_state;
 use sqlx::SqlitePool;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -38,7 +39,7 @@ impl DayAdvancementResult {
 pub async fn run_day_advancement(
     pool: &SqlitePool,
     save_uuid: Uuid,
-    trigger_store: &PendingTriggerStore,
+    trigger_store: &Arc<PendingTriggerStore>,
 ) -> ControllerResult<DayAdvancementResult> {
     let row = save_calendar_state::get_by_save_uuid(pool, save_uuid)
         .await?
@@ -73,7 +74,7 @@ pub async fn run_day_advancement(
 
     let dispatched_events = dispatch_due_events(
         pool,
-        trigger_store,
+        Arc::clone(trigger_store),
         calendar_system_id,
         &current_date,
     )

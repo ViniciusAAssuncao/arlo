@@ -32,7 +32,7 @@ pub async fn stop_simulation_loop(handle: SimulationLoopHandle) -> ControllerRes
 pub async fn advance_single_day(
     pool: &SqlitePool,
     save_uuid: Uuid,
-    trigger_store: &PendingTriggerStore,
+    trigger_store: &Arc<PendingTriggerStore>,
 ) -> ControllerResult<DayAdvancementResult> {
     day_advancement_runner::run_day_advancement(pool, save_uuid, trigger_store).await
 }

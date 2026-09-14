@@ -1,7 +1,10 @@
+use crate::domain::event_scheduling::{PendingTrigger, TriggerKind};
 use crate::domain::season::Fixture;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
+use crate::services::event_scheduling::stage_completion_date_calculator::calculate_stage_completion_date;
 use crate::services::season::persistence::persist_generated_stage_schedule;
 use crate::services::season::stage::stage_schedule_generator::{
     generate_stage_schedule_from_seeds, GeneratedStageSchedule,
@@ -9,6 +12,7 @@ use crate::services::season::stage::stage_schedule_generator::{
 use crate::services::season::stage::stage_transition_evaluator::evaluate_stage_transition;
 use crate::services::season::standings::standings_pipeline;
 use sqlx::SqlitePool;
+use std::sync::Arc;
 use uuid::Uuid;
 
 pub async fn handle_stage_transition(
@@ -22,6 +26,7 @@ pub async fn handle_stage_transition(
     participating_team_ids: &[Uuid],
     reference_year: i64,
     start_round_index: u32,
+    trigger_store: Arc<PendingTriggerStore>,
 ) -> ControllerResult<GeneratedStageSchedule> {
     let config_arc = get_or_load_league_calendar_config(pool, competition_id)
         .await?
@@ -77,6 +82,26 @@ pub async fn handle_stage_transition(
     )?;
 
     persist_generated_stage_schedule(pool, &schedule).await?;
+
+    if let Some(completion_date) = calculate_stage_completion_date(calendar, &schedule.fixtures) {
+        trigger_store
+            .insert(PendingTrigger::new(
+                completion_date,
+                competition_id,
+                TriggerKind::StageTransitionCheckDue,
+            ))
+            .await;
+    }
+
+    if let Some(first_date) = schedule.fixtures.iter().map(|f| f.scheduled_date()).min() {
+        trigger_store
+            .insert(PendingTrigger::new(
+                first_date,
+                competition_id,
+                TriggerKind::ConflictScanDue,
+            ))
+            .await;
+    }
 
     Ok(schedule)
 }

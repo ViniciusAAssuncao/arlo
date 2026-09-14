@@ -1,15 +1,19 @@
+use crate::domain::event_scheduling::{PendingTrigger, TriggerKind};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::season::conflict::postponement_resolver::resolve_conflicts_and_postpone;
 use crate::services::season::persistence::{map_row_to_fixture, persist_conflict_scan_result};
 pub use crate::services::season::conflict::ConflictScanReport;
 use sqlx::SqlitePool;
+use std::sync::Arc;
 use uuid::Uuid;
 
 pub async fn handle_conflict_scan(
     pool: &SqlitePool,
     competition_id: Uuid,
+    trigger_store: Arc<PendingTriggerStore>,
 ) -> ControllerResult<ConflictScanReport> {
     let config_arc = get_or_load_league_calendar_config(pool, competition_id)
         .await?
@@ -98,6 +102,23 @@ pub async fn handle_conflict_scan(
     )?;
 
     persist_conflict_scan_result(pool, &report, &domain_fixtures).await?;
+
+    if report.postponements_applied() > 0 {
+        if let Some(next_scan_date) = report
+            .postponement_records()
+            .iter()
+            .map(|r| r.new_date())
+            .min()
+        {
+            trigger_store
+                .insert(PendingTrigger::new(
+                    next_scan_date,
+                    competition_id,
+                    TriggerKind::ConflictScanDue,
+                ))
+                .await;
+        }
+    }
 
     Ok(report)
 }

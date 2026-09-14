@@ -6,8 +6,12 @@ use crate::services::event_scheduling::handlers::conflict_scan_handler::{
 };
 use crate::services::event_scheduling::handlers::season_generation_handler::handle_season_generation;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
+use crate::services::season::progression::season_progression_orchestrator::{
+    progress_season, ProgressionOutcome,
+};
 use crate::services::season::season_generator::GeneratedSeason;
 use sqlx::SqlitePool;
+use std::sync::Arc;
 use tokio::task::JoinSet;
 use uuid::Uuid;
 
@@ -19,6 +23,7 @@ pub enum DispatchedEventResult {
     },
     StageTransitionChecked {
         competition_id: Uuid,
+        outcome: ProgressionOutcome,
     },
     ConflictScanned {
         competition_id: Uuid,
@@ -28,7 +33,7 @@ pub enum DispatchedEventResult {
 
 pub async fn dispatch_due_events(
     pool: &SqlitePool,
-    trigger_store: &PendingTriggerStore,
+    trigger_store: Arc<PendingTriggerStore>,
     calendar_system_id: Uuid,
     current_date: &CalendarDate,
 ) -> ControllerResult<Vec<DispatchedEventResult>> {
@@ -41,6 +46,7 @@ pub async fn dispatch_due_events(
 
     for trigger in due_triggers {
         let pool = pool.clone();
+        let store = Arc::clone(&trigger_store);
         let year = current_date.year();
 
         match trigger.kind() {
@@ -51,6 +57,7 @@ pub async fn dispatch_due_events(
                         trigger.competition_id(),
                         calendar_system_id,
                         year,
+                        store,
                     )
                     .await?;
                     Ok::<DispatchedEventResult, ControllerError>(
@@ -63,16 +70,30 @@ pub async fn dispatch_due_events(
             }
             TriggerKind::StageTransitionCheckDue => {
                 join_set.spawn(async move {
+                    let outcome = progress_season(
+                        &pool,
+                        trigger.competition_id(),
+                        calendar_system_id,
+                        store,
+                        year,
+                    )
+                    .await?;
                     Ok::<DispatchedEventResult, ControllerError>(
                         DispatchedEventResult::StageTransitionChecked {
                             competition_id: trigger.competition_id(),
+                            outcome,
                         },
                     )
                 });
             }
             TriggerKind::ConflictScanDue => {
                 join_set.spawn(async move {
-                    let report = handle_conflict_scan(&pool, trigger.competition_id()).await?;
+                    let report = handle_conflict_scan(
+                        &pool,
+                        trigger.competition_id(),
+                        store,
+                    )
+                    .await?;
                     Ok::<DispatchedEventResult, ControllerError>(
                         DispatchedEventResult::ConflictScanned {
                             competition_id: trigger.competition_id(),

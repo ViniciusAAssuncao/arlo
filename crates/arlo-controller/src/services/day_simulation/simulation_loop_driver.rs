@@ -40,9 +40,9 @@ impl Default for SimulationLoopConfig {
 pub async fn run_simulation_loop(
     pool: &SqlitePool,
     save_uuid: Uuid,
-    trigger_store: &PendingTriggerStore,
+    trigger_store: &Arc<PendingTriggerStore>,
     config: SimulationLoopConfig,
-    mut stop_rx: watch::Receiver<bool>
+    mut stop_rx: watch::Receiver<bool>,
 ) -> ControllerResult<()> {
     let mut tick_count: u64 = 0;
 
@@ -83,7 +83,7 @@ pub fn start_simulation_loop(
     pool: SqlitePool,
     save_uuid: Uuid,
     trigger_store: Arc<PendingTriggerStore>,
-    config: SimulationLoopConfig
+    config: SimulationLoopConfig,
 ) -> SimulationLoopHandle {
     let (stop_tx, stop_rx) = watch::channel(false);
 
