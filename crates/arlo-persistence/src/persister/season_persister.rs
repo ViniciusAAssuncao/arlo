@@ -1,5 +1,7 @@
 use crate::error::PersistenceResult;
-use crate::models::season::{FixtureRow, PostponementRecordRow, SeasonInstanceRow, SeasonStageRow};
+use crate::models::season::{
+    FixtureRow, KnockoutTieRow, PostponementRecordRow, SeasonInstanceRow, SeasonStageRow,
+};
 use crate::repositories;
 use sqlx::SqlitePool;
 
@@ -27,11 +29,15 @@ impl SeasonPersister {
         pool: &SqlitePool,
         stage: &SeasonStageRow,
         fixtures: &[FixtureRow],
+        ties: &[KnockoutTieRow],
     ) -> PersistenceResult<()> {
         let mut tx = pool.begin().await?;
 
         repositories::season::season_stages::insert(&mut tx, stage).await?;
         repositories::season::fixtures::insert_batch(&mut tx, fixtures).await?;
+        if !ties.is_empty() {
+            repositories::season::knockout_ties::insert_batch(&mut tx, ties).await?;
+        }
 
         tx.commit().await?;
 

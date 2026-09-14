@@ -1,5 +1,6 @@
 pub mod fixture_row;
 pub mod fixture_status_code;
+pub mod knockout_tie_row;
 pub mod postponement_reason_code;
 pub mod postponement_record_row;
 pub mod season_instance_row;
@@ -9,6 +10,7 @@ pub mod stage_status_code;
 
 pub use fixture_row::FixtureRow;
 pub use fixture_status_code::FixtureStatusCode;
+pub use knockout_tie_row::KnockoutTieRow;
 pub use postponement_reason_code::PostponementReasonCode;
 pub use postponement_record_row::PostponementRecordRow;
 pub use season_instance_row::SeasonInstanceRow;

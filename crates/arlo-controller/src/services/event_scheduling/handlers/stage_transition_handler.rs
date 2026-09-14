@@ -2,6 +2,7 @@ use crate::domain::season::{Fixture, StandingsEntry};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::season::persistence::persist_generated_stage_schedule;
 use crate::services::season::stage::stage_schedule_generator::{
     generate_stage_schedule_from_seeds, GeneratedStageSchedule,
 };
@@ -59,7 +60,7 @@ pub async fn handle_stage_transition(
 
     let seeds = evaluate_stage_transition(&sorted_standings, &target_stage_def.entry_rule())?;
 
-    generate_stage_schedule_from_seeds(
+    let schedule = generate_stage_schedule_from_seeds(
         calendar,
         &config_arc,
         target_stage_def,
@@ -68,5 +69,9 @@ pub async fn handle_stage_transition(
         &seeds,
         reference_year,
         start_round_index,
-    )
+    )?;
+
+    persist_generated_stage_schedule(pool, &schedule).await?;
+
+    Ok(schedule)
 }

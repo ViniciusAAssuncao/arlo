@@ -5,6 +5,7 @@ use crate::domain::season::{
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::season::persistence::persist_generated_season;
 use crate::services::season::round_robin::{
     assign_dates, expand_double_round_robin, generate_single_round_robin, resolve_neutral_opener,
 };
@@ -124,5 +125,9 @@ pub async fn generate_season_for_league(
 
     let team_ids: Vec<Uuid> = teams.iter().map(|t| t.id()).collect();
 
-    generate_season(calendar, &config_arc, &team_ids, reference_year)
+    let generated = generate_season(calendar, &config_arc, &team_ids, reference_year)?;
+
+    persist_generated_season(pool, &generated).await?;
+
+    Ok(generated)
 }
