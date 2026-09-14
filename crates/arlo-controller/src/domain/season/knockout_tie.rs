@@ -75,4 +75,15 @@ impl KnockoutTie {
     pub fn aggregate_winner_team_id(&self) -> Option<Uuid> {
         self.aggregate_winner_team_id
     }
+
+    pub fn loser_team_id(&self) -> Option<Uuid> {
+        let winner_id = self.aggregate_winner_team_id?;
+        if winner_id == self.high_seed.team_id() {
+            Some(self.low_seed.team_id())
+        } else if winner_id == self.low_seed.team_id() {
+            Some(self.high_seed.team_id())
+        } else {
+            None
+        }
+    }
 }
