@@ -5,11 +5,12 @@ use crate::domain::season::{
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::season::grouped_schedule::generate_grouped_schedule;
 use crate::services::season::persistence::persist_generated_season;
 use crate::services::season::round_robin::{
     assign_dates, expand_double_round_robin, generate_single_round_robin, resolve_neutral_opener,
 };
-use arlo_domain::{LeagueCalendarConfig, ScheduleAlgorithmKind};
+use arlo_domain::{LeagueCalendarConfig, ScheduleAlgorithmKind, StageType};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -42,58 +43,90 @@ pub fn generate_season(
             )
         })?;
 
-    let single_leg_matches = generate_single_round_robin(team_ids);
+    match stage_0_def.stage_type() {
+        StageType::GroupedCompetitionTable => {
+            let season_instance_id = Uuid::new_v4();
+            let stage_instance_id = Uuid::new_v4();
 
-    let mut matches = match config.algorithm() {
-        ScheduleAlgorithmKind::RoundRobinSingleLeg => single_leg_matches,
-        ScheduleAlgorithmKind::RoundRobinDoubleLeg => {
-            expand_double_round_robin(&single_leg_matches)
+            let stage_schedule = generate_grouped_schedule(
+                calendar,
+                config,
+                stage_0_def,
+                season_instance_id,
+                stage_instance_id,
+                reference_year,
+                0,
+            )?;
+
+            let season_instance = SeasonInstance::new(
+                season_instance_id,
+                config.league_id(),
+                reference_year,
+                0,
+                SeasonInstanceStatus::Pending,
+            );
+
+            Ok(GeneratedSeason {
+                season_instance,
+                stage_instance: stage_schedule.stage_instance,
+                fixtures: stage_schedule.fixtures,
+            })
         }
-    };
+        _ => {
+            let single_leg_matches = generate_single_round_robin(team_ids);
 
-    resolve_neutral_opener(&mut matches, &config.neutral_opener());
+            let mut matches = match config.algorithm() {
+                ScheduleAlgorithmKind::RoundRobinSingleLeg => single_leg_matches,
+                ScheduleAlgorithmKind::RoundRobinDoubleLeg => {
+                    expand_double_round_robin(&single_leg_matches)
+                }
+            };
 
-    let scheduled_matches =
-        assign_dates(calendar, config.timing(), reference_year, &matches)?;
+            resolve_neutral_opener(&mut matches, &config.neutral_opener());
 
-    let season_instance_id = Uuid::new_v4();
-    let season_instance = SeasonInstance::new(
-        season_instance_id,
-        config.league_id(),
-        reference_year,
-        0,
-        SeasonInstanceStatus::Pending,
-    );
+            let scheduled_matches =
+                assign_dates(calendar, config.timing(), reference_year, &matches)?;
 
-    let stage_instance_id = Uuid::new_v4();
-    let stage_instance = SeasonStageInstance::new(
-        stage_instance_id,
-        season_instance_id,
-        0,
-        stage_0_def.stage_type(),
-        StageStatus::Pending,
-    );
+            let season_instance_id = Uuid::new_v4();
+            let season_instance = SeasonInstance::new(
+                season_instance_id,
+                config.league_id(),
+                reference_year,
+                0,
+                SeasonInstanceStatus::Pending,
+            );
 
-    let mut fixtures = Vec::with_capacity(scheduled_matches.len());
-    for sm in scheduled_matches {
-        fixtures.push(Fixture::new(
-            Uuid::new_v4(),
-            stage_instance_id,
-            sm.round_index,
-            sm.home_team_id,
-            sm.away_team_id,
-            sm.is_neutral_venue,
-            sm.scheduled_date,
-            FixtureStatus::Scheduled,
-            None,
-        ));
+            let stage_instance_id = Uuid::new_v4();
+            let stage_instance = SeasonStageInstance::new(
+                stage_instance_id,
+                season_instance_id,
+                0,
+                stage_0_def.stage_type(),
+                StageStatus::Pending,
+            );
+
+            let mut fixtures = Vec::with_capacity(scheduled_matches.len());
+            for sm in scheduled_matches {
+                fixtures.push(Fixture::new(
+                    Uuid::new_v4(),
+                    stage_instance_id,
+                    sm.round_index,
+                    sm.home_team_id,
+                    sm.away_team_id,
+                    sm.is_neutral_venue,
+                    sm.scheduled_date,
+                    FixtureStatus::Scheduled,
+                    None,
+                ));
+            }
+
+            Ok(GeneratedSeason {
+                season_instance,
+                stage_instance,
+                fixtures,
+            })
+        }
     }
-
-    Ok(GeneratedSeason {
-        season_instance,
-        stage_instance,
-        fixtures,
-    })
 }
 
 pub async fn generate_season_for_league(
