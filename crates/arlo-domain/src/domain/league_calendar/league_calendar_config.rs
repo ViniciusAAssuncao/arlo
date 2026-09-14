@@ -9,13 +9,14 @@ use crate::domain::league_calendar::neutral_opener_policy::NeutralOpenerPolicy;
 use crate::domain::league_calendar::postponement_policy::PostponementPolicy;
 use crate::domain::league_calendar::schedule_algorithm_kind::ScheduleAlgorithmKind;
 use crate::domain::league_calendar::season_timing::SeasonTiming;
+use crate::domain::league_calendar::spa_scoring_policy::SpaScoringPolicy;
 use crate::domain::league_calendar::stage_definition::StageDefinition;
 use crate::domain::validation::validate_no_duplicate_keys;
 use crate::error::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LeagueCalendarConfig {
     id: Uuid,
     league_id: Uuid,
@@ -24,6 +25,7 @@ pub struct LeagueCalendarConfig {
     games_per_week: GamesPerWeekPolicy,
     postponement: PostponementPolicy,
     neutral_opener: NeutralOpenerPolicy,
+    spa_scoring_policy: SpaScoringPolicy,
     stages: Vec<StageDefinition>,
     groups: Vec<CompetitionGroup>,
 }
@@ -37,6 +39,7 @@ impl LeagueCalendarConfig {
         games_per_week: GamesPerWeekPolicy,
         postponement: PostponementPolicy,
         neutral_opener: NeutralOpenerPolicy,
+        spa_scoring_policy: SpaScoringPolicy,
         stages: Vec<StageDefinition>,
         groups: Vec<CompetitionGroup>,
     ) -> DomainResult<Self> {
@@ -82,6 +85,7 @@ impl LeagueCalendarConfig {
             games_per_week,
             postponement,
             neutral_opener,
+            spa_scoring_policy,
             stages,
             groups,
         })
@@ -113,6 +117,10 @@ impl LeagueCalendarConfig {
 
     pub fn neutral_opener(&self) -> NeutralOpenerPolicy {
         self.neutral_opener
+    }
+
+    pub fn spa_scoring_policy(&self) -> &SpaScoringPolicy {
+        &self.spa_scoring_policy
     }
 
     pub fn stages(&self) -> &[StageDefinition] {

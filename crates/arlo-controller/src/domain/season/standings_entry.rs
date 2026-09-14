@@ -1,14 +1,19 @@
+use crate::domain::season::standings_home_away_record::HomeAwayRecord;
+use crate::domain::season::standings_spa_metrics::SpaMetrics;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StandingsEntry {
     team_id: Uuid,
     played: u32,
     won: u32,
     drawn: u32,
     lost: u32,
-    points: i32,
+    goal_points_for: u32,
+    goal_points_against: u32,
+    home_away: HomeAwayRecord,
+    spa_metrics: SpaMetrics,
 }
 
 impl StandingsEntry {
@@ -18,7 +23,10 @@ impl StandingsEntry {
         won: u32,
         drawn: u32,
         lost: u32,
-        points: i32,
+        goal_points_for: u32,
+        goal_points_against: u32,
+        home_away: HomeAwayRecord,
+        spa_metrics: SpaMetrics,
     ) -> Self {
         Self {
             team_id,
@@ -26,7 +34,10 @@ impl StandingsEntry {
             won,
             drawn,
             lost,
-            points,
+            goal_points_for,
+            goal_points_against,
+            home_away,
+            spa_metrics,
         }
     }
 
@@ -50,7 +61,24 @@ impl StandingsEntry {
         self.lost
     }
 
-    pub fn points(&self) -> i32 {
-        self.points
+    pub fn goal_points_for(&self) -> u32 {
+        self.goal_points_for
+    }
+
+    pub fn goal_points_against(&self) -> u32 {
+        self.goal_points_against
+    }
+
+    pub fn home_away(&self) -> HomeAwayRecord {
+        self.home_away
+    }
+
+    pub fn spa_metrics(&self) -> SpaMetrics {
+        self.spa_metrics
+    }
+
+    pub fn with_spa_metrics(mut self, spa_metrics: SpaMetrics) -> Self {
+        self.spa_metrics = spa_metrics;
+        self
     }
 }

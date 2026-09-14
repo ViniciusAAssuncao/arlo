@@ -11,6 +11,8 @@ pub mod season_instance_status;
 pub mod season_stage_instance;
 pub mod stage_status;
 pub mod standings_entry;
+pub mod standings_home_away_record;
+pub mod standings_spa_metrics;
 pub mod tie_break_criterion;
 
 pub use bracket_seed::BracketSeed;
@@ -26,4 +28,6 @@ pub use season_instance_status::SeasonInstanceStatus;
 pub use season_stage_instance::SeasonStageInstance;
 pub use stage_status::StageStatus;
 pub use standings_entry::StandingsEntry;
+pub use standings_home_away_record::HomeAwayRecord;
+pub use standings_spa_metrics::SpaMetrics;
 pub use tie_break_criterion::TieBreakCriterion;

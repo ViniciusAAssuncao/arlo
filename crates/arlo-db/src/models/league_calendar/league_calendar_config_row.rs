@@ -5,7 +5,7 @@ use crate::models::league_calendar::league_calendar_config_codes::{
 };
 use arlo_domain::{
     CompetitionGroup, GamesPerWeekPolicy, LeagueCalendarConfig, NeutralOpenerPolicy,
-    PostponementPolicy, SeasonTiming, StageDefinition,
+    PostponementPolicy, SeasonTiming, SpaScoringPolicy, StageDefinition,
 };
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -23,6 +23,10 @@ pub struct LeagueCalendarConfigRow {
     pub postponement_strategy_kind: String,
     pub neutral_opener_enabled: i32,
     pub neutral_opener_selection_strategy: Option<String>,
+    pub spa_win_weight: f64,
+    pub spa_draw_weight: f64,
+    pub spa_loss_weight: f64,
+    pub spa_feo_k_factor: f64,
     pub created_at_unix_seconds: i64,
 }
 
@@ -54,6 +58,12 @@ impl LeagueCalendarConfigRow {
         )?;
         let neutral_opener =
             NeutralOpenerPolicy::new(self.neutral_opener_enabled != 0, neutral_opener_strategy)?;
+        let spa_scoring_policy = SpaScoringPolicy::new(
+            self.spa_win_weight,
+            self.spa_draw_weight,
+            self.spa_loss_weight,
+            self.spa_feo_k_factor,
+        )?;
 
         LeagueCalendarConfig::new(
             id,
@@ -63,6 +73,7 @@ impl LeagueCalendarConfigRow {
             games_per_week,
             postponement,
             neutral_opener,
+            spa_scoring_policy,
             stages,
             groups,
         )

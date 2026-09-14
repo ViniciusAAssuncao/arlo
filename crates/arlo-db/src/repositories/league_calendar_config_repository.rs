@@ -20,7 +20,7 @@ pub async fn get_by_competition_id(
 ) -> DbResult<Option<LeagueCalendarConfig>> {
     let config_row = fetch_optional_by_param::<LeagueCalendarConfigRow>(
         pool,
-        "SELECT id, competition_id, schedule_algorithm_kind, season_start_month_order_index, season_start_day_of_month, season_length_weeks, max_games_per_team_per_week, games_per_week_conflict_scope, postponement_strategy_kind, neutral_opener_enabled, neutral_opener_selection_strategy, created_at_unix_seconds FROM league_calendar_configs WHERE competition_id = ?",
+        "SELECT id, competition_id, schedule_algorithm_kind, season_start_month_order_index, season_start_day_of_month, season_length_weeks, max_games_per_team_per_week, games_per_week_conflict_scope, postponement_strategy_kind, neutral_opener_enabled, neutral_opener_selection_strategy, spa_win_weight, spa_draw_weight, spa_loss_weight, spa_feo_k_factor, created_at_unix_seconds FROM league_calendar_configs WHERE competition_id = ?",
         &competition_id.to_string()
     ).await?;
 

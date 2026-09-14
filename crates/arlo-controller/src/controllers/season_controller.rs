@@ -2,12 +2,14 @@ use crate::domain::season::{
     Fixture, FixtureResult, FixtureStatus, GroupRankedStandingsEntry, SeasonInstance,
     StandingsEntry, TieBreakCriterion,
 };
-use crate::error::ControllerResult;
+use crate::error::{ControllerError, ControllerResult};
+use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::season::season_generator::{self, GeneratedSeason};
 use crate::services::season::standings::group_rank_annotator;
+use crate::services::season::standings::spa_metrics_calculator;
 use crate::services::season::standings::standings_calculator;
 use crate::services::season::standings::tie_break_resolver;
-use arlo_domain::{CompetitionGroup, StandingsPointsPolicy};
+use arlo_domain::CompetitionGroup;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -44,25 +46,40 @@ pub fn list_fixtures_for_team(
         .collect()
 }
 
-pub fn get_standings(
+pub async fn get_standings(
+    pool: &SqlitePool,
+    competition_id: Uuid,
     team_ids: &[Uuid],
     fixtures: &[Fixture],
-    points_policy: &StandingsPointsPolicy,
     criteria: &[TieBreakCriterion],
-) -> Vec<StandingsEntry> {
-    let unranked = standings_calculator::calculate_standings(team_ids, fixtures, points_policy);
-    tie_break_resolver::sort_standings(unranked, criteria)
+) -> ControllerResult<Vec<StandingsEntry>> {
+    let config = get_or_load_league_calendar_config(pool, competition_id)
+        .await?
+        .ok_or_else(|| {
+            ControllerError::NotFound(format!(
+                "League calendar config for competition {} not found",
+                competition_id
+            ))
+        })?;
+
+    let mut unranked = standings_calculator::calculate_standings(team_ids, fixtures);
+    spa_metrics_calculator::apply_spa_metrics_to_standings(
+        &mut unranked,
+        config.spa_scoring_policy(),
+    );
+    Ok(tie_break_resolver::sort_standings(unranked, criteria))
 }
 
-pub fn get_group_ranked_standings(
+pub async fn get_group_ranked_standings(
+    pool: &SqlitePool,
+    competition_id: Uuid,
     team_ids: &[Uuid],
     fixtures: &[Fixture],
-    points_policy: &StandingsPointsPolicy,
     criteria: &[TieBreakCriterion],
     groups: &[CompetitionGroup],
-) -> Vec<GroupRankedStandingsEntry> {
-    let standings = get_standings(team_ids, fixtures, points_policy, criteria);
-    group_rank_annotator::annotate_group_ranks(&standings, groups)
+) -> ControllerResult<Vec<GroupRankedStandingsEntry>> {
+    let standings = get_standings(pool, competition_id, team_ids, fixtures, criteria).await?;
+    Ok(group_rank_annotator::annotate_group_ranks(&standings, groups))
 }
 
 pub fn record_fixture_result(

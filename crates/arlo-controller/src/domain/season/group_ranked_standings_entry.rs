@@ -1,8 +1,9 @@
+
 use crate::domain::season::StandingsEntry;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GroupRankedStandingsEntry {
     entry: StandingsEntry,
     group_id: Uuid,

@@ -1,4 +1,4 @@
-use crate::domain::season::{Fixture, StandingsEntry};
+use crate::domain::season::Fixture;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
@@ -7,9 +7,9 @@ use crate::services::season::stage::stage_schedule_generator::{
     generate_stage_schedule_from_seeds, GeneratedStageSchedule,
 };
 use crate::services::season::stage::stage_transition_evaluator::evaluate_stage_transition;
+use crate::services::season::standings::spa_metrics_calculator::apply_spa_metrics_to_standings;
 use crate::services::season::standings::standings_calculator::calculate_standings;
 use crate::services::season::standings::tie_break_resolver::sort_standings;
-use arlo_domain::StandingsPointsPolicy;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -53,9 +53,8 @@ pub async fn handle_stage_transition(
             ))
         })?;
 
-    let points_policy = StandingsPointsPolicy::default_policy();
-    let unsorted_standings: Vec<StandingsEntry> =
-        calculate_standings(participating_team_ids, completed_fixtures, &points_policy);
+    let mut unsorted_standings = calculate_standings(participating_team_ids, completed_fixtures);
+    apply_spa_metrics_to_standings(&mut unsorted_standings, config_arc.spa_scoring_policy());
     let sorted_standings = sort_standings(unsorted_standings, &[]);
 
     let seeds = evaluate_stage_transition(
