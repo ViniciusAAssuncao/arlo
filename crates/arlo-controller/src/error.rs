@@ -6,6 +6,8 @@ pub enum ControllerError {
     Migrate(#[from] sqlx::migrate::MigrateError),
     #[error(transparent)]
     Uuid(#[from] uuid::Error),
+    #[error(transparent)]
+    Persistence(#[from] arlo_persistence::PersistenceError),
     #[error("Invalid enum value: {0}")]
     InvalidEnum(String),
     #[error("Invalid data: {0}")]

@@ -1,0 +1,106 @@
+use crate::error::PersistenceResult;
+use crate::models::season::FixtureRow;
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
+
+pub async fn insert(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> PersistenceResult<()> {
+    sqlx::query(
+        r#"INSERT INTO fixtures (
+            id,
+            season_stage_id,
+            round_index,
+            home_team_id,
+            away_team_id,
+            is_neutral_venue,
+            scheduled_year,
+            scheduled_day_of_year,
+            status,
+            home_score,
+            away_score
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+    )
+    .bind(&row.id)
+    .bind(&row.season_stage_id)
+    .bind(row.round_index)
+    .bind(&row.home_team_id)
+    .bind(&row.away_team_id)
+    .bind(row.is_neutral_venue)
+    .bind(row.scheduled_year)
+    .bind(row.scheduled_day_of_year)
+    .bind(&row.status)
+    .bind(row.home_score)
+    .bind(row.away_score)
+    .execute(&mut **tx)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn insert_batch(
+    tx: &mut Transaction<'_, Sqlite>,
+    rows: &[FixtureRow],
+) -> PersistenceResult<()> {
+    for row in rows {
+        insert(tx, row).await?;
+    }
+    Ok(())
+}
+
+pub async fn update(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> PersistenceResult<()> {
+    sqlx::query(
+        r#"UPDATE fixtures SET
+            round_index = ?,
+            scheduled_year = ?,
+            scheduled_day_of_year = ?,
+            status = ?,
+            home_score = ?,
+            away_score = ?
+        WHERE id = ?"#,
+    )
+    .bind(row.round_index)
+    .bind(row.scheduled_year)
+    .bind(row.scheduled_day_of_year)
+    .bind(&row.status)
+    .bind(row.home_score)
+    .bind(row.away_score)
+    .bind(&row.id)
+    .execute(&mut **tx)
+    .await?;
+
+    Ok(())
+}
+
+pub async fn update_batch(
+    tx: &mut Transaction<'_, Sqlite>,
+    rows: &[FixtureRow],
+) -> PersistenceResult<()> {
+    for row in rows {
+        update(tx, row).await?;
+    }
+    Ok(())
+}
+
+pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> PersistenceResult<Option<FixtureRow>> {
+    let row = sqlx::query_as::<_, FixtureRow>(
+        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, scheduled_year, scheduled_day_of_year, status, home_score, away_score FROM fixtures WHERE id = ?",
+    )
+    .bind(id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
+}
+
+pub async fn list_by_stage_id(
+    pool: &SqlitePool,
+    stage_id: Uuid,
+) -> PersistenceResult<Vec<FixtureRow>> {
+    let rows = sqlx::query_as::<_, FixtureRow>(
+        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, scheduled_year, scheduled_day_of_year, status, home_score, away_score FROM fixtures WHERE season_stage_id = ? ORDER BY round_index, scheduled_year, scheduled_day_of_year ASC",
+    )
+    .bind(stage_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
