@@ -150,6 +150,13 @@ pub fn generate_stage_schedule(
                 knockout_ties: generated_knockout.ties,
             })
         }
+        StageType::GroupedCompetitionTable => {
+            Err(
+                ControllerError::Validation(
+                    "GroupedCompetitionTable schedule generation is not supported in this stage".to_string()
+                )
+            )
+        }
     }
 }
 

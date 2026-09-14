@@ -32,6 +32,7 @@ pub fn stage_type_to_code(stage_type: StageType) -> &'static str {
     match stage_type {
         StageType::RoundRobinTable => "RoundRobinTable",
         StageType::KnockoutBracket => "KnockoutBracket",
+        StageType::GroupedCompetitionTable => "GroupedCompetitionTable",
     }
 }
 

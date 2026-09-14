@@ -4,8 +4,8 @@ use crate::models::league_calendar::league_calendar_config_codes::{
     parse_postponement_strategy_kind, parse_schedule_algorithm_kind,
 };
 use arlo_domain::{
-    GamesPerWeekPolicy, LeagueCalendarConfig, NeutralOpenerPolicy, PostponementPolicy,
-    SeasonTiming, StageDefinition,
+    CompetitionGroup, GamesPerWeekPolicy, LeagueCalendarConfig, NeutralOpenerPolicy,
+    PostponementPolicy, SeasonTiming, StageDefinition,
 };
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -31,6 +31,7 @@ impl LeagueCalendarConfigRow {
         &self,
         allowed_weekdays: Vec<u32>,
         stages: Vec<StageDefinition>,
+        groups: Vec<CompetitionGroup>,
     ) -> DbResult<LeagueCalendarConfig> {
         let id = Uuid::parse_str(&self.id)?;
         let league_id = Uuid::parse_str(&self.competition_id)?;
@@ -63,6 +64,7 @@ impl LeagueCalendarConfigRow {
             postponement,
             neutral_opener,
             stages,
+            groups,
         )
         .map_err(Into::into)
     }

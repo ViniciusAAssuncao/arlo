@@ -1,6 +1,5 @@
-
 use crate::error::{DbError, DbResult};
-use arlo_domain::{KnockoutLegFormat, QualificationPoolRule, StageEntryRule, StageType};
+use arlo_domain::{KnockoutLegFormat, StageType};
 
 pub fn parse_stage_type(code: &str) -> DbResult<StageType> {
     match code {
@@ -20,40 +19,6 @@ pub fn stage_type_to_code(stage_type: StageType) -> &'static str {
         StageType::RoundRobinTable => "RoundRobinTable",
         StageType::KnockoutBracket => "KnockoutBracket",
         StageType::GroupedCompetitionTable => "GroupedCompetitionTable",
-    }
-}
-
-pub fn parse_stage_entry_rule(kind_code: &str, count: Option<i32>) -> DbResult<StageEntryRule> {
-    match kind_code {
-        "AllTeams" | "all_teams" => Ok(StageEntryRule::new(vec![QualificationPoolRule::AllTeams])?),
-        "TopN" | "top_n" => {
-            let count = count.ok_or_else(|| {
-                DbError::InvalidData("TopN stage entry rule requires count value".to_string())
-            })?;
-            Ok(StageEntryRule::new(vec![QualificationPoolRule::TopN {
-                count: count as u32,
-            }])?)
-        }
-        "BottomN" | "bottom_n" => {
-            let count = count.ok_or_else(|| {
-                DbError::InvalidData("BottomN stage entry rule requires count value".to_string())
-            })?;
-            Ok(StageEntryRule::new(vec![QualificationPoolRule::BottomN {
-                count: count as u32,
-            }])?)
-        }
-        _ => Err(DbError::InvalidEnum(format!(
-            "Invalid stage entry rule kind: {kind_code}"
-        ))),
-    }
-}
-
-pub fn stage_entry_rule_to_codes(rule: &StageEntryRule) -> (&'static str, Option<i32>) {
-    match rule.pools().first() {
-        Some(QualificationPoolRule::AllTeams) => ("AllTeams", None),
-        Some(QualificationPoolRule::TopN { count }) => ("TopN", Some(*count as i32)),
-        Some(QualificationPoolRule::BottomN { count }) => ("BottomN", Some(*count as i32)),
-        _ => ("AllTeams", None),
     }
 }
 
