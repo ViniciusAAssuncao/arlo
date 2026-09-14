@@ -1,6 +1,8 @@
+pub mod bracket_seed;
 pub mod fixture;
 pub mod fixture_result;
 pub mod fixture_status;
+pub mod knockout_tie;
 pub mod postponement_reason;
 pub mod postponement_record;
 pub mod season_instance;
@@ -10,9 +12,11 @@ pub mod stage_status;
 pub mod standings_entry;
 pub mod tie_break_criterion;
 
+pub use bracket_seed::BracketSeed;
 pub use fixture::Fixture;
 pub use fixture_result::FixtureResult;
 pub use fixture_status::FixtureStatus;
+pub use knockout_tie::KnockoutTie;
 pub use postponement_reason::PostponementReason;
 pub use postponement_record::PostponementRecord;
 pub use season_instance::SeasonInstance;
