@@ -1,5 +1,6 @@
 use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::league_calendar::knockout_leg_format::KnockoutLegFormat;
+use crate::domain::league_calendar::qualification_pool_rule::QualificationPoolRule;
 use crate::domain::league_calendar::schedule_block::ScheduleBlock;
 use crate::domain::league_calendar::stage_entry_rule::StageEntryRule;
 use crate::domain::league_calendar::stage_type::StageType;
@@ -24,14 +25,21 @@ impl StageDefinition {
         knockout_leg_format: Option<KnockoutLegFormat>,
         schedule_blocks: Option<Vec<ScheduleBlock>>,
     ) -> DomainResult<Self> {
-        match entry_rule {
-            StageEntryRule::TopN { count } => {
-                validate_integer_range(count as i32, 1, i32::MAX, "entry_rule.count")?;
+        for pool in entry_rule.pools() {
+            match pool {
+                QualificationPoolRule::TopN { count } => {
+                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
+                }
+                QualificationPoolRule::BottomN { count } => {
+                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
+                }
+                QualificationPoolRule::BestAtGroupPosition { count, .. } => {
+                    validate_integer_range(*count as i32, 1, i32::MAX, "entry_rule.count")?;
+                }
+                QualificationPoolRule::AllTeams
+                | QualificationPoolRule::GroupWinners
+                | QualificationPoolRule::GroupRunnersUp => {}
             }
-            StageEntryRule::BottomN { count } => {
-                validate_integer_range(count as i32, 1, i32::MAX, "entry_rule.count")?;
-            }
-            StageEntryRule::AllTeams => {}
         }
 
         match stage_type {
@@ -106,8 +114,8 @@ impl StageDefinition {
         self.stage_type
     }
 
-    pub fn entry_rule(&self) -> StageEntryRule {
-        self.entry_rule
+    pub fn entry_rule(&self) -> &StageEntryRule {
+        &self.entry_rule
     }
 
     pub fn knockout_leg_format(&self) -> Option<KnockoutLegFormat> {

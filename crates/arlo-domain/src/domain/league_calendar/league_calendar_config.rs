@@ -2,8 +2,8 @@ use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::league_calendar::competition_group::CompetitionGroup;
 use crate::domain::league_calendar::games_per_week_policy::GamesPerWeekPolicy;
 use crate::domain::league_calendar::league_calendar_group_reference_validation::{
-    validate_group_order_indices_sequential, validate_no_duplicate_team_across_groups,
-    validate_schedule_block_group_references,
+    validate_entry_rule_group_references, validate_group_order_indices_sequential,
+    validate_no_duplicate_team_across_groups, validate_schedule_block_group_references,
 };
 use crate::domain::league_calendar::neutral_opener_policy::NeutralOpenerPolicy;
 use crate::domain::league_calendar::postponement_policy::PostponementPolicy;
@@ -72,6 +72,7 @@ impl LeagueCalendarConfig {
         validate_no_duplicate_team_across_groups(&groups)?;
         validate_group_order_indices_sequential(&groups)?;
         validate_schedule_block_group_references(&stages, &groups)?;
+        validate_entry_rule_group_references(&stages, &groups)?;
 
         Ok(Self {
             id,

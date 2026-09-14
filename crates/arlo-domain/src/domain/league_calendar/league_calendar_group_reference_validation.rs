@@ -128,3 +128,18 @@ pub fn validate_schedule_block_group_references(
 
     Ok(())
 }
+
+pub fn validate_entry_rule_group_references(
+    stages: &[StageDefinition],
+    groups: &[CompetitionGroup],
+) -> DomainResult<()> {
+    for stage in stages {
+        if stage.entry_rule().requires_groups() && groups.is_empty() {
+            return Err(DomainError::InvalidInvariant {
+                field: "groups".to_string(),
+                violation: InvariantViolation::Empty,
+            });
+        }
+    }
+    Ok(())
+}
