@@ -1,17 +1,19 @@
 use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::league_calendar::knockout_leg_format::KnockoutLegFormat;
+use crate::domain::league_calendar::schedule_block::ScheduleBlock;
 use crate::domain::league_calendar::stage_entry_rule::StageEntryRule;
 use crate::domain::league_calendar::stage_type::StageType;
 use crate::domain::validation::validate_integer_range;
 use crate::error::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StageDefinition {
     stage_order_index: u32,
     stage_type: StageType,
     entry_rule: StageEntryRule,
     knockout_leg_format: Option<KnockoutLegFormat>,
+    schedule_blocks: Option<Vec<ScheduleBlock>>,
 }
 
 impl StageDefinition {
@@ -20,6 +22,7 @@ impl StageDefinition {
         stage_type: StageType,
         entry_rule: StageEntryRule,
         knockout_leg_format: Option<KnockoutLegFormat>,
+        schedule_blocks: Option<Vec<ScheduleBlock>>,
     ) -> DomainResult<Self> {
         match entry_rule {
             StageEntryRule::TopN { count } => {
@@ -39,6 +42,12 @@ impl StageDefinition {
                         violation: InvariantViolation::MissingRequiredValue,
                     });
                 }
+                if schedule_blocks.is_some() {
+                    return Err(DomainError::InvalidInvariant {
+                        field: "schedule_blocks".to_string(),
+                        violation: InvariantViolation::UnexpectedValue,
+                    });
+                }
             }
             StageType::RoundRobinTable => {
                 if knockout_leg_format.is_some() {
@@ -46,6 +55,36 @@ impl StageDefinition {
                         field: "knockout_leg_format".to_string(),
                         violation: InvariantViolation::UnexpectedValue,
                     });
+                }
+                if schedule_blocks.is_some() {
+                    return Err(DomainError::InvalidInvariant {
+                        field: "schedule_blocks".to_string(),
+                        violation: InvariantViolation::UnexpectedValue,
+                    });
+                }
+            }
+            StageType::GroupedCompetitionTable => {
+                if knockout_leg_format.is_some() {
+                    return Err(DomainError::InvalidInvariant {
+                        field: "knockout_leg_format".to_string(),
+                        violation: InvariantViolation::UnexpectedValue,
+                    });
+                }
+                match &schedule_blocks {
+                    None => {
+                        return Err(DomainError::InvalidInvariant {
+                            field: "schedule_blocks".to_string(),
+                            violation: InvariantViolation::MissingRequiredValue,
+                        });
+                    }
+                    Some(blocks) => {
+                        if blocks.is_empty() {
+                            return Err(DomainError::InvalidInvariant {
+                                field: "schedule_blocks".to_string(),
+                                violation: InvariantViolation::Empty,
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -55,6 +94,7 @@ impl StageDefinition {
             stage_type,
             entry_rule,
             knockout_leg_format,
+            schedule_blocks,
         })
     }
 
@@ -72,5 +112,9 @@ impl StageDefinition {
 
     pub fn knockout_leg_format(&self) -> Option<KnockoutLegFormat> {
         self.knockout_leg_format
+    }
+
+    pub fn schedule_blocks(&self) -> Option<&[ScheduleBlock]> {
+        self.schedule_blocks.as_deref()
     }
 }

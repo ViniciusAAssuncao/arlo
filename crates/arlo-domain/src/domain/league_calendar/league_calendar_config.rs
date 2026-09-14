@@ -1,5 +1,10 @@
 use crate::domain::invariant_violation::InvariantViolation;
+use crate::domain::league_calendar::competition_group::CompetitionGroup;
 use crate::domain::league_calendar::games_per_week_policy::GamesPerWeekPolicy;
+use crate::domain::league_calendar::league_calendar_group_reference_validation::{
+    validate_group_order_indices_sequential, validate_no_duplicate_team_across_groups,
+    validate_schedule_block_group_references,
+};
 use crate::domain::league_calendar::neutral_opener_policy::NeutralOpenerPolicy;
 use crate::domain::league_calendar::postponement_policy::PostponementPolicy;
 use crate::domain::league_calendar::schedule_algorithm_kind::ScheduleAlgorithmKind;
@@ -20,6 +25,7 @@ pub struct LeagueCalendarConfig {
     postponement: PostponementPolicy,
     neutral_opener: NeutralOpenerPolicy,
     stages: Vec<StageDefinition>,
+    groups: Vec<CompetitionGroup>,
 }
 
 impl LeagueCalendarConfig {
@@ -32,6 +38,7 @@ impl LeagueCalendarConfig {
         postponement: PostponementPolicy,
         neutral_opener: NeutralOpenerPolicy,
         stages: Vec<StageDefinition>,
+        groups: Vec<CompetitionGroup>,
     ) -> DomainResult<Self> {
         if stages.is_empty() {
             return Err(DomainError::InvalidInvariant {
@@ -62,6 +69,10 @@ impl LeagueCalendarConfig {
             }
         }
 
+        validate_no_duplicate_team_across_groups(&groups)?;
+        validate_group_order_indices_sequential(&groups)?;
+        validate_schedule_block_group_references(&stages, &groups)?;
+
         Ok(Self {
             id,
             league_id,
@@ -71,6 +82,7 @@ impl LeagueCalendarConfig {
             postponement,
             neutral_opener,
             stages,
+            groups,
         })
     }
 
@@ -104,5 +116,9 @@ impl LeagueCalendarConfig {
 
     pub fn stages(&self) -> &[StageDefinition] {
         &self.stages
+    }
+
+    pub fn groups(&self) -> &[CompetitionGroup] {
+        &self.groups
     }
 }
