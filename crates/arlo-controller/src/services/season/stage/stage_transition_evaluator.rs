@@ -1,61 +1,26 @@
-use crate::domain::season::{ BracketSeed, StandingsEntry };
-use crate::error::{ ControllerError, ControllerResult };
-use arlo_domain::{ QualificationPoolRule, StageEntryRule };
+use crate::domain::season::{BracketSeed, StandingsEntry};
+use crate::error::{ControllerError, ControllerResult};
+use crate::services::season::stage::qualification_pool_evaluator::evaluate_pool;
+use crate::services::season::standings::group_rank_annotator::annotate_group_ranks;
+use arlo_domain::{CompetitionGroup, StageEntryRule};
 
 pub fn evaluate_stage_transition(
     standings: &[StandingsEntry],
-    entry_rule: &StageEntryRule
+    entry_rule: &StageEntryRule,
+    groups: &[CompetitionGroup],
 ) -> ControllerResult<Vec<BracketSeed>> {
     if standings.is_empty() {
-        return Err(
-            ControllerError::Validation(
-                "Standings must not be empty to evaluate stage transition".to_string()
-            )
-        );
+        return Err(ControllerError::Validation(
+            "Standings must not be empty to evaluate stage transition".to_string(),
+        ));
     }
 
+    let annotated = annotate_group_ranks(standings, groups);
     let mut qualified_teams: Vec<StandingsEntry> = Vec::new();
 
     for pool in entry_rule.pools() {
-        match pool {
-            QualificationPoolRule::AllTeams => {
-                qualified_teams.extend_from_slice(standings);
-            }
-            QualificationPoolRule::TopN { count } => {
-                let count = *count as usize;
-                if standings.len() < count {
-                    return Err(
-                        ControllerError::Validation(
-                            format!(
-                                "Not enough teams in standings ({}) to qualify top {}",
-                                standings.len(),
-                                count
-                            )
-                        )
-                    );
-                }
-                qualified_teams.extend_from_slice(&standings[..count]);
-            }
-            QualificationPoolRule::BottomN { count } => {
-                let count = *count as usize;
-                if standings.len() < count {
-                    return Err(
-                        ControllerError::Validation(
-                            format!(
-                                "Not enough teams in standings ({}) to qualify bottom {}",
-                                standings.len(),
-                                count
-                            )
-                        )
-                    );
-                }
-                let start = standings.len() - count;
-                qualified_teams.extend_from_slice(&standings[start..]);
-            }
-            | QualificationPoolRule::GroupWinners
-            | QualificationPoolRule::GroupRunnersUp
-            | QualificationPoolRule::BestAtGroupPosition { .. } => {}
-        }
+        let pool_teams = evaluate_pool(pool, &annotated, standings)?;
+        qualified_teams.extend(pool_teams);
     }
 
     let seeds = qualified_teams

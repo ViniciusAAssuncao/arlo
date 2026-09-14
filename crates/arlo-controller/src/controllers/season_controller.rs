@@ -1,11 +1,13 @@
 use crate::domain::season::{
-    Fixture, FixtureResult, FixtureStatus, SeasonInstance, StandingsEntry, TieBreakCriterion,
+    Fixture, FixtureResult, FixtureStatus, GroupRankedStandingsEntry, SeasonInstance,
+    StandingsEntry, TieBreakCriterion,
 };
 use crate::error::ControllerResult;
 use crate::services::season::season_generator::{self, GeneratedSeason};
+use crate::services::season::standings::group_rank_annotator;
 use crate::services::season::standings::standings_calculator;
 use crate::services::season::standings::tie_break_resolver;
-use arlo_domain::StandingsPointsPolicy;
+use arlo_domain::{CompetitionGroup, StandingsPointsPolicy};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -50,6 +52,17 @@ pub fn get_standings(
 ) -> Vec<StandingsEntry> {
     let unranked = standings_calculator::calculate_standings(team_ids, fixtures, points_policy);
     tie_break_resolver::sort_standings(unranked, criteria)
+}
+
+pub fn get_group_ranked_standings(
+    team_ids: &[Uuid],
+    fixtures: &[Fixture],
+    points_policy: &StandingsPointsPolicy,
+    criteria: &[TieBreakCriterion],
+    groups: &[CompetitionGroup],
+) -> Vec<GroupRankedStandingsEntry> {
+    let standings = get_standings(team_ids, fixtures, points_policy, criteria);
+    group_rank_annotator::annotate_group_ranks(&standings, groups)
 }
 
 pub fn record_fixture_result(

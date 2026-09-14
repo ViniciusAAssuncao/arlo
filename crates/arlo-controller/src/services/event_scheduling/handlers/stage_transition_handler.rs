@@ -58,7 +58,11 @@ pub async fn handle_stage_transition(
         calculate_standings(participating_team_ids, completed_fixtures, &points_policy);
     let sorted_standings = sort_standings(unsorted_standings, &[]);
 
-    let seeds = evaluate_stage_transition(&sorted_standings, &target_stage_def.entry_rule())?;
+    let seeds = evaluate_stage_transition(
+        &sorted_standings,
+        &target_stage_def.entry_rule(),
+        config_arc.groups(),
+    )?;
 
     let schedule = generate_stage_schedule_from_seeds(
         calendar,
