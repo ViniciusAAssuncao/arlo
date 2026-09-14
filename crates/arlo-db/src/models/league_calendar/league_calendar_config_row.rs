@@ -5,7 +5,8 @@ use crate::models::league_calendar::league_calendar_config_codes::{
 };
 use arlo_domain::{
     CompetitionGroup, GamesPerWeekPolicy, LeagueCalendarConfig, NeutralOpenerPolicy,
-    PostponementPolicy, SeasonTiming, SpaScoringPolicy, StageDefinition,
+    PostponementPolicy, QtaWeightingPolicy, SeasonTiming, SpaScoringPolicy, StageDefinition,
+    TieBreakCriterion,
 };
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -27,6 +28,12 @@ pub struct LeagueCalendarConfigRow {
     pub spa_draw_weight: f64,
     pub spa_loss_weight: f64,
     pub spa_feo_k_factor: f64,
+    pub qta_home_win_weight: f64,
+    pub qta_away_win_weight: f64,
+    pub qta_home_draw_weight: f64,
+    pub qta_away_draw_weight: f64,
+    pub qta_home_loss_weight: f64,
+    pub qta_away_loss_weight: f64,
     pub created_at_unix_seconds: i64,
 }
 
@@ -36,6 +43,7 @@ impl LeagueCalendarConfigRow {
         allowed_weekdays: Vec<u32>,
         stages: Vec<StageDefinition>,
         groups: Vec<CompetitionGroup>,
+        tie_break_criteria: Vec<TieBreakCriterion>,
     ) -> DbResult<LeagueCalendarConfig> {
         let id = Uuid::parse_str(&self.id)?;
         let league_id = Uuid::parse_str(&self.competition_id)?;
@@ -64,6 +72,14 @@ impl LeagueCalendarConfigRow {
             self.spa_loss_weight,
             self.spa_feo_k_factor,
         )?;
+        let qta_weighting_policy = QtaWeightingPolicy::new(
+            self.qta_home_win_weight,
+            self.qta_away_win_weight,
+            self.qta_home_draw_weight,
+            self.qta_away_draw_weight,
+            self.qta_home_loss_weight,
+            self.qta_away_loss_weight,
+        )?;
 
         LeagueCalendarConfig::new(
             id,
@@ -74,6 +90,8 @@ impl LeagueCalendarConfigRow {
             postponement,
             neutral_opener,
             spa_scoring_policy,
+            qta_weighting_policy,
+            tie_break_criteria,
             stages,
             groups,
         )

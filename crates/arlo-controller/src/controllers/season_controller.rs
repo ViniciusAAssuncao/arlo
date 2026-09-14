@@ -1,15 +1,13 @@
 use crate::domain::season::{
     Fixture, FixtureResult, FixtureStatus, GroupRankedStandingsEntry, SeasonInstance,
-    StandingsEntry, TieBreakCriterion,
+    StandingsEntry,
 };
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::season::season_generator::{self, GeneratedSeason};
 use crate::services::season::standings::group_rank_annotator;
-use crate::services::season::standings::spa_metrics_calculator;
-use crate::services::season::standings::standings_calculator;
-use crate::services::season::standings::tie_break_resolver;
-use arlo_domain::CompetitionGroup;
+use crate::services::season::standings::standings_pipeline;
+use arlo_domain::{CompetitionGroup, TieBreakCriterion};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -62,12 +60,19 @@ pub async fn get_standings(
             ))
         })?;
 
-    let mut unranked = standings_calculator::calculate_standings(team_ids, fixtures);
-    spa_metrics_calculator::apply_spa_metrics_to_standings(
-        &mut unranked,
+    let active_criteria = if criteria.is_empty() {
+        config.tie_break_criteria()
+    } else {
+        criteria
+    };
+
+    Ok(standings_pipeline::calculate_and_rank_standings(
+        team_ids,
+        fixtures,
         config.spa_scoring_policy(),
-    );
-    Ok(tie_break_resolver::sort_standings(unranked, criteria))
+        config.qta_weighting_policy(),
+        active_criteria,
+    ))
 }
 
 pub async fn get_group_ranked_standings(

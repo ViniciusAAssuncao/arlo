@@ -1,12 +1,19 @@
-use crate::domain::season::{StandingsEntry, TieBreakCriterion};
+use crate::domain::season::StandingsEntry;
+use arlo_domain::TieBreakCriterion;
 use std::cmp::Ordering;
 
 pub fn resolve_standings(
     entries: &mut [StandingsEntry],
     criteria: &[TieBreakCriterion],
 ) {
+    let default_criteria = [
+        TieBreakCriterion::IspaTotal,
+        TieBreakCriterion::QtaScore,
+        TieBreakCriterion::GoalDifference,
+        TieBreakCriterion::GoalPointsTotal,
+    ];
     let active_criteria = if criteria.is_empty() {
-        &[TieBreakCriterion::PointsTotal][..]
+        &default_criteria[..]
     } else {
         criteria
     };
@@ -14,11 +21,24 @@ pub fn resolve_standings(
     entries.sort_by(|a, b| {
         for criterion in active_criteria {
             let ordering = match criterion {
-                TieBreakCriterion::PointsTotal => {
+                TieBreakCriterion::IspaTotal => {
                     b.spa_metrics()
                         .ispa()
                         .partial_cmp(&a.spa_metrics().ispa())
                         .unwrap_or(Ordering::Equal)
+                }
+                TieBreakCriterion::QtaScore => {
+                    b.qta()
+                        .partial_cmp(&a.qta())
+                        .unwrap_or(Ordering::Equal)
+                }
+                TieBreakCriterion::GoalDifference => {
+                    let sg_a = a.goal_points_for() as i64 - a.goal_points_against() as i64;
+                    let sg_b = b.goal_points_for() as i64 - b.goal_points_against() as i64;
+                    sg_b.cmp(&sg_a)
+                }
+                TieBreakCriterion::GoalPointsTotal => {
+                    b.goal_points_for().cmp(&a.goal_points_for())
                 }
                 TieBreakCriterion::HeadToHead => Ordering::Equal,
                 TieBreakCriterion::Random => Ordering::Equal,

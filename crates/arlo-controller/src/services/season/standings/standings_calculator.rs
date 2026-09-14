@@ -114,6 +114,7 @@ pub fn calculate_standings(
                 record.goal_points_against,
                 home_away,
                 SpaMetrics::default(),
+                0.0,
             )
         })
         .collect()

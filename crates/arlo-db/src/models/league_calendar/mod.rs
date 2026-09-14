@@ -10,6 +10,8 @@ pub mod schedule_block_codes;
 pub mod schedule_block_pool_group_row;
 pub mod schedule_block_row;
 pub mod stage_definition_codes;
+pub mod tie_break_criterion_code;
+pub mod tie_break_criterion_row;
 
 pub use competition_group_row::CompetitionGroupRow;
 pub use competition_group_team_row::CompetitionGroupTeamRow;
@@ -23,3 +25,5 @@ pub use schedule_block_codes::*;
 pub use schedule_block_pool_group_row::ScheduleBlockPoolGroupRow;
 pub use schedule_block_row::ScheduleBlockRow;
 pub use stage_definition_codes::*;
+pub use tie_break_criterion_code::*;
+pub use tie_break_criterion_row::TieBreakCriterionRow;

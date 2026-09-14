@@ -7,10 +7,12 @@ use crate::domain::league_calendar::league_calendar_group_reference_validation::
 };
 use crate::domain::league_calendar::neutral_opener_policy::NeutralOpenerPolicy;
 use crate::domain::league_calendar::postponement_policy::PostponementPolicy;
+use crate::domain::league_calendar::qta_weighting_policy::QtaWeightingPolicy;
 use crate::domain::league_calendar::schedule_algorithm_kind::ScheduleAlgorithmKind;
 use crate::domain::league_calendar::season_timing::SeasonTiming;
 use crate::domain::league_calendar::spa_scoring_policy::SpaScoringPolicy;
 use crate::domain::league_calendar::stage_definition::StageDefinition;
+use crate::domain::league_calendar::tie_break_criterion::TieBreakCriterion;
 use crate::domain::validation::validate_no_duplicate_keys;
 use crate::error::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
@@ -26,6 +28,8 @@ pub struct LeagueCalendarConfig {
     postponement: PostponementPolicy,
     neutral_opener: NeutralOpenerPolicy,
     spa_scoring_policy: SpaScoringPolicy,
+    qta_weighting_policy: QtaWeightingPolicy,
+    tie_break_criteria: Vec<TieBreakCriterion>,
     stages: Vec<StageDefinition>,
     groups: Vec<CompetitionGroup>,
 }
@@ -40,6 +44,8 @@ impl LeagueCalendarConfig {
         postponement: PostponementPolicy,
         neutral_opener: NeutralOpenerPolicy,
         spa_scoring_policy: SpaScoringPolicy,
+        qta_weighting_policy: QtaWeightingPolicy,
+        tie_break_criteria: Vec<TieBreakCriterion>,
         stages: Vec<StageDefinition>,
         groups: Vec<CompetitionGroup>,
     ) -> DomainResult<Self> {
@@ -86,6 +92,8 @@ impl LeagueCalendarConfig {
             postponement,
             neutral_opener,
             spa_scoring_policy,
+            qta_weighting_policy,
+            tie_break_criteria,
             stages,
             groups,
         })
@@ -121,6 +129,14 @@ impl LeagueCalendarConfig {
 
     pub fn spa_scoring_policy(&self) -> &SpaScoringPolicy {
         &self.spa_scoring_policy
+    }
+
+    pub fn qta_weighting_policy(&self) -> &QtaWeightingPolicy {
+        &self.qta_weighting_policy
+    }
+
+    pub fn tie_break_criteria(&self) -> &[TieBreakCriterion] {
+        &self.tie_break_criteria
     }
 
     pub fn stages(&self) -> &[StageDefinition] {

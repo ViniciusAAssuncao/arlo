@@ -14,6 +14,7 @@ pub struct StandingsEntry {
     goal_points_against: u32,
     home_away: HomeAwayRecord,
     spa_metrics: SpaMetrics,
+    qta: f64,
 }
 
 impl StandingsEntry {
@@ -27,6 +28,7 @@ impl StandingsEntry {
         goal_points_against: u32,
         home_away: HomeAwayRecord,
         spa_metrics: SpaMetrics,
+        qta: f64,
     ) -> Self {
         Self {
             team_id,
@@ -38,6 +40,7 @@ impl StandingsEntry {
             goal_points_against,
             home_away,
             spa_metrics,
+            qta,
         }
     }
 
@@ -77,8 +80,17 @@ impl StandingsEntry {
         self.spa_metrics
     }
 
+    pub fn qta(&self) -> f64 {
+        self.qta
+    }
+
     pub fn with_spa_metrics(mut self, spa_metrics: SpaMetrics) -> Self {
         self.spa_metrics = spa_metrics;
+        self
+    }
+
+    pub fn with_qta(mut self, qta: f64) -> Self {
+        self.qta = qta;
         self
     }
 }

@@ -7,9 +7,7 @@ use crate::services::season::stage::stage_schedule_generator::{
     generate_stage_schedule_from_seeds, GeneratedStageSchedule,
 };
 use crate::services::season::stage::stage_transition_evaluator::evaluate_stage_transition;
-use crate::services::season::standings::spa_metrics_calculator::apply_spa_metrics_to_standings;
-use crate::services::season::standings::standings_calculator::calculate_standings;
-use crate::services::season::standings::tie_break_resolver::sort_standings;
+use crate::services::season::standings::standings_pipeline;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -53,9 +51,13 @@ pub async fn handle_stage_transition(
             ))
         })?;
 
-    let mut unsorted_standings = calculate_standings(participating_team_ids, completed_fixtures);
-    apply_spa_metrics_to_standings(&mut unsorted_standings, config_arc.spa_scoring_policy());
-    let sorted_standings = sort_standings(unsorted_standings, &[]);
+    let sorted_standings = standings_pipeline::calculate_and_rank_standings(
+        participating_team_ids,
+        completed_fixtures,
+        config_arc.spa_scoring_policy(),
+        config_arc.qta_weighting_policy(),
+        config_arc.tie_break_criteria(),
+    );
 
     let seeds = evaluate_stage_transition(
         &sorted_standings,
