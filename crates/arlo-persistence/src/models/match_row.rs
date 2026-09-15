@@ -4,6 +4,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq)]
 pub struct MatchRow {
     pub id: String,
+    pub fixture_id: Option<String>,
     pub home_team_id: String,
     pub away_team_id: String,
     pub venue_id: Option<String>,
@@ -27,6 +28,7 @@ impl MatchRow {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
+        fixture_id: Option<Uuid>,
         home_team_id: Uuid,
         away_team_id: Uuid,
         venue_id: Option<Uuid>,
@@ -47,6 +49,7 @@ impl MatchRow {
     ) -> Self {
         Self {
             id: id.to_string(),
+            fixture_id: fixture_id.map(|f| f.to_string()),
             home_team_id: home_team_id.to_string(),
             away_team_id: away_team_id.to_string(),
             venue_id: venue_id.map(|v| v.to_string()),

@@ -1,3 +1,4 @@
+pub mod match_added_time_row;
 pub mod match_availability_change_row;
 pub mod match_challenge_row;
 pub mod match_foul_row;
@@ -12,6 +13,7 @@ pub mod match_tactical_profile_activation_row;
 pub mod match_time_call_row;
 pub mod match_turnover_row;
 
+pub use match_added_time_row::MatchAddedTimeRow;
 pub use match_availability_change_row::MatchAvailabilityChangeRow;
 pub use match_challenge_row::MatchChallengeRow;
 pub use match_foul_row::MatchFoulRow;

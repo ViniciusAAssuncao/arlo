@@ -21,9 +21,10 @@ use crate::world_state::play_transition::scoring_handler::{
 use crate::world_state::play_transition::turnover_and_down_events::resolve_turnover_and_down_events;
 use arlo_domain::{ArtrineDecisionKind, PunishmentKind};
 use arlo_events::EventSink;
+use arlo_manager_control::ManagerDecisionInbox;
 use uuid::Uuid;
 
-pub struct TransitionPipeline<'a, 'b, S: EventSink> {
+pub struct TransitionPipeline<'a, 'b, 'c, S: EventSink> {
     publisher: EventPublisher<'a, S>,
     pass_phase: PassPhaseResult<'b>,
     execution_outcome: ArtrineExecutionOutcome,
@@ -33,9 +34,10 @@ pub struct TransitionPipeline<'a, 'b, S: EventSink> {
     play_duels: Vec<AttributedDuelOutcome>,
     play_ledger: DurationLedger,
     pre_play_snapshot: PlayReversalSnapshot,
+    manager_decision_inbox: &'c ManagerDecisionInbox,
 }
 
-impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
+impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
     pub fn new(
         state: &'a mut MatchState,
         pass_phase: PassPhaseResult<'b>,
@@ -45,6 +47,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
         defense_team_id: Uuid,
         active_play_call_id: Option<Uuid>,
         pre_play_snapshot: PlayReversalSnapshot,
+        manager_decision_inbox: &'c ManagerDecisionInbox,
         sink: &'a mut S,
     ) -> Self {
         let mut play_duels = Vec::with_capacity(1 + execution_outcome.duels.len());
@@ -64,6 +67,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
             play_duels,
             play_ledger,
             pre_play_snapshot,
+            manager_decision_inbox,
         }
     }
 
@@ -210,6 +214,7 @@ impl<'a, 'b, S: EventSink> TransitionPipeline<'a, 'b, S> {
             &detailed_outcome,
             transition_result,
             &mut self.play_ledger,
+            self.manager_decision_inbox,
         );
 
         detailed_outcome
@@ -225,6 +230,7 @@ pub fn apply_play_transition(
     defense_team_id: Uuid,
     active_play_call_id: Option<Uuid>,
     pre_play_snapshot: PlayReversalSnapshot,
+    manager_decision_inbox: &ManagerDecisionInbox,
     sink: &mut impl EventSink,
 ) -> DetailedPlayOutcome {
     TransitionPipeline::new(
@@ -236,6 +242,7 @@ pub fn apply_play_transition(
         defense_team_id,
         active_play_call_id,
         pre_play_snapshot,
+        manager_decision_inbox,
         sink,
     )
     .run()

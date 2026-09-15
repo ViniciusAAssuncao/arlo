@@ -1,28 +1,18 @@
+use crate::manager_ai::substitutions::decision::SubstitutionPlan;
+use crate::manager_ai::substitutions::execution::execute_substitutions;
+use crate::manager_ai::substitutions::forced_departure_detection::forced_departures_for_team;
 use crate::manager_ai::substitutions::replacement_selection::best_replacement_from_tables;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_events::{EventSink, SubstitutionReason};
+use arlo_manager_control::{ForcedSubstitutionIntent, ManagerDecisionInbox};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 pub fn execute_forced_injury_substitutions(
     publisher: &mut EventPublisher<'_, impl EventSink>,
     team_id: Uuid,
 ) -> usize {
-    let is_home = team_id == publisher.state().home_team_id();
-    let current_lineup = if is_home {
-        publisher.state().home_lineup().clone()
-    } else {
-        publisher.state().away_lineup().clone()
-    };
-
-    let injured_players: Vec<(Uuid, arlo_domain::Position)> = current_lineup
-        .assignments()
-        .iter()
-        .filter(|a| {
-            let pid = a.player().id();
-            publisher.state().availability_for(&pid).is_injured()
-        })
-        .map(|a| (a.player().id(), a.slot().position()))
-        .collect();
+    let injured_players = forced_departures_for_team(publisher.state(), team_id);
 
     if injured_players.is_empty() {
         return 0;
@@ -64,4 +54,59 @@ pub fn execute_forced_injury_substitutions(
     }
 
     executed
+}
+
+pub fn apply_forced_substitution_intents(
+    publisher: &mut EventPublisher<'_, impl EventSink>,
+    team_id: Uuid,
+    intents: Vec<ForcedSubstitutionIntent>,
+    eligible_outgoing_ids: &[Uuid],
+) -> usize {
+    let eligible_set: HashSet<Uuid> = eligible_outgoing_ids.iter().copied().collect();
+    let plans: Vec<SubstitutionPlan> = intents
+        .into_iter()
+        .filter(|intent| eligible_set.contains(&intent.outgoing_player_id()))
+        .map(|intent| SubstitutionPlan {
+            outgoing_id: intent.outgoing_player_id(),
+            incoming_id: intent.incoming_player_id(),
+            reason: SubstitutionReason::Injury,
+        })
+        .collect();
+
+    if plans.is_empty() {
+        return 0;
+    }
+
+    execute_substitutions(publisher, team_id, &plans).unwrap_or(0)
+}
+
+pub fn resolve_forced_substitutions_for_team(
+    publisher: &mut EventPublisher<'_, impl EventSink>,
+    team_id: Uuid,
+    inbox: &ManagerDecisionInbox,
+) -> Vec<Uuid> {
+    let departures = forced_departures_for_team(publisher.state(), team_id);
+    if departures.is_empty() {
+        publisher
+            .state_mut()
+            .clear_pending_forced_substitutions(team_id);
+        return Vec::new();
+    }
+
+    let eligible_outgoing_ids: Vec<Uuid> = departures.iter().map(|(id, _)| *id).collect();
+    let intents = inbox.take_forced_substitutions(team_id);
+    if !intents.is_empty() {
+        apply_forced_substitution_intents(publisher, team_id, intents, &eligible_outgoing_ids);
+    }
+
+    let remaining_departures = forced_departures_for_team(publisher.state(), team_id);
+    let remaining_ids: Vec<Uuid> = remaining_departures
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    publisher
+        .state_mut()
+        .set_pending_forced_substitutions(team_id, remaining_ids.clone());
+
+    remaining_ids
 }

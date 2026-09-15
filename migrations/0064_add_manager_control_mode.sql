@@ -1,0 +1,1 @@
+ALTER TABLE managers ADD COLUMN control_mode TEXT;

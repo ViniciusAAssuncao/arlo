@@ -1,6 +1,6 @@
 use crate::lineup_runtime::Lineup;
 use crate::world_state::match_state::state::MatchState;
-use arlo_domain::{Manager, Position as DomainPosition, SlotRole};
+use arlo_domain::{Manager, ManagerControlMode, Position as DomainPosition, SlotRole};
 use arlo_tactics::{PlayCall, PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -49,6 +49,10 @@ impl MatchState {
 
     pub fn away_manager(&self) -> &Manager {
         self.teams.away_manager()
+    }
+
+    pub fn control_mode_for_team(&self, team_id: Uuid) -> ManagerControlMode {
+        self.teams.control_mode_for_team(team_id)
     }
 
     pub fn home_available_profiles(&self) -> &[TeamTacticalProfile] {
