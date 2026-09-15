@@ -6,6 +6,7 @@ pub mod round_robin;
 pub mod season_generator;
 pub mod stage;
 pub mod standings;
+pub mod venue;
 
 pub use conflict::*;
 pub use grouped_schedule::*;
@@ -15,3 +16,4 @@ pub use round_robin::*;
 pub use season_generator::*;
 pub use stage::*;
 pub use standings::*;
+pub use venue::*;

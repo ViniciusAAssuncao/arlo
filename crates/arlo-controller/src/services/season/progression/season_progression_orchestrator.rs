@@ -122,15 +122,15 @@ pub async fn progress_season(
             ))
         })?;
 
-    if stage_type == StageType::KnockoutBracket {
-        let catalog = get_or_load_calendar_catalog(pool).await?;
-        let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
-            ControllerError::NotFound(format!(
-                "Calendar system {} not found",
-                calendar_system_id
-            ))
-        })?;
+    let catalog = get_or_load_calendar_catalog(pool).await?;
+    let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
+        ControllerError::NotFound(format!(
+            "Calendar system {} not found",
+            calendar_system_id
+        ))
+    })?;
 
+    if stage_type == StageType::KnockoutBracket {
         if let Some(schedule) = advance_knockout_round(
             pool,
             competition_id,
@@ -248,7 +248,15 @@ pub async fn progress_season(
             None
         };
 
-        finalize_season(pool, competition_id, season_instance_id, knockout_champion).await?;
+        finalize_season(
+            pool,
+            competition_id,
+            season_instance_id,
+            knockout_champion,
+            calendar,
+            trigger_store,
+        )
+        .await?;
         Ok(ProgressionOutcome::SeasonFinalized {
             season_instance_id,
         })

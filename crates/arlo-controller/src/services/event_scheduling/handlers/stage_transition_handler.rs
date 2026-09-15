@@ -12,6 +12,7 @@ use crate::services::season::stage::stage_schedule_generator::{
 use crate::services::season::stage::stage_transition_evaluator::evaluate_stage_transition;
 use crate::services::season::standings::random_tiebreak_resolver::seed_from_uuid;
 use crate::services::season::standings::standings_pipeline;
+use crate::services::season::venue::assign_neutral_venues_to_fixtures;
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -73,7 +74,7 @@ pub async fn handle_stage_transition(
         config_arc.groups(),
     )?;
 
-    let schedule = generate_stage_schedule_from_seeds(
+    let mut schedule = generate_stage_schedule_from_seeds(
         calendar,
         &config_arc,
         target_stage_def,
@@ -83,6 +84,8 @@ pub async fn handle_stage_transition(
         reference_year,
         start_round_index,
     )?;
+
+    assign_neutral_venues_to_fixtures(pool, competition_id, &mut schedule.fixtures).await?;
 
     persist_generated_stage_schedule(pool, &schedule).await?;
 

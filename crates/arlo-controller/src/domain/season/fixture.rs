@@ -74,6 +74,11 @@ impl Fixture {
         self.venue_id
     }
 
+    pub fn with_venue_id(mut self, venue_id: Option<Uuid>) -> Self {
+        self.venue_id = venue_id;
+        self
+    }
+
     pub fn scheduled_date(&self) -> CalendarDate {
         self.scheduled_date
     }

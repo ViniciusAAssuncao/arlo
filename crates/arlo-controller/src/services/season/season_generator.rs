@@ -12,6 +12,7 @@ use crate::services::season::persistence::{
 use crate::services::season::round_robin::{
     assign_dates, expand_double_round_robin, generate_single_round_robin, resolve_neutral_opener,
 };
+use crate::services::season::venue::assign_neutral_venues_to_fixtures;
 use arlo_domain::{LeagueCalendarConfig, ScheduleAlgorithmKind, StageType};
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -161,7 +162,9 @@ pub async fn generate_season_for_league(
 
     let team_ids: Vec<Uuid> = teams.iter().map(|t| t.id()).collect();
 
-    let generated = generate_season(calendar, &config_arc, &team_ids, reference_year)?;
+    let mut generated = generate_season(calendar, &config_arc, &team_ids, reference_year)?;
+
+    assign_neutral_venues_to_fixtures(pool, competition_id, &mut generated.fixtures).await?;
 
     persist_generated_season(pool, &generated).await?;
     activate_season_instance(pool, generated.season_instance.id()).await?;
