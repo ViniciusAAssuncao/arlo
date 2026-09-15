@@ -76,3 +76,18 @@ pub async fn list_by_federation_id(pool: &SqlitePool, federation_id: Uuid) -> Db
     }
     Ok(results)
 }
+
+pub async fn insert(pool: &SqlitePool, title: &Title) -> DbResult<()> {
+    let row = TitleRow::from_domain(title);
+    sqlx::query(
+        "INSERT INTO titles (id, competition_id, season_label, winner_team_id, winner_federation_id) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&row.id)
+    .bind(&row.competition_id)
+    .bind(&row.season_label)
+    .bind(&row.winner_team_id)
+    .bind(&row.winner_federation_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}

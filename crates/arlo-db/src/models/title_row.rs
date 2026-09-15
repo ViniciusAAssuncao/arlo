@@ -32,6 +32,21 @@ pub fn parse_title_winner(
 }
 
 impl TitleRow {
+    pub fn from_domain(title: &Title) -> Self {
+        let (winner_team_id, winner_federation_id) = match title.winner() {
+            TitleWinner::Team(team_id) => (Some(team_id.to_string()), None),
+            TitleWinner::Federation(fed_id) => (None, Some(fed_id.to_string())),
+        };
+
+        Self {
+            id: title.id().to_string(),
+            competition_id: title.competition_id().to_string(),
+            season_label: title.season_label().to_string(),
+            winner_team_id,
+            winner_federation_id,
+        }
+    }
+
     pub fn to_domain(&self) -> DbResult<Title> {
         let id = Uuid::parse_str(&self.id)?;
         let competition_id = Uuid::parse_str(&self.competition_id)?;

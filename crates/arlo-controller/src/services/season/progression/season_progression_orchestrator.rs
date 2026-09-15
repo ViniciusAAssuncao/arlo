@@ -11,6 +11,9 @@ use crate::services::season::persistence::{
 use crate::services::season::progression::knockout_round_advancer::advance_knockout_round;
 use crate::services::season::progression::season_finalizer::finalize_season;
 use crate::services::season::progression::stage_completion_detector::is_stage_complete;
+use crate::services::season::stage::knockout_bracket_progress_detector::{
+    detect_knockout_bracket_progress, KnockoutBracketProgress,
+};
 use crate::services::season::stage::stage_schedule_generator::GeneratedStageSchedule;
 use arlo_domain::StageType;
 use sqlx::SqlitePool;
@@ -230,7 +233,22 @@ pub async fn progress_season(
             schedule,
         })
     } else {
-        finalize_season(pool, competition_id, season_instance_id).await?;
+        let knockout_champion = if stage_type == StageType::KnockoutBracket {
+            match detect_knockout_bracket_progress(
+                &domain_ties,
+                &domain_fixtures,
+                config_arc.tie_break_criteria(),
+            ) {
+                KnockoutBracketProgress::BracketComplete { champion_team_id } => {
+                    Some(champion_team_id)
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        finalize_season(pool, competition_id, season_instance_id, knockout_champion).await?;
         Ok(ProgressionOutcome::SeasonFinalized {
             season_instance_id,
         })
