@@ -1,6 +1,6 @@
 use crate::domain::calendar::CalendarSystem;
-use crate::domain::season::{ Fixture, FixtureStatus, SeasonStageInstance, StageStatus };
-use crate::error::{ ControllerError, ControllerResult };
+use crate::domain::season::{Fixture, FixtureStatus, SeasonStageInstance, StageStatus};
+use crate::error::{ControllerError, ControllerResult};
 use crate::services::season::grouped_schedule::cross_group_pairing_generator::generate_cross_group_pairings;
 use crate::services::season::grouped_schedule::random_pool_round_generator::generate_random_pool_rounds;
 use crate::services::season::round_robin::{
@@ -27,21 +27,21 @@ pub fn generate_grouped_schedule(
     season_instance_id: Uuid,
     stage_instance_id: Uuid,
     reference_year: i64,
-    start_round_index: u32
+    start_round_index: u32,
 ) -> ControllerResult<GeneratedStageSchedule> {
     let schedule_blocks = stage_def
         .schedule_blocks()
         .ok_or_else(|| {
             ControllerError::Validation(
-                "StageDefinition must have schedule_blocks for GroupedCompetitionTable".to_string()
+                "StageDefinition must have schedule_blocks for GroupedCompetitionTable".to_string(),
             )
         })?;
 
     if schedule_blocks.is_empty() {
         return Err(
             ControllerError::Validation(
-                "schedule_blocks must not be empty for GroupedCompetitionTable".to_string()
-            )
+                "schedule_blocks must not be empty for GroupedCompetitionTable".to_string(),
+            ),
         );
     }
 
@@ -57,6 +57,7 @@ pub fn generate_grouped_schedule(
 
     let mut current_round_index = start_round_index;
     let mut all_matches: Vec<RoundRobinMatch> = Vec::new();
+    let mut first_group_rr_range = None;
 
     let mut i = 0;
     while i < schedule_blocks.len() {
@@ -64,9 +65,8 @@ pub fn generate_grouped_schedule(
             ScheduleBlock::GroupRoundRobin { .. } => {
                 let mut max_rounds_in_batch = 0;
                 while i < schedule_blocks.len() {
-                    if
-                        let ScheduleBlock::GroupRoundRobin { group_id, algorithm } =
-                            &schedule_blocks[i]
+                    if let ScheduleBlock::GroupRoundRobin { group_id, algorithm } =
+                        &schedule_blocks[i]
                     {
                         let group = find_group(*group_id)?;
                         let single_leg = generate_single_round_robin(group.team_ids());
@@ -85,6 +85,7 @@ pub fn generate_grouped_schedule(
                         if rounds_used > max_rounds_in_batch {
                             max_rounds_in_batch = rounds_used;
                         }
+                        let start_idx = all_matches.len();
                         for m in group_matches {
                             all_matches.push(RoundRobinMatch {
                                 round_index: current_round_index + m.round_index,
@@ -92,6 +93,10 @@ pub fn generate_grouped_schedule(
                                 away_team_id: m.away_team_id,
                                 is_neutral_venue: m.is_neutral_venue,
                             });
+                        }
+                        let end_idx = all_matches.len();
+                        if first_group_rr_range.is_none() {
+                            first_group_rr_range = Some(start_idx..end_idx);
                         }
                         i += 1;
                     } else {
@@ -107,7 +112,7 @@ pub fn generate_grouped_schedule(
                     group_a.team_ids(),
                     group_b.team_ids(),
                     current_round_index,
-                    *mirrored
+                    *mirrored,
                 )?;
                 let rounds_used = if *mirrored { 2 } else { 1 };
                 current_round_index += rounds_used;
@@ -119,7 +124,7 @@ pub fn generate_grouped_schedule(
                 let pool_matches = generate_random_pool_rounds(
                     &team_ids,
                     current_round_index,
-                    *rounds_count
+                    *rounds_count,
                 );
                 current_round_index += *rounds_count;
                 all_matches.extend(pool_matches);
@@ -129,7 +134,9 @@ pub fn generate_grouped_schedule(
     }
 
     if stage_def.stage_order_index() == 0 {
-        resolve_neutral_opener(&mut all_matches, &config.neutral_opener());
+        if let Some(range) = first_group_rr_range {
+            resolve_neutral_opener(&mut all_matches[range], &config.neutral_opener());
+        }
     }
 
     all_matches.sort_by_key(|m| m.round_index);
@@ -149,8 +156,8 @@ pub fn generate_grouped_schedule(
                 None,
                 sm.scheduled_date,
                 FixtureStatus::Scheduled,
-                None
-            )
+                None,
+            ),
         );
     }
 
@@ -159,7 +166,7 @@ pub fn generate_grouped_schedule(
         season_instance_id,
         stage_def.stage_order_index(),
         stage_def.stage_type(),
-        StageStatus::Pending
+        StageStatus::Pending,
     );
 
     Ok(GeneratedStageSchedule {

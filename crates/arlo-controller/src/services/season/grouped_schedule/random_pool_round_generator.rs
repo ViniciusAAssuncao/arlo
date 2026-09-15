@@ -1,5 +1,6 @@
+use crate::services::season::grouped_schedule::random_pool_pairing_constraint_tracker::RandomPoolPairingConstraintTracker;
+use crate::services::season::grouped_schedule::random_pool_round_pairer::pair_random_pool_round;
 use crate::services::season::round_robin::RoundRobinMatch;
-use rand::seq::SliceRandom;
 use uuid::Uuid;
 
 pub fn generate_random_pool_rounds(
@@ -13,20 +14,14 @@ pub fn generate_random_pool_rounds(
 
     let matches_per_round = team_ids.len() / 2;
     let mut all_matches = Vec::with_capacity(matches_per_round * rounds_count as usize);
+    let mut tracker = RandomPoolPairingConstraintTracker::new();
     let mut rng = rand::thread_rng();
 
     for r in 0..rounds_count {
         let current_round = start_round_index + r;
-        let mut shuffled = team_ids.to_vec();
-        shuffled.shuffle(&mut rng);
-
-        for chunk in shuffled.chunks_exact(2) {
-            all_matches.push(RoundRobinMatch::new(
-                current_round,
-                chunk[0],
-                chunk[1],
-            ));
-        }
+        let round_matches =
+            pair_random_pool_round(team_ids, current_round, &mut tracker, &mut rng);
+        all_matches.extend(round_matches);
     }
 
     all_matches
