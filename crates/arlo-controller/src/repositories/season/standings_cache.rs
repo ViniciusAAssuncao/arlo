@@ -2,6 +2,7 @@ use crate::domain::season::StandingsEntry;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::season::persistence::map_row_to_fixture;
+use crate::services::season::standings::random_tiebreak_resolver::seed_from_uuid;
 use crate::services::season::standings::standings_pipeline;
 use arlo_persistence::repositories::season::{fixtures, season_instances, season_stages};
 use sqlx::SqlitePool;
@@ -65,12 +66,14 @@ pub async fn get_or_compute_standings(
         team_ids_set.into_iter().collect()
     };
 
+    let seed = seed_from_uuid(stage_id);
     let calculated = standings_pipeline::calculate_and_rank_standings(
         &team_ids,
         &domain_fixtures,
         config.spa_scoring_policy(),
         config.qta_weighting_policy(),
         config.tie_break_criteria(),
+        seed,
     );
 
     let arc_standings = Arc::new(calculated);
