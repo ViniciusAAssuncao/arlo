@@ -1,10 +1,9 @@
 use crate::domain::calendar::{CalendarDate, CalendarSystem};
 use crate::domain::event_scheduling::PendingTrigger;
 use crate::error::ControllerResult;
-use crate::services::event_scheduling::trigger_index_builder::build_trigger_index;
-use arlo_domain::LeagueCalendarConfig;
+use crate::services::event_scheduling::trigger_rehydration::rehydrate_all_triggers;
+use sqlx::SqlitePool;
 use std::collections::BTreeMap;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[derive(Debug, Default)]
@@ -27,11 +26,11 @@ impl PendingTriggerStore {
 
     pub async fn rebuild(
         &self,
+        pool: &SqlitePool,
         calendar: &CalendarSystem,
-        configs: &[Arc<LeagueCalendarConfig>],
         reference_year: i64,
     ) -> ControllerResult<()> {
-        let new_index = build_trigger_index(calendar, configs, reference_year)?;
+        let new_index = rehydrate_all_triggers(pool, calendar, reference_year).await?;
         let mut guard = self.triggers.write().await;
         *guard = new_index;
         Ok(())
