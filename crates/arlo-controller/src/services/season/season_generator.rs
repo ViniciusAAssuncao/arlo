@@ -6,7 +6,9 @@ use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::season::grouped_schedule::generate_grouped_schedule;
-use crate::services::season::persistence::persist_generated_season;
+use crate::services::season::persistence::{
+    activate_season_instance, activate_stage, persist_generated_season,
+};
 use crate::services::season::round_robin::{
     assign_dates, expand_double_round_robin, generate_single_round_robin, resolve_neutral_opener,
 };
@@ -162,6 +164,8 @@ pub async fn generate_season_for_league(
     let generated = generate_season(calendar, &config_arc, &team_ids, reference_year)?;
 
     persist_generated_season(pool, &generated).await?;
+    activate_season_instance(pool, generated.season_instance.id()).await?;
+    activate_stage(pool, generated.stage_instance.id()).await?;
 
     Ok(generated)
 }

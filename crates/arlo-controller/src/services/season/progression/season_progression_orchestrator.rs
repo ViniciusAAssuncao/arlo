@@ -4,7 +4,8 @@ use crate::repositories::league_calendar::league_calendar_config_cache::get_or_l
 use crate::services::event_scheduling::handlers::stage_transition_handler::handle_stage_transition;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::season::persistence::{
-    advance_season_stage, load_stage_knockout_ties, map_row_to_fixture, mark_stage_completed,
+    activate_stage, advance_season_stage, load_stage_knockout_ties, map_row_to_fixture,
+    mark_stage_completed,
 };
 use crate::services::season::progression::season_finalizer::finalize_season;
 use crate::services::season::progression::stage_completion_detector::is_stage_complete;
@@ -157,6 +158,8 @@ pub async fn progress_season(
             trigger_store,
         )
         .await?;
+
+        activate_stage(pool, new_stage_instance_id).await?;
 
         advance_season_stage(pool, season_instance_id, next_stage_order_index).await?;
 

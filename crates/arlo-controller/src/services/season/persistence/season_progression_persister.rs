@@ -23,6 +23,25 @@ pub async fn load_stage_knockout_ties(
     Ok(ties)
 }
 
+pub async fn activate_stage(pool: &SqlitePool, stage_id: Uuid) -> ControllerResult<()> {
+    sqlx::query("UPDATE season_stages SET status = 'Active' WHERE id = ?")
+        .bind(stage_id.to_string())
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn activate_season_instance(
+    pool: &SqlitePool,
+    season_instance_id: Uuid,
+) -> ControllerResult<()> {
+    sqlx::query("UPDATE season_instances SET status = 'Active' WHERE id = ?")
+        .bind(season_instance_id.to_string())
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn mark_stage_completed(pool: &SqlitePool, stage_id: Uuid) -> ControllerResult<()> {
     sqlx::query("UPDATE season_stages SET status = 'Completed' WHERE id = ?")
         .bind(stage_id.to_string())
