@@ -1,8 +1,8 @@
 pub const MIN_CURRENT_ABILITY: i32 = 1;
 pub const MAX_CURRENT_ABILITY: i32 = 200;
-pub const ATTRIBUTE_MIN: f64 = 0.0;
+pub const ATTRIBUTE_MIN: f64 = 1.0;
 pub const ATTRIBUTE_MAX: f64 = 20.0;
-pub const CA_FORMULA_MULTIPLIER: f64 = 4.0;
-pub const CA_FORMULA_OFFSET: f64 = 30.0;
+pub const CA_FORMULA_MULTIPLIER: f64 = 10.0;
+pub const CA_FORMULA_OFFSET: f64 = 0.0;
 pub const ATTRIBUTE_SATURATION_THRESHOLD: f64 = 15.0;
 pub const ATTRIBUTE_SATURATION_MULTIPLIER: f64 = 1.2;
