@@ -123,6 +123,7 @@ pub fn resolve_conflicts_and_postpone(
                     fixture.home_team_id(),
                     fixture.away_team_id(),
                     fixture.is_neutral_venue(),
+                    fixture.venue_id(),
                     new_date,
                     FixtureStatus::Postponed,
                     fixture.result(),

@@ -103,6 +103,7 @@ pub async fn record_fixture_result(
         fixture.home_team_id(),
         fixture.away_team_id(),
         fixture.is_neutral_venue(),
+        fixture.venue_id(),
         fixture.scheduled_date(),
         FixtureStatus::Completed,
         Some(result),

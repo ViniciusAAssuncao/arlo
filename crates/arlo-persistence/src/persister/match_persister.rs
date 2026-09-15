@@ -26,6 +26,10 @@ impl MatchPersister {
         let match_id = Uuid::new_v4();
         let mut tx = pool.begin().await?;
 
+        if let Some(fixture_row) = &context.completed_fixture {
+            crate::repositories::fixtures::update(&mut tx, fixture_row).await?;
+        }
+
         persist_match_core(&mut tx, match_id, state, context).await?;
         persist_squad_selections(&mut tx, match_id, state, run_result).await?;
         persist_player_action_stats(&mut tx, match_id, &run_result.aggregators).await?;

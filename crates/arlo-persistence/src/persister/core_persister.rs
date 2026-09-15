@@ -14,8 +14,13 @@ pub async fn persist_match_core(
 ) -> PersistenceResult<()> {
     let completed_at = context.completed_at_unix_seconds.unwrap_or(0);
     let created_at = context.created_at_unix_seconds.unwrap_or(0);
+    let fixture_id = context
+        .completed_fixture
+        .as_ref()
+        .and_then(|f| Uuid::parse_str(&f.id).ok());
     let match_row = MatchRow::new(
         match_id,
+        fixture_id,
         state.home_team_id(),
         state.away_team_id(),
         context.venue_id,

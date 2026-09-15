@@ -99,6 +99,7 @@ pub fn generate_knockout_bracket(
                     high_seed.team_id(),
                     low_seed.team_id(),
                     false,
+                    None,
                     scheduled_date,
                     FixtureStatus::Scheduled,
                     None
@@ -158,6 +159,7 @@ pub fn generate_knockout_bracket(
                     low_seed.team_id(),
                     high_seed.team_id(),
                     false,
+                    None,
                     leg1_scheduled_date,
                     FixtureStatus::Scheduled,
                     None
@@ -201,6 +203,7 @@ pub fn generate_knockout_bracket(
                     high_seed.team_id(),
                     low_seed.team_id(),
                     false,
+                    None,
                     leg2_scheduled_date,
                     FixtureStatus::Scheduled,
                     None

@@ -146,6 +146,7 @@ pub fn generate_grouped_schedule(
                 sm.home_team_id,
                 sm.away_team_id,
                 sm.is_neutral_venue,
+                None,
                 sm.scheduled_date,
                 FixtureStatus::Scheduled,
                 None

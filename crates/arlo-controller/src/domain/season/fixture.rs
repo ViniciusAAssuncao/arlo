@@ -12,12 +12,14 @@ pub struct Fixture {
     home_team_id: Uuid,
     away_team_id: Uuid,
     is_neutral_venue: bool,
+    venue_id: Option<Uuid>,
     scheduled_date: CalendarDate,
     status: FixtureStatus,
     result: Option<FixtureResult>,
 }
 
 impl Fixture {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         season_stage_id: Uuid,
@@ -25,6 +27,7 @@ impl Fixture {
         home_team_id: Uuid,
         away_team_id: Uuid,
         is_neutral_venue: bool,
+        venue_id: Option<Uuid>,
         scheduled_date: CalendarDate,
         status: FixtureStatus,
         result: Option<FixtureResult>,
@@ -36,6 +39,7 @@ impl Fixture {
             home_team_id,
             away_team_id,
             is_neutral_venue,
+            venue_id,
             scheduled_date,
             status,
             result,
@@ -64,6 +68,10 @@ impl Fixture {
 
     pub fn is_neutral_venue(&self) -> bool {
         self.is_neutral_venue
+    }
+
+    pub fn venue_id(&self) -> Option<Uuid> {
+        self.venue_id
     }
 
     pub fn scheduled_date(&self) -> CalendarDate {

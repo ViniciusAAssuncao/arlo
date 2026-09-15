@@ -25,6 +25,7 @@ pub fn map_fixture_to_row(fixture: &Fixture) -> FixtureRow {
         fixture.home_team_id(),
         fixture.away_team_id(),
         fixture.is_neutral_venue(),
+        fixture.venue_id(),
         fixture.scheduled_date().year(),
         fixture.scheduled_date().day_of_year(),
         fixture_status_to_code(fixture.status()),
