@@ -1,5 +1,6 @@
 use crate::domain::season::{SeasonStageInstance, StageStatus};
 use crate::error::{ControllerError, ControllerResult};
+use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::event_scheduling::handlers::stage_transition_handler::handle_stage_transition;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
@@ -7,9 +8,11 @@ use crate::services::season::persistence::{
     activate_stage, advance_season_stage, load_stage_knockout_ties, map_row_to_fixture,
     mark_stage_completed,
 };
+use crate::services::season::progression::knockout_round_advancer::advance_knockout_round;
 use crate::services::season::progression::season_finalizer::finalize_season;
 use crate::services::season::progression::stage_completion_detector::is_stage_complete;
 use crate::services::season::stage::stage_schedule_generator::GeneratedStageSchedule;
+use arlo_domain::StageType;
 use sqlx::SqlitePool;
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -20,6 +23,11 @@ pub enum ProgressionOutcome {
     NoActiveSeason,
     StageNotComplete {
         stage_order_index: u32,
+    },
+    KnockoutRoundAdvanced {
+        stage_order_index: u32,
+        next_round_index: u32,
+        schedule: GeneratedStageSchedule,
     },
     TransitionedToNextStage {
         next_stage_order_index: u32,
@@ -100,6 +108,55 @@ pub async fn progress_season(
         stage_status,
     );
 
+    let stage_def = config_arc
+        .stages()
+        .iter()
+        .find(|s| s.stage_order_index() == current_stage_order_index)
+        .ok_or_else(|| {
+            ControllerError::NotFound(format!(
+                "Stage definition with order_index {} not found in config",
+                current_stage_order_index
+            ))
+        })?;
+
+    if stage_type == StageType::KnockoutBracket {
+        let catalog = get_or_load_calendar_catalog(pool).await?;
+        let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
+            ControllerError::NotFound(format!(
+                "Calendar system {} not found",
+                calendar_system_id
+            ))
+        })?;
+
+        if let Some(schedule) = advance_knockout_round(
+            pool,
+            competition_id,
+            calendar_system_id,
+            season_instance_id,
+            current_stage_id,
+            stage_def,
+            &config_arc,
+            calendar,
+            Arc::clone(&trigger_store),
+            reference_year,
+        )
+        .await?
+        {
+            let next_round_index = schedule
+                .fixtures
+                .iter()
+                .map(|f| f.round_index())
+                .min()
+                .unwrap_or(0);
+
+            return Ok(ProgressionOutcome::KnockoutRoundAdvanced {
+                stage_order_index: current_stage_order_index,
+                next_round_index,
+                schedule,
+            });
+        }
+    }
+
     let fixture_rows = arlo_persistence::repositories::season::fixtures::list_by_stage_id(
         pool,
         current_stage_id,
@@ -113,7 +170,12 @@ pub async fn progress_season(
 
     let domain_ties = load_stage_knockout_ties(pool, current_stage_id).await?;
 
-    if !is_stage_complete(&current_stage_instance, &domain_fixtures, &domain_ties) {
+    if !is_stage_complete(
+        &current_stage_instance,
+        &domain_fixtures,
+        &domain_ties,
+        config_arc.tie_break_criteria(),
+    ) {
         return Ok(ProgressionOutcome::StageNotComplete {
             stage_order_index: current_stage_order_index,
         });
