@@ -3,15 +3,19 @@ use crate::error::DbResult;
 use crate::save::migrations::run_migrations;
 use crate::save::paths::{
     list_existing_saves, most_recent_save, save_database_url, save_filename, save_path,
-    template_database_url,
+    template_database_url_for, template_path_for,
 };
-use crate::save::template::create_save_copy;
+use crate::save::template::create_save_copy_from_path;
 use arlo_domain::SaveMetadata;
 use sqlx::SqlitePool;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 pub async fn create_new_save() -> DbResult<(SqlitePool, SaveMetadata)> {
+    create_new_save_from_template("arlo.db").await
+}
+
+pub async fn create_new_save_from_template(template_filename: &str) -> DbResult<(SqlitePool, SaveMetadata)> {
     let uuid = Uuid::new_v4();
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -20,13 +24,15 @@ pub async fn create_new_save() -> DbResult<(SqlitePool, SaveMetadata)> {
     let filename = save_filename(timestamp);
     let destination = save_path(&filename);
 
-    create_save_copy(&destination).await?;
+    let template_path = template_path_for(template_filename);
+    create_save_copy_from_path(&template_path, &destination).await?;
 
     let url = save_database_url(&filename);
     let pool = open_pool(&url).await?;
     run_migrations(&pool).await?;
 
-    let metadata = SaveMetadata::new(uuid, timestamp, template_database_url())?;
+    let template_url = template_database_url_for(template_filename);
+    let metadata = SaveMetadata::new(uuid, timestamp, template_url)?;
     crate::repositories::save_metadata::insert(&pool, &metadata).await?;
 
     Ok((pool, metadata))
