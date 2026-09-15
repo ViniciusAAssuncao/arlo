@@ -10,6 +10,7 @@ pub struct TitleRow {
     pub season_label: String,
     pub winner_team_id: Option<String>,
     pub winner_federation_id: Option<String>,
+    pub created_at_unix_seconds: i64,
 }
 
 pub fn parse_title_winner(
@@ -32,7 +33,7 @@ pub fn parse_title_winner(
 }
 
 impl TitleRow {
-    pub fn from_domain(title: &Title) -> Self {
+    pub fn from_domain(title: &Title, created_at_unix_seconds: i64) -> Self {
         let (winner_team_id, winner_federation_id) = match title.winner() {
             TitleWinner::Team(team_id) => (Some(team_id.to_string()), None),
             TitleWinner::Federation(fed_id) => (None, Some(fed_id.to_string())),
@@ -44,6 +45,7 @@ impl TitleRow {
             season_label: title.season_label().to_string(),
             winner_team_id,
             winner_federation_id,
+            created_at_unix_seconds,
         }
     }
 

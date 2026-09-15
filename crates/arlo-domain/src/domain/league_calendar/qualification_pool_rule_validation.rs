@@ -32,7 +32,8 @@ pub fn validate_qualification_pool_rule(rule: &QualificationPoolRule) -> DomainR
         }
         QualificationPoolRule::AllTeams
         | QualificationPoolRule::GroupWinners
-        | QualificationPoolRule::GroupRunnersUp => {}
+        | QualificationPoolRule::GroupRunnersUp
+        | QualificationPoolRule::ExternalCompetitionWinner { .. } => {}
     }
     Ok(())
 }

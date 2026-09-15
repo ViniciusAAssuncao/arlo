@@ -6,6 +6,7 @@ use crate::repositories::league_calendar::league_calendar_config_cache::get_or_l
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::event_scheduling::stage_completion_date_calculator::calculate_stage_completion_date;
 use crate::services::season::persistence::persist_generated_stage_schedule;
+use crate::services::season::stage::external_qualification_resolver::resolve_external_winners;
 use crate::services::season::stage::stage_schedule_generator::{
     generate_stage_schedule_from_seeds, GeneratedStageSchedule,
 };
@@ -58,6 +59,9 @@ pub async fn handle_stage_transition(
             ))
         })?;
 
+    let external_winners =
+        resolve_external_winners(pool, target_stage_def.entry_rule()).await?;
+
     let seed = seed_from_uuid(stage_instance_id);
     let sorted_standings = standings_pipeline::calculate_and_rank_standings(
         participating_team_ids,
@@ -70,8 +74,9 @@ pub async fn handle_stage_transition(
 
     let seeds = evaluate_stage_transition(
         &sorted_standings,
-        &target_stage_def.entry_rule(),
+        target_stage_def.entry_rule(),
         config_arc.groups(),
+        &external_winners,
     )?;
 
     let mut schedule = generate_stage_schedule_from_seeds(

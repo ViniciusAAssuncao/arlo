@@ -92,7 +92,7 @@ pub async fn get_by_competition_id(
     for stage_row in stage_rows {
         let pool_rows = fetch_all_by_param::<EntryRulePoolRow>(
             pool,
-            "SELECT id, league_calendar_stage_definition_id, pool_order_index, pool_kind, count, position_index, range_start_position, range_end_position FROM league_calendar_stage_entry_rule_pools WHERE league_calendar_stage_definition_id = ? ORDER BY pool_order_index ASC",
+            "SELECT id, league_calendar_stage_definition_id, pool_order_index, pool_kind, count, position_index, range_start_position, range_end_position, external_competition_id FROM league_calendar_stage_entry_rule_pools WHERE league_calendar_stage_definition_id = ? ORDER BY pool_order_index ASC",
             &stage_row.id,
         )
         .await?;

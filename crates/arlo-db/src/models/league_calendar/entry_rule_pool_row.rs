@@ -4,6 +4,7 @@ use crate::models::league_calendar::entry_rule_pool_codes::{
 };
 use arlo_domain::QualificationPoolRule;
 use sqlx::FromRow;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow)]
 pub struct EntryRulePoolRow {
@@ -15,6 +16,7 @@ pub struct EntryRulePoolRow {
     pub position_index: Option<i32>,
     pub range_start_position: Option<i32>,
     pub range_end_position: Option<i32>,
+    pub external_competition_id: Option<String>,
 }
 
 impl EntryRulePoolRow {
@@ -69,6 +71,15 @@ impl EntryRulePoolRow {
                     start_position: start as u32,
                     end_position: end as u32,
                 })
+            }
+            QualificationPoolKind::ExternalCompetitionWinner => {
+                let comp_id_str = self.external_competition_id.as_deref().ok_or_else(|| {
+                    DbError::InvalidData(
+                        "ExternalCompetitionWinner pool rule requires external_competition_id".to_string(),
+                    )
+                })?;
+                let competition_id = Uuid::parse_str(comp_id_str)?;
+                Ok(QualificationPoolRule::ExternalCompetitionWinner { competition_id })
             }
         }
     }
