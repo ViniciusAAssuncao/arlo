@@ -19,26 +19,14 @@ pub fn reverse_out_of_bounds_ruling(state: &mut MatchState, previous_scrimmage: 
         .reset(previous_scrimmage);
 }
 
-pub fn execute_challenge<R: Rng + ?Sized>(
+pub fn apply_challenge<R: Rng + ?Sized>(
     publisher: &mut EventPublisher<'_, impl EventSink>,
-    context: &ManagerDecisionContext,
     team_id: Uuid,
     call: &ReviewableCall,
     rng: &mut R,
 ) -> bool {
-    let perceived_bad = perceives_bad_call(
-        call,
-        context.manager_snapshot.challenge_judgment,
-        context.manager_snapshot.judging_ability,
-        rng,
-    );
-
-    if !ChallengeDecisionEngine::evaluate(context, call, perceived_bad, rng) {
-        return false;
-    }
-
+    let is_home = team_id == publisher.state().home_team_id();
     let success = resolve_true_ruling(call, rng);
-    let is_home = context.is_home;
     let used = publisher
         .state_mut()
         .clock_mut()
@@ -85,4 +73,35 @@ pub fn execute_challenge<R: Rng + ?Sized>(
     publisher.state_mut().clear_last_reviewable_call();
 
     success
+}
+
+pub fn evaluate_and_execute_challenge<R: Rng + ?Sized>(
+    publisher: &mut EventPublisher<'_, impl EventSink>,
+    context: &ManagerDecisionContext,
+    team_id: Uuid,
+    call: &ReviewableCall,
+    rng: &mut R,
+) -> bool {
+    let perceived_bad = perceives_bad_call(
+        call,
+        context.manager_snapshot.challenge_judgment,
+        context.manager_snapshot.judging_ability,
+        rng,
+    );
+
+    if !ChallengeDecisionEngine::evaluate(context, call, perceived_bad, rng) {
+        return false;
+    }
+
+    apply_challenge(publisher, team_id, call, rng)
+}
+
+pub fn execute_challenge<R: Rng + ?Sized>(
+    publisher: &mut EventPublisher<'_, impl EventSink>,
+    context: &ManagerDecisionContext,
+    team_id: Uuid,
+    call: &ReviewableCall,
+    rng: &mut R,
+) -> bool {
+    evaluate_and_execute_challenge(publisher, context, team_id, call, rng)
 }

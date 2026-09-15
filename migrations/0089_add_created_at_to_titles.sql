@@ -1,0 +1,1 @@
+ALTER TABLE titles ADD COLUMN created_at_unix_seconds INTEGER NOT NULL DEFAULT 0;

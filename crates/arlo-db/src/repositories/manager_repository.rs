@@ -68,7 +68,7 @@ async fn assemble_manager(
 pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> DbResult<Option<Manager>> {
     let row = fetch_optional_by_param::<ManagerRow>(
         pool,
-        "SELECT id, team_id FROM managers WHERE id = ?",
+        "SELECT id, team_id, control_mode FROM managers WHERE id = ?",
         &id.to_string(),
     )
     .await?;
@@ -88,7 +88,7 @@ pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> DbResult<Option<Manager>>
 }
 
 pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Manager>> {
-    let rows = fetch_all::<ManagerRow>(pool, "SELECT id, team_id FROM managers").await?;
+    let rows = fetch_all::<ManagerRow>(pool, "SELECT id, team_id, control_mode FROM managers").await?;
     let def_map = load_definitions_map(pool).await?;
 
     let mut results = Vec::with_capacity(rows.len());
@@ -105,7 +105,7 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Manager>> {
 pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<Manager>> {
     let rows = fetch_all_by_param::<ManagerRow>(
         pool,
-        "SELECT id, team_id FROM managers WHERE team_id = ?",
+        "SELECT id, team_id, control_mode FROM managers WHERE team_id = ?",
         &team_id.to_string(),
     )
     .await?;

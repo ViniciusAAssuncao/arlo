@@ -59,3 +59,16 @@ pub async fn list_by_league_id(pool: &SqlitePool, league_id: Uuid) -> DbResult<V
     }
     Ok(results)
 }
+
+pub async fn update_league_id(
+    pool: &SqlitePool,
+    team_id: Uuid,
+    new_league_id: Option<Uuid>,
+) -> DbResult<()> {
+    sqlx::query("UPDATE teams SET league_id = ? WHERE id = ?")
+        .bind(new_league_id.map(|id| id.to_string()))
+        .bind(team_id.to_string())
+        .execute(pool)
+        .await?;
+    Ok(())
+}

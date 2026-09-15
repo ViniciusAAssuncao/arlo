@@ -65,8 +65,8 @@ impl PlayCallTracker {
             self.away_manual_override.as_ref()
         };
 
-        if manual_override.is_some() {
-            return true;
+        if let Some(manual) = manual_override {
+            return manual.category() == expected_category;
         }
 
         let (script, cursor) = if is_home {
@@ -94,7 +94,9 @@ impl PlayCallTracker {
         };
 
         if let Some(manual) = manual_override {
-            return Some(manual);
+            if manual.category() == expected_category {
+                return Some(manual);
+            }
         }
 
         let (script, cursor) = if is_home {

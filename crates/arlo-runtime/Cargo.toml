@@ -6,10 +6,14 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+arlo-controller.workspace = true
 arlo-db.workspace = true
 arlo-engine.workspace = true
 arlo-events.workspace = true
+arlo-manager-control.workspace = true
 arlo-stats.workspace = true
+arlo-persistence.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 sqlx.workspace = true
+uuid.workspace = true

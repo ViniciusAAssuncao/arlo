@@ -1,3 +1,4 @@
+pub mod added_time_handler;
 pub mod dead_ball_clock;
 pub mod fatigue_applier;
 pub mod impulse_coordinator;
@@ -8,6 +9,7 @@ pub mod scoring_handler;
 pub mod transition_coordinator;
 pub mod turnover_and_down_events;
 
+pub use added_time_handler::evaluate_and_apply_added_time;
 pub use dead_ball_clock::handle_dead_ball_and_clock;
 pub use impulse_coordinator::coordinate_play_impulse;
 pub use kick_foul_handler::*;

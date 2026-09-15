@@ -17,4 +17,4 @@ pub use match_state::{
 pub use phases::*;
 pub use play_transition::{apply_play_transition, EventPublisher, TransitionPipeline};
 pub use situational::*;
-pub use step::{step_call_to_action, CallToActionContext};
+pub use step::{step_call_to_action, CallToActionContext, PlayStepOutcome};

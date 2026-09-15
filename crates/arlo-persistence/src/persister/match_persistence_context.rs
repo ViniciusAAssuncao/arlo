@@ -1,6 +1,7 @@
+use crate::models::season::FixtureRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MatchPersistenceContext {
     pub home_tactical_lineup_id: Uuid,
     pub away_tactical_lineup_id: Uuid,
@@ -11,6 +12,7 @@ pub struct MatchPersistenceContext {
     pub venue_id: Option<Uuid>,
     pub completed_at_unix_seconds: Option<i64>,
     pub created_at_unix_seconds: Option<i64>,
+    pub completed_fixture: Option<FixtureRow>,
 }
 
 impl MatchPersistenceContext {
@@ -33,6 +35,7 @@ impl MatchPersistenceContext {
             venue_id,
             completed_at_unix_seconds: None,
             created_at_unix_seconds: None,
+            completed_fixture: None,
         }
     }
 
@@ -43,6 +46,11 @@ impl MatchPersistenceContext {
     ) -> Self {
         self.completed_at_unix_seconds = Some(completed_at_unix_seconds);
         self.created_at_unix_seconds = Some(created_at_unix_seconds);
+        self
+    }
+
+    pub fn with_completed_fixture(mut self, completed_fixture: FixtureRow) -> Self {
+        self.completed_fixture = Some(completed_fixture);
         self
     }
 }

@@ -4,12 +4,14 @@ use crate::possession::TransitionResult;
 use crate::rng::RngStream;
 use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::period_resolution::resolve_period_end;
+use crate::world_state::play_transition::added_time_handler::evaluate_and_apply_added_time;
 use crate::world_state::play_transition::fatigue_applier::apply_dead_ball_recovery;
 use crate::world_state::play_transition::kick_foul_handler::resolve_and_apply_kick_foul;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use crate::world_state::play_transition::scoring_handler::post_transition_score_reset;
 use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_events::EventSink;
+use arlo_manager_control::ManagerDecisionInbox;
 use arlo_math::units::MIRIM_TO_METERS;
 
 pub fn handle_dead_ball_and_clock(
@@ -17,6 +19,7 @@ pub fn handle_dead_ball_and_clock(
     detailed_outcome: &DetailedPlayOutcome,
     transition_result: TransitionResult,
     play_ledger: &mut DurationLedger,
+    manager_decision_inbox: &ManagerDecisionInbox,
 ) {
     let is_possession_change =
         transition_result.snapshot.role().offense() != detailed_outcome.offense_team_id;
@@ -39,10 +42,18 @@ pub fn handle_dead_ball_and_clock(
             .rng_provider()
             .indexed_rng_for(RngStream::PlayCallSelection, seq);
 
-        let extra_offense =
-            ManagerAiEngine::on_stoppage(publisher, detailed_outcome.offense_team_id, &mut ai_rng);
-        let extra_defense =
-            ManagerAiEngine::on_stoppage(publisher, detailed_outcome.defense_team_id, &mut ai_rng);
+        let extra_offense = ManagerAiEngine::on_stoppage(
+            publisher,
+            detailed_outcome.offense_team_id,
+            manager_decision_inbox,
+            &mut ai_rng,
+        );
+        let extra_defense = ManagerAiEngine::on_stoppage(
+            publisher,
+            detailed_outcome.defense_team_id,
+            manager_decision_inbox,
+            &mut ai_rng,
+        );
         let extra_total = extra_offense + extra_defense;
         if extra_total.value() > 0.0 {
             play_ledger.record_dead_ball(DurationComponentKind::Huddle, extra_total);
@@ -69,6 +80,9 @@ pub fn handle_dead_ball_and_clock(
     }
 
     let dead_ball_seconds = play_ledger.total_dead_ball().value();
+    publisher
+        .state_mut()
+        .record_period_dead_ball_seconds(dead_ball_seconds);
     apply_dead_ball_recovery(publisher, dead_ball_seconds);
 
     let live_seconds = play_ledger.total_live().value();
@@ -81,10 +95,20 @@ pub fn handle_dead_ball_and_clock(
             .advance_impulse_dynamics(dead_ball_seconds);
     }
 
-    let period_ended = publisher
+    let mut period_ended = publisher
         .state_mut()
         .clock_mut()
         .advance_seconds(live_seconds);
+
+    if period_ended {
+        let seq = publisher.state_mut().next_sequence();
+        let mut rng = publisher
+            .state()
+            .rng_provider()
+            .indexed_rng_for(RngStream::AddedTimeDecision, seq);
+        period_ended = evaluate_and_apply_added_time(publisher, &mut rng);
+    }
+
     publisher
         .state_mut()
         .real_time_mut()

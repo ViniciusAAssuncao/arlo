@@ -19,8 +19,10 @@ pub mod invariant_violation;
 pub mod kick_foul_decision;
 pub mod kick_foul_scoring_tier;
 pub mod league;
+pub mod league_calendar;
 pub mod manager;
 pub mod manager_attribute_value;
+pub mod manager_control_mode;
 pub mod manager_profile;
 pub mod match_format_rules;
 pub mod person;
@@ -64,8 +66,10 @@ pub use invariant_violation::InvariantViolation;
 pub use kick_foul_decision::KickFoulDecisionKind;
 pub use kick_foul_scoring_tier::KickFoulScoringTier;
 pub use league::League;
+pub use league_calendar::*;
 pub use manager::{Manager, ManagerBuilder};
 pub use manager_attribute_value::ManagerAttributeValue;
+pub use manager_control_mode::ManagerControlMode;
 pub use manager_profile::{
     ArtrineDependency, DefensiveApproach, ManagerTacticalProfile, OffensiveApproach, RotationPolicy,
 };

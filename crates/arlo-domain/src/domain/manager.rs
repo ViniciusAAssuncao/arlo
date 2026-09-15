@@ -1,4 +1,5 @@
 use crate::domain::manager_attribute_value::ManagerAttributeValue;
+use crate::domain::manager_control_mode::ManagerControlMode;
 use crate::domain::manager_profile::ManagerTacticalProfile;
 use crate::domain::person::Person;
 use crate::domain::validation::validate_no_duplicate_keys;
@@ -10,6 +11,7 @@ use uuid::Uuid;
 pub struct Manager {
     person: Person,
     team_id: Option<Uuid>,
+    control_mode: ManagerControlMode,
     attributes: Vec<ManagerAttributeValue>,
     tactical_profile: Option<ManagerTacticalProfile>,
 }
@@ -18,6 +20,7 @@ impl Manager {
     pub fn new(
         person: Person,
         team_id: Option<Uuid>,
+        control_mode: ManagerControlMode,
         attributes: Vec<ManagerAttributeValue>,
         tactical_profile: Option<ManagerTacticalProfile>,
     ) -> DomainResult<Self> {
@@ -31,6 +34,7 @@ impl Manager {
         Ok(Self {
             person,
             team_id,
+            control_mode,
             attributes,
             tactical_profile,
         })
@@ -52,6 +56,14 @@ impl Manager {
         self.team_id
     }
 
+    pub fn control_mode(&self) -> ManagerControlMode {
+        self.control_mode
+    }
+
+    pub fn is_human_controlled(&self) -> bool {
+        matches!(self.control_mode, ManagerControlMode::Human)
+    }
+
     pub fn attributes(&self) -> &[ManagerAttributeValue] {
         &self.attributes
     }
@@ -65,6 +77,7 @@ impl Manager {
 pub struct ManagerBuilder {
     person: Person,
     team_id: Option<Uuid>,
+    control_mode: ManagerControlMode,
     attributes: Vec<ManagerAttributeValue>,
     tactical_profile: Option<ManagerTacticalProfile>,
 }
@@ -74,6 +87,7 @@ impl ManagerBuilder {
         Self {
             person,
             team_id: None,
+            control_mode: ManagerControlMode::default(),
             attributes: Vec::new(),
             tactical_profile: None,
         }
@@ -81,6 +95,11 @@ impl ManagerBuilder {
 
     pub fn with_team_id(mut self, team_id: Option<Uuid>) -> Self {
         self.team_id = team_id;
+        self
+    }
+
+    pub fn with_control_mode(mut self, control_mode: ManagerControlMode) -> Self {
+        self.control_mode = control_mode;
         self
     }
 
@@ -101,6 +120,7 @@ impl ManagerBuilder {
         Manager::new(
             self.person,
             self.team_id,
+            self.control_mode,
             self.attributes,
             self.tactical_profile,
         )

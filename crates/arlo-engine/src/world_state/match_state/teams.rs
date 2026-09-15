@@ -1,7 +1,7 @@
 use crate::attributes::{ManagerAttributeTable, PlayerAttributeTable};
 use crate::lineup_runtime::Lineup;
 use crate::world_state::match_state::team_position_indices::compute_lineup_indices;
-use arlo_domain::{Manager, Player, Position as DomainPosition, SlotRole};
+use arlo_domain::{Manager, ManagerControlMode, Player, Position as DomainPosition, SlotRole};
 use arlo_tactics::{PlayCall, PlayerInstructions, TeamInstructions, TeamTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -184,6 +184,18 @@ impl TeamRegistry {
 
     pub fn away_manager(&self) -> &Manager {
         &self.away_manager
+    }
+
+    pub fn home_control_mode(&self) -> ManagerControlMode {
+        self.home_manager.control_mode()
+    }
+
+    pub fn away_control_mode(&self) -> ManagerControlMode {
+        self.away_manager.control_mode()
+    }
+
+    pub fn control_mode_for_team(&self, team_id: Uuid) -> ManagerControlMode {
+        self.manager_for_team(team_id).control_mode()
     }
 
     pub fn home_available_profiles(&self) -> &[TeamTacticalProfile] {

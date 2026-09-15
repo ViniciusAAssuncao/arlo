@@ -1,5 +1,6 @@
 use crate::error::PersistenceResult;
 use crate::models::{
+    MatchAddedTimeRow,
     MatchAvailabilityChangeRow,
     MatchChallengeRow,
     MatchFoulRow,
@@ -17,13 +18,13 @@ use crate::models::{
 use crate::repositories;
 use arlo_events::MatchEvent;
 use arlo_match_runner::MatchRunResult;
-use sqlx::{ Sqlite, Transaction };
+use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 pub async fn persist_incident_events(
     tx: &mut Transaction<'_, Sqlite>,
     match_id: Uuid,
-    run_result: &MatchRunResult
+    run_result: &MatchRunResult,
 ) -> PersistenceResult<()> {
     let mut scoring_plays = Vec::new();
     let mut fouls = Vec::new();
@@ -38,6 +39,7 @@ pub async fn persist_incident_events(
     let mut play_call_selections = Vec::new();
     let mut availability_changes = Vec::new();
     let mut impulse_critical_events = Vec::new();
+    let mut added_time_awards = Vec::new();
 
     for envelope in run_result.raw_sink.events() {
         let seq = envelope.sequence_number();
@@ -45,17 +47,17 @@ pub async fn persist_incident_events(
         match envelope.event() {
             MatchEvent::GoalPoint(e) => {
                 scoring_plays.push(
-                    MatchScoringPlayRow::from_goal_point(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchScoringPlayRow::from_goal_point(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::FieldPoint(e) => {
                 scoring_plays.push(
-                    MatchScoringPlayRow::from_field_point(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchScoringPlayRow::from_field_point(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::FieldGoal(e) => {
                 scoring_plays.push(
-                    MatchScoringPlayRow::from_field_goal(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchScoringPlayRow::from_field_goal(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::ScoringAttemptMissed(e) => {
@@ -65,8 +67,8 @@ pub async fn persist_incident_events(
                         match_id,
                         seq,
                         clock,
-                        e
-                    )
+                        e,
+                    ),
                 );
             }
             MatchEvent::FoulRaised(e) => {
@@ -77,32 +79,32 @@ pub async fn persist_incident_events(
             }
             MatchEvent::SubstitutionMade(e) => {
                 substitutions.push(
-                    MatchSubstitutionRow::from_event(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchSubstitutionRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::Turnover(e) => {
                 turnovers.push(
-                    MatchTurnoverRow::from_event(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchTurnoverRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::KickFoulAwarded(e) => {
                 kick_foul_awards.push(
-                    MatchKickFoulAwardRow::from_event(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchKickFoulAwardRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::KickFoulDecisionMade(e) => {
                 kick_foul_decisions.push(
-                    MatchKickFoulDecisionRow::from_event(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchKickFoulDecisionRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::TimeCallUsed(e) => {
                 time_calls.push(
-                    MatchTimeCallRow::from_event(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchTimeCallRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::ChallengeResolved(e) => {
                 challenges.push(
-                    MatchChallengeRow::from_event(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchChallengeRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::TacticalProfileActivated(e) => {
@@ -112,18 +114,18 @@ pub async fn persist_incident_events(
                         match_id,
                         seq,
                         clock,
-                        e
-                    )
+                        e,
+                    ),
                 );
             }
             MatchEvent::PlayCallSelected(e) => {
                 play_call_selections.push(
-                    MatchPlayCallSelectionRow::from_event(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchPlayCallSelectionRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::PlayerAvailabilityChanged(e) => {
                 availability_changes.push(
-                    MatchAvailabilityChangeRow::from_event(Uuid::new_v4(), match_id, seq, clock, e)
+                    MatchAvailabilityChangeRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             MatchEvent::ImpulseCriticalReached(e) => {
@@ -133,8 +135,13 @@ pub async fn persist_incident_events(
                         match_id,
                         seq,
                         clock,
-                        e
-                    )
+                        e,
+                    ),
+                );
+            }
+            MatchEvent::AddedTimeAwarded(e) => {
+                added_time_awards.push(
+                    MatchAddedTimeRow::from_event(Uuid::new_v4(), match_id, seq, clock, e),
                 );
             }
             _ => {}
@@ -152,14 +159,15 @@ pub async fn persist_incident_events(
     repositories::match_manager_decision_timeline::insert_challenges_batch(tx, &challenges).await?;
     repositories::match_manager_decision_timeline::insert_tactical_profile_activations_batch(
         tx,
-        &tactical_profile_activations
+        &tactical_profile_activations,
     ).await?;
     repositories::match_manager_decision_timeline::insert_play_call_selections_batch(
         tx,
-        &play_call_selections
+        &play_call_selections,
     ).await?;
     repositories::match_availability_changes::insert_batch(tx, &availability_changes).await?;
     repositories::match_impulse_critical_events::insert_batch(tx, &impulse_critical_events).await?;
+    repositories::match_added_time::insert_batch(tx, &added_time_awards).await?;
 
     Ok(())
 }

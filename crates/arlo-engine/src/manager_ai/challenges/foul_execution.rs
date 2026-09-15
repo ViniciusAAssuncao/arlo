@@ -10,26 +10,13 @@ use arlo_events::EventSink;
 use rand::Rng;
 use uuid::Uuid;
 
-pub fn execute_foul_challenge<R: Rng + ?Sized>(
+pub fn apply_foul_challenge(
     publisher: &mut EventPublisher<'_, impl EventSink>,
-    context: &ManagerDecisionContext,
     team_id: Uuid,
     record: &FoulReviewRecord,
-    rng: &mut R,
 ) -> bool {
-    let perceived_bad = perceives_bad_foul_call(
-        record.original_call_correct,
-        context.manager_snapshot.challenge_judgment,
-        context.manager_snapshot.judging_ability,
-        rng,
-    );
-
-    if !evaluate_foul_challenge(context, record, perceived_bad, rng) {
-        return false;
-    }
-
+    let is_home = team_id == publisher.state().home_team_id();
     let success = !record.original_call_correct;
-    let is_home = context.is_home;
     let used = publisher
         .state_mut()
         .clock_mut()
@@ -62,4 +49,35 @@ pub fn execute_foul_challenge<R: Rng + ?Sized>(
     publisher.state_mut().clear_last_reviewable_foul();
 
     success
+}
+
+pub fn evaluate_and_execute_foul_challenge<R: Rng + ?Sized>(
+    publisher: &mut EventPublisher<'_, impl EventSink>,
+    context: &ManagerDecisionContext,
+    team_id: Uuid,
+    record: &FoulReviewRecord,
+    rng: &mut R,
+) -> bool {
+    let perceived_bad = perceives_bad_foul_call(
+        record.original_call_correct,
+        context.manager_snapshot.challenge_judgment,
+        context.manager_snapshot.judging_ability,
+        rng,
+    );
+
+    if !evaluate_foul_challenge(context, record, perceived_bad, rng) {
+        return false;
+    }
+
+    apply_foul_challenge(publisher, team_id, record)
+}
+
+pub fn execute_foul_challenge<R: Rng + ?Sized>(
+    publisher: &mut EventPublisher<'_, impl EventSink>,
+    context: &ManagerDecisionContext,
+    team_id: Uuid,
+    record: &FoulReviewRecord,
+    rng: &mut R,
+) -> bool {
+    evaluate_and_execute_foul_challenge(publisher, context, team_id, record, rng)
 }
