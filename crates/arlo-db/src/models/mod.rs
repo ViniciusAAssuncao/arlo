@@ -1,6 +1,7 @@
 pub mod attribute_definition_row;
 pub mod attribute_key_code;
 pub mod body_region_code;
+pub mod calendar_system_row;
 pub mod competition_row;
 pub mod continent_row;
 pub mod country_row;
@@ -38,6 +39,7 @@ pub mod venue_row;
 pub use attribute_definition_row::AttributeDefinitionRow;
 pub use attribute_key_code::{attribute_key_to_code, parse_attribute_key};
 pub use body_region_code::{body_region_to_code, parse_body_region};
+pub use calendar_system_row::CalendarSystemRow;
 pub use competition_row::CompetitionRow;
 pub use continent_row::ContinentRow;
 pub use country_row::CountryRow;

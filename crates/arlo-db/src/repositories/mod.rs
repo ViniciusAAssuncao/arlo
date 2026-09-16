@@ -1,4 +1,5 @@
 pub mod attribute_definition_repository;
+pub mod calendar_system_repository;
 pub mod competition_repository;
 pub mod continent_repository;
 pub mod country_repository;
@@ -21,6 +22,7 @@ pub mod title_repository;
 pub mod venue_repository;
 
 pub use attribute_definition_repository as attribute_definition;
+pub use calendar_system_repository as calendar_system;
 pub use competition_repository as competition;
 pub use continent_repository as continent;
 pub use country_repository as country;
