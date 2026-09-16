@@ -1,8 +1,20 @@
 use crate::error::DbResult;
 use crate::save::template::ensure_template_database;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub const TEMPLATE_FILENAME: &str = "arlo.db";
+
+fn check_candidate_for_database(candidate: &Path) -> Option<PathBuf> {
+    let db_file = candidate.join("database").join(TEMPLATE_FILENAME);
+    if db_file.exists() {
+        return Some(candidate.to_path_buf());
+    }
+    let db_dir = candidate.join("database");
+    if db_dir.is_dir() {
+        return Some(candidate.to_path_buf());
+    }
+    None
+}
 
 pub fn project_root_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("ARLO_PROJECT_ROOT") {
@@ -13,8 +25,8 @@ pub fn project_root_dir() -> PathBuf {
         let manifest_path = PathBuf::from(manifest_dir);
         let mut current = manifest_path.as_path();
         while let Some(parent) = current.parent() {
-            if current.join("database").exists() || current.join("Cargo.lock").exists() {
-                return current.to_path_buf();
+            if let Some(found) = check_candidate_for_database(current) {
+                return found;
             }
             current = parent;
         }
@@ -22,14 +34,46 @@ pub fn project_root_dir() -> PathBuf {
 
     let candidates = [
         PathBuf::from("."),
-        PathBuf::from("../.."),
         PathBuf::from(".."),
+        PathBuf::from("../.."),
+        PathBuf::from("../../.."),
+        PathBuf::from("../../../.."),
+        PathBuf::from("arlo"),
+        PathBuf::from("../arlo"),
         PathBuf::from("../../arlo"),
+        PathBuf::from("../../../arlo"),
     ];
 
-    for candidate in candidates {
-        if candidate.join("database").exists() || candidate.join("Cargo.lock").exists() {
-            return candidate;
+    for candidate in &candidates {
+        if let Some(found) = check_candidate_for_database(candidate) {
+            return found;
+        }
+    }
+
+    if let Ok(current_dir) = std::env::current_dir() {
+        let mut current = current_dir.as_path();
+        loop {
+            if let Some(found) = check_candidate_for_database(current) {
+                return found;
+            }
+            let arlo_sub = current.join("arlo");
+            if let Some(found) = check_candidate_for_database(&arlo_sub) {
+                return found;
+            }
+            match current.parent() {
+                Some(parent) => current = parent,
+                None => break,
+            }
+        }
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        let mut current = exe_path.as_path();
+        while let Some(parent) = current.parent() {
+            if let Some(found) = check_candidate_for_database(parent) {
+                return found;
+            }
+            current = parent;
         }
     }
 
