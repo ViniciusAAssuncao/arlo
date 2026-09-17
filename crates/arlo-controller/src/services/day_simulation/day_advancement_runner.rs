@@ -6,6 +6,7 @@ use crate::services::event_scheduling::event_dispatcher::{
     dispatch_due_events, DispatchedEventResult,
 };
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
+use crate::services::season::matchday::matchday_orchestrator;
 use arlo_persistence::models::calendar::SaveCalendarStateRow;
 use arlo_persistence::repositories::calendar::save_calendar_state;
 use sqlx::SqlitePool;
@@ -18,6 +19,7 @@ pub struct DayAdvancementResult {
     pub previous_date: CalendarDate,
     pub current_date: CalendarDate,
     pub dispatched_events: Vec<DispatchedEventResult>,
+    pub matches_played_count: u32,
 }
 
 impl DayAdvancementResult {
@@ -26,12 +28,14 @@ impl DayAdvancementResult {
         previous_date: CalendarDate,
         current_date: CalendarDate,
         dispatched_events: Vec<DispatchedEventResult>,
+        matches_played_count: u32,
     ) -> Self {
         Self {
             save_uuid,
             previous_date,
             current_date,
             dispatched_events,
+            matches_played_count,
         }
     }
 }
@@ -80,10 +84,18 @@ pub async fn run_day_advancement(
     )
     .await?;
 
+    let matches_played_count = matchday_orchestrator::run_due_matches(
+        pool,
+        current_date.year(),
+        current_date.day_of_year(),
+    )
+    .await?;
+
     Ok(DayAdvancementResult::new(
         save_uuid,
         previous_date,
         current_date,
         dispatched_events,
+        matches_played_count,
     ))
 }

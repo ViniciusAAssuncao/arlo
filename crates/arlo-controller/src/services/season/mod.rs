@@ -1,5 +1,6 @@
 pub mod conflict;
 pub mod grouped_schedule;
+pub mod matchday;
 pub mod persistence;
 pub mod progression;
 pub mod round_robin;
@@ -10,6 +11,7 @@ pub mod venue;
 
 pub use conflict::*;
 pub use grouped_schedule::*;
+pub use matchday::*;
 pub use persistence::*;
 pub use progression::*;
 pub use round_robin::*;
