@@ -2,7 +2,7 @@ use crate::domain::calendar::{CalendarSystem, ResolvedCalendarDate};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind")]
+#[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ResolvedCalendarDateDto {
     RegularDay {
         year: i64,
