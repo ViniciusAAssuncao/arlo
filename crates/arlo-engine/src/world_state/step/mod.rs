@@ -18,14 +18,14 @@ use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::officiating::punishment::capture_play_reversal_snapshot;
 use crate::rng::RngStream;
-use crate::time::DurationLedger;
+use crate::time::{DurationComponentKind, DurationLedger};
 use crate::world_state::cta_pass::resolve_pass_phase;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::{apply_play_transition, EventPublisher};
 use arlo_domain::ArtrineDecisionKind;
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
-use arlo_math::units::MIRIM_TO_METERS;
+use arlo_math::units::{Duration, MIRIM_TO_METERS};
 use smallvec::SmallVec;
 use uuid::Uuid;
 
@@ -112,6 +112,11 @@ pub fn step_call_to_action(
     )?;
 
     let (chosen_decision, execution_outcome) = if !pass_phase.pass_completed {
+        let mut ledger = DurationLedger::new();
+        ledger.record_live(
+            DurationComponentKind::PassProtectionEngagement,
+            Duration::new(14.0),
+        );
         (
             ArtrineDecisionKind::SelfCarry,
             crate::artrine::ArtrineExecutionOutcome {
@@ -121,7 +126,7 @@ pub fn step_call_to_action(
                 turnover: None,
                 recovering_player_id: None,
                 scoring_decision: ScoringDecision::NoOpportunity,
-                duration_ledger: DurationLedger::new(),
+                duration_ledger: ledger,
                 end_position: pass_phase.scrimmage_point,
                 duels: Vec::new(),
                 fouls: Vec::new(),

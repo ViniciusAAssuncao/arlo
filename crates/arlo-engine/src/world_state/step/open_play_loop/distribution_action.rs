@@ -8,6 +8,7 @@ use crate::world_state::step::open_play_loop::distribution_scoring::check_distri
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Player};
+use arlo_math::units::Duration;
 use rand::Rng;
 
 pub fn execute_distribution_action<R: Rng + ?Sized>(
@@ -50,17 +51,16 @@ pub fn execute_distribution_action<R: Rng + ?Sized>(
     );
 
     loop_state.accumulated_duels.extend(result.duels);
+
+    let total_play_secs = if result.caught { 28.0 } else { 16.0 };
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::DistributionEngagement,
-        result.engagement_duration,
+        Duration::new(total_play_secs * 0.4),
     );
-
-    if result.flight_duration.value() > 0.0 {
-        loop_state.accumulated_duration_ledger.record_live(
-            DurationComponentKind::DistributionFlight,
-            result.flight_duration,
-        );
-    }
+    loop_state.accumulated_duration_ledger.record_live(
+        DurationComponentKind::DistributionFlight,
+        Duration::new(total_play_secs * 0.6),
+    );
 
     loop_state.last_distribution_flight = result.flight_info;
 
@@ -82,7 +82,7 @@ pub fn execute_distribution_action<R: Rng + ?Sized>(
         result.receiver.id(),
         TouchActionType::Reception,
         rec_zone,
-        current_time + result.flight_duration.value(),
+        current_time + total_play_secs * 0.6,
     );
 
     loop_state.last_receiver_id = Some(result.receiver.id());
@@ -102,4 +102,6 @@ pub fn execute_distribution_action<R: Rng + ?Sized>(
         result.receiver_rating,
         rng,
     );
+
+    loop_state.ball_in_play = false;
 }

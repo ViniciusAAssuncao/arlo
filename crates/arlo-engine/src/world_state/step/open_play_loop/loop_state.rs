@@ -9,6 +9,7 @@ use arlo_math::units::Position as VectorPosition;
 use smallvec::SmallVec;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct OpenPlayLoopState {
     pub current_carrier_id: Uuid,
     pub current_carrier_pos: VectorPosition,
@@ -50,6 +51,10 @@ impl OpenPlayLoopState {
             ball_in_play: true,
             loop_iteration: 0,
         }
+    }
+
+    pub fn finish_play(&mut self) {
+        self.ball_in_play = false;
     }
 
     pub fn into_outcome(self) -> (ArtrineDecisionKind, ArtrineExecutionOutcome) {

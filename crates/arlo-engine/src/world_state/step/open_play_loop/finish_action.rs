@@ -10,7 +10,7 @@ use crate::officiating::line_fault::{
     is_line_fault, LineFaultEvaluationContext,
 };
 use crate::play_resolution::ball_kinematics::{
-    ball_flight_duration, calculate_cross_speed_from_table, calculate_distance_mirim,
+    calculate_cross_speed_from_table, calculate_distance_mirim,
 };
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
@@ -24,7 +24,7 @@ use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationC
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{Player, Position as DomainPosition};
-use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 use uuid::Uuid;
 
@@ -80,7 +80,7 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         .get(&current_carrier.id())
         .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
 
-    let cross_speed = calculate_cross_speed_from_table(
+    let _cross_speed = calculate_cross_speed_from_table(
         current_carrier,
         carrier_table,
         &state.fatigue_lookup().get(&current_carrier.id()),
@@ -92,8 +92,8 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
     };
     let center_y_m = pitch.width().value() * 0.5;
     let finisher_pos = VectorPosition::from_components(goal_x_m, center_y_m, 0.0);
-    let cross_dist = calculate_distance_mirim(carrier_pos, finisher_pos);
-    let cross_flight = ball_flight_duration(cross_dist, cross_speed);
+    let _cross_dist = calculate_distance_mirim(carrier_pos, finisher_pos);
+    let cross_flight = Duration::new(26.0);
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CrossFlight,
         cross_flight,
@@ -307,6 +307,12 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
         }
         return;
     }
+
+    let finish_time = Duration::new(22.0);
+    loop_state.accumulated_duration_ledger.record_live(
+        DurationComponentKind::FinishingEngagement,
+        finish_time,
+    );
 
     let zone = pitch.zone_at_position(loop_state.current_carrier_pos);
     let current_time = state.clock().seconds_in_period();

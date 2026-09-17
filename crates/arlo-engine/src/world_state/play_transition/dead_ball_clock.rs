@@ -12,7 +12,7 @@ use crate::world_state::play_transition::scoring_handler::post_transition_score_
 use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
-use arlo_math::units::MIRIM_TO_METERS;
+use arlo_math::units::{Duration, MIRIM_TO_METERS};
 
 pub fn handle_dead_ball_and_clock(
     publisher: &mut EventPublisher<'_, impl EventSink>,
@@ -93,13 +93,33 @@ pub fn handle_dead_ball_and_clock(
         play_ledger.record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
     }
 
-    let dead_ball_seconds = play_ledger.total_dead_ball().value();
+    let raw_live = play_ledger.total_live().value();
+    let live_seconds = if raw_live >= 15.0 {
+        raw_live
+    } else if detailed_outcome.scoring_decision.is_scored() {
+        32.0
+    } else if detailed_outcome.turnover.is_some() || !detailed_outcome.pass_completed {
+        18.0
+    } else if detailed_outcome.mirins_advanced >= 8.0 {
+        28.0
+    } else {
+        24.0
+    };
+
+    let raw_dead = play_ledger.total_dead_ball().value();
+    let dead_ball_seconds = if raw_dead >= 15.0 {
+        raw_dead
+    } else if transition_result.countdown_to_size_triggered {
+        25.0
+    } else {
+        raw_dead.max(12.0)
+    };
+
     publisher
         .state_mut()
         .record_period_dead_ball_seconds(dead_ball_seconds);
     apply_dead_ball_recovery(publisher, dead_ball_seconds);
 
-    let live_seconds = play_ledger.total_live().value();
     if live_seconds > 0.0 {
         publisher.state_mut().advance_impulse_dynamics(live_seconds);
     }
@@ -126,7 +146,7 @@ pub fn handle_dead_ball_and_clock(
     publisher
         .state_mut()
         .real_time_mut()
-        .add(play_ledger.total());
+        .add(Duration::new(live_seconds + dead_ball_seconds));
 
     let transitions = publisher
         .state_mut()

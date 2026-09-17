@@ -11,8 +11,10 @@ use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationComponentKind;
+use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
+use crate::world_state::step::open_play_loop::distribution_scoring::check_distribution_scoring_opportunity;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::Player;
@@ -24,6 +26,7 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
     state: &mut MatchState,
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
+    pass_phase: &PassPhaseResult<'_>,
     loop_state: &mut OpenPlayLoopState,
     current_carrier: &Player,
     defense_players: &[&Player],
@@ -193,7 +196,13 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         }
     }
 
-    let shift_meters = carry_result.mirins_advanced * MIRIM_TO_METERS;
+    let macro_advance = if carry_result.success {
+        carry_result.mirins_advanced.max(8.0)
+    } else {
+        (carry_result.mirins_advanced * 0.3).min(3.0)
+    };
+
+    let shift_meters = macro_advance * MIRIM_TO_METERS;
     let new_x_m = if context.is_home_offense {
         (carrier_pos.raw().0 + shift_meters).min(pitch.length().value())
     } else {
@@ -217,18 +226,32 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         }
     }
 
-    let carry_time_secs = (carry_result.mirins_advanced / 5.0).clamp(0.5, 4.0);
+    let carry_time_secs = if carry_result.turnover { 18.0 } else { 28.0 };
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CarrierMovement,
         Duration::new(carry_time_secs),
     );
 
-    loop_state.accumulated_mirins_advanced += carry_result.mirins_advanced;
+    loop_state.accumulated_mirins_advanced += macro_advance;
     loop_state.current_carrier_pos = end_pos;
 
     if carry_result.turnover {
         loop_state.turnover_team = Some(context.defense_team_id);
         loop_state.recovering_player = Some(primary_defender.id());
-        loop_state.ball_in_play = false;
+    } else if carry_result.success {
+        check_distribution_scoring_opportunity(
+            state,
+            context,
+            iter_ctx,
+            pass_phase,
+            loop_state,
+            current_carrier,
+            current_carrier,
+            defense_players,
+            carry_result.net_advantage.max(10.0),
+            rng,
+        );
     }
+
+    loop_state.ball_in_play = false;
 }
