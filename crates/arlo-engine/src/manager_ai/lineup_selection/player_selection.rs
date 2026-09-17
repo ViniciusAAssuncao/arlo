@@ -1,8 +1,19 @@
 use crate::current_ability::calculate_player_ca;
 use crate::lineup_runtime::fit_calculator::calculate_fit_for_position;
-use arlo_domain::{AttributeKey, Formation, Player, Position};
+use arlo_domain::{AttributeKey, Formation, FormationSlot, Player, Position};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
+
+fn slot_target_position(slot: &FormationSlot) -> Position {
+    if slot.defensive_position() == Position::Goalguard
+        || slot.position() == Position::Goalguard
+        || slot.offensive_position() == Position::Goalguard
+    {
+        Position::Goalguard
+    } else {
+        slot.position()
+    }
+}
 
 fn position_demand_priority(pos: Position) -> u8 {
     match pos {
@@ -21,14 +32,19 @@ pub fn assign_players(
     let slots = formation.slots();
     let mut slot_indices: Vec<usize> = (0..slots.len()).collect();
 
-    slot_indices.sort_by_key(|&idx| (position_demand_priority(slots[idx].position()), idx));
+    slot_indices.sort_by_key(|&idx| {
+        (
+            position_demand_priority(slot_target_position(&slots[idx])),
+            idx,
+        )
+    });
 
     let mut allocated_ids = HashSet::with_capacity(slots.len());
     let mut assignments = Vec::with_capacity(slots.len());
 
     for slot_idx in slot_indices {
         let slot = &slots[slot_idx];
-        let target_pos = slot.position();
+        let target_pos = slot_target_position(slot);
 
         let best_player = roster
             .iter()

@@ -21,7 +21,7 @@ use arlo_domain::sport_constants::substitution::{
     SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT, SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT,
     SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT,
 };
-use arlo_domain::{AttributeKey, RotationPolicy};
+use arlo_domain::{AttributeKey, Position, RotationPolicy};
 use arlo_events::SubstitutionReason;
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
@@ -102,7 +102,15 @@ impl SubstitutionDecisionEngine {
                     .collect();
 
                 if !available_candidates.is_empty() {
-                    let target_pos = assignment.slot().position();
+                    let slot = assignment.slot();
+                    let target_pos = if slot.defensive_position() == Position::Goalguard
+                        || slot.position() == Position::Goalguard
+                        || slot.offensive_position() == Position::Goalguard
+                    {
+                        Position::Goalguard
+                    } else {
+                        slot.position()
+                    };
                     if let Some(replacement) = best_replacement_from_tables(
                         target_pos,
                         &available_candidates,
@@ -194,7 +202,15 @@ impl SubstitutionDecisionEngine {
                     .collect();
 
                 if !available_candidates.is_empty() {
-                    let target_pos = assignment.slot().position();
+                    let slot = assignment.slot();
+                    let target_pos = if slot.defensive_position() == Position::Goalguard
+                        || slot.position() == Position::Goalguard
+                        || slot.offensive_position() == Position::Goalguard
+                    {
+                        Position::Goalguard
+                    } else {
+                        slot.position()
+                    };
                     if let Some(replacement) =
                         best_replacement(target_pos, &available_candidates, attribute_keys)
                     {

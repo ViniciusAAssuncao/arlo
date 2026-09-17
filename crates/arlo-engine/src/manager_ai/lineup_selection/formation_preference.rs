@@ -1,6 +1,17 @@
 use crate::lineup_runtime::fit_calculator::calculate_fit_for_position;
-use arlo_domain::{Formation, Player};
+use arlo_domain::{Formation, FormationSlot, Player, Position};
 use uuid::Uuid;
+
+fn slot_target_position(slot: &FormationSlot) -> Position {
+    if slot.defensive_position() == Position::Goalguard
+        || slot.position() == Position::Goalguard
+        || slot.offensive_position() == Position::Goalguard
+    {
+        Position::Goalguard
+    } else {
+        slot.position()
+    }
+}
 
 pub fn score_formation(
     formation: &Formation,
@@ -14,9 +25,10 @@ pub fn score_formation(
 
     let mut total_coverage = 0.0;
     for slot in slots {
+        let target_pos = slot_target_position(slot);
         let max_fit = roster
             .iter()
-            .map(|p| calculate_fit_for_position(p, slot.position()).efficiency_multiplier())
+            .map(|p| calculate_fit_for_position(p, target_pos).efficiency_multiplier())
             .fold(0.0_f64, f64::max);
         total_coverage += max_fit;
     }

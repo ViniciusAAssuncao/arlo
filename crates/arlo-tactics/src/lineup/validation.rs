@@ -29,7 +29,7 @@ pub fn validate_tactical_lineup(
     }
 
     for assignment in lineup.assignments() {
-        let player = roster
+        let _player = roster
             .iter()
             .find(|p| p.id() == assignment.player_id())
             .ok_or_else(|| {
@@ -38,19 +38,6 @@ pub fn validate_tactical_lineup(
                     assignment.player_id()
                 ))
             })?;
-
-        let has_position = player
-            .positions()
-            .iter()
-            .any(|p| p.position() == assignment.position());
-
-        if !has_position {
-            return Err(TacticsError::InvalidLineup(format!(
-                "Player {} does not have required position {:?} registered",
-                player.id(),
-                assignment.position()
-            )));
-        }
     }
 
     let mut role_counts: HashMap<SlotRole, u32> = HashMap::new();

@@ -74,7 +74,15 @@ pub fn calculate_fit_for_position(player: &Player, target_position: Position) ->
 }
 
 pub fn calculate_fit(player: &Player, slot: &FormationSlot) -> PositionalFit {
-    calculate_fit_for_position(player, slot.position())
+    let target_pos = if slot.defensive_position() == Position::Goalguard
+        || slot.position() == Position::Goalguard
+        || slot.offensive_position() == Position::Goalguard
+    {
+        Position::Goalguard
+    } else {
+        slot.position()
+    };
+    calculate_fit_for_position(player, target_pos)
 }
 
 pub fn calculate_lineup_fit(lineup: &Lineup) -> Vec<PositionalFit> {

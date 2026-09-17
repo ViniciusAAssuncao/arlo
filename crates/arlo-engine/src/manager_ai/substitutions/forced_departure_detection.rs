@@ -15,7 +15,18 @@ pub fn detect_forced_departures(
             let pid = a.player().id();
             availability.availability_for(&pid).is_injured()
         })
-        .map(|a| (a.player().id(), a.slot().position()))
+        .map(|a| {
+            let slot = a.slot();
+            let pos = if slot.defensive_position() == Position::Goalguard
+                || slot.position() == Position::Goalguard
+                || slot.offensive_position() == Position::Goalguard
+            {
+                Position::Goalguard
+            } else {
+                slot.position()
+            };
+            (a.player().id(), pos)
+        })
         .collect()
 }
 

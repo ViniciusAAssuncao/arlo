@@ -21,27 +21,98 @@ pub fn extract_participants<'a>(
     offense_pos_index: &HashMap<Uuid, DomainPosition>,
     offense_role_index: &HashMap<Uuid, SlotRole>,
     defense_players: &[&'a Player],
+    defense_pos_index: &HashMap<Uuid, DomainPosition>,
 ) -> EngineResult<PhaseParticipants<'a>> {
+    if offense_players.is_empty() {
+        return Err(EngineError::MissingRequiredPosition(format!("{:?}", DomainPosition::Passer)));
+    }
+    if defense_players.is_empty() {
+        return Err(EngineError::MissingRequiredPosition(format!("{:?}", DomainPosition::Goalguard)));
+    }
+
     let passer = offense_players
         .iter()
         .copied()
         .find(|p| offense_pos_index.get(&p.id()) == Some(&DomainPosition::Passer))
+        .or_else(|| {
+            offense_players.iter().copied().find(|p| {
+                p.positions()
+                    .iter()
+                    .any(|pos| pos.position() == DomainPosition::Passer && pos.proficiency() > 0)
+            })
+        })
         .or_else(|| find_player_by_position(offense_players, DomainPosition::Passer).ok())
-        .ok_or_else(|| {
-            EngineError::MissingRequiredPosition(format!("{:?}", DomainPosition::Passer))
-        })?;
+        .unwrap_or(offense_players[0]);
 
     let artrine = offense_players
         .iter()
         .copied()
+        .filter(|p| p.id() != passer.id())
         .find(|p| offense_pos_index.get(&p.id()) == Some(&DomainPosition::Artrine))
-        .or_else(|| find_player_by_position(offense_players, DomainPosition::Artrine).ok())
-        .ok_or_else(|| {
-            EngineError::MissingRequiredPosition(format!("{:?}", DomainPosition::Artrine))
-        })?;
+        .or_else(|| {
+            offense_players
+                .iter()
+                .copied()
+                .filter(|p| p.id() != passer.id())
+                .find(|p| {
+                    p.positions()
+                        .iter()
+                        .any(|pos| pos.position() == DomainPosition::Artrine && pos.proficiency() > 0)
+                })
+        })
+        .or_else(|| {
+            let candidates: Vec<&Player> = offense_players
+                .iter()
+                .copied()
+                .filter(|p| p.id() != passer.id())
+                .collect();
+            find_player_by_position(&candidates, DomainPosition::Artrine).ok()
+        })
+        .or_else(|| {
+            offense_players
+                .iter()
+                .copied()
+                .find(|p| p.id() != passer.id())
+        })
+        .unwrap_or(passer);
 
-    let pass_rusher = find_player_by_position(defense_players, DomainPosition::PassRusher)?;
-    let goalguard = find_player_by_position(defense_players, DomainPosition::Goalguard)?;
+    let goalguard = defense_players
+        .iter()
+        .copied()
+        .find(|p| defense_pos_index.get(&p.id()) == Some(&DomainPosition::Goalguard))
+        .or_else(|| {
+            defense_players.iter().copied().find(|p| {
+                p.positions()
+                    .iter()
+                    .any(|pos| pos.position() == DomainPosition::Goalguard && pos.proficiency() > 0)
+            })
+        })
+        .or_else(|| find_player_by_position(defense_players, DomainPosition::Goalguard).ok())
+        .unwrap_or(defense_players[0]);
+
+    let outfield_defenders: Vec<&Player> = defense_players
+        .iter()
+        .copied()
+        .filter(|p| p.id() != goalguard.id())
+        .collect();
+
+    let pass_rusher = if !outfield_defenders.is_empty() {
+        outfield_defenders
+            .iter()
+            .copied()
+            .find(|p| defense_pos_index.get(&p.id()) == Some(&DomainPosition::PassRusher))
+            .or_else(|| {
+                outfield_defenders.iter().copied().find(|p| {
+                    p.positions()
+                        .iter()
+                        .any(|pos| pos.position() == DomainPosition::PassRusher && pos.proficiency() > 0)
+                })
+            })
+            .or_else(|| find_player_by_position(&outfield_defenders, DomainPosition::PassRusher).ok())
+            .unwrap_or(outfield_defenders[0])
+    } else {
+        goalguard
+    };
 
     let mut pass_blockers = vec![
         (passer, DomainPosition::Passer),

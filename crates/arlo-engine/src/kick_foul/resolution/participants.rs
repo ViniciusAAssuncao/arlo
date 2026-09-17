@@ -77,7 +77,8 @@ pub fn select_kick_foul_participants<'a, R: Rng + ?Sized>(
         .or_else(|| offense_players.first().copied())
         .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{:?}", Position::CenterOffense)))?;
 
-    let goalguard = find_goalguard(defense_players)?;
+    let goalguard = find_goalguard(defense_players)
+        .or_else(|_| defense_players.first().copied().ok_or_else(|| EngineError::MissingRequiredPosition(format!("{:?}", Position::Goalguard))))?;
 
     let protectors: Vec<&Player> = offense_players
         .iter()

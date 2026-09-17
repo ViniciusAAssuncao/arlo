@@ -7,6 +7,7 @@ use crate::services::season::matchday::matchday_runner::{
 use crate::services::season::matchday::matchday_setup_builder::{
     build_matchday_setup, PreparedMatchdayFixture,
 };
+use crate::services::season::matchday::walkover_resolver;
 use arlo_engine::MatchState;
 use rayon::prelude::*;
 use sqlx::SqlitePool;
@@ -24,20 +25,22 @@ pub async fn run_due_matches(
     let catalogs = get_or_load_matchday_catalogs(pool).await?;
 
     let mut prepared_matches: Vec<PreparedMatchdayFixture> = Vec::with_capacity(due_fixtures.len());
+    let mut matches_played_count = 0u32;
+
     for fixture in &due_fixtures {
         match build_matchday_setup(pool, fixture, &catalogs).await {
             Ok(prep) => prepared_matches.push(prep),
             Err(err) => {
-                eprintln!(
-                    "Skipping fixture {} due to setup error: {}",
-                    fixture.id, err
-                );
+                eprintln!("build_matchday_setup failed for fixture {}: {}", fixture.id, err);
+                if walkover_resolver::handle_walkover(pool, fixture).await.is_ok() {
+                    matches_played_count += 1;
+                }
             }
         }
     }
 
     if prepared_matches.is_empty() {
-        return Ok(0);
+        return Ok(matches_played_count);
     }
 
     let simulation_results: Vec<Result<CompletedMatchSimulation, ControllerError>> = prepared_matches
@@ -54,8 +57,6 @@ pub async fn run_due_matches(
             )
         })
         .collect();
-
-    let mut matches_played_count = 0u32;
 
     for sim_result in simulation_results {
         match sim_result {

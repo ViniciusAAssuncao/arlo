@@ -44,11 +44,13 @@ pub fn resolve_pass_phase<'a>(
     defense_team_id: Uuid,
     sink: &mut impl EventSink,
 ) -> EngineResult<PassPhaseResult<'a>> {
+    let defense_pos_index = state.defensive_position_index_for_team_arc(defense_team_id);
     let participants = extract_participants(
         offense_players,
         offense_pos_index,
         offense_role_index,
         defense_players,
+        &defense_pos_index,
     )?;
 
     let down_number = state.possession().down() as u32;

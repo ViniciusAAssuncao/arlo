@@ -20,6 +20,7 @@ pub fn map_row_to_fixture(row: &FixtureRow) -> ControllerResult<Fixture> {
         "Postponed" => FixtureStatus::Postponed,
         "Completed" => FixtureStatus::Completed,
         "Cancelled" => FixtureStatus::Cancelled,
+        "Walkover" => FixtureStatus::Completed,
         _ => FixtureStatus::Scheduled,
     };
 

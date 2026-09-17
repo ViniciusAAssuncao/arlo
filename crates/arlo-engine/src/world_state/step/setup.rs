@@ -28,21 +28,43 @@ pub struct CallToActionContext {
 
 impl CallToActionContext {
     pub fn offense_players(&self) -> Vec<&Player> {
-        self.offense_lineup
+        let active: Vec<&Player> = self
+            .offense_lineup
             .assignments()
             .iter()
             .map(|a| a.player())
             .filter(|p| !self.unavailable_ids.contains(&p.id()))
-            .collect()
+            .collect();
+
+        if active.is_empty() {
+            self.offense_lineup
+                .assignments()
+                .iter()
+                .map(|a| a.player())
+                .collect()
+        } else {
+            active
+        }
     }
 
     pub fn defense_players(&self) -> Vec<&Player> {
-        self.defense_lineup
+        let active: Vec<&Player> = self
+            .defense_lineup
             .assignments()
             .iter()
             .map(|a| a.player())
             .filter(|p| !self.unavailable_ids.contains(&p.id()))
-            .collect()
+            .collect();
+
+        if active.is_empty() {
+            self.defense_lineup
+                .assignments()
+                .iter()
+                .map(|a| a.player())
+                .collect()
+        } else {
+            active
+        }
     }
 }
 
