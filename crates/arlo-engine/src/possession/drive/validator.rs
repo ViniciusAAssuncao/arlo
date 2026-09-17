@@ -1,5 +1,4 @@
 use crate::possession::drive::artrine_identity::{ArtrineCarrier, TrueArtrine};
-use crate::possession::drive::geometry::segment_intersects_artro;
 use arlo_domain::pitch::Artro;
 use arlo_math::units::Position;
 use serde::{Deserialize, Serialize};
@@ -42,7 +41,12 @@ pub fn validate_drive(
         return DriveValidationResult::new(DriveValidationStatus::AerialReceptionExcluded);
     }
 
-    if !segment_intersects_artro(start_pos, end_pos, artro) {
+    let min_x = start_pos.raw().0.min(end_pos.raw().0);
+    let max_x = start_pos.raw().0.max(end_pos.raw().0);
+    let artro_x = artro.x().value();
+    let half_size = artro.size().value() / 2.0;
+
+    if artro_x + half_size < min_x || artro_x - half_size > max_x {
         return DriveValidationResult::new(DriveValidationStatus::NotIntersected);
     }
 
@@ -50,7 +54,7 @@ pub fn validate_drive(
 }
 
 pub fn validate_continuous_trajectory(
-    _artrine: TrueArtrine,
+    artrine: TrueArtrine,
     segments: &[(Position, Position)],
     artro: &Artro,
     is_aerial_reception: bool,
@@ -60,8 +64,9 @@ pub fn validate_continuous_trajectory(
     }
 
     for &(start_pos, end_pos) in segments {
-        if segment_intersects_artro(start_pos, end_pos, artro) {
-            return DriveValidationResult::new(DriveValidationStatus::Valid);
+        let res = validate_drive(artrine, start_pos, end_pos, artro, false);
+        if res.is_valid() {
+            return res;
         }
     }
 

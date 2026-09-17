@@ -8,6 +8,7 @@ use crate::spatial::SpatialTrajectory;
 use crate::team_identity::intensity_multiplier_scale;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_domain::sport_constants::SPATIAL_TICK_DURATION_SECONDS;
+use arlo_domain::{AttributeKey, PitchZone, Player};
 use arlo_events::EventSink;
 use arlo_math::units::Position;
 use std::collections::HashMap;
@@ -93,98 +94,203 @@ pub fn apply_kinematic_movement_strain(
     publisher: &mut EventPublisher<'_, impl EventSink>,
     trajectories: &HashMap<Uuid, SpatialTrajectory>,
 ) {
-    for (pid, traj) in trajectories {
-        let dist_mirim = traj.total_distance_mirim();
-        let high_dist = traj.high_intensity_distance_mirim();
-        let low_dist = traj.low_intensity_distance_mirim();
-        let metabolic_joules = traj.metabolic_energy_joules();
-        let peak_spd = traj.peak_speed_meters_per_sec();
-        let zone = traj.primary_zone();
+    if !trajectories.is_empty() {
+        for (pid, traj) in trajectories {
+            let dist_mirim = traj.total_distance_mirim();
+            let high_dist = traj.high_intensity_distance_mirim();
+            let low_dist = traj.low_intensity_distance_mirim();
+            let metabolic_joules = traj.metabolic_energy_joules();
+            let peak_spd = traj.peak_speed_meters_per_sec();
+            let zone = traj.primary_zone();
 
-        let mut current_energy = publisher.state().fatigue_for(pid).energy();
-        let mut current_w_bal = publisher.state().fatigue_for(pid).w_prime_balance();
+            let mut current_energy = publisher.state().fatigue_for(pid).energy();
+            let mut current_w_bal = publisher.state().fatigue_for(pid).w_prime_balance();
 
-        if dist_mirim > 0.0 {
-            let (energy, w_bal) = publisher.state_mut().record_distance(*pid, dist_mirim);
-            current_energy = energy;
-            current_w_bal = w_bal;
+            if dist_mirim > 0.0 {
+                let (energy, w_bal) = publisher.state_mut().record_distance(*pid, dist_mirim);
+                current_energy = energy;
+                current_w_bal = w_bal;
+            }
+
+            let supra_time = traj.supramaximal_time_seconds();
+            if supra_time > 0.0 {
+                let (energy, w_bal) = publisher
+                    .state_mut()
+                    .apply_duel_anaerobic_cost(*pid, supra_time, 1.0);
+                current_energy = energy;
+                current_w_bal = w_bal;
+            }
+
+            if dist_mirim > 0.0 || supra_time > 0.0 || metabolic_joules > 0.0 {
+                publisher.emit_physical_strain(
+                    *pid,
+                    current_energy,
+                    current_w_bal,
+                    dist_mirim,
+                    high_dist,
+                    low_dist,
+                    metabolic_joules,
+                    zone,
+                    peak_spd,
+                );
+            }
+
+            let player_opt = publisher.state().teams.find_player(pid);
+            let player_table = *publisher.state().attribute_table_for(pid);
+            let player_fatigue = publisher.state().fatigue_for(pid);
+            let injury_profile = publisher.state().player_injury_profile(pid);
+            let team_id = if publisher.state().teams.is_home_player(pid) {
+                publisher.state().home_team_id()
+            } else {
+                publisher.state().away_team_id()
+            };
+
+            let critical_speed = if let Some(p) = player_opt {
+                calculate_player_critical_speed_from_table(p, &player_table, 0).value()
+            } else {
+                5.0
+            };
+
+            let age_years = if let Some(p) = player_opt {
+                calculate_player_age(p, 0)
+            } else {
+                25.0
+            };
+
+            let exposure_duration_seconds =
+                (traj.positions().len().saturating_sub(1) as f64) * SPATIAL_TICK_DURATION_SECONDS;
+
+            if exposure_duration_seconds > 0.0 {
+                let exertion_ctx = ExertionInjuryContext::new(
+                    *pid,
+                    team_id,
+                    &player_table,
+                    player_fatigue,
+                    injury_profile,
+                    peak_spd,
+                    critical_speed,
+                    high_dist,
+                    supra_time,
+                    exposure_duration_seconds,
+                    age_years,
+                );
+
+                let seq = publisher.state().event_sequence();
+                let mut exertion_rng = publisher
+                    .state()
+                    .rng_provider()
+                    .indexed_rng_for(RngStream::DuelResolution, seq);
+
+                let catalog = publisher.state().injury_catalog().clone();
+                if let Some(injury_resolution) =
+                    evaluate_and_resolve_exertion_injury(&exertion_ctx, &catalog, &mut exertion_rng)
+                {
+                    publisher.emit_injury_incident(&injury_resolution);
+                }
+            }
         }
+        return;
+    }
 
-        let supra_time = traj.supramaximal_time_seconds();
+    let home_lineup = publisher.state().home_lineup_arc();
+    let away_lineup = publisher.state().away_lineup_arc();
+    let all_players: Vec<(&Player, bool)> = home_lineup
+        .assignments()
+        .iter()
+        .map(|a| (a.player(), true))
+        .chain(away_lineup.assignments().iter().map(|a| (a.player(), false)))
+        .collect();
+
+    let is_home_offense = publisher
+        .state()
+        .possession()
+        .role()
+        .is_offense(publisher.state().home_team_id());
+
+    for (player, is_home) in all_players {
+        let pid = player.id();
+        let is_offense = is_home == is_home_offense;
+        let table = *publisher.state().attribute_table_for(&pid);
+        let pace = table.get(AttributeKey::Pace) / 20.0;
+        let stamina = table.get(AttributeKey::Stamina) / 20.0;
+
+        let base_dist_mirim = if is_offense {
+            4.0 + pace * 3.0
+        } else {
+            3.5 + pace * 2.5
+        };
+
+        let high_dist_mirim = if is_offense {
+            (base_dist_mirim * 0.40 * (1.0 + pace * 0.2)).max(0.5)
+        } else {
+            (base_dist_mirim * 0.35 * (1.0 + pace * 0.2)).max(0.5)
+        };
+        let low_dist_mirim = (base_dist_mirim - high_dist_mirim).max(0.0);
+
+        let (energy, w_bal) = publisher.state_mut().record_distance(pid, base_dist_mirim);
+
+        let supra_time = (high_dist_mirim / 6.0).max(0.0);
         if supra_time > 0.0 {
-            let (energy, w_bal) = publisher
+            publisher
                 .state_mut()
-                .apply_duel_anaerobic_cost(*pid, supra_time, 1.0);
-            current_energy = energy;
-            current_w_bal = w_bal;
+                .apply_duel_anaerobic_cost(pid, supra_time, 1.0);
         }
 
-        if dist_mirim > 0.0 || supra_time > 0.0 || metabolic_joules > 0.0 {
-            publisher.emit_physical_strain(
-                *pid,
-                current_energy,
-                current_w_bal,
-                dist_mirim,
-                high_dist,
-                low_dist,
-                metabolic_joules,
-                zone,
-                peak_spd,
-            );
-        }
+        let metabolic_joules = base_dist_mirim * 300.0 * (1.5 - stamina * 0.5);
+        let peak_spd = 5.0 + pace * 4.0;
+        let zone = PitchZone::Central;
 
-        let player_opt = publisher.state().teams.find_player(pid);
-        let player_table = *publisher.state().attribute_table_for(pid);
-        let player_fatigue = publisher.state().fatigue_for(pid);
-        let injury_profile = publisher.state().player_injury_profile(pid);
-        let team_id = if publisher.state().teams.is_home_player(pid) {
+        publisher.emit_physical_strain(
+            pid,
+            energy,
+            w_bal,
+            base_dist_mirim,
+            high_dist_mirim,
+            low_dist_mirim,
+            metabolic_joules,
+            zone,
+            peak_spd,
+        );
+
+        let team_id = if is_home {
             publisher.state().home_team_id()
         } else {
             publisher.state().away_team_id()
         };
 
-        let critical_speed = if let Some(p) = player_opt {
-            calculate_player_critical_speed_from_table(p, &player_table, 0).value()
-        } else {
-            5.0
-        };
+        let critical_speed =
+            calculate_player_critical_speed_from_table(player, &table, 0).value();
+        let age_years = calculate_player_age(player, 0);
+        let exposure_duration_seconds = (base_dist_mirim / 4.0).clamp(1.0, 10.0);
 
-        let age_years = if let Some(p) = player_opt {
-            calculate_player_age(p, 0)
-        } else {
-            25.0
-        };
+        let injury_profile = publisher.state().player_injury_profile(&pid);
+        let player_fatigue = publisher.state().fatigue_for(&pid);
 
-        let exposure_duration_seconds =
-            (traj.positions().len().saturating_sub(1) as f64) * SPATIAL_TICK_DURATION_SECONDS;
+        let exertion_ctx = ExertionInjuryContext::new(
+            pid,
+            team_id,
+            &table,
+            player_fatigue,
+            injury_profile,
+            peak_spd,
+            critical_speed,
+            high_dist_mirim,
+            supra_time,
+            exposure_duration_seconds,
+            age_years,
+        );
 
-        if exposure_duration_seconds > 0.0 {
-            let exertion_ctx = ExertionInjuryContext::new(
-                *pid,
-                team_id,
-                &player_table,
-                player_fatigue,
-                injury_profile,
-                peak_spd,
-                critical_speed,
-                high_dist,
-                supra_time,
-                exposure_duration_seconds,
-                age_years,
-            );
+        let seq = publisher.state().event_sequence();
+        let mut exertion_rng = publisher
+            .state()
+            .rng_provider()
+            .indexed_rng_for(RngStream::DuelResolution, seq);
 
-            let seq = publisher.state().event_sequence();
-            let mut exertion_rng = publisher
-                .state()
-                .rng_provider()
-                .indexed_rng_for(RngStream::DuelResolution, seq);
-
-            let catalog = publisher.state().injury_catalog().clone();
-            if let Some(injury_resolution) =
-                evaluate_and_resolve_exertion_injury(&exertion_ctx, &catalog, &mut exertion_rng)
-            {
-                publisher.emit_injury_incident(&injury_resolution);
-            }
+        let catalog = publisher.state().injury_catalog().clone();
+        if let Some(injury_resolution) =
+            evaluate_and_resolve_exertion_injury(&exertion_ctx, &catalog, &mut exertion_rng)
+        {
+            publisher.emit_injury_incident(&injury_resolution);
         }
     }
 }

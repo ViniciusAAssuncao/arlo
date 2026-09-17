@@ -87,7 +87,9 @@ pub fn handle_dead_ball_and_clock(
             is_post_turnover,
             detailed_outcome.recovering_player_id,
         );
-        play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
+        if reorg_duration.value() > 0.0 {
+            play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
+        }
         play_ledger.record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
     }
 

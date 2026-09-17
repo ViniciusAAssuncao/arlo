@@ -2,27 +2,24 @@ use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::lineup_runtime::dynamic_anchor::{
     compute_dynamic_anchors_from_tables, AnchorComputationContext,
 };
+use crate::play_resolution::field_context::PitchState;
+use crate::play_resolution::formation_snapshot::build_role_zone_map;
 use crate::spatial::decision_vector::extract_attribute_value;
-use crate::spatial::{run_spatial_tick_loop_with_context, MovementContext};
 use crate::team_identity::marking::{
     derive_block_marking_roles_from_tables, eligible_block_marking_defenders,
     extract_manager_artro_strategy_fidelity_from_table,
 };
-use crate::team_identity::tempo::{
-    effort_multiplier_from_value, huddle_duration_scale, individual_transition_effort_multiplier,
-};
+use crate::team_identity::tempo::huddle_duration_scale;
 use crate::team_identity::transition::{counter_attack_depth_bias, counter_press_engagement_bias};
 use crate::world_state::constants::{
     COUNTER_PRESS_SHIFT_PERCENTAGE, DEFAULT_ATTRIBUTE_VALUE, HUDDLE_BASE_MAX_SECONDS,
     HUDDLE_LEADERSHIP_WEIGHT, HUDDLE_MAX_SECONDS, HUDDLE_MIN_SECONDS, HUDDLE_TACTICAL_WEIGHT,
     PITCH_EDGE_MARGIN_MIRIM,
 };
-use crate::world_state::play_transition::fatigue_applier::apply_kinematic_movement_strain;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_domain::{AttributeKey, Position as DomainPosition};
 use arlo_events::EventSink;
-use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
-use std::collections::HashSet;
+use arlo_math::units::{Duration, Position as VectorPosition, Velocity, MIRIM_TO_METERS};
 use uuid::Uuid;
 
 pub fn derive_and_apply_reorganization(
@@ -222,98 +219,56 @@ pub fn derive_and_apply_reorganization(
         }
     }
 
-    let mut movers = Vec::with_capacity(home_lineup.len() + away_lineup.len());
-    for assignment in home_lineup.assignments() {
-        if publisher
-            .state()
-            .is_player_available(&assignment.player().id())
-        {
-            if let Some(&target) = home_targets.get(&assignment.player().id()) {
-                movers.push((assignment.player(), target));
-            }
-        }
+    for (&id, &target) in &home_targets {
+        publisher.state_mut().spatial_map_mut().set_position(id, target);
+        publisher.state_mut().spatial_map_mut().set_velocity(id, Velocity::zero());
     }
-    for assignment in away_lineup.assignments() {
-        if publisher
-            .state()
-            .is_player_available(&assignment.player().id())
-        {
-            if let Some(&target) = away_targets.get(&assignment.player().id()) {
-                movers.push((assignment.player(), target));
-            }
-        }
+    for (&id, &target) in &away_targets {
+        publisher.state_mut().spatial_map_mut().set_position(id, target);
+        publisher.state_mut().spatial_map_mut().set_velocity(id, Velocity::zero());
     }
 
-    let home_team_id = publisher.state().home_team_id();
-    let away_team_id = publisher.state().away_team_id();
-    let home_instr = publisher
-        .state()
-        .instructions_index_for_team(home_team_id)
-        .clone();
-    let away_instr = publisher
-        .state()
-        .instructions_index_for_team(away_team_id)
-        .clone();
-    let home_ids: HashSet<Uuid> = home_lineup
-        .assignments()
-        .iter()
-        .map(|a| a.player().id())
-        .collect();
-
-    let (offense_instructions, defense_instructions) = if is_home_offense {
-        (&home_instructions, &away_instructions)
-    } else {
-        (&away_instructions, &home_instructions)
-    };
-
-    let offense_tempo = offense_instructions.in_possession().tempo().value();
-    let defense_pressing = defense_instructions
-        .out_of_possession()
-        .pressing_intensity()
-        .value();
-
-    let effort_multiplier_for = |id: &Uuid| {
-        let is_home = home_ids.contains(id);
-        let is_offense = is_home == is_home_offense;
-        let base_mult = if is_offense {
-            effort_multiplier_from_value(offense_tempo)
-        } else {
-            effort_multiplier_from_value(defense_pressing)
-        };
-        if is_post_turnover {
-            let instr = if is_home {
-                home_instr.get(id).copied().unwrap_or_default()
-            } else {
-                away_instr.get(id).copied().unwrap_or_default()
-            };
-            individual_transition_effort_multiplier(
-                base_mult,
-                instr.transition().transition_urgency(),
-            )
-        } else {
-            base_mult
-        }
-    };
-
-    let state = publisher.state_mut();
-    let fatigue_lookup = state.fatigue.lookup();
-    let tick_result = run_spatial_tick_loop_with_context(
-        &mut state.spatial_map,
-        &movers,
-        &player_attribute_tables,
-        MovementContext::DeadBall,
-        &pitch,
-        &(|id| fatigue_lookup.get(id)),
-        &effort_multiplier_for,
+    let norm_prox = (scrimmage_x_mirim / pitch.length_mirim()).clamp(0.0, 1.0);
+    let pitch_state = PitchState::new(
+        publisher.state().possession().down(),
+        publisher.state().possession().series_state().remaining_mirins_to_target(),
+        PitchState::determine_zone_from_proximity(norm_prox),
+        arlo_domain::ArtroPlacement::Central,
+        norm_prox,
+        publisher.state().drives_in_current_series(),
+        publisher.state().possession().is_bonus_phase(),
     );
 
-    apply_kinematic_movement_strain(publisher, tick_result.trajectories());
+    let (offense_team_id, defense_team_id, offense_instructions, defense_instructions, offense_lineup, defense_lineup) =
+        if is_home_offense {
+            (
+                publisher.state().home_team_id(),
+                publisher.state().away_team_id(),
+                &home_instructions,
+                &away_instructions,
+                &home_lineup,
+                &away_lineup,
+            )
+        } else {
+            (
+                publisher.state().away_team_id(),
+                publisher.state().home_team_id(),
+                &away_instructions,
+                &home_instructions,
+                &away_lineup,
+                &home_lineup,
+            )
+        };
 
-    let offense_lineup = if is_home_offense {
-        &home_lineup
-    } else {
-        &away_lineup
-    };
+    let _role_zone_map = build_role_zone_map(
+        offense_lineup,
+        offense_team_id,
+        offense_instructions,
+        defense_lineup,
+        defense_team_id,
+        defense_instructions,
+        &pitch_state,
+    );
 
     let offense_artrine = offense_lineup
         .assignments()
@@ -343,8 +298,5 @@ pub fn derive_and_apply_reorganization(
     let huddle_seconds =
         (base_huddle_seconds * huddle_scale).clamp(HUDDLE_MIN_SECONDS, HUDDLE_MAX_SECONDS);
 
-    (
-        Duration::new(tick_result.elapsed_seconds()),
-        Duration::new(huddle_seconds),
-    )
+    (Duration::new(0.0), Duration::new(huddle_seconds))
 }

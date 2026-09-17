@@ -1,12 +1,9 @@
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::scoring::{
-    resolve_scoring_attempt,
-    ScoringAttemptRequest,
-    ScoringDecision,
-    ScoringOpportunity,
+    resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
 };
 use crate::possession::TouchActionType;
-use crate::resolution::{ AttributedDuelOutcome, DuelKind };
+use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::set_piece::kicker_selection::select_kicker_from_tables;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -27,7 +24,7 @@ pub fn attempt_placed_kick<R: Rng + ?Sized>(
     total_drives: u32,
     total_advance: f64,
     assister_id: Option<Uuid>,
-    rng: &mut R
+    rng: &mut R,
 ) -> Option<(ScoringDecision, AttributedDuelOutcome)> {
     let goalguard = match find_goalguard(defense_players) {
         Ok(g) => g,
@@ -37,7 +34,11 @@ pub fn attempt_placed_kick<R: Rng + ?Sized>(
     };
 
     let mut candidates: Vec<&Player> = Vec::with_capacity(iter_ctx.target_candidates.len() + 1);
-    if !iter_ctx.target_candidates.iter().any(|p| p.id() == default_kicker.id()) {
+    if !iter_ctx
+        .target_candidates
+        .iter()
+        .any(|p| p.id() == default_kicker.id())
+    {
         candidates.push(default_kicker);
     }
     candidates.extend_from_slice(&iter_ctx.target_candidates);
@@ -53,8 +54,9 @@ pub fn attempt_placed_kick<R: Rng + ?Sized>(
         context.is_home_offense,
         &iter_ctx.openness_by_player,
         Some(&(|id: &Uuid| state.fatigue_lookup().get(id))),
-        rng
-    ).unwrap_or(default_kicker.id());
+        rng,
+    )
+    .unwrap_or(default_kicker.id());
 
     let kicker = candidates
         .iter()
@@ -68,12 +70,16 @@ pub fn attempt_placed_kick<R: Rng + ?Sized>(
         .unwrap_or(pass_phase.scrimmage_point);
     let shot_zone = state.pitch().zone_at_position(kicker_pos);
     let current_time = state.clock().seconds_in_period();
-    state
-        .possession_mut()
-        .live_sequence_mut()
-        .record_touch(kicker.id(), TouchActionType::FinishingAttempt, shot_zone, current_time);
+    state.possession_mut().live_sequence_mut().record_touch(
+        kicker.id(),
+        TouchActionType::FinishingAttempt,
+        shot_zone,
+        current_time,
+    );
 
-    let finish_context = iter_ctx.duel_context.for_duel_kind(DuelKind::FieldGoalAttempt);
+    let finish_context = iter_ctx
+        .duel_context
+        .for_duel_kind(DuelKind::FieldGoalAttempt);
     let kicker_fatigue = state.fatigue_lookup().get(&kicker.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
     let kicker_table = state.teams.player_attribute_tables().get(&kicker.id());
@@ -89,10 +95,10 @@ pub fn attempt_placed_kick<R: Rng + ?Sized>(
         opportunity,
         total_drives,
         total_advance,
-        &finish_context
+        &finish_context,
     )
-        .with_fatigue(kicker_fatigue, gg_fatigue)
-        .with_tables(kicker_table, gg_table);
+    .with_fatigue(kicker_fatigue, gg_fatigue)
+    .with_tables(kicker_table, gg_table);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
     Some((score_dec, fin_duel))

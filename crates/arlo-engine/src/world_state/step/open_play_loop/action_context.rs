@@ -4,12 +4,11 @@ use crate::artrine::calculate_normalized_proximity;
 use crate::match_decision::target_selection::{
     calculate_player_target_weight_from_table, ReceptionRole,
 };
+use crate::play_resolution::field_context::PitchState;
+use crate::play_resolution::space_index::calculate_team_space_rating;
 use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::resolution::DuelContext;
-use crate::spatial::{
-    calculate_artro_advance_pitch_control_from_tables,
-    calculate_player_expected_free_path_from_tables, find_next_artro_position,
-};
+use crate::spatial::find_next_artro_position;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -107,31 +106,47 @@ impl<'a> OpenPlayIterationContext<'a> {
             &|id| state.fatigue_lookup().get(id),
         );
 
-        let next_artro_pos = find_next_artro_position(carrier_pos, &pitch, context.is_home_offense);
+        let next_artro_pos =
+            find_next_artro_position(carrier_pos, &pitch, context.is_home_offense);
 
-        let pitch_control_ahead = calculate_artro_advance_pitch_control_from_tables(
-            current_carrier,
-            &target_candidates,
-            defense_players,
-            state.spatial_map(),
-            state.teams.player_attribute_tables(),
-            &|id| state.fatigue_lookup().get(id),
-            carrier_pos,
-            next_artro_pos,
-            &pitch,
-            &context.offense_role_index,
+        let carrier_table = state.attribute_table_for(&current_carrier.id());
+        let offense_tables: Vec<_> = target_candidates
+            .iter()
+            .map(|p| state.attribute_table_for(&p.id()))
+            .collect();
+        let defense_tables: Vec<_> = defense_players
+            .iter()
+            .map(|p| state.attribute_table_for(&p.id()))
+            .collect();
+
+        let offense_instructions = *state.instructions_for_team(context.offense_team_id);
+        let defense_instructions = *state.instructions_for_team(context.defense_team_id);
+
+        let pitch_state = PitchState::new(
+            state.possession().down(),
+            state
+                .possession()
+                .series_state()
+                .remaining_mirins_to_target(),
+            PitchState::determine_zone_from_proximity(normalized_proximity),
+            arlo_domain::ArtroPlacement::Central,
+            normalized_proximity,
+            state.drives_in_current_series() + loop_state.accumulated_drives_recorded,
+            state.possession().is_bonus_phase(),
         );
 
-        let expected_free_path_mirim = calculate_player_expected_free_path_from_tables(
-            carrier_pos,
-            offense_players,
-            defense_players,
-            state.spatial_map(),
-            state.teams.player_attribute_tables(),
-            &|id| state.fatigue_lookup().get(id),
-            &pitch,
-            context.is_home_offense,
+        let space_rating = calculate_team_space_rating(
+            carrier_table,
+            &offense_tables,
+            &defense_tables,
+            &offense_instructions,
+            &defense_instructions,
+            &pitch_state,
+            0.0,
         );
+
+        let pitch_control_ahead = space_rating.space_index();
+        let expected_free_path_mirim = space_rating.expected_free_mirim();
 
         let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
         let carrier_impulse = state.impulse_for(&current_carrier.id());
@@ -143,12 +158,10 @@ impl<'a> OpenPlayIterationContext<'a> {
             &carrier_impulse,
         );
 
-        let offense_instructions = *state.instructions_for_team(context.offense_team_id);
         let offense_tempo_value = offense_instructions.in_possession().tempo().value();
         let offense_physicality = offense_instructions.in_possession().physicality();
         let physicality_offset =
             crate::team_identity::physicality::offensive_contact_logit_offset(offense_physicality);
-        let defense_instructions = *state.instructions_for_team(context.defense_team_id);
         let defense_pressing_multiplier = crate::team_identity::pressing::contest_radius_multiplier(
             defense_instructions
                 .out_of_possession()

@@ -8,6 +8,7 @@ use arlo_math::stats::sample_categorical;
 use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -172,7 +173,7 @@ where
 
     let default_state = PhysicalState::initial();
 
-    let weights: Vec<f64> = candidates
+    let weights: SmallVec<[f64; 16]> = candidates
         .iter()
         .map(|p| {
             let state = match fatigue_for {

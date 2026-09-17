@@ -20,6 +20,8 @@ pub use loop_state::OpenPlayLoopState;
 
 use crate::artrine::ArtrineExecutionOutcome;
 use crate::error::EngineResult;
+use crate::play_resolution::field_context::PitchState;
+use crate::play_resolution::formation_snapshot::build_role_zone_map;
 use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -39,6 +41,48 @@ pub fn run_open_play_loop(
 ) -> EngineResult<(ArtrineDecisionKind, ArtrineExecutionOutcome)> {
     let mut loop_state =
         OpenPlayLoopState::new(pass_phase.artrine.id(), pass_phase.reception_point);
+
+    let pitch_length_mirim = state.pitch().length_mirim();
+    let norm_prox = (loop_state.current_carrier_pos.raw().0
+        / state.pitch().length().value())
+    .clamp(0.0, 1.0);
+
+    let mut pitch_state = PitchState::new(
+        state.possession().down(),
+        state
+            .possession()
+            .series_state()
+            .remaining_mirins_to_target(),
+        PitchState::determine_zone_from_proximity(norm_prox),
+        arlo_domain::ArtroPlacement::Central,
+        norm_prox,
+        state.drives_in_current_series(),
+        state.possession().is_bonus_phase(),
+    );
+
+    let offense_lineup = if context.is_home_offense {
+        state.home_lineup_arc()
+    } else {
+        state.away_lineup_arc()
+    };
+    let defense_lineup = if context.is_home_offense {
+        state.away_lineup_arc()
+    } else {
+        state.home_lineup_arc()
+    };
+
+    let offense_instructions = *state.instructions_for_team(context.offense_team_id);
+    let defense_instructions = *state.instructions_for_team(context.defense_team_id);
+
+    let _role_zone_map = build_role_zone_map(
+        &offense_lineup,
+        context.offense_team_id,
+        &offense_instructions,
+        &defense_lineup,
+        context.defense_team_id,
+        &defense_instructions,
+        &pitch_state,
+    );
 
     while loop_state.ball_in_play
         && loop_state.loop_iteration < MAX_LIVE_ACTION_ITERATIONS
@@ -101,6 +145,10 @@ pub fn run_open_play_loop(
                     is_true_artrine,
                     &mut iteration_rng,
                 );
+                pitch_state = pitch_state.with_advance(
+                    loop_state.accumulated_mirins_advanced,
+                    pitch_length_mirim,
+                );
             }
             ArtrineDecisionKind::ShortPass | ArtrineDecisionKind::LongLaunch => {
                 execute_distribution_action(
@@ -113,6 +161,10 @@ pub fn run_open_play_loop(
                     defense_players,
                     chosen_decision,
                     &mut iteration_rng,
+                );
+                pitch_state = pitch_state.with_advance(
+                    loop_state.accumulated_mirins_advanced,
+                    pitch_length_mirim,
                 );
             }
             ArtrineDecisionKind::Cross => {
