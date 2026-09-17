@@ -6,8 +6,6 @@ use crate::play_resolution::space_index::TeamSpaceRating;
 use crate::psychology::state::ImpulseState;
 use arlo_domain::sport_constants::ATTRIBUTE_MAX;
 use arlo_domain::AttributeKey;
-use arlo_math::stats::contrast::logistic;
-use arlo_math::stats::noise::sample_gaussian_noise;
 use arlo_math::Probability;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -44,7 +42,7 @@ pub fn resolve_carry_action<R: Rng + ?Sized>(
     let impulse_boost = ((carrier_impulse.accumulator() - 50.0) / 50.0) * 0.15;
     let fatigue_penalty = (1.0 - carrier_fatigue.energy()) * 0.25;
 
-    let skill_score = (drive_tech * 0.35
+    let carrier_skill = (drive_tech * 0.35
         + arlo_ctrl * 0.25
         + accel * 0.20
         + balance * 0.10
@@ -53,21 +51,21 @@ pub fn resolve_carry_action<R: Rng + ?Sized>(
         - fatigue_penalty)
         .clamp(0.1, 1.5);
 
-    let free_space = space_rating.expected_free_mirim();
-    let noise = sample_gaussian_noise(0.6, rng);
-    let potential_advance = (free_space * skill_score + noise).max(0.2);
-
-    let raw_success_logit = (skill_score - 0.5) * 3.0 + (space_rating.space_index() - 0.5) * 4.0;
-    let win_prob_val = logistic(raw_success_logit).clamp(0.05, 0.98);
+    let attack_strength = carrier_skill;
+    let defense_strength = space_rating.pressure_intensity().max(0.1);
+    let total_strength = attack_strength + defense_strength;
+    let base_prob = attack_strength / total_strength;
+    let space_modifier = (space_rating.space_index() - 0.5) * 0.10;
+    let win_prob_val = (base_prob + space_modifier).clamp(0.05, 0.95);
     let win_probability = Probability::new_clamped(win_prob_val);
     let success = win_probability.sample(rng);
 
-    let net_advantage = (skill_score - space_rating.pressure_intensity()) * 5.0;
+    let net_advantage = (attack_strength - defense_strength) * 5.0;
 
     let actual_advance = if success {
-        potential_advance
+        12.0 + carrier_skill * 3.0 + space_rating.space_index() * 3.0
     } else {
-        (potential_advance * 0.35 * space_rating.space_index()).max(0.0)
+        (space_rating.expected_free_mirim() * 0.25).clamp(0.0, 3.0)
     };
 
     let drives_crossed = if is_true_artrine && actual_advance >= 3.0 {

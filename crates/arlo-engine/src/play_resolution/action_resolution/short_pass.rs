@@ -6,8 +6,6 @@ use crate::psychology::state::ImpulseState;
 use crate::team_identity::passing_style::short_pass_advance_multiplier;
 use arlo_domain::sport_constants::ATTRIBUTE_MAX;
 use arlo_domain::AttributeKey;
-use arlo_math::stats::contrast::logistic;
-use arlo_math::stats::noise::sample_gaussian_noise;
 use arlo_math::Probability;
 use arlo_tactics::PassingRange;
 use rand::Rng;
@@ -55,27 +53,24 @@ pub fn resolve_short_pass_action<R: Rng + ?Sized>(
     let agility = receiver_table.get(AttributeKey::Agility) / ATTRIBUTE_MAX;
     let receiver_skill = (hands * 0.45 + ant * 0.35 + agility * 0.20).clamp(0.1, 1.5);
 
-    let pass_mult = short_pass_advance_multiplier(passing_range);
-    let base_adv =
-        (space_rating.expected_free_mirim() * 0.85 * pass_mult + 2.0 * receiver_skill) * passer_skill;
-    let noise = sample_gaussian_noise(0.5, rng);
-    let potential_advance = (base_adv + noise).clamp(1.0, 15.0);
-
-    let completion_logit = (passer_skill - 0.5) * 3.5
-        + (receiver_skill - 0.5) * 2.5
-        + (space_rating.space_index() - 0.5) * 4.0;
-    let win_prob_val = logistic(completion_logit).clamp(0.10, 0.98);
+    let attack_strength = passer_skill * 0.55 + receiver_skill * 0.45;
+    let defense_strength = space_rating.pressure_intensity().max(0.1);
+    let total_strength = attack_strength + defense_strength;
+    let base_prob = attack_strength / total_strength;
+    let space_modifier = (space_rating.space_index() - 0.5) * 0.10;
+    let win_prob_val = (base_prob + space_modifier).clamp(0.08, 0.95);
     let win_probability = Probability::new_clamped(win_prob_val);
     let completed = win_probability.sample(rng);
 
-    let net_advantage =
-        (passer_skill + receiver_skill - 2.0 * space_rating.pressure_intensity()) * 3.5;
+    let net_advantage = (attack_strength - defense_strength) * 3.5;
 
+    let pass_mult = short_pass_advance_multiplier(passing_range);
     let (turnover, interception, actual_advance) = if completed {
-        (false, false, potential_advance)
+        let advance = (10.0 * pass_mult + 3.0 * passer_skill + 2.0 * receiver_skill).clamp(8.0, 18.0);
+        (false, false, advance)
     } else {
         let int_p =
-            (0.12 * space_rating.pressure_intensity() * (1.0 - decisions)).clamp(0.02, 0.30);
+            (0.10 * space_rating.pressure_intensity() * (1.0 - decisions)).clamp(0.02, 0.25);
         let is_int = Probability::new_clamped(int_p).sample(rng);
         (is_int, is_int, 0.0)
     };

@@ -4,14 +4,33 @@ use crate::physical::systems::degradation::extract_effective_attribute_value_wit
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
-use arlo_domain::sport_constants::{
-    ATTRIBUTE_MAX, ATTRIBUTE_SATURATION_THRESHOLD, BASE_NOISE_SCALE,
-};
 use arlo_domain::{AttributeKey, Player};
-pub use arlo_math::stats::SkewNormalParams;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SkewNormalParams {
+    scale: f64,
+}
+
+impl SkewNormalParams {
+    pub fn new(_location: f64, scale: f64, _shape: f64) -> Self {
+        Self { scale }
+    }
+
+    pub fn scale(&self) -> f64 {
+        self.scale
+    }
+
+    pub fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> f64 {
+        if self.scale <= 0.0001 {
+            0.0
+        } else {
+            rng.gen_range(-self.scale..=self.scale)
+        }
+    }
+}
 
 pub fn player_noise_distribution_from_table_with_impulse(
     _player: &Player,
@@ -27,47 +46,8 @@ pub fn player_noise_distribution_from_table_with_impulse(
         impulse_state,
         baseline,
     );
-    let technique = extract_effective_attribute_value_with_impulse(
-        table,
-        AttributeKey::Technique,
-        physical_state,
-        impulse_state,
-        baseline,
-    );
-    let flair = extract_effective_attribute_value_with_impulse(
-        table,
-        AttributeKey::Flair,
-        physical_state,
-        impulse_state,
-        baseline,
-    );
-    let composure = extract_effective_attribute_value_with_impulse(
-        table,
-        AttributeKey::Composure,
-        physical_state,
-        impulse_state,
-        baseline,
-    );
-
-    let fatigue_noise_scale = 1.0
-        + (1.0 - physical_state.energy()) * 0.60
-        + (1.0 - physical_state.w_prime_balance()) * 0.40;
-
-    let depression_from_impulse = if impulse_state.accumulator() < baseline {
-        let deficit = baseline - impulse_state.accumulator();
-        (2.0 / (1.0 + (-0.06 * deficit).exp()) - 1.0).clamp(0.0, 0.60)
-    } else {
-        0.0
-    };
-
-    let scale = BASE_NOISE_SCALE
-        * (1.0 + (ATTRIBUTE_MAX - consistency).max(0.0) / ATTRIBUTE_SATURATION_THRESHOLD)
-        * fatigue_noise_scale
-        * (1.0 + depression_from_impulse);
-    let shape = ((technique + flair) / 2.0 - composure) / ATTRIBUTE_SATURATION_THRESHOLD;
-    let location = 0.0;
-
-    SkewNormalParams::new(location, scale, shape)
+    let scale = ((20.0 - consistency).max(0.0) * 0.015).clamp(0.0, 0.30);
+    SkewNormalParams::new(0.0, scale, 0.0)
 }
 
 pub fn sample_player_noise_from_table_with_impulse<R: Rng + ?Sized>(

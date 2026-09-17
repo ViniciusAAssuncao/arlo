@@ -26,32 +26,13 @@ impl DynamicEpvModel {
         down: u8,
         remaining_advance_mirim: f64,
     ) -> f64 {
+        if drives_in_series < GOAL_POINT_REQUIRED_DRIVES {
+            return (normalized_x * 0.05).clamp(0.0, 0.05);
+        }
         let x = normalized_x.clamp(0.0, 1.0);
-        let base_field_factor = 1.0 / (1.0 + (-5.5 * (x - 0.50)).exp());
-        let d = (down.clamp(1, 4)) as f64;
-        let down_factor = ((5.0 - d) / 4.0).powf(0.5);
-        let distance_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
-
-        let drive_qualification = if drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
-            1.0
-        } else if drives_in_series == 2 {
-            0.60 + 0.15 * down_factor
-        } else if drives_in_series == 1 {
-            0.28 + 0.12 * down_factor
-        } else {
-            0.10 + 0.08 * down_factor
-        };
-
-        let gravity_effect = 1.0 / (1.0 + (-2.4 * (self.offensive_gravity - 1.0)).exp());
-        let gravity_multiplier = 0.50 + 0.90 * gravity_effect;
-
-        let raw = base_field_factor
-            * down_factor
-            * distance_factor
-            * drive_qualification
-            * gravity_multiplier;
-
-        1.0 - (-raw.max(0.0)).exp()
+        let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.10;
+        let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.30);
+        (x * 0.80 - down_penalty - dist_penalty).clamp(0.05, 0.95)
     }
 
     pub fn field_point_probability(
@@ -61,48 +42,32 @@ impl DynamicEpvModel {
         down: u8,
         remaining_advance_mirim: f64,
     ) -> f64 {
+        if drives_in_series < FIELD_POINT_REQUIRED_DRIVES && normalized_x < 0.40 {
+            return 0.0;
+        }
         let x = normalized_x.clamp(0.0, 1.0);
-        let base_field_factor = 1.0 / (1.0 + (-4.2 * (x - 0.38)).exp());
-        let d = (down.clamp(1, 4)) as f64;
-        let down_factor = ((5.0 - d) / 4.0).powf(0.6);
-        let distance_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
-
-        let drive_qualification = if drives_in_series >= FIELD_POINT_REQUIRED_DRIVES {
-            1.0
-        } else {
-            0.30 + 0.15 * down_factor
-        };
-
-        let p_goal = self.goal_probability(x, drives_in_series, down, remaining_advance_mirim);
-        let raw_p_field = base_field_factor * down_factor * distance_factor * drive_qualification;
-        let raw = raw_p_field * (1.0 - p_goal * 0.70);
-
-        1.0 - (-raw.max(0.0)).exp()
+        let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.08;
+        let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.25);
+        (x * 0.65 - down_penalty - dist_penalty).clamp(0.05, 0.90)
     }
 
     pub fn turnover_probability(
         &self,
         normalized_x: f64,
         down: u8,
-        remaining_advance_mirim: f64,
+        _remaining_advance_mirim: f64,
     ) -> f64 {
         let x = normalized_x.clamp(0.0, 1.0);
-        let p_scoring_territory = 1.0 / (1.0 + (-4.5 * (x - 0.45)).exp());
         if down >= 4 {
-            let dist_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
-            ((1.0 - p_scoring_territory) * (1.0 - 0.35 * dist_factor)).clamp(0.0, 1.0)
+            (0.60 - x * 0.30).clamp(0.15, 0.85)
         } else {
-            let d_ratio = ((down.clamp(1, 4) - 1) as f64) / 3.0;
-            (0.04 + 0.12 * (1.0 - x) * d_ratio).clamp(0.0, 1.0)
+            (0.12 - x * 0.06 + (down as f64) * 0.03).clamp(0.02, 0.40)
         }
     }
 
     pub fn opponent_epa(&self, normalized_x: f64) -> f64 {
         let opp_x = (1.0 - normalized_x).clamp(0.0, 1.0);
-        let opp_model = DynamicEpvModel::new(1.0);
-        let p_goal = opp_model.goal_probability(opp_x, 3, 1, 10.0);
-        let p_field = opp_model.field_point_probability(opp_x, 1, 1, 10.0);
-        p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
+        opp_x * 3.5
     }
 
     pub fn calculate_epa(
@@ -112,15 +77,14 @@ impl DynamicEpvModel {
         remaining_advance_mirim: f64,
         drives_in_series: u32,
     ) -> f64 {
-        let x = normalized_x.clamp(0.0, 1.0);
-        let p_goal = self.goal_probability(x, drives_in_series, down, remaining_advance_mirim);
+        let p_goal = self.goal_probability(normalized_x, drives_in_series, down, remaining_advance_mirim);
         let p_field =
-            self.field_point_probability(x, drives_in_series, down, remaining_advance_mirim);
-        let p_turnover = self.turnover_probability(x, down, remaining_advance_mirim);
-        let opp_epa = self.opponent_epa(x);
+            self.field_point_probability(normalized_x, drives_in_series, down, remaining_advance_mirim);
+        let p_to = self.turnover_probability(normalized_x, down, remaining_advance_mirim);
+        let opp_val = self.opponent_epa(normalized_x);
 
         p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
-            - p_turnover * opp_epa
+            - p_to * opp_val
     }
 
     pub fn calculate_epv(

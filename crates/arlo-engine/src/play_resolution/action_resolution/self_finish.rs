@@ -8,7 +8,6 @@ use crate::play_resolution::space_index::TeamSpaceRating;
 use arlo_domain::sport_constants::GOAL_POINT_REQUIRED_DRIVES;
 use arlo_domain::{AttributeKey, PitchZone};
 use arlo_events::ScoringPost;
-use arlo_math::stats::contrast::bradley_terry_with_offset;
 use arlo_math::Probability;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -76,9 +75,14 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
     let effective_fin_rating = raw_fin_rating * zone_multiplier * space_rating.lane_clearance();
     let net_advantage = effective_fin_rating - raw_gg_rating;
 
-    let hfa = if is_home_offense { 0.20 } else { -0.20 };
-    let win_probability =
-        bradley_terry_with_offset(effective_fin_rating, raw_gg_rating, 0.48, hfa);
+    let attack_strength = effective_fin_rating.max(0.1);
+    let defense_strength = raw_gg_rating.max(0.1);
+    let total_strength = attack_strength + defense_strength;
+    let base_prob = attack_strength / total_strength;
+
+    let hfa = if is_home_offense { 0.03 } else { -0.03 };
+    let win_prob_val = (base_prob + hfa).clamp(0.05, 0.95);
+    let win_probability = Probability::new_clamped(win_prob_val);
     let scored = win_probability.sample(rng);
 
     let points_awarded = if scored {
