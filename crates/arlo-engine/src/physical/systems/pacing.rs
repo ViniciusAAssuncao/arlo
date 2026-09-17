@@ -6,7 +6,6 @@ use crate::physical::models::metabolic_power::{
 use crate::physical::state::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
-use crate::spatial::decision_vector::extract_attribute_value;
 use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::{Position, Speed, MIRIM_TO_METERS};
@@ -161,12 +160,12 @@ pub fn calculate_player_pacing_state_from_table(
     effort_multiplier: f64,
     current_time_unix_seconds: i64,
 ) -> PacingState {
-    let work_rate = extract_attribute_value(table, AttributeKey::WorkRate);
-    let determination = extract_attribute_value(table, AttributeKey::Determination);
-    let positioning = extract_attribute_value(table, AttributeKey::Positioning);
-    let accel_attr = extract_attribute_value(table, AttributeKey::Acceleration);
-    let agility_attr = extract_attribute_value(table, AttributeKey::Agility);
-    let str_attr = extract_attribute_value(table, AttributeKey::Strength);
+    let work_rate = table.get(AttributeKey::WorkRate);
+    let determination = table.get(AttributeKey::Determination);
+    let positioning = table.get(AttributeKey::Positioning);
+    let accel_attr = table.get(AttributeKey::Acceleration);
+    let agility_attr = table.get(AttributeKey::Agility);
+    let str_attr = table.get(AttributeKey::Strength);
     let mass = calculate_player_body_mass_from_table(player, table);
 
     let v_crit =

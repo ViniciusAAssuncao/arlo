@@ -3,12 +3,10 @@ use crate::injury::outcome::InjuryIncidentResolution;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::officiating::foul::FoulResolution;
 use crate::resolution::AttributedDuelOutcome;
-use crate::spatial::SpatialTrajectory;
 use crate::time::DurationLedger;
 use arlo_domain::ArtrineDecisionKind;
 use arlo_math::units::Position as VectorPosition;
 use smallvec::SmallVec;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 pub struct OpenPlayLoopState {
@@ -21,7 +19,6 @@ pub struct OpenPlayLoopState {
     pub accumulated_fouls: Vec<FoulResolution>,
     pub accumulated_injuries: Vec<InjuryIncidentResolution>,
     pub accumulated_duration_ledger: DurationLedger,
-    pub accumulated_trajectories: HashMap<Uuid, SpatialTrajectory>,
     pub scoring_decision: ScoringDecision,
     pub turnover_team: Option<Uuid>,
     pub recovering_player: Option<Uuid>,
@@ -44,7 +41,6 @@ impl OpenPlayLoopState {
             accumulated_fouls: Vec::new(),
             accumulated_injuries: Vec::new(),
             accumulated_duration_ledger: DurationLedger::new(),
-            accumulated_trajectories: HashMap::new(),
             scoring_decision: ScoringDecision::NoOpportunity,
             turnover_team: None,
             recovering_player: None,
@@ -71,7 +67,6 @@ impl OpenPlayLoopState {
             injuries: self.accumulated_injuries,
             receiver_id: self.last_receiver_id,
             distribution_flight: self.last_distribution_flight,
-            kinematic_trajectories: self.accumulated_trajectories,
         };
         (self.primary_decision_kind, outcome)
     }

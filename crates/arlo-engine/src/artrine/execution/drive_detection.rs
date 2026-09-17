@@ -7,7 +7,6 @@ use uuid::Uuid;
 pub fn detect_drive_crossings(
     _artrine_id: Uuid,
     pitch: &Pitch,
-    _tick_result: &crate::spatial::TickSimulationResult,
     start_pos: VectorPosition,
     end_position: VectorPosition,
     attacking_positive_x: bool,

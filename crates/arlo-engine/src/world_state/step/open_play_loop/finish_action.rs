@@ -2,30 +2,29 @@ use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
-    duel_kind_for_opportunity,
-    evaluate_scoring_opportunity,
-    resolve_scoring_attempt,
-    ScoringAttemptRequest,
-    ScoringDecision,
-    ScoringOpportunity,
+    duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
+    ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
 };
-use crate::officiating::line_fault::{ evaluate_and_resolve_line_fault, LineFaultEvaluationContext };
+use crate::officiating::line_fault::{
+    estimate_last_defender_position, evaluate_and_resolve_line_fault, identify_last_defender,
+    is_line_fault, LineFaultEvaluationContext,
+};
+use crate::play_resolution::ball_kinematics::{
+    ball_flight_duration, calculate_cross_speed_from_table, calculate_distance_mirim,
+};
 use crate::possession::TouchActionType;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::DuelKind;
 use crate::set_piece::attempt_placed_kick;
-use crate::spatial::ball_kinematics::ball_flight_duration;
-use crate::spatial::ball_kinematics::calculate_cross_speed_from_table;
-use crate::spatial::line_fault::{ identify_last_defender, is_line_fault };
-use crate::spatial::proximity::calculate_distance_mirim;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::{ Player, Position as DomainPosition };
+use arlo_domain::{Player, Position as DomainPosition};
+use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 use uuid::Uuid;
 
@@ -37,7 +36,7 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
     loop_state: &mut OpenPlayLoopState,
     current_carrier: &Player,
     defense_players: &[&Player],
-    rng: &mut R
+    rng: &mut R,
 ) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
@@ -55,7 +54,6 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         &iter_ctx.target_candidates,
         Some(&context.offense_role_index),
         is_bonus_phase,
-        state.spatial_map(),
         &pitch,
         &context.offense_pos_index,
         &context.offense_instructions_index,
@@ -63,19 +61,21 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         context.is_home_offense,
         &iter_ctx.openness_by_player,
         Some(&(|id: &Uuid| state.fatigue_lookup().get(id))),
-        rng
+        rng,
     );
 
     let finisher = chosen_finisher_id
         .and_then(|fid| {
-            iter_ctx.target_candidates
+            iter_ctx
+                .target_candidates
                 .iter()
                 .copied()
                 .find(|p| p.id() == fid)
         })
         .unwrap_or(current_carrier);
 
-    let carrier_table = state.teams
+    let carrier_table = state
+        .teams
         .player_attribute_tables()
         .get(&current_carrier.id())
         .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
@@ -83,38 +83,35 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
     let cross_speed = calculate_cross_speed_from_table(
         current_carrier,
         carrier_table,
-        &state.fatigue_lookup().get(&current_carrier.id())
+        &state.fatigue_lookup().get(&current_carrier.id()),
     );
-    let finisher_pos = state.spatial_map().get_position(&finisher.id()).unwrap_or(carrier_pos);
+    let goal_x_m = if context.is_home_offense {
+        (pitch.length().value() - 4.0 * MIRIM_TO_METERS).max(0.0)
+    } else {
+        (4.0 * MIRIM_TO_METERS).min(pitch.length().value())
+    };
+    let center_y_m = pitch.width().value() * 0.5;
+    let finisher_pos = VectorPosition::from_components(goal_x_m, center_y_m, 0.0);
     let cross_dist = calculate_distance_mirim(carrier_pos, finisher_pos);
     let cross_flight = ball_flight_duration(cross_dist, cross_speed);
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CrossFlight,
-        cross_flight
+        cross_flight,
     );
 
-    let goalguard_id = find_goalguard(defense_players)
-        .map(|g| g.id())
-        .ok();
+    let goalguard_id = find_goalguard(defense_players).map(|g| g.id()).ok();
     let outfield_defenders: Vec<&Player> = defense_players
         .iter()
         .copied()
         .filter(|p| Some(p.id()) != goalguard_id)
         .collect();
 
-    if
-        let Some(last_defender) = identify_last_defender(
-            &outfield_defenders,
-            state.spatial_map(),
-            context.is_home_offense
-        )
+    if let Some(last_defender) =
+        identify_last_defender(&outfield_defenders, &context.defense_pos_index)
     {
         let finisher_table = state.attribute_table_for(&finisher.id());
         let defender_table = state.attribute_table_for(&last_defender.id());
-        let defender_pos = state
-            .spatial_map()
-            .get_position(&last_defender.id())
-            .unwrap_or(carrier_pos);
+        let defender_pos = estimate_last_defender_position(&pitch, context.is_home_offense);
 
         let (is_fault, margin) = is_line_fault(
             finisher,
@@ -123,7 +120,7 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
             last_defender,
             defender_table,
             defender_pos,
-            context.is_home_offense
+            context.is_home_offense,
         );
 
         if is_fault {
@@ -136,7 +133,7 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
                 last_defender.team_id().unwrap_or(context.defense_team_id),
                 margin,
                 &head_referee_table,
-                &peace_referee_table
+                &peace_referee_table,
             );
             if let Some(foul) = evaluate_and_resolve_line_fault(&lf_ctx, rng) {
                 loop_state.scoring_decision = ScoringDecision::NoOpportunity;
@@ -155,19 +152,18 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         DomainPosition::CenterOffense,
         state.attribute_table_for(&finisher.id()),
         att_prof,
-        &state.fatigue_lookup().get(&finisher.id())
+        &state.fatigue_lookup().get(&finisher.id()),
     );
 
     let total_drives = state.drives_in_current_series() + loop_state.accumulated_drives_recorded;
-    let total_advance =
-        state.possession().series_state().advanced_mirins() +
-        loop_state.accumulated_mirins_advanced;
+    let total_advance = state.possession().series_state().advanced_mirins()
+        + loop_state.accumulated_mirins_advanced;
 
     let opportunity = evaluate_scoring_opportunity(
         is_bonus_phase,
         total_drives,
         total_advance,
-        fin_rating
+        fin_rating,
     );
 
     if matches!(opportunity, ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)) {
@@ -177,21 +173,19 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
             .primary_assister(finisher.id())
             .or(Some(current_carrier.id()));
 
-        if
-            let Some((score_dec, fin_duel)) = attempt_placed_kick(
-                state,
-                context,
-                iter_ctx,
-                pass_phase,
-                finisher,
-                defense_players,
-                opportunity,
-                total_drives,
-                total_advance,
-                assister_id,
-                rng
-            )
-        {
+        if let Some((score_dec, fin_duel)) = attempt_placed_kick(
+            state,
+            context,
+            iter_ctx,
+            pass_phase,
+            finisher,
+            defense_players,
+            opportunity,
+            total_drives,
+            total_advance,
+            assister_id,
+            rng,
+        ) {
             let kicker_id = score_dec.scorer_id().unwrap_or(finisher.id());
             loop_state.accumulated_duels.push(fin_duel);
             loop_state.scoring_decision = score_dec;
@@ -209,7 +203,7 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
             finisher.id(),
             TouchActionType::FinishingAttempt,
             fin_zone,
-            current_time + cross_flight.value()
+            current_time + cross_flight.value(),
         );
 
     let goalguard = match find_goalguard(defense_players) {
@@ -226,7 +220,7 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         .or(Some(current_carrier.id()));
 
     let finish_context = iter_ctx.duel_context.for_duel_kind(
-        duel_kind_for_opportunity(opportunity)
+        duel_kind_for_opportunity(opportunity),
     );
     let fin_fatigue = state.fatigue_lookup().get(&finisher.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
@@ -242,10 +236,10 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         opportunity,
         total_drives,
         total_advance,
-        &finish_context
+        &finish_context,
     )
-        .with_fatigue(fin_fatigue, gg_fatigue)
-        .with_tables(fin_table, gg_table);
+    .with_fatigue(fin_fatigue, gg_fatigue)
+    .with_tables(fin_table, gg_table);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
 
@@ -263,7 +257,7 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
     loop_state: &mut OpenPlayLoopState,
     current_carrier: &Player,
     defense_players: &[&Player],
-    rng: &mut R
+    rng: &mut R,
 ) {
     let pitch = *state.pitch();
     let attribute_keys = state.attribute_keys().clone();
@@ -275,39 +269,36 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
         DomainPosition::CenterOffense,
         state.attribute_table_for(&current_carrier.id()),
         att_prof,
-        &state.fatigue_lookup().get(&current_carrier.id())
+        &state.fatigue_lookup().get(&current_carrier.id()),
     );
 
     let total_drives = state.drives_in_current_series() + loop_state.accumulated_drives_recorded;
-    let total_advance =
-        state.possession().series_state().advanced_mirins() +
-        loop_state.accumulated_mirins_advanced;
+    let total_advance = state.possession().series_state().advanced_mirins()
+        + loop_state.accumulated_mirins_advanced;
 
     let opportunity = evaluate_scoring_opportunity(
         is_bonus_phase,
         total_drives,
         total_advance,
-        fin_rating
+        fin_rating,
     );
 
     if matches!(opportunity, ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)) {
         let assister_id = state.possession().live_sequence().primary_assister(current_carrier.id());
 
-        if
-            let Some((score_dec, fin_duel)) = attempt_placed_kick(
-                state,
-                context,
-                iter_ctx,
-                pass_phase,
-                current_carrier,
-                defense_players,
-                opportunity,
-                total_drives,
-                total_advance,
-                assister_id,
-                rng
-            )
-        {
+        if let Some((score_dec, fin_duel)) = attempt_placed_kick(
+            state,
+            context,
+            iter_ctx,
+            pass_phase,
+            current_carrier,
+            defense_players,
+            opportunity,
+            total_drives,
+            total_advance,
+            assister_id,
+            rng,
+        ) {
             let kicker_id = score_dec.scorer_id().unwrap_or(current_carrier.id());
             loop_state.accumulated_duels.push(fin_duel);
             loop_state.scoring_decision = score_dec;
@@ -334,7 +325,7 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
     let assister_id = state.possession().live_sequence().primary_assister(current_carrier.id());
 
     let finish_context = iter_ctx.duel_context.for_duel_kind(
-        duel_kind_for_opportunity(opportunity)
+        duel_kind_for_opportunity(opportunity),
     );
     let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
@@ -350,10 +341,10 @@ pub fn execute_self_finish_action<R: Rng + ?Sized>(
         opportunity,
         total_drives,
         total_advance,
-        &finish_context
+        &finish_context,
     )
-        .with_fatigue(carrier_fatigue, gg_fatigue)
-        .with_tables(carrier_table, gg_table);
+    .with_fatigue(carrier_fatigue, gg_fatigue)
+    .with_tables(carrier_table, gg_table);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
 

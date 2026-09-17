@@ -1,7 +1,6 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::state::PhysicalState;
 use crate::physical::systems::degradation::physical_attribute_modifier;
-use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -28,7 +27,7 @@ pub fn compute_player_fatigue_multiplier(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
 ) -> f64 {
     let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    let stamina = extract_attribute_value(&table, AttributeKey::Stamina);
-    let natural_fitness = extract_attribute_value(&table, AttributeKey::NaturalFitness);
+    let stamina = table.get(AttributeKey::Stamina);
+    let natural_fitness = table.get(AttributeKey::NaturalFitness);
     fatigue_multiplier(physical_state, stamina, natural_fitness)
 }

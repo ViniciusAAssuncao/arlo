@@ -184,10 +184,8 @@ impl<'a> DecisionEvaluationContext<'a> {
         if self.expected_free_path_mirim > 0.0 {
             self.expected_free_path_mirim
         } else {
-            crate::spatial::estimate_free_path_from_pitch_control(
-                self.pitch_control(),
-                ((1.0 - self.normalized_proximity) * self.pitch_length_mirim).max(0.0),
-            )
+            let rem_len = ((1.0 - self.normalized_proximity) * self.pitch_length_mirim).max(0.0);
+            (self.pitch_control() * rem_len * 0.35).clamp(0.5, 25.0)
         }
     }
 

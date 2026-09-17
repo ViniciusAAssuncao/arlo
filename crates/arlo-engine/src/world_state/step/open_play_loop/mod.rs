@@ -1,6 +1,5 @@
 pub mod action_context;
 pub mod carry_action;
-pub mod carry_collision;
 pub mod decision_selection;
 pub mod distribution_action;
 pub mod distribution_reception;
@@ -10,7 +9,6 @@ pub mod loop_state;
 
 pub use action_context::OpenPlayIterationContext;
 pub use carry_action::execute_carry_action;
-pub use carry_collision::{resolve_carry_collision, CarryCollisionResult};
 pub use decision_selection::select_carrier_decision;
 pub use distribution_action::execute_distribution_action;
 pub use distribution_reception::{resolve_distribution_reception, DistributionReceptionResult};

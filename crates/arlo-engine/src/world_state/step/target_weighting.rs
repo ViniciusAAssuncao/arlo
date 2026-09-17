@@ -3,7 +3,6 @@ use crate::match_decision::target_selection::{
     calculate_player_target_weight_from_table, ReceptionRole,
 };
 use crate::playmaking::routes::simulate_route_development_from_tables;
-use crate::rng::RngStream;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
@@ -33,7 +32,6 @@ pub fn resolve_decision_target_weights(
                 calculate_player_target_weight_from_table(
                     p,
                     table,
-                    state.spatial_map(),
                     state.pitch(),
                     &context.offense_pos_index,
                     &context.offense_instructions_index,
@@ -55,7 +53,7 @@ pub fn resolve_decision_target_weights(
         let seq = state.next_sequence();
         let mut drift_rng = state
             .rng_provider()
-            .indexed_rng_for(RngStream::PositionalDrift, seq);
+            .indexed_rng_for(crate::rng::RngStream::PositionalDrift, seq);
 
         let offense_route_runners: Vec<&Player> = target_candidates
             .iter()
@@ -75,7 +73,6 @@ pub fn resolve_decision_target_weights(
             &context.defense_pos_index,
             &context.defense_instructions_index,
             &tables,
-            &mut state.spatial_map,
             &|id| fatigue_tracker.fatigue_for(id),
             available_duration,
             &mut drift_rng,
@@ -91,7 +88,6 @@ pub fn resolve_decision_target_weights(
                 calculate_player_target_weight_from_table(
                     p,
                     table,
-                    state.spatial_map(),
                     state.pitch(),
                     &context.offense_pos_index,
                     &context.offense_instructions_index,

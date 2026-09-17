@@ -5,7 +5,6 @@ use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::{
     calculate_player_contextual_baseline, calculate_player_contextual_baseline_from_table,
 };
-use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::sport_constants::{impulse_floor_for_baseline, IMPULSE_SCALE_MAX};
 use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
@@ -24,8 +23,8 @@ pub fn calculate_impulse_recovery_tau(stamina: f64, natural_fitness: f64) -> f64
 }
 
 pub fn calculate_player_impulse_recovery_tau_from_table(table: &PlayerAttributeTable) -> f64 {
-    let stamina = extract_attribute_value(table, AttributeKey::Stamina);
-    let natural_fitness = extract_attribute_value(table, AttributeKey::NaturalFitness);
+    let stamina = table.get(AttributeKey::Stamina);
+    let natural_fitness = table.get(AttributeKey::NaturalFitness);
     calculate_impulse_recovery_tau(stamina, natural_fitness)
 }
 

@@ -8,16 +8,15 @@ use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::calculate_team_space_rating;
 use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::resolution::DuelContext;
-use crate::spatial::find_next_artro_position;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use crate::world_state::step::target_weighting::resolve_decision_target_weights;
-use arlo_domain::sport_constants::LAUNCHER_TARGET_WEIGHT_MULTIPLIER;
+use arlo_domain::sport_constants::{ARTRO_ROW_SPACING_MIRIM, LAUNCHER_TARGET_WEIGHT_MULTIPLIER};
 use arlo_domain::{Player, SlotRole};
-use arlo_math::units::Position as VectorPosition;
+use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -79,7 +78,6 @@ impl<'a> OpenPlayIterationContext<'a> {
                 let base_weight = calculate_player_target_weight_from_table(
                     p,
                     table,
-                    state.spatial_map(),
                     &pitch,
                     &context.offense_pos_index,
                     &context.offense_instructions_index,
@@ -100,14 +98,19 @@ impl<'a> OpenPlayIterationContext<'a> {
             &target_candidates,
             state.teams.player_attribute_tables(),
             &context.offense_pos_index,
-            state.spatial_map(),
             &pitch,
             context.is_home_offense,
             &|id| state.fatigue_lookup().get(id),
         );
 
-        let next_artro_pos =
-            find_next_artro_position(carrier_pos, &pitch, context.is_home_offense);
+        let cur_x_m = carrier_pos.raw().0;
+        let pitch_len_m = pitch.length().value();
+        let next_x_m = if context.is_home_offense {
+            (cur_x_m + ARTRO_ROW_SPACING_MIRIM * MIRIM_TO_METERS).min(pitch_len_m)
+        } else {
+            (cur_x_m - ARTRO_ROW_SPACING_MIRIM * MIRIM_TO_METERS).max(0.0)
+        };
+        let next_artro_pos = VectorPosition::from_components(next_x_m, carrier_pos.raw().1, 0.0);
 
         let carrier_table = state.attribute_table_for(&current_carrier.id());
         let offense_tables: Vec<_> = target_candidates

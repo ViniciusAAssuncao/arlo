@@ -46,7 +46,6 @@ pub fn attempt_placed_kick<R: Rng + ?Sized>(
     let kicker_id = select_kicker_from_tables(
         &candidates,
         Some(&context.offense_role_index),
-        state.spatial_map(),
         state.pitch(),
         &context.offense_pos_index,
         &context.offense_instructions_index,
@@ -64,10 +63,7 @@ pub fn attempt_placed_kick<R: Rng + ?Sized>(
         .find(|p| p.id() == kicker_id)
         .unwrap_or(default_kicker);
 
-    let kicker_pos = state
-        .spatial_map()
-        .get_position(&kicker.id())
-        .unwrap_or(pass_phase.scrimmage_point);
+    let kicker_pos = pass_phase.scrimmage_point;
     let shot_zone = state.pitch().zone_at_position(kicker_pos);
     let current_time = state.clock().seconds_in_period();
     state.possession_mut().live_sequence_mut().record_touch(

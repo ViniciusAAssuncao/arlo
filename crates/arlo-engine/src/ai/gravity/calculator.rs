@@ -3,7 +3,6 @@ use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
-use crate::spatial::DynamicSpatialMap;
 use crate::weighting::calculate_weighted_saturated_average;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
@@ -177,9 +176,8 @@ pub fn calculate_team_max_finishing_gravity_with_fatigue_from_tables<F>(
     players: &[&Player],
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     position_index: &HashMap<Uuid, Position>,
-    spatial_map: &DynamicSpatialMap,
-    pitch: &Pitch,
-    attacking_positive_x: bool,
+    _pitch: &Pitch,
+    _attacking_positive_x: bool,
     fatigue_for: &F,
 ) -> OffensiveGravity
 where
@@ -203,13 +201,14 @@ where
                     .unwrap_or(Position::CenterOffense)
             });
 
-        let player_vec_pos = spatial_map
-            .get_position(&player.id())
-            .unwrap_or_else(VectorPosition::zero);
+        let zone_factor = match assigned_pos {
+            Position::CenterOffense => 1.25,
+            Position::WingOffense | Position::WideEnd => 1.15,
+            Position::TightWing | Position::RunningEnd | Position::Corridor => 1.05,
+            _ => 1.00,
+        };
 
-        let zone_factor = calculate_zone_factor(player_vec_pos, pitch, attacking_positive_x);
         let state = fatigue_for(&player.id());
-
         let table = attribute_tables
             .get(&player.id())
             .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
@@ -233,7 +232,6 @@ where
 pub fn calculate_team_max_finishing_gravity_with_fatigue<F>(
     players: &[&Player],
     position_index: &HashMap<Uuid, Position>,
-    spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
@@ -242,51 +240,23 @@ pub fn calculate_team_max_finishing_gravity_with_fatigue<F>(
 where
     F: Fn(&Uuid) -> PhysicalState,
 {
-    if players.is_empty() {
-        return OffensiveGravity::default();
+    let mut attribute_tables = HashMap::with_capacity(players.len());
+    for p in players {
+        attribute_tables.insert(p.id(), PlayerAttributeTable::from_player(p, attribute_keys));
     }
-
-    let mut best_gravity = OffensiveGravity::default();
-
-    for &player in players {
-        let assigned_pos = position_index
-            .get(&player.id())
-            .copied()
-            .unwrap_or_else(|| {
-                player
-                    .positions()
-                    .first()
-                    .map(|pp| pp.position())
-                    .unwrap_or(Position::CenterOffense)
-            });
-
-        let player_vec_pos = spatial_map
-            .get_position(&player.id())
-            .unwrap_or_else(VectorPosition::zero);
-
-        let zone_factor = calculate_zone_factor(player_vec_pos, pitch, attacking_positive_x);
-        let state = fatigue_for(&player.id());
-
-        let grav = calculate_player_offensive_gravity_with_state(
-            player,
-            assigned_pos,
-            attribute_keys,
-            zone_factor,
-            &state,
-        );
-
-        if grav.multiplier() > best_gravity.multiplier() {
-            best_gravity = grav;
-        }
-    }
-
-    best_gravity
+    calculate_team_max_finishing_gravity_with_fatigue_from_tables(
+        players,
+        &attribute_tables,
+        position_index,
+        pitch,
+        attacking_positive_x,
+        fatigue_for,
+    )
 }
 
 pub fn calculate_team_max_finishing_gravity(
     players: &[&Player],
     position_index: &HashMap<Uuid, Position>,
-    spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     attacking_positive_x: bool,
@@ -294,7 +264,6 @@ pub fn calculate_team_max_finishing_gravity(
     calculate_team_max_finishing_gravity_with_fatigue(
         players,
         position_index,
-        spatial_map,
         pitch,
         attribute_keys,
         attacking_positive_x,

@@ -57,18 +57,9 @@ pub fn resolve_pass_phase<'a>(
     let scrimmage_point = state.possession().scrimmage_point();
     let scrimmage_x_mirim = scrimmage_point.raw().0 / MIRIM_TO_METERS;
 
-    let passer_pos = state
-        .spatial_map()
-        .get_position(&participants.passer.id())
-        .unwrap_or(scrimmage_point);
-    let artrine_pos = state
-        .spatial_map()
-        .get_position(&participants.artrine.id())
-        .unwrap_or(scrimmage_point);
-    let pass_rusher_pos = state
-        .spatial_map()
-        .get_position(&participants.pass_rusher.id())
-        .unwrap_or(scrimmage_point);
+    let passer_pos = scrimmage_point;
+    let artrine_pos = scrimmage_point;
+    let pass_rusher_pos = scrimmage_point;
 
     let passer_zone = state.pitch().zone_at_position(passer_pos);
     let current_time = state.clock().seconds_in_period();

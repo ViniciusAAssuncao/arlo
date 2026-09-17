@@ -39,7 +39,7 @@ pub fn evaluate_and_resolve_contact_injury<R: Rng + ?Sized>(
         )
     };
 
-    let collision_intensity = ctx.collision.contact_severity.clamp(0.0, 1.0);
+    let collision_intensity = ctx.contact_severity.clamp(0.0, 1.0);
     let fatigue = calculate_physical_exhaustion(physical_state).clamp(0.0, 1.0);
     let susceptibility = derive_effective_susceptibility(table, profile);
 

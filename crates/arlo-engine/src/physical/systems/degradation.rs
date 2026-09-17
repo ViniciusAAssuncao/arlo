@@ -4,7 +4,6 @@ use crate::physical::models::metabolic_power::{
 };
 use crate::physical::state::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::spatial::decision_vector::extract_attribute_value;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::units::Speed;
 use std::collections::HashMap;
@@ -114,8 +113,8 @@ pub fn extract_effective_attribute_value_with_impulse(
     impulse_state: &ImpulseState,
     baseline: f64,
 ) -> f64 {
-    let base_val = extract_attribute_value(table, key);
-    let concentration = extract_attribute_value(table, AttributeKey::Concentration);
+    let base_val = table.get(key);
+    let concentration = table.get(AttributeKey::Concentration);
     let modifier = attribute_degradation_modifier_with_impulse(
         key,
         state,
@@ -131,8 +130,8 @@ pub fn extract_effective_attribute_value(
     key: AttributeKey,
     state: &PhysicalState,
 ) -> f64 {
-    let base_val = extract_attribute_value(table, key);
-    let concentration = extract_attribute_value(table, AttributeKey::Concentration);
+    let base_val = table.get(key);
+    let concentration = table.get(AttributeKey::Concentration);
     let modifier = attribute_degradation_modifier(key, state, concentration);
     (base_val * modifier).clamp(0.0, 20.0)
 }

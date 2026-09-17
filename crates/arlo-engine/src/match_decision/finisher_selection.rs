@@ -5,7 +5,6 @@ use crate::match_decision::target_selection::{
     select_target_from_tables, ReceptionRole,
 };
 use crate::physical::PhysicalState;
-use crate::spatial::DynamicSpatialMap;
 use arlo_domain::{AttributeKey, Pitch, Player, Position, SlotRole};
 use arlo_tactics::PlayerInstructions;
 use rand::Rng;
@@ -30,7 +29,6 @@ pub fn player_base_finishing_weight(
 pub fn calculate_player_finishing_weight_from_table(
     player: &Player,
     table: &PlayerAttributeTable,
-    spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
@@ -41,7 +39,6 @@ pub fn calculate_player_finishing_weight_from_table(
     calculate_player_target_weight_from_table(
         player,
         table,
-        spatial_map,
         pitch,
         position_index,
         instructions_index,
@@ -54,7 +51,6 @@ pub fn calculate_player_finishing_weight_from_table(
 
 pub fn calculate_player_finishing_weight(
     player: &Player,
-    spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
@@ -65,7 +61,6 @@ pub fn calculate_player_finishing_weight(
 ) -> f64 {
     calculate_player_target_weight(
         player,
-        spatial_map,
         pitch,
         position_index,
         instructions_index,
@@ -81,7 +76,6 @@ pub fn select_finisher_from_tables<F, R>(
     candidates: &[&Player],
     _role_index_for_play: Option<&HashMap<Uuid, SlotRole>>,
     _is_bonus_phase: bool,
-    spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
@@ -97,7 +91,6 @@ where
 {
     select_target_from_tables(
         candidates,
-        spatial_map,
         pitch,
         position_index,
         instructions_index,

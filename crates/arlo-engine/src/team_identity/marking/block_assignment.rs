@@ -1,9 +1,6 @@
 use crate::attributes::{
     ManagerAttributeTable, PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE,
 };
-use crate::spatial::decision_vector::extract_attribute_value;
-use crate::spatial::proximity::calculate_distance_mirim;
-use crate::spatial::DynamicSpatialMap;
 use crate::team_identity::marking::block_marking_role::BlockMarkingRole;
 use arlo_domain::sport_constants::{
     ATTRIBUTE_MAX, BLOCK_MARKING_AGGRESSION_WEIGHT, BLOCK_MARKING_PROXIMITY_WEIGHT,
@@ -43,8 +40,7 @@ pub fn extract_manager_artro_strategy_fidelity_from_table(table: &ManagerAttribu
 
 pub fn derive_block_marking_roles_from_tables(
     eligible_defenders: &[&Player],
-    reference_pos: VectorPosition,
-    spatial_map: &DynamicSpatialMap,
+    _reference_pos: VectorPosition,
     press_block_shape: PressBlockShape,
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     execution_fidelity: f64,
@@ -60,16 +56,12 @@ pub fn derive_block_marking_roles_from_tables(
     let mut scores = Vec::with_capacity(eligible_defenders.len());
     let mut total_raw_score = 0.0;
 
-    for defender in eligible_defenders {
-        let def_pos = spatial_map
-            .get_position(&defender.id())
-            .unwrap_or(reference_pos);
-        let dist_mirim = calculate_distance_mirim(def_pos, reference_pos);
-        let proximity_score = 1.0 / (1.0 + dist_mirim);
+    for (idx, defender) in eligible_defenders.iter().enumerate() {
+        let proximity_score = 1.0 / (1.0 + (idx as f64) * 0.5);
         let table = attribute_tables
             .get(&defender.id())
             .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-        let aggression_val = extract_attribute_value(table, AttributeKey::ControlledAggression);
+        let aggression_val = table.get(AttributeKey::ControlledAggression);
         let norm_aggression = (aggression_val / ATTRIBUTE_MAX).clamp(0.0, 1.0);
 
         let raw_score = proximity_score * BLOCK_MARKING_PROXIMITY_WEIGHT

@@ -5,7 +5,6 @@ use crate::kick_foul::KickFoulTracker;
 use crate::officiating::AddedTimeTracker;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
-use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
@@ -43,7 +42,6 @@ pub struct MatchState {
     pub(crate) injury_catalog: Arc<InjuryCatalog>,
     pub(crate) player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
     pub(crate) possession: PossessionSnapshot,
-    pub(crate) spatial_map: DynamicSpatialMap,
     pub(crate) clock: MatchClock,
     pub(crate) real_time: RealTimeAccumulator,
     pub(crate) rng_provider: RngProvider,
@@ -100,14 +98,6 @@ impl MatchState {
 
     pub fn possession_mut(&mut self) -> &mut PossessionSnapshot {
         &mut self.possession
-    }
-
-    pub fn spatial_map(&self) -> &DynamicSpatialMap {
-        &self.spatial_map
-    }
-
-    pub fn spatial_map_mut(&mut self) -> &mut DynamicSpatialMap {
-        &mut self.spatial_map
     }
 
     pub fn clock(&self) -> &MatchClock {

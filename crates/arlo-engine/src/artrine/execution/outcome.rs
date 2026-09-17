@@ -2,13 +2,11 @@ use crate::injury::outcome::InjuryIncidentResolution;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::officiating::foul::FoulResolution;
 use crate::resolution::AttributedDuelOutcome;
-use crate::spatial::SpatialTrajectory;
 use crate::time::DurationLedger;
 use arlo_domain::ArtrineDecisionKind;
 use arlo_math::units::Position as VectorPosition;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -37,7 +35,6 @@ pub struct ArtrineExecutionOutcome {
     pub injuries: Vec<InjuryIncidentResolution>,
     pub receiver_id: Option<Uuid>,
     pub distribution_flight: Option<DistributionFlightInfo>,
-    pub kinematic_trajectories: HashMap<Uuid, SpatialTrajectory>,
 }
 
 impl ArtrineExecutionOutcome {
@@ -62,7 +59,6 @@ impl ArtrineExecutionOutcome {
             injuries: Vec::new(),
             receiver_id: None,
             distribution_flight: None,
-            kinematic_trajectories: HashMap::new(),
         }
     }
 }

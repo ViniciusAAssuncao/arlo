@@ -1,12 +1,11 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
-use crate::spatial::LiveCollision;
 use arlo_domain::PlayerInjuryProfile;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ContactInjuryContext<'a> {
-    pub collision: &'a LiveCollision,
+    pub contact_severity: f64,
     pub carrier_id: Uuid,
     pub carrier_team_id: Uuid,
     pub carrier_table: &'a PlayerAttributeTable,
@@ -23,7 +22,7 @@ pub struct ContactInjuryContext<'a> {
 
 impl<'a> ContactInjuryContext<'a> {
     pub fn new(
-        collision: &'a LiveCollision,
+        contact_severity: f64,
         carrier_id: Uuid,
         carrier_team_id: Uuid,
         carrier_table: &'a PlayerAttributeTable,
@@ -38,7 +37,7 @@ impl<'a> ContactInjuryContext<'a> {
         defender_age_years: f64,
     ) -> Self {
         Self {
-            collision,
+            contact_severity,
             carrier_id,
             carrier_team_id,
             carrier_table,

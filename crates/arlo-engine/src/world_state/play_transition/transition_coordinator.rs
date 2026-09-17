@@ -8,7 +8,7 @@ use crate::world_state::match_state::foul_review::FoulReviewRecord;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::dead_ball_clock::handle_dead_ball_and_clock;
 use crate::world_state::play_transition::fatigue_applier::{
-    apply_duel_strain, apply_kinematic_movement_strain,
+    apply_duel_strain, apply_movement_strain,
 };
 use crate::world_state::play_transition::impulse_coordinator::coordinate_play_impulse;
 use crate::world_state::play_transition::possession_resolver::{
@@ -85,10 +85,7 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
         self.publisher
             .emit_duel_events(&self.execution_outcome.duels, self.pass_phase.artrine.id());
 
-        apply_kinematic_movement_strain(
-            &mut self.publisher,
-            &self.execution_outcome.kinematic_trajectories,
-        );
+        apply_movement_strain(&mut self.publisher);
     }
 
     fn emit_fouls(&mut self) {

@@ -1,26 +1,24 @@
 use crate::artrine::detect_drive_crossings;
-use crate::attributes::PlayerAttributeTable;
-use crate::injury::outcome::InjuryIncidentResolution;
-use crate::officiating::foul::FoulResolution;
-use crate::open_play::{compute_carry_target_lane, compute_forward_target_pos};
+use crate::injury::contact::evaluate_and_resolve_contact_injury;
+use crate::injury::contact::ContactInjuryContext;
+use crate::officiating::foul::{evaluate_and_resolve_foul, FoulEvaluationContext};
+use crate::play_resolution::action_resolution::resolve_carry_action;
+use crate::play_resolution::contact_events::{evaluate_contact_likelihood, sample_contact_event};
+use crate::play_resolution::field_context::PitchState;
+use crate::play_resolution::space_index::calculate_team_space_rating;
 use crate::possession::TouchActionType;
-use crate::spatial::{
-    run_carrier_tick_loop_with_collision, CollisionResolution, DynamicSpatialMap, LiveCollision,
-    MovementContext,
-};
-use crate::team_identity::marking::recalibrate_defenders_for_carrier_from_tables;
-use crate::team_identity::tempo::effort_multiplier_from_value;
+use crate::resolution::duel_kind::DuelKind;
+use crate::resolution::outcome::DuelOutcome;
+use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationComponentKind;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
-use crate::world_state::step::open_play_loop::carry_collision::resolve_carry_collision;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::{Player, PlayerInjuryProfile, Position as DomainPosition};
+use arlo_domain::Player;
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
-use std::collections::{HashMap, HashSet};
-use uuid::Uuid;
+use smallvec::smallvec;
 
 pub fn execute_carry_action<R: Rng + ?Sized>(
     state: &mut MatchState,
@@ -33,7 +31,6 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
     rng: &mut R,
 ) {
     let pitch = *state.pitch();
-    let attribute_keys = state.attribute_keys().clone();
     let carrier_pos = loop_state.current_carrier_pos;
 
     let zone = pitch.zone_at_position(carrier_pos);
@@ -45,170 +42,169 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         current_time,
     );
 
-    let target_channel_y_m = compute_carry_target_lane(carrier_pos, &pitch);
-    let target_carry_pos = compute_forward_target_pos(
-        carrier_pos,
-        target_channel_y_m,
-        &pitch,
-        context.is_home_offense,
+    let carrier_table = *state.attribute_table_for(&current_carrier.id());
+    let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
+    let carrier_impulse = state.impulse_for(&current_carrier.id());
+
+    let offense_tables: Vec<_> = iter_ctx
+        .target_candidates
+        .iter()
+        .map(|p| state.attribute_table_for(&p.id()))
+        .collect();
+    let defense_tables: Vec<_> = defense_players
+        .iter()
+        .map(|p| state.attribute_table_for(&p.id()))
+        .collect();
+
+    let offense_instructions = *state.instructions_for_team(context.offense_team_id);
+    let defense_instructions = *state.instructions_for_team(context.defense_team_id);
+
+    let pitch_state = PitchState::new(
+        state.possession().down(),
+        state
+            .possession()
+            .series_state()
+            .remaining_mirins_to_target(),
+        zone,
+        arlo_domain::ArtroPlacement::Central,
+        iter_ctx.normalized_proximity,
+        state.drives_in_current_series() + loop_state.accumulated_drives_recorded,
+        state.possession().is_bonus_phase(),
     );
 
-    let mut movers =
-        Vec::with_capacity(1 + iter_ctx.target_candidates.len() + defense_players.len());
-    movers.push((current_carrier, target_carry_pos));
-
-    for &helper in &iter_ctx.target_candidates {
-        if let Some(pos) = state.spatial_map().get_position(&helper.id()) {
-            let offset_x = if context.is_home_offense {
-                10.0 * 0.7 * MIRIM_TO_METERS
-            } else {
-                -10.0 * 0.7 * MIRIM_TO_METERS
-            };
-            let helper_target =
-                VectorPosition::from_components(pos.raw().0 + offset_x, pos.raw().1, 0.0);
-            movers.push((helper, helper_target));
-        }
-    }
-
-    let def_targets = recalibrate_defenders_for_carrier_from_tables(
-        defense_players,
-        &context.defense_pos_index,
-        state.spatial_map(),
-        state.teams.player_attribute_tables(),
-        carrier_pos,
-        iter_ctx.offensive_gravity_mult,
-        &pitch,
-        context.is_home_offense,
+    let space_rating = calculate_team_space_rating(
+        &carrier_table,
+        &offense_tables,
+        &defense_tables,
+        &offense_instructions,
+        &defense_instructions,
+        &pitch_state,
+        0.0,
     );
 
-    for &defender in defense_players {
-        let def_target = def_targets
-            .get(&defender.id())
-            .copied()
-            .unwrap_or(target_carry_pos);
-        movers.push((defender, def_target));
-    }
+    let carry_result = resolve_carry_action(
+        &carrier_table,
+        &carrier_fatigue,
+        &carrier_impulse,
+        &iter_ctx.risk_profile,
+        &space_rating,
+        &pitch_state,
+        pitch.length_mirim(),
+        is_true_artrine,
+        rng,
+    );
 
-    state
-        .spatial_map_mut()
-        .set_position(current_carrier.id(), carrier_pos);
+    let primary_defender = defense_players.first().copied().unwrap_or(current_carrier);
+    let defender_table = *state.attribute_table_for(&primary_defender.id());
+    let defender_fatigue = state.fatigue_lookup().get(&primary_defender.id());
+    let carrier_susceptibility = state
+        .player_injury_profile(&current_carrier.id())
+        .injury_susceptibility_multiplier();
+    let defender_susceptibility = state
+        .player_injury_profile(&primary_defender.id())
+        .injury_susceptibility_multiplier();
+    let referee_table = state.head_referee_attribute_table();
 
-    let defense_pressing_value = (iter_ctx.defense_pressing_multiplier - 1.0).max(0.0);
-    let offense_ids: HashSet<Uuid> = std::iter::once(current_carrier.id())
-        .chain(iter_ctx.target_candidates.iter().map(|p| p.id()))
-        .collect();
+    let contact_profile = evaluate_contact_likelihood(
+        &carrier_table,
+        &carrier_fatigue,
+        carrier_susceptibility,
+        &defender_table,
+        &defender_fatigue,
+        defender_susceptibility,
+        &offense_instructions,
+        &defense_instructions,
+        &referee_table,
+        &pitch_state,
+    );
 
-    let offense_tempo_val = iter_ctx.offense_tempo_value;
-    let effort_multiplier_for = |id: &Uuid| {
-        if offense_ids.contains(id) {
-            effort_multiplier_from_value(offense_tempo_val)
-        } else {
-            effort_multiplier_from_value(defense_pressing_value)
-        }
-    };
+    let contact_sampling = sample_contact_event(&contact_profile, rng);
 
-    let def_ids: Vec<Uuid> = defense_players.iter().map(|p| p.id()).collect();
+    let duel_outcome = DuelOutcome::new(
+        DuelKind::ArtroBreakthrough,
+        carry_result.success,
+        carry_result.net_advantage.max(0.0),
+        0.0,
+        carry_result.win_probability,
+        carry_result.net_advantage,
+    );
 
-    let carrier_pos_domain = context
-        .offense_pos_index
-        .get(&current_carrier.id())
-        .copied()
-        .unwrap_or_else(|| {
-            current_carrier
-                .positions()
-                .first()
-                .map(|pp| pp.position())
-                .unwrap_or(DomainPosition::CenterOffense)
-        });
+    let attributed_duel = AttributedDuelOutcome::new(
+        duel_outcome,
+        smallvec![current_carrier.id()],
+        smallvec![primary_defender.id()],
+    );
+    loop_state.accumulated_duels.push(attributed_duel);
 
-    let defense_team_id = context.defense_team_id;
-    let defense_pos_index = &context.defense_pos_index;
-    let duel_ctx = iter_ctx.duel_context;
-    let fatigue_tracker = state.fatigue.clone();
-
-    let carrier_table: PlayerAttributeTable =
-        *state.attribute_table_for(&current_carrier.id());
-    let defender_tables: HashMap<Uuid, PlayerAttributeTable> = defense_players
-        .iter()
-        .map(|p| (p.id(), *state.attribute_table_for(&p.id())))
-        .collect();
-
-    let carrier_injury_profile = state.player_injury_profile(&current_carrier.id());
-    let defender_injury_profiles: HashMap<Uuid, PlayerInjuryProfile> = defense_players
-        .iter()
-        .map(|p| (p.id(), state.player_injury_profile(&p.id())))
-        .collect();
-
-    let head_referee_table = state.head_referee_attribute_table();
     let peace_referee_table = state.peace_referee_attribute_table();
-    let game_state_pressure = iter_ctx.game_state_pressure;
     let fault_catalog = state.fault_catalog_arc();
-    let injury_catalog = state.injury_catalog_arc();
-
-    let mut local_duels = Vec::new();
-    let mut local_fouls: Vec<FoulResolution> = Vec::new();
-    let mut local_injuries: Vec<InjuryIncidentResolution> = Vec::new();
-    let mut collision_resolution = None;
-
-    let collision_cb = |_s_map: &mut DynamicSpatialMap, col: &LiveCollision, spd: &mut f64| {
-        let outcome = resolve_carry_collision(
-            col,
-            spd,
-            current_carrier,
-            &carrier_table,
-            carrier_injury_profile,
-            carrier_pos_domain,
-            defense_players,
-            &defender_tables,
-            &defender_injury_profiles,
-            defense_pos_index,
-            defense_team_id,
-            &|id| fatigue_tracker.fatigue_for(id),
-            &duel_ctx,
-            &attribute_keys,
-            &head_referee_table,
-            &peace_referee_table,
-            game_state_pressure,
-            &fault_catalog,
-            &injury_catalog,
-            &pitch,
-            rng,
-        );
-        local_duels.extend(outcome.duels);
-        if let Some(foul) = outcome.foul.clone() {
-            local_fouls.push(foul);
-        }
-        local_injuries.extend(outcome.injuries);
-        let res = outcome.resolution;
-        collision_resolution = Some(res);
-        res
-    };
-
-    let tick_result = run_carrier_tick_loop_with_collision(
-        &mut state.spatial_map,
-        &movers,
+    let foul_eval_ctx = FoulEvaluationContext::new(
         current_carrier.id(),
-        &def_ids,
-        state.teams.player_attribute_tables(),
-        MovementContext::LivePlay,
-        &pitch,
-        &(|id| fatigue_tracker.fatigue_for(id)),
-        &effort_multiplier_for,
-        collision_cb,
+        context.offense_team_id,
+        primary_defender.id(),
+        context.defense_team_id,
+        &carrier_table,
+        &defender_table,
+        carrier_fatigue,
+        defender_fatigue,
+        &referee_table,
+        &peace_referee_table,
+        duel_outcome,
+        iter_ctx.duel_context,
+        contact_sampling.contact_severity,
+        iter_ctx.game_state_pressure,
+        true,
+        zone,
     );
 
-    let end_pos = state
-        .spatial_map()
-        .get_position(&current_carrier.id())
-        .unwrap_or(target_carry_pos);
+    if let Some(foul_res) = evaluate_and_resolve_foul(&foul_eval_ctx, &fault_catalog, rng) {
+        loop_state.accumulated_fouls.push(foul_res);
+    }
 
-    let adv_mirim = (end_pos.raw().0 - carrier_pos.raw().0).abs() / MIRIM_TO_METERS;
+    let injury_catalog = state.injury_catalog_arc();
+    let contact_injury_ctx = ContactInjuryContext::new(
+        contact_sampling.contact_severity,
+        current_carrier.id(),
+        context.offense_team_id,
+        &carrier_table,
+        carrier_fatigue,
+        state.player_injury_profile(&current_carrier.id()),
+        25.0,
+        primary_defender.id(),
+        context.defense_team_id,
+        &defender_table,
+        defender_fatigue,
+        state.player_injury_profile(&primary_defender.id()),
+        25.0,
+    );
+
+    if contact_sampling.carrier_injured {
+        if let Some(inj) =
+            evaluate_and_resolve_contact_injury(true, &contact_injury_ctx, &injury_catalog, rng)
+        {
+            loop_state.accumulated_injuries.push(inj);
+        }
+    }
+    if contact_sampling.defender_injured {
+        if let Some(inj) =
+            evaluate_and_resolve_contact_injury(false, &contact_injury_ctx, &injury_catalog, rng)
+        {
+            loop_state.accumulated_injuries.push(inj);
+        }
+    }
+
+    let shift_meters = carry_result.mirins_advanced * MIRIM_TO_METERS;
+    let new_x_m = if context.is_home_offense {
+        (carrier_pos.raw().0 + shift_meters).min(pitch.length().value())
+    } else {
+        (carrier_pos.raw().0 - shift_meters).max(0.0)
+    };
+    let end_pos = VectorPosition::from_components(new_x_m, carrier_pos.raw().1, 0.0);
 
     if is_true_artrine {
         let crossed = detect_drive_crossings(
             current_carrier.id(),
             &pitch,
-            &tick_result,
             carrier_pos,
             end_pos,
             context.is_home_offense,
@@ -221,26 +217,18 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         }
     }
 
-    loop_state
-        .accumulated_trajectories
-        .extend(tick_result.trajectories().clone());
-    loop_state.accumulated_duels.extend(local_duels);
-    loop_state.accumulated_fouls.extend(local_fouls);
-    loop_state.accumulated_injuries.extend(local_injuries);
+    let carry_time_secs = (carry_result.mirins_advanced / 5.0).clamp(0.5, 4.0);
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CarrierMovement,
-        Duration::new(tick_result.elapsed_seconds()),
+        Duration::new(carry_time_secs),
     );
-    loop_state.accumulated_mirins_advanced += adv_mirim;
+
+    loop_state.accumulated_mirins_advanced += carry_result.mirins_advanced;
     loop_state.current_carrier_pos = end_pos;
 
-    if let Some(CollisionResolution::Halt {
-        turnover_team,
-        recovering_player,
-    }) = collision_resolution
-    {
-        loop_state.turnover_team = turnover_team;
-        loop_state.recovering_player = recovering_player;
+    if carry_result.turnover {
+        loop_state.turnover_team = Some(context.defense_team_id);
+        loop_state.recovering_player = Some(primary_defender.id());
         loop_state.ball_in_play = false;
     }
 }

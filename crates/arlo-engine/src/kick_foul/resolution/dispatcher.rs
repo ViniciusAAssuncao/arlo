@@ -141,7 +141,6 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                 &defense_players,
                 decision,
                 tables,
-                state.spatial_map(),
                 pitch,
                 attribute_keys,
                 &duel_context,

@@ -1,7 +1,6 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::target_selection::{select_target_from_tables, ReceptionRole};
 use crate::physical::PhysicalState;
-use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{Player, Position, SlotRole};
 use arlo_tactics::PlayerInstructions;
@@ -27,7 +26,6 @@ pub fn select_kicker(
 pub fn select_kicker_from_tables<F, R>(
     candidates: &[&Player],
     role_index_for_play: Option<&HashMap<Uuid, SlotRole>>,
-    spatial_map: &DynamicSpatialMap,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
@@ -47,7 +45,6 @@ where
 
     select_target_from_tables(
         candidates,
-        spatial_map,
         pitch,
         position_index,
         instructions_index,

@@ -1,8 +1,13 @@
-use crate::spatial::proximity::calculate_distance;
-use crate::spatial::DynamicSpatialMap;
 use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
 use arlo_domain::Player;
 use arlo_math::units::{Duration, Length, Position, Speed};
+
+pub fn calculate_distance(pos_a: Position, pos_b: Position) -> Length {
+    let dx = pos_a.raw().0 - pos_b.raw().0;
+    let dy = pos_a.raw().1 - pos_b.raw().1;
+    let dz = pos_a.raw().2 - pos_b.raw().2;
+    Length::new((dx * dx + dy * dy + dz * dz).sqrt())
+}
 
 pub fn time_to_close(distance: Length, speed_a: Speed, speed_b: Speed) -> Option<Duration> {
     let total_speed = speed_a.value() + speed_b.value();
@@ -27,12 +32,11 @@ pub fn derive_duel_duration(
 
 pub fn nearest_opponent<'a>(
     reference_pos: Position,
-    candidates: &[&'a Player],
-    spatial_map: &DynamicSpatialMap,
+    candidates: &[(&'a Player, Position)],
 ) -> Option<(&'a Player, Position)> {
     candidates
         .iter()
-        .filter_map(|&p| spatial_map.get_position(&p.id()).map(|pos| (p, pos)))
+        .copied()
         .min_by(|(_, pos_a), (_, pos_b)| {
             let dist_a = calculate_distance(reference_pos, *pos_a).value();
             let dist_b = calculate_distance(reference_pos, *pos_b).value();

@@ -8,7 +8,6 @@ use crate::resolution::group_rating::{
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{AttributeKey, KickFoulDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Length, Position as VectorPosition, Velocity, MIRIM_TO_METERS};
@@ -52,7 +51,6 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
     defense_players: &[&Player],
     decision: KickFoulDecisionKind,
     tables: &HashMap<Uuid, PlayerAttributeTable>,
-    spatial_map: &DynamicSpatialMap,
     _pitch: &Pitch,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     duel_context: &DuelContext,
@@ -87,7 +85,6 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         kicker_pos,
         Velocity::zero(),
         defense_players,
-        spatial_map,
         &dummy_instructions,
         tables,
         &|_| FatigueState::default(),
@@ -137,9 +134,7 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         kicker
     };
     let receiver_id = receiver.id();
-    let rec_pos = spatial_map
-        .get_position(&receiver_id)
-        .unwrap_or(kicker_pos);
+    let rec_pos = kicker_pos;
 
     let rec_duel_kind = match decision {
         KickFoulDecisionKind::LongLaunch | KickFoulDecisionKind::Cross => DuelKind::AerialDuel,

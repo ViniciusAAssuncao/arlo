@@ -1,7 +1,4 @@
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
-use crate::spatial::decision_vector::extract_attribute_value;
-use crate::spatial::proximity::calculate_distance_mirim;
-use crate::spatial::DynamicSpatialMap;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{ATTRIBUTE_MAX, FIRST_ZONE_DEPTH_MIRIM};
 use arlo_domain::{AttributeKey, Player, Position, PositionLine};
@@ -35,11 +32,11 @@ pub fn calculate_carrier_defensive_shift_from_table(
         (FIRST_ZONE_DEPTH_MIRIM * MIRIM_TO_METERS).min(pitch_length_m)
     };
 
-    let positioning = extract_attribute_value(table, AttributeKey::Positioning);
-    let anticipation = extract_attribute_value(table, AttributeKey::Anticipation);
-    let decisions = extract_attribute_value(table, AttributeKey::Decisions);
-    let tactical_knowledge = extract_attribute_value(table, AttributeKey::TacticalKnowledge);
-    let containment = extract_attribute_value(table, AttributeKey::DefensiveContainment);
+    let positioning = table.get(AttributeKey::Positioning);
+    let anticipation = table.get(AttributeKey::Anticipation);
+    let decisions = table.get(AttributeKey::Decisions);
+    let tactical_knowledge = table.get(AttributeKey::TacticalKnowledge);
+    let containment = table.get(AttributeKey::DefensiveContainment);
 
     let tactical_rating = ((positioning * 0.30
         + anticipation * 0.25
@@ -49,7 +46,9 @@ pub fn calculate_carrier_defensive_shift_from_table(
         / ATTRIBUTE_MAX)
         .clamp(0.2, 1.0);
 
-    let dist_to_carrier_mirim = calculate_distance_mirim(defender_pos, carrier_pos);
+    let dx = (defender_pos.raw().0 - carrier_pos.raw().0) / MIRIM_TO_METERS;
+    let dy = (defender_pos.raw().1 - carrier_pos.raw().1) / MIRIM_TO_METERS;
+    let dist_to_carrier_mirim = (dx * dx + dy * dy).sqrt();
     let proximity_factor = (1.0 / (1.0 + dist_to_carrier_mirim * 0.08)).clamp(0.2, 1.0);
     let gravity_factor = (carrier_gravity_mult / 1.5).clamp(0.6, 1.8);
 
@@ -154,20 +153,16 @@ pub fn calculate_carrier_defensive_shift(
 pub fn recalibrate_defenders_for_carrier_from_tables(
     defenders: &[&Player],
     defender_positions: &HashMap<Uuid, Position>,
-    spatial_map: &DynamicSpatialMap,
-    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     carrier_pos: VectorPosition,
     carrier_gravity_mult: f64,
     pitch: &Pitch,
     attacking_positive_x: bool,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
 ) -> HashMap<Uuid, VectorPosition> {
     let mut shifted_anchors = HashMap::with_capacity(defenders.len());
 
     for &defender in defenders {
-        let def_pos = spatial_map
-            .get_position(&defender.id())
-            .unwrap_or_else(VectorPosition::zero);
-
+        let def_pos = carrier_pos;
         let pos_role = defender_positions
             .get(&defender.id())
             .copied()
@@ -203,7 +198,6 @@ pub fn recalibrate_defenders_for_carrier_from_tables(
 pub fn recalibrate_defenders_for_carrier(
     defenders: &[&Player],
     defender_positions: &HashMap<Uuid, Position>,
-    spatial_map: &DynamicSpatialMap,
     carrier_pos: VectorPosition,
     carrier_gravity_mult: f64,
     pitch: &Pitch,
@@ -217,11 +211,10 @@ pub fn recalibrate_defenders_for_carrier(
     recalibrate_defenders_for_carrier_from_tables(
         defenders,
         defender_positions,
-        spatial_map,
-        &attribute_tables,
         carrier_pos,
         carrier_gravity_mult,
         pitch,
         attacking_positive_x,
+        &attribute_tables,
     )
 }

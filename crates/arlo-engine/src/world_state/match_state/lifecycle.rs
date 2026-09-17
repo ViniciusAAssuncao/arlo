@@ -7,7 +7,6 @@ use crate::lineup_runtime::hydrate;
 use crate::officiating::AddedTimeTracker;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
-use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
@@ -41,7 +40,6 @@ impl MatchState {
             &params.away.roster,
         )?;
 
-        let spatial_map = DynamicSpatialMap::from_pitch(&params.pitch, &home_lineup, &away_lineup)?;
         let initial_scrimmage = Position::from_components(
             params.pitch.length().value() / 2.0,
             params.pitch.width().value() / 2.0,
@@ -129,7 +127,6 @@ impl MatchState {
             injury_catalog: params.injury_catalog,
             player_injury_profiles: params.player_injury_profiles,
             possession,
-            spatial_map,
             clock,
             real_time,
             rng_provider,

@@ -1,6 +1,5 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::caching::impulse_baseline_profile;
-use crate::spatial::decision_vector::extract_attribute_value;
 use crate::weighting::{calculate_weighted_saturated_average, AttributeWeight};
 use arlo_domain::sport_constants::{
     ATTRIBUTE_SATURATION_MULTIPLIER, ATTRIBUTE_SATURATION_THRESHOLD, HOME_IMPULSE_BASELINE_BOOST,
@@ -104,8 +103,8 @@ pub fn find_active_captain<'a>(
     players.iter().copied().max_by(|a, b| {
         let table_a = PlayerAttributeTable::from_player(a, attribute_keys);
         let table_b = PlayerAttributeTable::from_player(b, attribute_keys);
-        let lead_a = extract_attribute_value(&table_a, AttributeKey::Leadership);
-        let lead_b = extract_attribute_value(&table_b, AttributeKey::Leadership);
+        let lead_a = table_a.get(AttributeKey::Leadership);
+        let lead_b = table_b.get(AttributeKey::Leadership);
         lead_a
             .partial_cmp(&lead_b)
             .unwrap_or(std::cmp::Ordering::Equal)
@@ -113,10 +112,10 @@ pub fn find_active_captain<'a>(
 }
 
 pub fn calculate_captaincy_influence_from_table(table: &PlayerAttributeTable) -> f64 {
-    let leadership = extract_attribute_value(table, AttributeKey::Leadership);
-    let communication = extract_attribute_value(table, AttributeKey::Communication);
-    let determination = extract_attribute_value(table, AttributeKey::Determination);
-    let teamwork = extract_attribute_value(table, AttributeKey::Teamwork);
+    let leadership = table.get(AttributeKey::Leadership);
+    let communication = table.get(AttributeKey::Communication);
+    let determination = table.get(AttributeKey::Determination);
+    let teamwork = table.get(AttributeKey::Teamwork);
 
     let composite =
         (leadership * 0.40 + communication * 0.25 + determination * 0.20 + teamwork * 0.15) / 20.0;
