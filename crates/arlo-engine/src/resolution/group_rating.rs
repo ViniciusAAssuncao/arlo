@@ -3,12 +3,6 @@ use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
 use crate::resolution::duel_profiles::DuelProfile;
-use crate::weighting::apply_saturation;
-use arlo_domain::sport_constants::{
-    ATTRIBUTE_MAX, ATTRIBUTE_MIN,
-    GROUP_AGGREGATION_SATURATION_MULTIPLIER, GROUP_AGGREGATION_SATURATION_THRESHOLD,
-    GROUP_SATURATION_MULTIPLIER, GROUP_SATURATION_THRESHOLD,
-};
 use arlo_domain::{AttributeKey, Player, Position};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -19,6 +13,7 @@ pub struct RatingParticipants<'a> {
     pub position_index: Option<&'a HashMap<Uuid, Position>>,
     pub fatigue_lookup: Option<&'a dyn Fn(&Uuid) -> PhysicalState>,
     pub attribute_tables: Option<&'a HashMap<Uuid, PlayerAttributeTable>>,
+    pub team_power: Option<f64>,
 }
 
 impl<'a> RatingParticipants<'a> {
@@ -28,6 +23,7 @@ impl<'a> RatingParticipants<'a> {
             position_index: None,
             fatigue_lookup: None,
             attribute_tables: None,
+            team_power: None,
         }
     }
 
@@ -40,6 +36,7 @@ impl<'a> RatingParticipants<'a> {
             position_index: Some(position_index),
             fatigue_lookup: None,
             attribute_tables: None,
+            team_power: None,
         }
     }
 
@@ -61,6 +58,16 @@ impl<'a> RatingParticipants<'a> {
         tables: &'a HashMap<Uuid, PlayerAttributeTable>,
     ) -> Self {
         self.attribute_tables = Some(tables);
+        self
+    }
+
+    pub fn with_team_power(mut self, power: f64) -> Self {
+        self.team_power = Some(power);
+        self
+    }
+
+    pub fn with_optional_team_power(mut self, power: Option<f64>) -> Self {
+        self.team_power = power;
         self
     }
 }
@@ -122,33 +129,22 @@ pub fn calculate_group_rating(ratings: &[f64]) -> f64 {
     if ratings.is_empty() {
         return 0.0;
     }
-    let mut sorted = ratings.to_vec();
-    sorted.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-    let lead = sorted[0];
-    if sorted.len() == 1 {
-        return lead;
+    if ratings.len() == 1 {
+        return ratings[0];
     }
-
-    let mut helper_sum = 0.0;
-    for &rating in &sorted[1..] {
-        let normalized =
-            ((rating - ATTRIBUTE_MIN) / (ATTRIBUTE_MAX - ATTRIBUTE_MIN)).clamp(0.0, 1.0);
-        let raw_contrib = (normalized * normalized) * GROUP_SATURATION_THRESHOLD;
-        let sat_contrib = apply_saturation(
-            raw_contrib,
-            GROUP_SATURATION_THRESHOLD,
-            GROUP_SATURATION_MULTIPLIER,
-        );
-        helper_sum += sat_contrib;
+    let mut max_rating = ratings[0];
+    let mut sum_helpers = 0.0;
+    for &rating in ratings {
+        if rating > max_rating {
+            sum_helpers += max_rating;
+            max_rating = rating;
+        } else {
+            sum_helpers += rating;
+        }
     }
-
-    let aggregated_bonus = apply_saturation(
-        helper_sum,
-        GROUP_AGGREGATION_SATURATION_THRESHOLD,
-        GROUP_AGGREGATION_SATURATION_MULTIPLIER,
-    );
-
-    lead + aggregated_bonus
+    let helper_count = (ratings.len() - 1) as f64;
+    let avg_helper = sum_helpers / helper_count;
+    max_rating * 0.75 + avg_helper * 0.25
 }
 
 fn resolve_participant_rating(
@@ -186,6 +182,9 @@ pub fn calculate_side_rating(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     profile: &DuelProfile,
 ) -> f64 {
+    if let Some(power) = participants.team_power {
+        return power;
+    }
     if participants.players.is_empty() {
         return 0.0;
     }
@@ -203,27 +202,9 @@ pub fn calculate_anchored_rating(anchor_rating: f64, helper_ratings: &[f64]) -> 
     if helper_ratings.is_empty() {
         return anchor_rating;
     }
-
-    let mut helper_sum = 0.0;
-    for &rating in helper_ratings {
-        let normalized =
-            ((rating - ATTRIBUTE_MIN) / (ATTRIBUTE_MAX - ATTRIBUTE_MIN)).clamp(0.0, 1.0);
-        let raw_contrib = (normalized * normalized) * GROUP_SATURATION_THRESHOLD;
-        let sat_contrib = apply_saturation(
-            raw_contrib,
-            GROUP_SATURATION_THRESHOLD,
-            GROUP_SATURATION_MULTIPLIER,
-        );
-        helper_sum += sat_contrib;
-    }
-
-    let aggregated_bonus = apply_saturation(
-        helper_sum,
-        GROUP_AGGREGATION_SATURATION_THRESHOLD,
-        GROUP_AGGREGATION_SATURATION_MULTIPLIER,
-    );
-
-    anchor_rating + aggregated_bonus
+    let sum: f64 = helper_ratings.iter().copied().sum();
+    let avg_helper = sum / (helper_ratings.len() as f64);
+    anchor_rating * 0.75 + avg_helper * 0.25
 }
 
 pub fn calculate_anchored_side_rating(
@@ -233,6 +214,9 @@ pub fn calculate_anchored_side_rating(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     profile: &DuelProfile,
 ) -> f64 {
+    if let Some(power) = helpers.team_power {
+        return power;
+    }
     let default_state = PhysicalState::initial();
     let anchor_state = match helpers.fatigue_lookup {
         Some(lookup) => lookup(&anchor.id()),

@@ -123,11 +123,14 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
 
     let contact_sampling = sample_contact_event(&contact_profile, rng);
 
+    let offense_power = state.power_for_team(context.offense_team_id);
+    let defense_power = state.power_for_team(context.defense_team_id);
+
     let duel_outcome = DuelOutcome::new(
         DuelKind::ArtroBreakthrough,
         carry_result.success,
-        carry_result.net_advantage.max(0.0),
-        0.0,
+        offense_power.offensive_power(),
+        defense_power.defensive_power(),
         carry_result.win_probability,
         carry_result.net_advantage,
     );

@@ -76,8 +76,10 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     };
 
     let (off_prof, def_prof) = get_duel_profiles(duel_kind);
-
     let tables = state.teams.player_attribute_tables();
+
+    let offense_power = state.power_for_team(context.offense_team_id);
+    let defense_power = state.power_for_team(context.defense_team_id);
 
     let att_rating = calculate_anchored_side_rating(
         current_carrier,
@@ -87,14 +89,16 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
             &context.offense_pos_index,
         )
         .with_fatigue(&|id| state.fatigue_lookup().get(id))
-        .with_attribute_tables(tables),
+        .with_attribute_tables(tables)
+        .with_team_power(offense_power.control_power()),
         attribute_keys,
         off_prof,
     );
     let def_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(defense_players, &context.defense_pos_index)
             .with_fatigue(&|id| state.fatigue_lookup().get(id))
-            .with_attribute_tables(tables),
+            .with_attribute_tables(tables)
+            .with_team_power(defense_power.defensive_power()),
         attribute_keys,
         def_prof,
     );
@@ -131,7 +135,11 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
         attribute_keys,
         &dist_context,
     )
-    .with_tables(att_table, lead_def_table);
+    .with_tables(att_table, lead_def_table)
+    .with_team_powers(
+        Some(offense_power.control_power()),
+        Some(defense_power.defensive_power()),
+    );
     let raw_throw_duel = resolve_duel(req, rng);
 
     let throw_duel = AttributedDuelOutcome::new(
@@ -289,7 +297,8 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     let rec_def_rating = calculate_side_rating(
         RatingParticipants::from_slice_with_index(defense_players, &context.defense_pos_index)
             .with_fatigue(&|id| state.fatigue_lookup().get(id))
-            .with_attribute_tables(tables),
+            .with_attribute_tables(tables)
+            .with_team_power(defense_power.defensive_power()),
         attribute_keys,
         rec_def,
     );
@@ -310,7 +319,11 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
         attribute_keys,
         &rec_context,
     )
-    .with_tables(rec_table, lead_def_table2);
+    .with_tables(rec_table, lead_def_table2)
+    .with_team_powers(
+        Some(offense_power.offensive_power()),
+        Some(defense_power.defensive_power()),
+    );
     let raw_rec_duel = resolve_duel(req, rng);
 
     let rec_attributed = AttributedDuelOutcome::new(

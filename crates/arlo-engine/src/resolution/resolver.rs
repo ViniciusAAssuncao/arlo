@@ -27,6 +27,8 @@ pub struct DuelResolutionRequest<'a> {
     pub context: &'a DuelContext,
     pub attacker_table: Option<&'a PlayerAttributeTable>,
     pub defender_table: Option<&'a PlayerAttributeTable>,
+    pub attacker_team_power: Option<f64>,
+    pub defender_team_power: Option<f64>,
 }
 
 impl<'a> DuelResolutionRequest<'a> {
@@ -51,6 +53,8 @@ impl<'a> DuelResolutionRequest<'a> {
             context,
             attacker_table: None,
             defender_table: None,
+            attacker_team_power: None,
+            defender_team_power: None,
         }
     }
 
@@ -77,6 +81,8 @@ impl<'a> DuelResolutionRequest<'a> {
             context,
             attacker_table: None,
             defender_table: None,
+            attacker_team_power: None,
+            defender_team_power: None,
         }
     }
 
@@ -121,6 +127,8 @@ impl<'a> DuelResolutionRequest<'a> {
             context,
             attacker_table,
             defender_table,
+            attacker_team_power: attackers.team_power,
+            defender_team_power: defenders.team_power,
         }
     }
 
@@ -131,6 +139,16 @@ impl<'a> DuelResolutionRequest<'a> {
     ) -> Self {
         self.attacker_table = attacker_table;
         self.defender_table = defender_table;
+        self
+    }
+
+    pub fn with_team_powers(
+        mut self,
+        attacker_team_power: Option<f64>,
+        defender_team_power: Option<f64>,
+    ) -> Self {
+        self.attacker_team_power = attacker_team_power;
+        self.defender_team_power = defender_team_power;
         self
     }
 }
@@ -182,6 +200,9 @@ pub fn resolve_duel<R: Rng + ?Sized>(
     request: DuelResolutionRequest<'_>,
     rng: &mut R,
 ) -> DuelOutcome {
+    let effective_attacker = request.attacker_team_power.unwrap_or(request.attacker_rating);
+    let effective_defender = request.defender_team_power.unwrap_or(request.defender_rating);
+
     let noise_a = match request.attacker_table {
         Some(table) => sample_player_noise_from_table_with_baseline(
             request.attacker_primary,
@@ -222,22 +243,22 @@ pub fn resolve_duel<R: Rng + ?Sized>(
     hfa_logit += request.context.physicality_logit_offset();
     hfa_logit += request.context.misdirection_logit_offset();
 
-    let noisy_attacker = request.attacker_rating + noise_a;
-    let noisy_defender = request.defender_rating + noise_b;
+    let noisy_attacker = effective_attacker + noise_a;
+    let noisy_defender = effective_defender + noise_b;
     let slope = logistic_slope_for(request.kind);
 
     let win_prob = bradley_terry_with_offset(noisy_attacker, noisy_defender, slope, hfa_logit);
 
     let attacker_won = win_prob.sample(rng);
-    let net_advantage = request.attacker_rating - request.defender_rating;
+    let net_advantage = effective_attacker - effective_defender;
     let velocity_mitigation =
         calculate_velocity_mitigation(request.kind, attacker_won, net_advantage);
 
     let outcome = DuelOutcome::with_mitigation(
         request.kind,
         attacker_won,
-        request.attacker_rating,
-        request.defender_rating,
+        effective_attacker,
+        effective_defender,
         win_prob,
         net_advantage,
         velocity_mitigation,

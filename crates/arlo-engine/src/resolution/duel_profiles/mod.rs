@@ -9,9 +9,8 @@ pub use offense_duels::*;
 use crate::attributes::PlayerAttributeTable;
 use crate::caching::duel_profile_cache::get_cached_duel_profiles;
 use crate::resolution::duel_kind::DuelKind;
-use crate::weighting::{calculate_weighted_average, AttributeWeight};
+use crate::weighting::AttributeWeight;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DuelProfile {
@@ -28,16 +27,29 @@ impl DuelProfile {
     }
 
     pub fn rate(&self, table: &PlayerAttributeTable) -> f64 {
-        let pairs: SmallVec<[(f64, f64); 8]> = self
-            .weights
-            .iter()
-            .filter(|w| w.weight > 0.0)
-            .map(|w| (table.get(w.key), w.weight))
-            .collect();
-        calculate_weighted_average(&pairs).unwrap_or(0.0)
+        let mut total_weight = 0.0;
+        let mut weighted_sum = 0.0;
+        for w in &self.weights {
+            if w.weight > 0.0 {
+                weighted_sum += table.get(w.key) * w.weight;
+                total_weight += w.weight;
+            }
+        }
+        if total_weight > 0.0 {
+            weighted_sum / total_weight
+        } else {
+            0.0
+        }
     }
 }
 
 pub fn get_duel_profiles(kind: DuelKind) -> &'static (DuelProfile, DuelProfile) {
     get_cached_duel_profiles(kind)
+}
+
+pub fn get_duel_profile_weights(
+    kind: DuelKind,
+) -> (&'static [AttributeWeight], &'static [AttributeWeight]) {
+    let (att, def) = get_cached_duel_profiles(kind);
+    (att.weights(), def.weights())
 }

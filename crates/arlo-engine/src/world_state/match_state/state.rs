@@ -19,6 +19,9 @@ use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker
 use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
+use crate::world_state::match_state::team_power::{
+    calculate_team_match_power, MatchPowerCache, TeamMatchPower,
+};
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{
@@ -59,6 +62,7 @@ pub struct MatchState {
     pub(crate) kick_foul: KickFoulTracker,
     pub(crate) added_time: AddedTimeTracker,
     pub(crate) forced_substitution_tracker: ForcedSubstitutionTracker,
+    pub(crate) power_cache: MatchPowerCache,
 }
 
 impl MatchState {
@@ -172,5 +176,49 @@ impl MatchState {
 
     pub fn kick_foul_mut(&mut self) -> &mut KickFoulTracker {
         &mut self.kick_foul
+    }
+
+    pub fn power_cache(&self) -> &MatchPowerCache {
+        &self.power_cache
+    }
+
+    pub fn power_cache_mut(&mut self) -> &mut MatchPowerCache {
+        &mut self.power_cache
+    }
+
+    pub fn home_team_power(&self) -> TeamMatchPower {
+        self.power_cache.home_power()
+    }
+
+    pub fn away_team_power(&self) -> TeamMatchPower {
+        self.power_cache.away_power()
+    }
+
+    pub fn power_for_team(&self, team_id: Uuid) -> TeamMatchPower {
+        self.power_cache
+            .power_for_team(team_id, self.teams.home_team_id())
+    }
+
+    pub fn invalidate_team_power(&mut self) {
+        self.power_cache.mark_dirty();
+    }
+
+    pub fn refresh_team_powers(&mut self) {
+        let home_id = self.teams.home_team_id();
+        let away_id = self.teams.away_team_id();
+        let home_power = calculate_team_match_power(self, home_id);
+        let away_power = calculate_team_match_power(self, away_id);
+        let period = self.clock.period();
+        let seconds = self.clock.seconds_in_period();
+        self.power_cache
+            .update(home_power, away_power, period, seconds);
+    }
+
+    pub fn refresh_team_powers_if_needed(&mut self) {
+        let period = self.clock.period();
+        let seconds = self.clock.seconds_in_period();
+        if self.power_cache.should_refresh(period, seconds, 180.0) {
+            self.refresh_team_powers();
+        }
     }
 }

@@ -31,21 +31,25 @@ impl MatchState {
         let is_home = self.teams.is_home_player(&player_id);
         self.availability
             .suspend_player(player_id, is_home, remaining_seconds);
+        self.invalidate_team_power();
     }
 
     pub fn expel_player(&mut self, player_id: Uuid) {
         let is_home = self.teams.is_home_player(&player_id);
         self.availability.expel_player(player_id, is_home);
+        self.invalidate_team_power();
     }
 
     pub fn injure_player(&mut self, player_id: Uuid) {
         let is_home = self.teams.is_home_player(&player_id);
         self.availability.injure_player(player_id, is_home);
+        self.invalidate_team_power();
     }
 
     pub fn restore_player_availability(&mut self, player_id: Uuid, state: AvailabilityState) {
         let is_home = self.teams.is_home_player(&player_id);
         self.availability.restore_player(player_id, is_home, state);
+        self.invalidate_team_power();
     }
 
     pub fn substitute_availability_player(
@@ -56,12 +60,17 @@ impl MatchState {
     ) {
         self.availability
             .substitute_player(outgoing, incoming, is_home);
+        self.invalidate_team_power();
     }
 
     pub fn tick_player_availability(
         &mut self,
         dt_seconds: f64,
     ) -> Vec<(Uuid, bool, AvailabilityState, AvailabilityState)> {
-        self.availability.tick(dt_seconds)
+        let transitions = self.availability.tick(dt_seconds);
+        if !transitions.is_empty() {
+            self.invalidate_team_power();
+        }
+        transitions
     }
 }

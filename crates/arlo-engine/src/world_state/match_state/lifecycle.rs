@@ -23,6 +23,7 @@ use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::setup_params::MatchSetupParams;
 use crate::world_state::match_state::state::MatchState;
+use crate::world_state::match_state::team_power::MatchPowerCache;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_math::units::Position;
 use std::collections::HashMap;
@@ -114,8 +115,9 @@ impl MatchState {
         let kick_foul = KickFoulTracker::new();
         let added_time = AddedTimeTracker::new();
         let forced_substitution_tracker = ForcedSubstitutionTracker::new();
+        let power_cache = MatchPowerCache::new();
 
-        Ok(Self {
+        let mut state = Self {
             teams,
             referees,
             home_squad,
@@ -144,6 +146,11 @@ impl MatchState {
             kick_foul,
             added_time,
             forced_substitution_tracker,
-        })
+            power_cache,
+        };
+
+        state.refresh_team_powers();
+
+        Ok(state)
     }
 }

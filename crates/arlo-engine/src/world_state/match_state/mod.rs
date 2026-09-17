@@ -32,6 +32,7 @@ pub mod setup_params;
 pub mod state;
 pub mod team_captains;
 pub mod team_position_indices;
+pub mod team_power;
 pub mod team_queries;
 pub mod teams;
 
@@ -50,4 +51,7 @@ pub use review_slot::ReviewSlot;
 pub use score::{MatchScoreboard, TeamScore};
 pub use setup_params::{MatchSetupParams, TeamSetupParams};
 pub use state::MatchState;
+pub use team_power::{
+    calculate_player_ca_from_table, calculate_team_match_power, MatchPowerCache, TeamMatchPower,
+};
 pub use teams::TeamRegistry;

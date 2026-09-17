@@ -64,6 +64,8 @@ pub fn step_call_to_action(
         return Ok(PlayStepOutcome::Resolved(build_finished_match_outcome(state)));
     }
 
+    state.refresh_team_powers_if_needed();
+
     let pending =
         readiness::resolve_pending_manager_decisions(state, sink, manager_decision_inbox);
     if !pending.is_empty() {

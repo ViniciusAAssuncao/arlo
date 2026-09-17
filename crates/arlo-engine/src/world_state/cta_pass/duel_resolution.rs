@@ -70,17 +70,21 @@ pub fn resolve_pass_protection_duel(
         .collect();
 
     let tables = state.teams.player_attribute_tables();
+    let offense_power = state.power_for_team(offense_team_id);
+    let defense_power = state.power_for_team(defense_team_id);
 
     let req = DuelResolutionRequest::from_participants(
         DuelKind::PassProtection,
         participants.passer,
         RatingParticipants::from_slice_with_index(&pass_blocker_players, &pass_blocker_map)
             .with_fatigue(&fatigue_fn)
-            .with_attribute_tables(tables),
+            .with_attribute_tables(tables)
+            .with_team_power(offense_power.control_power()),
         participants.pass_rusher,
         RatingParticipants::from_slice_with_index(&pass_rusher_players, &pass_rusher_map)
             .with_fatigue(&fatigue_fn)
-            .with_attribute_tables(tables),
+            .with_attribute_tables(tables)
+            .with_team_power(defense_power.defensive_power()),
         state.attribute_keys(),
         &context,
     );
