@@ -1,5 +1,4 @@
 pub mod artrine_identity;
-pub mod geometry;
 pub mod validator;
 
 pub use artrine_identity::{ArtrineCarrier, FalseArtrine, TrueArtrine};
