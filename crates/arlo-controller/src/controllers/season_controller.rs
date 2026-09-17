@@ -128,55 +128,14 @@ pub async fn get_league_overview(
     let active_season = match season_instances
         .iter()
         .find(|s| s.status == "Active" || s.status == "Pending")
-        .or_else(|| season_instances.first())
     {
         Some(s) => s.clone(),
         None => {
-            let metadata = arlo_db::repositories::save_metadata::get(pool)
-                .await
-                .map_err(|e| ControllerError::InvalidData(e.to_string()))?
-                .ok_or_else(|| ControllerError::NotFound("Metadados da gravação não encontrados".to_string()))?;
-
-            let save_calendar_row = arlo_persistence::repositories::calendar::save_calendar_state::get_by_save_uuid(
-                pool,
-                metadata.save_uuid(),
-            )
-            .await?;
-
-            let (calendar_system_id, current_year) = if let Some(row) = save_calendar_row {
-                (Uuid::parse_str(&row.calendar_system_id)?, row.current_year)
-            } else {
-                let systems = arlo_db::repositories::calendar_system::list_all(pool)
-                    .await
-                    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-                let first = systems.into_iter().next().ok_or_else(|| {
-                    ControllerError::NotFound("Nenhum sistema de calendário cadastrado".to_string())
-                })?;
-                (Uuid::parse_str(&first.id)?, 3627)
-            };
-
-            if let Ok(generated) = season_generator::generate_season_for_league(
-                pool,
-                competition_id,
-                calendar_system_id,
-                current_year,
-            )
-            .await
-            {
-                let row = arlo_persistence::repositories::season::season_instances::get_by_id(
-                    pool,
-                    generated.season_instance.id(),
-                )
-                .await?
-                .ok_or_else(|| ControllerError::NotFound("Season instance created but not found".to_string()))?;
-                row
-            } else {
-                return Ok(LeagueOverviewDto {
-                    has_active_season: false,
-                    standings: Vec::new(),
-                    fixtures: Vec::new(),
-                });
-            }
+            return Ok(LeagueOverviewDto {
+                has_active_season: false,
+                standings: Vec::new(),
+                fixtures: Vec::new(),
+            });
         }
     };
 
