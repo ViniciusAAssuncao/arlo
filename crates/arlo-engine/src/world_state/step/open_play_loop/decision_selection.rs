@@ -5,7 +5,7 @@ use crate::artrine::event_translation::translate_artrine_decision_made;
 use crate::match_decision::event_translation::create_envelope;
 use crate::open_play::carrier_sampler::sample_carrier_decision_from_table;
 use crate::open_play::CarrierDecisionEvaluator;
-use crate::spatial::proximity::calculate_distance_mirim;
+use crate::play_resolution::ball_kinematics::calculate_distance_mirim;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;

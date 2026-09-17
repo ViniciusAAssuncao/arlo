@@ -1,8 +1,12 @@
 use crate::artrine::{resolve_primary_lead_defender_from_tables, DistributionFlightInfo};
 use crate::lineup_runtime::find_goalguard;
-use crate::match_decision::target_selection::{select_target, ReceptionRole};
+use crate::match_decision::target_selection::{select_target_from_tables, ReceptionRole};
 use crate::officiating::foul::FoulResolution;
-use crate::officiating::line_fault::{evaluate_and_resolve_line_fault, LineFaultEvaluationContext};
+use crate::officiating::line_fault::{
+    estimate_last_defender_position, evaluate_and_resolve_line_fault, identify_last_defender,
+    is_line_fault, LineFaultEvaluationContext,
+};
+use crate::play_resolution::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
@@ -10,8 +14,6 @@ use crate::resolution::group_rating::{
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
-use crate::spatial::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
-use crate::spatial::line_fault::{identify_last_defender, is_line_fault};
 use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
@@ -105,7 +107,6 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
         carrier_pos,
         Velocity::zero(),
         defense_players,
-        state.spatial_map(),
         &context.defense_instructions_index,
         tables,
         &|id| state.fatigue_lookup().get(id),
@@ -173,13 +174,12 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     let pass_speed = calculate_pass_speed(current_carrier, attribute_keys, &carrier_fatigue);
     let flight_duration = ball_flight_duration(throw_advance, pass_speed);
 
-    let receiver_id = select_target(
+    let receiver_id = select_target_from_tables(
         &iter_ctx.target_candidates,
-        state.spatial_map(),
         &pitch,
         &context.offense_pos_index,
         &context.offense_instructions_index,
-        attribute_keys,
+        tables,
         context.is_home_offense,
         ReceptionRole::OpenPlayReceiver,
         &iter_ctx.openness_by_player,
@@ -197,10 +197,13 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
 
     let is_aerial = chosen_decision == ArtrineDecisionKind::LongLaunch;
 
-    let rec_pos = state
-        .spatial_map()
-        .get_position(&receiver_id)
-        .unwrap_or(carrier_pos);
+    let shift_m = throw_advance * MIRIM_TO_METERS;
+    let rec_x_m = if context.is_home_offense {
+        (carrier_pos.raw().0 + shift_m).min(pitch.length().value())
+    } else {
+        (carrier_pos.raw().0 - shift_m).max(0.0)
+    };
+    let rec_pos = VectorPosition::from_components(rec_x_m, carrier_pos.raw().1, 0.0);
 
     let goalguard_id = find_goalguard(defense_players).map(|g| g.id()).ok();
     let outfield_defenders: Vec<&Player> = defense_players
@@ -209,17 +212,12 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
         .filter(|p| Some(p.id()) != goalguard_id)
         .collect();
 
-    if let Some(last_defender) = identify_last_defender(
-        &outfield_defenders,
-        state.spatial_map(),
-        context.is_home_offense,
-    ) {
+    if let Some(last_defender) =
+        identify_last_defender(&outfield_defenders, &context.defense_pos_index)
+    {
         let receiver_table = state.attribute_table_for(&receiver_id);
         let defender_table = state.attribute_table_for(&last_defender.id());
-        let defender_pos = state
-            .spatial_map()
-            .get_position(&last_defender.id())
-            .unwrap_or(carrier_pos);
+        let defender_pos = estimate_last_defender_position(&pitch, context.is_home_offense);
 
         let (is_fault, margin) = is_line_fault(
             receiver_player,

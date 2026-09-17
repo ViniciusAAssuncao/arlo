@@ -27,7 +27,6 @@ use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
 use arlo_math::units::MIRIM_TO_METERS;
 use smallvec::SmallVec;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
@@ -129,7 +128,6 @@ pub fn step_call_to_action(
                 injuries: Vec::new(),
                 receiver_id: None,
                 distribution_flight: None,
-                kinematic_trajectories: HashMap::new(),
             },
         )
     } else {
