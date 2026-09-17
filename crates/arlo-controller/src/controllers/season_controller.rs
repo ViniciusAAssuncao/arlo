@@ -4,8 +4,10 @@ use crate::domain::season::{
 };
 use crate::dto::season::{FixtureSummaryDto, LeagueOverviewDto, StandingsEntryDto};
 use crate::error::{ControllerError, ControllerResult};
+use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::repositories::season::standings_cache;
+use crate::services::calendar::date_resolver;
 use crate::services::season::season_generator::{self, GeneratedSeason};
 use crate::services::season::standings::group_rank_annotator;
 use arlo_domain::CompetitionGroup;
@@ -128,13 +130,53 @@ pub async fn get_league_overview(
         .find(|s| s.status == "Active" || s.status == "Pending")
         .or_else(|| season_instances.first())
     {
-        Some(s) => s,
+        Some(s) => s.clone(),
         None => {
-            return Ok(LeagueOverviewDto {
-                has_active_season: false,
-                standings: Vec::new(),
-                fixtures: Vec::new(),
-            });
+            let metadata = arlo_db::repositories::save_metadata::get(pool)
+                .await
+                .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+                .ok_or_else(|| ControllerError::NotFound("Metadados da gravação não encontrados".to_string()))?;
+
+            let save_calendar_row = arlo_persistence::repositories::calendar::save_calendar_state::get_by_save_uuid(
+                pool,
+                metadata.save_uuid(),
+            )
+            .await?;
+
+            let (calendar_system_id, current_year) = if let Some(row) = save_calendar_row {
+                (Uuid::parse_str(&row.calendar_system_id)?, row.current_year)
+            } else {
+                let systems = arlo_db::repositories::calendar_system::list_all(pool)
+                    .await
+                    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+                let first = systems.into_iter().next().ok_or_else(|| {
+                    ControllerError::NotFound("Nenhum sistema de calendário cadastrado".to_string())
+                })?;
+                (Uuid::parse_str(&first.id)?, 3627)
+            };
+
+            if let Ok(generated) = season_generator::generate_season_for_league(
+                pool,
+                competition_id,
+                calendar_system_id,
+                current_year,
+            )
+            .await
+            {
+                let row = arlo_persistence::repositories::season::season_instances::get_by_id(
+                    pool,
+                    generated.season_instance.id(),
+                )
+                .await?
+                .ok_or_else(|| ControllerError::NotFound("Season instance created but not found".to_string()))?;
+                row
+            } else {
+                return Ok(LeagueOverviewDto {
+                    has_active_season: false,
+                    standings: Vec::new(),
+                    fixtures: Vec::new(),
+                });
+            }
         }
     };
 
@@ -166,13 +208,55 @@ pub async fn get_league_overview(
         arlo_persistence::repositories::season::fixtures::list_by_stage_id(pool, stage_id)
             .await?;
 
+    let metadata = arlo_db::repositories::save_metadata::get(pool)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+        .ok_or_else(|| ControllerError::NotFound("Metadados da gravação não encontrados".to_string()))?;
+
+    let save_calendar_row = arlo_persistence::repositories::calendar::save_calendar_state::get_by_save_uuid(
+        pool,
+        metadata.save_uuid(),
+    )
+    .await?;
+
+    let calendar_system_id = if let Some(row) = save_calendar_row {
+        Uuid::parse_str(&row.calendar_system_id)?
+    } else {
+        let systems = arlo_db::repositories::calendar_system::list_all(pool)
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+        let first = systems.into_iter().next().ok_or_else(|| {
+            ControllerError::NotFound("Nenhum sistema de calendário cadastrado".to_string())
+        })?;
+        Uuid::parse_str(&first.id)?
+    };
+
+    let catalog = get_or_load_calendar_catalog(pool).await?;
+    let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
+        ControllerError::NotFound(format!("Calendar system {} not found", calendar_system_id))
+    })?;
+
     let teams = arlo_db::repositories::team::list_all(pool)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let team_name_map: HashMap<Uuid, String> = teams
-        .into_iter()
+        .iter()
         .map(|t| (t.id(), t.name().to_string()))
+        .collect();
+
+    let team_home_venue_map: HashMap<Uuid, Option<Uuid>> = teams
+        .iter()
+        .map(|t| (t.id(), t.home_venue_id()))
+        .collect();
+
+    let all_venues = arlo_db::repositories::venue::list_all(pool)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+
+    let venue_name_map: HashMap<Uuid, String> = all_venues
+        .into_iter()
+        .map(|v| (v.id(), v.name().to_string()))
         .collect();
 
     let standings = standings_entries
@@ -211,6 +295,70 @@ pub async fn get_league_overview(
             .cloned()
             .unwrap_or_else(|| "Visitante".to_string());
 
+        let fixture_cal_date = crate::domain::calendar::CalendarDate::new(
+            row.scheduled_year,
+            row.scheduled_day_of_year as u32,
+        );
+
+        let resolved_date = date_resolver::resolve(calendar, &fixture_cal_date);
+
+        let (scheduled_month_name, scheduled_day_of_month, scheduled_week_day_name) = match resolved_date {
+            crate::domain::calendar::ResolvedCalendarDate::RegularDay {
+                month_order_index,
+                day_of_month,
+                week_day_index,
+                ..
+            } => {
+                let m_name = calendar
+                    .months()
+                    .iter()
+                    .find(|m| m.order_index() == month_order_index)
+                    .map(|m| m.name().to_string())
+                    .unwrap_or_default();
+                let w_name = calendar
+                    .week_days()
+                    .iter()
+                    .find(|w| w.order_index() == week_day_index)
+                    .map(|w| w.name().to_string())
+                    .unwrap_or_default();
+                (m_name, day_of_month, w_name)
+            }
+            crate::domain::calendar::ResolvedCalendarDate::IntercalaryDay {
+                intercalary_index,
+                week_day_index,
+                ..
+            } => {
+                let w_name = week_day_index
+                    .and_then(|idx| {
+                        calendar
+                            .week_days()
+                            .iter()
+                            .find(|w| w.order_index() == idx)
+                            .map(|w| w.name().to_string())
+                    })
+                    .unwrap_or_default();
+                ("Sirdápis".to_string(), intercalary_index + 1, w_name)
+            }
+        };
+
+        let target_venue_id = if row.is_neutral_venue {
+            row.venue_id
+                .as_deref()
+                .and_then(|vid| Uuid::parse_str(vid).ok())
+        } else {
+            team_home_venue_map
+                .get(&home_id)
+                .copied()
+                .flatten()
+                .or_else(|| {
+                    row.venue_id
+                        .as_deref()
+                        .and_then(|vid| Uuid::parse_str(vid).ok())
+                })
+        };
+
+        let venue_name = target_venue_id.and_then(|vid| venue_name_map.get(&vid).cloned());
+
         fixtures.push(FixtureSummaryDto {
             id: row.id,
             round_index: row.round_index as u32,
@@ -221,6 +369,10 @@ pub async fn get_league_overview(
             away_score: row.away_score,
             scheduled_year: row.scheduled_year,
             scheduled_day_of_year: row.scheduled_day_of_year as u32,
+            scheduled_month_name,
+            scheduled_day_of_month,
+            scheduled_week_day_name,
+            venue_name,
         });
     }
 

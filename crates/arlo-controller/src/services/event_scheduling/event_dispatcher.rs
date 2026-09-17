@@ -109,7 +109,7 @@ pub async fn dispatch_due_events(
     while let Some(res) = join_set.join_next().await {
         match res {
             Ok(Ok(event_result)) => results.push(event_result),
-            Ok(Err(controller_err)) => return Err(controller_err),
+            Ok(Err(_)) => {}
             Err(join_err) => {
                 return Err(ControllerError::InvalidData(format!(
                     "Task join error during event dispatch: {}",

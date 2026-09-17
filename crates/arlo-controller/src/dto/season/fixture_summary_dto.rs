@@ -12,4 +12,8 @@ pub struct FixtureSummaryDto {
     pub away_score: Option<i32>,
     pub scheduled_year: i64,
     pub scheduled_day_of_year: u32,
+    pub scheduled_month_name: String,
+    pub scheduled_day_of_month: u32,
+    pub scheduled_week_day_name: String,
+    pub venue_name: Option<String>,
 }
