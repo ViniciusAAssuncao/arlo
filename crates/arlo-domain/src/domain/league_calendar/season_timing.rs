@@ -29,7 +29,7 @@ impl SeasonTiming {
         }
 
         for &weekday in &allowed_weekdays {
-            validate_integer_range(weekday as i32, 0, 6, "allowed_weekdays")?;
+            validate_integer_range(weekday as i32, 0, 31, "allowed_weekdays")?;
         }
 
         validate_no_duplicate_keys(

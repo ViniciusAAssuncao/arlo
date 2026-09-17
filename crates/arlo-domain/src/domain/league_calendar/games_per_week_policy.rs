@@ -17,7 +17,7 @@ impl GamesPerWeekPolicy {
         validate_integer_range(
             max_games_per_team_per_week as i32,
             1,
-            7,
+            31,
             "max_games_per_team_per_week",
         )?;
 
