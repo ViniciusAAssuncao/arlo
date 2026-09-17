@@ -4,7 +4,9 @@ use crate::physical::systems::degradation::extract_effective_attribute_value_wit
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
-use arlo_domain::sport_constants::{ATTRIBUTE_SATURATION_THRESHOLD, BASE_NOISE_SCALE};
+use arlo_domain::sport_constants::{
+    ATTRIBUTE_MAX, ATTRIBUTE_SATURATION_THRESHOLD, BASE_NOISE_SCALE,
+};
 use arlo_domain::{AttributeKey, Player};
 pub use arlo_math::stats::SkewNormalParams;
 use rand::Rng;
@@ -59,7 +61,7 @@ pub fn player_noise_distribution_from_table_with_impulse(
     };
 
     let scale = BASE_NOISE_SCALE
-        * (1.0 + (20.0 - consistency).max(0.0) / ATTRIBUTE_SATURATION_THRESHOLD)
+        * (1.0 + (ATTRIBUTE_MAX - consistency).max(0.0) / ATTRIBUTE_SATURATION_THRESHOLD)
         * fatigue_noise_scale
         * (1.0 + depression_from_impulse);
     let shape = ((technique + flair) / 2.0 - composure) / ATTRIBUTE_SATURATION_THRESHOLD;

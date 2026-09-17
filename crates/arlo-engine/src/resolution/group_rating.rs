@@ -5,9 +5,9 @@ use crate::physical::PhysicalState;
 use crate::resolution::duel_profiles::DuelProfile;
 use crate::weighting::apply_saturation;
 use arlo_domain::sport_constants::{
-    ATTRIBUTE_SATURATION_THRESHOLD, GROUP_AGGREGATION_SATURATION_MULTIPLIER,
-    GROUP_AGGREGATION_SATURATION_THRESHOLD, GROUP_SATURATION_MULTIPLIER,
-    GROUP_SATURATION_THRESHOLD,
+    ATTRIBUTE_MAX, ATTRIBUTE_MIN,
+    GROUP_AGGREGATION_SATURATION_MULTIPLIER, GROUP_AGGREGATION_SATURATION_THRESHOLD,
+    GROUP_SATURATION_MULTIPLIER, GROUP_SATURATION_THRESHOLD,
 };
 use arlo_domain::{AttributeKey, Player, Position};
 use std::collections::HashMap;
@@ -131,7 +131,9 @@ pub fn calculate_group_rating(ratings: &[f64]) -> f64 {
 
     let mut helper_sum = 0.0;
     for &rating in &sorted[1..] {
-        let raw_contrib = (rating / ATTRIBUTE_SATURATION_THRESHOLD) * GROUP_SATURATION_THRESHOLD;
+        let normalized =
+            ((rating - ATTRIBUTE_MIN) / (ATTRIBUTE_MAX - ATTRIBUTE_MIN)).clamp(0.0, 1.0);
+        let raw_contrib = (normalized * normalized) * GROUP_SATURATION_THRESHOLD;
         let sat_contrib = apply_saturation(
             raw_contrib,
             GROUP_SATURATION_THRESHOLD,
@@ -204,7 +206,9 @@ pub fn calculate_anchored_rating(anchor_rating: f64, helper_ratings: &[f64]) -> 
 
     let mut helper_sum = 0.0;
     for &rating in helper_ratings {
-        let raw_contrib = (rating / ATTRIBUTE_SATURATION_THRESHOLD) * GROUP_SATURATION_THRESHOLD;
+        let normalized =
+            ((rating - ATTRIBUTE_MIN) / (ATTRIBUTE_MAX - ATTRIBUTE_MIN)).clamp(0.0, 1.0);
+        let raw_contrib = (normalized * normalized) * GROUP_SATURATION_THRESHOLD;
         let sat_contrib = apply_saturation(
             raw_contrib,
             GROUP_SATURATION_THRESHOLD,
