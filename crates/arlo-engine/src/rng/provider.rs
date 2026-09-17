@@ -1,8 +1,11 @@
 use crate::rng::seed::MatchSeed;
-use crate::rng::stream::{derive_sub_seed, derive_sub_seed_indexed, RngStream};
+use crate::rng::stream::{
+    derive_sub_seed, derive_sub_seed_indexed, derive_sub_seed_team_indexed, RngStream,
+};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RngProvider {
@@ -35,6 +38,11 @@ impl RngProvider {
 
     pub fn indexed_rng_for(&self, stream: RngStream, index: u64) -> ChaCha8Rng {
         let sub_seed = derive_sub_seed_indexed(self.seed, stream, index);
+        ChaCha8Rng::seed_from_u64(sub_seed)
+    }
+
+    pub fn team_indexed_rng_for(&self, stream: RngStream, team_id: Uuid, index: u64) -> ChaCha8Rng {
+        let sub_seed = derive_sub_seed_team_indexed(self.seed, stream, team_id, index);
         ChaCha8Rng::seed_from_u64(sub_seed)
     }
 

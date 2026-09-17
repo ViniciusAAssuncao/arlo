@@ -37,22 +37,34 @@ pub fn handle_dead_ball_and_clock(
 
     if transition_result.countdown_to_size_triggered {
         let seq = publisher.state_mut().next_sequence();
-        let mut ai_rng = publisher
+        let mut offense_ai_rng = publisher
             .state()
             .rng_provider()
-            .indexed_rng_for(RngStream::PlayCallSelection, seq);
+            .team_indexed_rng_for(
+                RngStream::PlayCallSelection,
+                detailed_outcome.offense_team_id,
+                seq,
+            );
+        let mut defense_ai_rng = publisher
+            .state()
+            .rng_provider()
+            .team_indexed_rng_for(
+                RngStream::PlayCallSelection,
+                detailed_outcome.defense_team_id,
+                seq,
+            );
 
         let extra_offense = ManagerAiEngine::on_stoppage(
             publisher,
             detailed_outcome.offense_team_id,
             manager_decision_inbox,
-            &mut ai_rng,
+            &mut offense_ai_rng,
         );
         let extra_defense = ManagerAiEngine::on_stoppage(
             publisher,
             detailed_outcome.defense_team_id,
             manager_decision_inbox,
-            &mut ai_rng,
+            &mut defense_ai_rng,
         );
         let extra_total = extra_offense + extra_defense;
         if extra_total.value() > 0.0 {
