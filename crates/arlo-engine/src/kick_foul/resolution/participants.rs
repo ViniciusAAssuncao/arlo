@@ -1,8 +1,7 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::error::{EngineError, EngineResult};
 use crate::lineup_runtime::find_goalguard;
-use arlo_domain::{AttributeKey, Player, Position, SlotRole};
-use arlo_math::stats::sample_categorical;
+use arlo_domain::{Player, Position, SlotRole};
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -39,31 +38,12 @@ pub fn select_kicker<'a, R: Rng + ?Sized>(
     tables: &HashMap<Uuid, PlayerAttributeTable>,
     rng: &mut R,
 ) -> Option<&'a Player> {
-    if let Some(designated_id) =
-        crate::set_piece::kicker_selection::select_kicker(offense_players, Some(offense_role_index))
-    {
-        return offense_players
-            .iter()
-            .copied()
-            .find(|p| p.id() == designated_id);
-    }
-
-    if offense_players.is_empty() {
-        return None;
-    }
-
-    let weights: Vec<f64> = offense_players
-        .iter()
-        .map(|p| {
-            let table = tables.get(&p.id());
-            table
-                .map(|t| t.get(AttributeKey::GoalKicking) + t.get(AttributeKey::Finishing))
-                .unwrap_or(0.0)
-        })
-        .collect();
-
-    let idx = sample_categorical(&weights, rng).unwrap_or(0);
-    offense_players.get(idx).copied()
+    crate::set_piece::kicker_selection::select_kicker(
+        offense_players,
+        Some(offense_role_index),
+        tables,
+        rng,
+    )
 }
 
 pub fn select_kick_foul_participants<'a, R: Rng + ?Sized>(

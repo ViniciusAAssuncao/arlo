@@ -6,9 +6,7 @@ use crate::manager_ai::context::squad_fatigue_summary::SquadFatigueSummary;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::substitutions::disciplinary_trigger::disciplinary_urgency;
 use crate::manager_ai::substitutions::fatigue_trigger::urgency_for_player_with_load_management;
-use crate::manager_ai::substitutions::replacement_selection::{
-    best_replacement, best_replacement_from_tables,
-};
+use crate::manager_ai::substitutions::replacement_selection::best_replacement;
 use crate::manager_ai::substitutions::tactical_trigger::tactical_urgency;
 use crate::physical::FatigueState;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
@@ -21,7 +19,7 @@ use arlo_domain::sport_constants::substitution::{
     SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT, SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT,
     SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT,
 };
-use arlo_domain::{AttributeKey, Position, RotationPolicy};
+use arlo_domain::{Position, RotationPolicy};
 use arlo_events::SubstitutionReason;
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
@@ -37,7 +35,7 @@ pub struct SubstitutionPlan {
 pub struct SubstitutionDecisionEngine;
 
 impl SubstitutionDecisionEngine {
-    pub fn evaluate_plans_from_tables<F, R>(
+    pub fn evaluate_plans<F, R>(
         context: &ManagerDecisionContext,
         _squad_fatigue_summary: &SquadFatigueSummary,
         lineup: &Lineup,
@@ -111,109 +109,11 @@ impl SubstitutionDecisionEngine {
                     } else {
                         slot.position()
                     };
-                    if let Some(replacement) = best_replacement_from_tables(
+                    if let Some(replacement) = best_replacement(
                         target_pos,
                         &available_candidates,
                         attribute_tables,
                     ) {
-                        used_candidates.insert(replacement.id());
-                        let reason = if disc_urg > 0.0 {
-                            SubstitutionReason::Disciplinary
-                        } else if fat_urg >= tac_urg && fat_urg > 0.0 {
-                            SubstitutionReason::Fatigue
-                        } else {
-                            SubstitutionReason::Tactical
-                        };
-                        plans.push(SubstitutionPlan {
-                            outgoing_id: pid,
-                            incoming_id: replacement.id(),
-                            reason,
-                        });
-                    }
-                }
-            }
-        }
-
-        plans
-    }
-
-    pub fn evaluate_plans<F, R>(
-        context: &ManagerDecisionContext,
-        _squad_fatigue_summary: &SquadFatigueSummary,
-        lineup: &Lineup,
-        bench: &MatchdaySquad,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
-        fatigue_lookup: F,
-        availability_lookup: &dyn Fn(&Uuid) -> AvailabilityState,
-        rng: &mut R,
-    ) -> Vec<SubstitutionPlan>
-    where
-        F: Fn(&Uuid) -> FatigueState,
-        R: Rng + ?Sized,
-    {
-        let rotation_policy = context
-            .manager_snapshot
-            .tactical_profile
-            .as_ref()
-            .map(|p| p.rotation_policy())
-            .unwrap_or(RotationPolicy::Situational);
-        let load_management = context.manager_snapshot.load_management;
-        let tac_urg = tactical_urgency(context);
-        let noise_params = derive_manager_decision_noise(context.manager_snapshot.discipline);
-
-        let mut used_candidates = HashSet::new();
-        let mut plans = Vec::new();
-
-        for assignment in lineup.assignments() {
-            let pid = assignment.player().id();
-            let p_avail = availability_lookup(&pid);
-            if p_avail.is_expelled() {
-                continue;
-            }
-
-            let p_fatigue = fatigue_lookup(&pid);
-            let fat_urg = urgency_for_player_with_load_management(
-                &p_fatigue,
-                rotation_policy,
-                load_management,
-            );
-            let disc_urg = disciplinary_urgency(p_avail);
-
-            let noise = noise_params.sample(rng);
-            let combined_urgency = ((fat_urg * SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT
-                + tac_urg * SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT
-                + disc_urg * SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT)
-                + noise)
-                .clamp(0.0, 1.0);
-
-            let prob = action_probability(
-                combined_urgency,
-                context.manager_snapshot.man_management,
-                SIGNAL_DETECTION_BASE_SENSITIVITY,
-                SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-                DECISION_THRESHOLD_LOGIT_STEEPNESS,
-            );
-
-            if prob.sample(rng) {
-                let available_candidates: Vec<_> = bench
-                    .available_replacements()
-                    .filter(|p| !used_candidates.contains(&p.id()))
-                    .cloned()
-                    .collect();
-
-                if !available_candidates.is_empty() {
-                    let slot = assignment.slot();
-                    let target_pos = if slot.defensive_position() == Position::Goalguard
-                        || slot.position() == Position::Goalguard
-                        || slot.offensive_position() == Position::Goalguard
-                    {
-                        Position::Goalguard
-                    } else {
-                        slot.position()
-                    };
-                    if let Some(replacement) =
-                        best_replacement(target_pos, &available_candidates, attribute_keys)
-                    {
                         used_candidates.insert(replacement.id());
                         let reason = if disc_urg > 0.0 {
                             SubstitutionReason::Disciplinary
@@ -240,7 +140,7 @@ impl SubstitutionDecisionEngine {
         squad_fatigue_summary: &SquadFatigueSummary,
         lineup: &Lineup,
         bench: &MatchdaySquad,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
         fatigue_lookup: F,
         availability_lookup: &dyn Fn(&Uuid) -> AvailabilityState,
         rng: &mut R,
@@ -254,7 +154,7 @@ impl SubstitutionDecisionEngine {
             squad_fatigue_summary,
             lineup,
             bench,
-            attribute_keys,
+            attribute_tables,
             fatigue_lookup,
             availability_lookup,
             rng,

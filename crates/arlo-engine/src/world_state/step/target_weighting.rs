@@ -1,6 +1,6 @@
 use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::match_decision::target_selection::{
-    calculate_player_target_weight_from_table, ReceptionRole,
+    calculate_player_target_weight, ReceptionRole,
 };
 use crate::playmaking::routes::simulate_route_development_from_tables;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -29,12 +29,13 @@ pub fn resolve_decision_target_weights(
                 let table = tables
                     .get(&p.id())
                     .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-                calculate_player_target_weight_from_table(
+                calculate_player_target_weight(
                     p,
                     table,
                     state.pitch(),
                     &context.offense_pos_index,
                     &context.offense_instructions_index,
+                    Some(&context.offense_role_index),
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &empty_openness,
@@ -85,12 +86,13 @@ pub fn resolve_decision_target_weights(
                 let table = tables
                     .get(&p.id())
                     .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-                calculate_player_target_weight_from_table(
+                calculate_player_target_weight(
                     p,
                     table,
                     state.pitch(),
                     &context.offense_pos_index,
                     &context.offense_instructions_index,
+                    Some(&context.offense_role_index),
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &openness_by_player,

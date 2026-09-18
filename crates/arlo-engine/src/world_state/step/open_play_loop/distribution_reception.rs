@@ -1,6 +1,6 @@
 use crate::artrine::{resolve_primary_lead_defender_from_tables, DistributionFlightInfo};
 use crate::lineup_runtime::find_goalguard;
-use crate::match_decision::target_selection::{select_target_from_tables, ReceptionRole};
+use crate::match_decision::target_selection::{select_target, ReceptionRole};
 use crate::officiating::foul::FoulResolution;
 use crate::officiating::line_fault::{
     estimate_last_defender_position, evaluate_and_resolve_line_fault, identify_last_defender,
@@ -191,11 +191,12 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     let pass_speed = calculate_pass_speed(current_carrier, attribute_keys, &carrier_fatigue);
     let flight_duration = ball_flight_duration(throw_advance, pass_speed);
 
-    let receiver_id = select_target_from_tables(
+    let receiver_id = select_target(
         &iter_ctx.target_candidates,
         &pitch,
         &context.offense_pos_index,
         &context.offense_instructions_index,
+        Some(&context.offense_role_index),
         tables,
         context.is_home_offense,
         ReceptionRole::OpenPlayReceiver,

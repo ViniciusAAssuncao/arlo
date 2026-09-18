@@ -41,7 +41,7 @@ pub fn evaluate_substitution_stage<R: Rng + ?Sized>(
             let fatigue_lookup = publisher.state().fatigue_lookup();
             let availability_lookup = |id: &Uuid| publisher.state().availability_for(id);
 
-            let plans = SubstitutionDecisionEngine::evaluate_plans_from_tables(
+            let plans = SubstitutionDecisionEngine::evaluate_plans(
                 &context,
                 &context.squad_fatigue_summary,
                 &lineup,

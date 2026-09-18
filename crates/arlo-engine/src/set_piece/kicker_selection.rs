@@ -1,58 +1,41 @@
-use crate::attributes::PlayerAttributeTable;
-use crate::match_decision::target_selection::{select_target_from_tables, ReceptionRole};
-use crate::physical::PhysicalState;
-use arlo_domain::pitch::Pitch;
-use arlo_domain::{Player, Position, SlotRole};
-use arlo_tactics::PlayerInstructions;
+use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
+use arlo_domain::{AttributeKey, Player, SlotRole};
+use arlo_math::stats::sample_categorical;
 use rand::Rng;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn select_kicker(
-    candidates: &[&Player],
-    role_index_for_play: Option<&HashMap<Uuid, SlotRole>>,
-) -> Option<Uuid> {
-    if let Some(roles) = role_index_for_play {
-        if let Some(kicker) = candidates
-            .iter()
-            .find(|p| roles.get(&p.id()) == Some(&SlotRole::Kicker))
-        {
-            return Some(kicker.id());
-        }
-    }
-    None
-}
-
-pub fn select_kicker_from_tables<F, R>(
-    candidates: &[&Player],
-    role_index_for_play: Option<&HashMap<Uuid, SlotRole>>,
-    pitch: &Pitch,
-    position_index: &HashMap<Uuid, Position>,
-    instructions_index: &HashMap<Uuid, PlayerInstructions>,
-    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
-    attacking_positive_x: bool,
-    openness_by_player: &HashMap<Uuid, f64>,
-    fatigue_for: Option<&F>,
+pub fn select_kicker<'a, R: Rng + ?Sized>(
+    players: &[&'a Player],
+    role_index: Option<&HashMap<Uuid, SlotRole>>,
+    tables: &HashMap<Uuid, PlayerAttributeTable>,
     rng: &mut R,
-) -> Option<Uuid>
-where
-    F: Fn(&Uuid) -> PhysicalState,
-    R: Rng + ?Sized,
-{
-    if let Some(kicker_id) = select_kicker(candidates, role_index_for_play) {
-        return Some(kicker_id);
+) -> Option<&'a Player> {
+    if players.is_empty() {
+        return None;
+    }
+    if players.len() == 1 {
+        return Some(players[0]);
     }
 
-    select_target_from_tables(
-        candidates,
-        pitch,
-        position_index,
-        instructions_index,
-        attribute_tables,
-        attacking_positive_x,
-        ReceptionRole::Finisher,
-        openness_by_player,
-        fatigue_for,
-        rng,
-    )
+    let mut weights: SmallVec<[f64; 16]> = SmallVec::with_capacity(players.len());
+    for p in players {
+        let table = tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let goal_kicking = table.get(AttributeKey::GoalKicking);
+        let finishing = table.get(AttributeKey::Finishing);
+        let composure = table.get(AttributeKey::Composure);
+        let technique = table.get(AttributeKey::Technique);
+
+        let base_score = 0.5 + goal_kicking * 0.40 + finishing * 0.35 + composure * 0.15 + technique * 0.10;
+        let role_bonus = if role_index.and_then(|r| r.get(&p.id())) == Some(&SlotRole::Kicker) {
+            15.0
+        } else {
+            0.0
+        };
+        weights.push((base_score + role_bonus).max(0.1));
+    }
+
+    let chosen_idx = sample_categorical(&weights, rng).unwrap_or(0);
+    players.get(chosen_idx).copied()
 }

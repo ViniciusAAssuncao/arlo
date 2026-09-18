@@ -73,12 +73,18 @@ fn assign_best_candidate_for_role(
                         .get(*idx)
                         .map(|s| s.position())
                         .unwrap_or(Position::Midcenter);
+                    if role == SlotRole::FalseArtrine && pos == Position::Artrine {
+                        return false;
+                    }
                     roles.get(&p.id()) == Some(&SlotRole::Standard)
-                        && is_role_eligible_for_position(role, pos)
                 })
-                .max_by(|(_, a), (_, b)| {
-                    let score_a = evaluate_candidate_suitability(a, role, attribute_keys);
-                    let score_b = evaluate_candidate_suitability(b, role, attribute_keys);
+                .max_by(|(idx_a, a), (idx_b, b)| {
+                    let pos_a = slots.get(*idx_a).map(|s| s.position()).unwrap_or(Position::Midcenter);
+                    let pos_b = slots.get(*idx_b).map(|s| s.position()).unwrap_or(Position::Midcenter);
+                    let affinity_a = if is_role_eligible_for_position(role, pos_a) { 1.35 } else { 0.80 };
+                    let affinity_b = if is_role_eligible_for_position(role, pos_b) { 1.35 } else { 0.80 };
+                    let score_a = evaluate_candidate_suitability(a, role, attribute_keys) * affinity_a;
+                    let score_b = evaluate_candidate_suitability(b, role, attribute_keys) * affinity_b;
                     score_a
                         .partial_cmp(&score_b)
                         .unwrap_or(std::cmp::Ordering::Equal)
@@ -222,13 +228,16 @@ pub fn assign_roles(
                 .get(*idx)
                 .map(|s| s.position())
                 .unwrap_or(Position::Midcenter);
-            if is_role_eligible_for_position(SlotRole::Blocker, pos) {
-                let blocking_score =
-                    evaluate_candidate_suitability(player, SlotRole::Blocker, attribute_keys);
-                if blocking_score >= blocker_threshold {
-                    roles.insert(player.id(), SlotRole::Blocker);
-                    *role_counts.entry(SlotRole::Blocker).or_insert(0) += 1;
-                }
+            let pos_mult = if is_role_eligible_for_position(SlotRole::Blocker, pos) {
+                1.25
+            } else {
+                0.75
+            };
+            let blocking_score =
+                evaluate_candidate_suitability(player, SlotRole::Blocker, attribute_keys) * pos_mult;
+            if blocking_score >= blocker_threshold {
+                roles.insert(player.id(), SlotRole::Blocker);
+                *role_counts.entry(SlotRole::Blocker).or_insert(0) += 1;
             }
         }
     }

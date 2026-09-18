@@ -1,8 +1,9 @@
-use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
+use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
-use arlo_domain::{AttributeKey, Pitch, Player, Position};
+use arlo_domain::{AttributeKey, Pitch, Player, Position, SlotRole};
 use arlo_math::stats::sample_categorical;
 use arlo_tactics::PlayerInstructions;
 use rand::Rng;
@@ -17,7 +18,7 @@ pub enum ReceptionRole {
     OpenPlayReceiver,
 }
 
-pub fn player_base_reception_weight_from_table(
+pub fn player_base_reception_weight(
     table: &PlayerAttributeTable,
     role: ReceptionRole,
     state: Option<&PhysicalState>,
@@ -56,28 +57,19 @@ pub fn player_base_reception_weight_from_table(
     }
 }
 
-pub fn player_base_reception_weight(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    role: ReceptionRole,
-    state: Option<&PhysicalState>,
-) -> f64 {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    player_base_reception_weight_from_table(&table, role, state)
-}
-
-pub fn calculate_player_target_weight_from_table(
+pub fn calculate_player_target_weight(
     player: &Player,
     table: &PlayerAttributeTable,
     _pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    role_index: Option<&HashMap<Uuid, SlotRole>>,
     _attacking_positive_x: bool,
     role: ReceptionRole,
     openness_by_player: &HashMap<Uuid, f64>,
     state: Option<&PhysicalState>,
 ) -> f64 {
-    let base_weight = player_base_reception_weight_from_table(table, role, state);
+    let base_weight = player_base_reception_weight(table, role, state);
     let assigned_pos = position_index
         .get(&player.id())
         .copied()
@@ -88,14 +80,19 @@ pub fn calculate_player_target_weight_from_table(
                 .map(|pp| pp.position())
                 .unwrap_or(Position::CenterOffense)
         });
+
     let proximity_factor = match assigned_pos {
         Position::CenterOffense => 1.8,
         Position::WingOffense | Position::WideEnd => 1.5,
         Position::Corridor | Position::RunningEnd => 1.3,
         Position::TightWing | Position::Midcenter => 1.1,
+        Position::Goalguard => 0.5,
         _ => 0.8,
     };
-    let fit_mult = calculate_fit_for_position(player, assigned_pos).efficiency_multiplier();
+
+    let fit_mult = calculate_fit_for_position(player, assigned_pos)
+        .efficiency_multiplier()
+        .max(0.1);
     let priority_mult = 1.0
         + instructions_index
             .get(&player.id())
@@ -104,40 +101,28 @@ pub fn calculate_player_target_weight_from_table(
             .in_possession()
             .involvement_priority()
             .value();
-    let openness = openness_by_player.get(&player.id()).copied().unwrap_or(1.0);
-    base_weight * proximity_factor * fit_mult * priority_mult * openness
+    let openness = openness_by_player
+        .get(&player.id())
+        .copied()
+        .unwrap_or(1.0)
+        .max(0.05);
+
+    let role_mult = match role_index.and_then(|r| r.get(&player.id())) {
+        Some(SlotRole::Kicker) if role == ReceptionRole::Finisher => 1.5,
+        Some(SlotRole::Launcher) if role == ReceptionRole::OpenPlayReceiver => 1.4,
+        Some(SlotRole::FalseArtrine) => 1.1,
+        _ => 1.0,
+    };
+
+    (base_weight * proximity_factor * fit_mult * priority_mult * openness * role_mult).max(0.05)
 }
 
-pub fn calculate_player_target_weight(
-    player: &Player,
-    pitch: &Pitch,
-    position_index: &HashMap<Uuid, Position>,
-    instructions_index: &HashMap<Uuid, PlayerInstructions>,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    attacking_positive_x: bool,
-    role: ReceptionRole,
-    openness_by_player: &HashMap<Uuid, f64>,
-    state: Option<&PhysicalState>,
-) -> f64 {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    calculate_player_target_weight_from_table(
-        player,
-        &table,
-        pitch,
-        position_index,
-        instructions_index,
-        attacking_positive_x,
-        role,
-        openness_by_player,
-        state,
-    )
-}
-
-pub fn select_target_from_tables<F, R>(
+pub fn select_target<F, R>(
     candidates: &[&Player],
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    role_index: Option<&HashMap<Uuid, SlotRole>>,
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     attacking_positive_x: bool,
     role: ReceptionRole,
@@ -168,12 +153,13 @@ where
             let table = attribute_tables
                 .get(&p.id())
                 .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-            calculate_player_target_weight_from_table(
+            calculate_player_target_weight(
                 p,
                 table,
                 pitch,
                 position_index,
                 instructions_index,
+                role_index,
                 attacking_positive_x,
                 role,
                 openness_by_player,
@@ -186,14 +172,14 @@ where
     Some(candidates[index].id())
 }
 
-pub fn select_target<F, R>(
+pub fn select_finisher<F, R>(
     candidates: &[&Player],
+    role_index: Option<&HashMap<Uuid, SlotRole>>,
     pitch: &Pitch,
     position_index: &HashMap<Uuid, Position>,
     instructions_index: &HashMap<Uuid, PlayerInstructions>,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     attacking_positive_x: bool,
-    role: ReceptionRole,
     openness_by_player: &HashMap<Uuid, f64>,
     fatigue_for: Option<&F>,
     rng: &mut R,
@@ -202,18 +188,15 @@ where
     F: Fn(&Uuid) -> PhysicalState,
     R: Rng + ?Sized,
 {
-    let mut attribute_tables = HashMap::with_capacity(candidates.len());
-    for p in candidates {
-        attribute_tables.insert(p.id(), PlayerAttributeTable::from_player(p, attribute_keys));
-    }
-    select_target_from_tables(
+    select_target(
         candidates,
         pitch,
         position_index,
         instructions_index,
-        &attribute_tables,
+        role_index,
+        attribute_tables,
         attacking_positive_x,
-        role,
+        ReceptionRole::Finisher,
         openness_by_player,
         fatigue_for,
         rng,

@@ -1,7 +1,7 @@
 use crate::manager_ai::substitutions::decision::SubstitutionPlan;
 use crate::manager_ai::substitutions::execution::execute_substitutions;
 use crate::manager_ai::substitutions::forced_departure_detection::forced_departures_for_team;
-use crate::manager_ai::substitutions::replacement_selection::best_replacement_from_tables;
+use crate::manager_ai::substitutions::replacement_selection::best_replacement;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_events::{EventSink, SubstitutionReason};
 use arlo_manager_control::{ForcedSubstitutionIntent, ManagerDecisionInbox};
@@ -31,7 +31,7 @@ pub fn execute_forced_injury_substitutions(
 
         let tables = publisher.state().teams.player_attribute_tables();
         if let Some(replacement) =
-            best_replacement_from_tables(position, &available_replacements, tables)
+            best_replacement(position, &available_replacements, tables)
         {
             let incoming = replacement.clone();
             let incoming_id = incoming.id();

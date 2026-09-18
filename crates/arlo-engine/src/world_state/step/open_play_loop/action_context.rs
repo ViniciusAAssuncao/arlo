@@ -2,7 +2,7 @@ use crate::ai::cognitive::RiskProfile;
 use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue_from_tables;
 use crate::artrine::calculate_normalized_proximity;
 use crate::match_decision::target_selection::{
-    calculate_player_target_weight_from_table, ReceptionRole,
+    calculate_player_target_weight, ReceptionRole,
 };
 use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::calculate_team_space_rating;
@@ -14,8 +14,8 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use crate::world_state::step::target_weighting::resolve_decision_target_weights;
-use arlo_domain::sport_constants::{ARTRO_ROW_SPACING_MIRIM, LAUNCHER_TARGET_WEIGHT_MULTIPLIER};
-use arlo_domain::{Player, SlotRole};
+use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
+use arlo_domain::Player;
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -75,22 +75,18 @@ impl<'a> OpenPlayIterationContext<'a> {
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
                 let table = state.attribute_table_for(&p.id());
-                let base_weight = calculate_player_target_weight_from_table(
+                calculate_player_target_weight(
                     p,
                     table,
                     &pitch,
                     &context.offense_pos_index,
                     &context.offense_instructions_index,
+                    Some(&context.offense_role_index),
                     context.is_home_offense,
                     ReceptionRole::OpenPlayReceiver,
                     &openness_by_player,
                     Some(&p_state),
-                );
-                if context.offense_role_index.get(&p.id()) == Some(&SlotRole::Launcher) {
-                    base_weight * LAUNCHER_TARGET_WEIGHT_MULTIPLIER
-                } else {
-                    base_weight
-                }
+                )
             })
             .fold(0.0_f64, f64::max);
 

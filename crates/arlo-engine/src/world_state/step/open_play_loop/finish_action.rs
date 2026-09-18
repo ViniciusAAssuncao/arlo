@@ -1,10 +1,10 @@
 use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::lineup_runtime::find_goalguard;
-use crate::match_decision::finisher_selection::select_finisher_from_tables;
 use crate::match_decision::scoring::{
     duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
     ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
 };
+use crate::match_decision::target_selection::select_finisher;
 use crate::officiating::line_fault::{
     estimate_last_defender_position, evaluate_and_resolve_line_fault, identify_last_defender,
     is_line_fault, LineFaultEvaluationContext,
@@ -50,10 +50,9 @@ pub fn execute_cross_action<R: Rng + ?Sized>(
         .live_sequence_mut()
         .record_touch(current_carrier.id(), TouchActionType::Cross, zone, current_time);
 
-    let chosen_finisher_id = select_finisher_from_tables(
+    let chosen_finisher_id = select_finisher(
         &iter_ctx.target_candidates,
         Some(&context.offense_role_index),
-        is_bonus_phase,
         &pitch,
         &context.offense_pos_index,
         &context.offense_instructions_index,
