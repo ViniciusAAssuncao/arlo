@@ -1,0 +1,141 @@
+use crate::lineup_runtime::find_goalguard;
+use crate::match_decision::scoring::{
+    duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
+    ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
+};
+use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
+use crate::resolution::{AttributedDuelOutcome, DuelKind};
+use crate::set_piece::attempt::attempt_placed_kick;
+use crate::world_state::cta_pass::PassPhaseResult;
+use crate::world_state::match_state::MatchState;
+use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
+use crate::world_state::step::down_resolution::context::DownResolutionContext;
+use crate::world_state::step::down_resolution::progression_stage::ActionProgressionOutcome;
+use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
+use crate::world_state::step::setup::CallToActionContext;
+use arlo_domain::{ArtrineDecisionKind, Position};
+use rand::Rng;
+
+pub fn resolve_scoring<R: Rng + ?Sized>(
+    ctx: &DownResolutionContext<'_>,
+    decision: ArtrineDecisionKind,
+    contest: &ActionContestOutcome<'_>,
+    progression: &ActionProgressionOutcome,
+    state: &mut MatchState,
+    call_context: &CallToActionContext,
+    pass_phase: &PassPhaseResult<'_>,
+    duels: &mut Vec<AttributedDuelOutcome>,
+    rng: &mut R,
+) -> ScoringDecision {
+    if contest.turnover_team.is_some() {
+        return ScoringDecision::NoOpportunity;
+    }
+
+    let total_drives = ctx.drives_in_series + progression.drives_recorded;
+    let total_adv = ctx.state_advanced_mirins + progression.mirins_advanced;
+
+    let finisher = contest.receiver.unwrap_or(ctx.carrier);
+    let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
+    let fin_rating = calculate_player_duel_rating_from_table(
+        finisher,
+        Position::CenterOffense,
+        state.attribute_table_for(&finisher.id()),
+        att_prof,
+        &state.fatigue_lookup().get(&finisher.id()),
+    );
+
+    let is_scoring_action = decision == ArtrineDecisionKind::SelfFinish
+        || decision == ArtrineDecisionKind::Cross
+        || progression.new_normalized_proximity >= 0.70;
+
+    if !is_scoring_action {
+        return ScoringDecision::NoOpportunity;
+    }
+
+    let opportunity = evaluate_scoring_opportunity(
+        ctx.is_bonus_phase,
+        total_drives,
+        total_adv,
+        fin_rating,
+    );
+
+    if opportunity == ScoringOpportunity::None {
+        return ScoringDecision::NoOpportunity;
+    }
+
+    if matches!(
+        opportunity,
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)
+    ) {
+        let iter_ctx = OpenPlayIterationContext::build(
+            state,
+            call_context,
+            pass_phase,
+            finisher,
+            &ctx.offense_players,
+            &ctx.defense_players,
+        );
+
+        let assister_id = state
+            .possession()
+            .live_sequence()
+            .primary_assister(finisher.id())
+            .or_else(|| Some(ctx.carrier.id()));
+
+        if let Some((score_dec, fin_duel)) = attempt_placed_kick(
+            state,
+            call_context,
+            &iter_ctx,
+            pass_phase,
+            finisher,
+            &ctx.defense_players,
+            opportunity,
+            total_drives,
+            total_adv,
+            assister_id,
+            rng,
+        ) {
+            duels.push(fin_duel);
+            return score_dec;
+        }
+    }
+
+    let goalguard = match find_goalguard(&ctx.defense_players) {
+        Ok(g) => g,
+        Err(_) => return ScoringDecision::NoOpportunity,
+    };
+
+    let finish_ctx = ctx
+        .duel_context
+        .for_duel_kind(duel_kind_for_opportunity(opportunity));
+    let fin_fatigue = state.fatigue_lookup().get(&finisher.id());
+    let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
+    let fin_table = state.teams.player_attribute_tables().get(&finisher.id());
+    let gg_table = state.teams.player_attribute_tables().get(&goalguard.id());
+
+    let assister_id = state
+        .possession()
+        .live_sequence()
+        .primary_assister(finisher.id())
+        .or_else(|| Some(ctx.carrier.id()));
+
+    let req = ScoringAttemptRequest::new(
+        finisher,
+        goalguard,
+        state.attribute_keys(),
+        ctx.offense_team_id,
+        pass_phase.artrine.id(),
+        assister_id,
+        opportunity,
+        total_drives,
+        total_adv,
+        &finish_ctx,
+    )
+    .with_fatigue(fin_fatigue, gg_fatigue)
+    .with_tables(fin_table, gg_table);
+
+    let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
+    duels.push(fin_duel);
+    score_dec
+}

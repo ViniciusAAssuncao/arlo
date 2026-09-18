@@ -1,3 +1,4 @@
+pub mod down_resolution;
 pub mod open_play_loop;
 pub mod play_resolution;
 pub mod readiness;
@@ -5,6 +6,7 @@ pub mod setup;
 pub mod step_outcome;
 pub mod target_weighting;
 
+pub use down_resolution::resolve_down;
 pub use open_play_loop::run_open_play_loop;
 pub use play_resolution::*;
 pub use readiness::peek_pending_manager_decisions;
@@ -138,12 +140,17 @@ pub fn step_call_to_action(
             },
         )
     } else {
-        open_play_loop::run_open_play_loop(
+        let seq = state.event_sequence();
+        let mut rng = state
+            .rng_provider()
+            .iteration_rng(RngStream::DuelResolution, seq, 1);
+        down_resolution::resolve_down(
             state,
             &context,
             &pass_phase,
             &offense_players,
             &defense_players,
+            &mut rng,
             sink,
         )?
     };

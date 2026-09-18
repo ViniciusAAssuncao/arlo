@@ -1,0 +1,404 @@
+use crate::artrine::DistributionFlightInfo;
+use crate::match_decision::target_selection::{select_finisher, select_target, ReceptionRole};
+use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::group_rating::{
+    calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
+    RatingParticipants,
+};
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
+use crate::resolution::{AttributedDuelOutcome, DuelKind};
+use crate::world_state::match_state::MatchState;
+use crate::world_state::step::down_resolution::context::DownResolutionContext;
+use arlo_domain::{ArtrineDecisionKind, Player, Position};
+use arlo_math::stats::contrast::logistic;
+use arlo_math::units::Position as VectorPosition;
+use arlo_math::Probability;
+use rand::Rng;
+use smallvec::smallvec;
+use std::collections::HashMap;
+use uuid::Uuid;
+
+pub struct ActionContestOutcome<'a> {
+    pub primary_duel: Option<AttributedDuelOutcome>,
+    pub secondary_duel: Option<AttributedDuelOutcome>,
+    pub receiver: Option<&'a Player>,
+    pub turnover_team: Option<Uuid>,
+    pub recovering_player_id: Option<Uuid>,
+    pub attacker_won: bool,
+    pub net_advantage: f64,
+    pub is_aerial: bool,
+    pub distribution_flight: Option<DistributionFlightInfo>,
+}
+
+impl<'a> ActionContestOutcome<'a> {
+    pub fn all_duels(&self) -> Vec<AttributedDuelOutcome> {
+        let mut duels = Vec::with_capacity(2);
+        if let Some(d) = &self.primary_duel {
+            duels.push(d.clone());
+        }
+        if let Some(d) = &self.secondary_duel {
+            duels.push(d.clone());
+        }
+        duels
+    }
+}
+
+pub fn resolve_contest<'a, R: Rng + ?Sized>(
+    ctx: &'a DownResolutionContext<'a>,
+    decision: ArtrineDecisionKind,
+    state: &MatchState,
+    rng: &mut R,
+) -> ActionContestOutcome<'a> {
+    match decision {
+        ArtrineDecisionKind::SelfCarry => {
+            let duel_kind = if ctx.is_true_artrine {
+                DuelKind::ArtroBreakthrough
+            } else {
+                DuelKind::RunBreakthrough
+            };
+
+            let (att_prof, def_prof) = get_duel_profiles(duel_kind);
+            let att_rating = calculate_player_duel_rating_from_table(
+                ctx.carrier,
+                ctx.carrier_pos_domain,
+                &ctx.carrier_table,
+                att_prof,
+                &ctx.carrier_fatigue,
+            );
+            let def_rating = calculate_player_duel_rating_from_table(
+                ctx.primary_defender,
+                ctx.primary_defender_pos_domain,
+                &ctx.primary_defender_table,
+                def_prof,
+                &ctx.primary_defender_fatigue,
+            );
+
+            let offense_power = state.power_for_team(ctx.offense_team_id);
+            let defense_power = state.power_for_team(ctx.defense_team_id);
+
+            let req = DuelResolutionRequest::with_states(
+                duel_kind,
+                att_rating,
+                def_rating,
+                ctx.carrier,
+                ctx.primary_defender,
+                ctx.carrier_fatigue,
+                ctx.primary_defender_fatigue,
+                state.attribute_keys(),
+                &ctx.duel_context,
+            )
+            .with_tables(Some(&ctx.carrier_table), Some(&ctx.primary_defender_table))
+            .with_team_powers(
+                Some(offense_power.offensive_power()),
+                Some(defense_power.defensive_power()),
+            );
+
+            let raw_duel = resolve_duel(req, rng);
+            let attacker_won = raw_duel.attacker_won();
+            let net_advantage = raw_duel.net_advantage();
+
+            let to_base = if attacker_won { -3.5 } else { -1.5 };
+            let to_p = (logistic(to_base - 0.20 * net_advantage)
+                / ctx.risk_profile.tolerance_index())
+            .clamp(0.005, 0.45);
+
+            let turnover_team = if Probability::new_clamped(to_p).sample(rng) {
+                Some(ctx.defense_team_id)
+            } else {
+                None
+            };
+
+            let recovering_player_id = turnover_team.map(|_| ctx.primary_defender.id());
+
+            let primary_duel = AttributedDuelOutcome::new(
+                raw_duel,
+                smallvec![ctx.carrier.id()],
+                smallvec![ctx.primary_defender.id()],
+            );
+
+            ActionContestOutcome {
+                primary_duel: Some(primary_duel),
+                secondary_duel: None,
+                receiver: Some(ctx.carrier),
+                turnover_team,
+                recovering_player_id,
+                attacker_won,
+                net_advantage,
+                is_aerial: false,
+                distribution_flight: None,
+            }
+        }
+        ArtrineDecisionKind::ShortPass | ArtrineDecisionKind::LongLaunch => {
+            let is_aerial = decision == ArtrineDecisionKind::LongLaunch;
+            let throw_kind = if is_aerial {
+                DuelKind::LongDistribution
+            } else {
+                DuelKind::ShortDistribution
+            };
+
+            let (att_prof, def_prof) = get_duel_profiles(throw_kind);
+            let tables = state.teams.player_attribute_tables();
+            let offense_power = state.power_for_team(ctx.offense_team_id);
+            let defense_power = state.power_for_team(ctx.defense_team_id);
+
+            let att_rating = calculate_anchored_side_rating(
+                ctx.carrier,
+                ctx.carrier_pos_domain,
+                RatingParticipants::from_slice_with_index(
+                    &ctx.target_candidates,
+                    state.offensive_position_index_for_team(ctx.offense_team_id),
+                )
+                .with_fatigue(&|id| state.fatigue_lookup().get(id))
+                .with_attribute_tables(tables)
+                .with_team_power(offense_power.control_power()),
+                state.attribute_keys(),
+                att_prof,
+            );
+            let def_rating = calculate_side_rating(
+                RatingParticipants::from_slice_with_index(
+                    &ctx.defense_players,
+                    state.defensive_position_index_for_team(ctx.defense_team_id),
+                )
+                .with_fatigue(&|id| state.fatigue_lookup().get(id))
+                .with_attribute_tables(tables)
+                .with_team_power(defense_power.defensive_power()),
+                state.attribute_keys(),
+                def_prof,
+            );
+
+            let req = DuelResolutionRequest::with_states(
+                throw_kind,
+                att_rating,
+                def_rating,
+                ctx.carrier,
+                ctx.primary_defender,
+                ctx.carrier_fatigue,
+                ctx.primary_defender_fatigue,
+                state.attribute_keys(),
+                &ctx.duel_context,
+            )
+            .with_tables(
+                Some(&ctx.carrier_table),
+                Some(&ctx.primary_defender_table),
+            )
+            .with_team_powers(
+                Some(offense_power.control_power()),
+                Some(defense_power.defensive_power()),
+            );
+
+            let raw_throw_duel = resolve_duel(req, rng);
+            let throw_won = raw_throw_duel.attacker_won();
+
+            let receiver_id = select_target(
+                &ctx.target_candidates,
+                state.pitch(),
+                state.offensive_position_index_for_team(ctx.offense_team_id),
+                state.instructions_index_for_team(ctx.offense_team_id),
+                Some(state.role_index_for_team(ctx.offense_team_id)),
+                tables,
+                ctx.is_home_offense,
+                ReceptionRole::OpenPlayReceiver,
+                &HashMap::new(),
+                Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
+                rng,
+            )
+            .unwrap_or(ctx.carrier.id());
+
+            let receiver = ctx
+                .target_candidates
+                .iter()
+                .copied()
+                .find(|p| p.id() == receiver_id)
+                .unwrap_or(ctx.carrier);
+
+            let rec_duel_kind = if is_aerial {
+                DuelKind::AerialDuel
+            } else {
+                DuelKind::RouteContest
+            };
+            let (rec_att_prof, rec_def_prof) = get_duel_profiles(rec_duel_kind);
+            let rec_pos = state
+                .offensive_position_index_for_team(ctx.offense_team_id)
+                .get(&receiver_id)
+                .copied()
+                .unwrap_or(Position::CenterOffense);
+            let rec_att_rating = calculate_player_duel_rating_from_table(
+                receiver,
+                rec_pos,
+                state.attribute_table_for(&receiver_id),
+                rec_att_prof,
+                &state.fatigue_lookup().get(&receiver_id),
+            );
+            let rec_def_rating = calculate_side_rating(
+                RatingParticipants::from_slice_with_index(
+                    &ctx.defense_players,
+                    state.defensive_position_index_for_team(ctx.defense_team_id),
+                )
+                .with_fatigue(&|id| state.fatigue_lookup().get(id))
+                .with_attribute_tables(tables)
+                .with_team_power(defense_power.defensive_power()),
+                state.attribute_keys(),
+                rec_def_prof,
+            );
+
+            let rec_fatigue = state.fatigue_lookup().get(&receiver_id);
+            let rec_table = state.attribute_table_for(&receiver_id);
+            let rec_req = DuelResolutionRequest::with_states(
+                rec_duel_kind,
+                rec_att_rating,
+                rec_def_rating,
+                receiver,
+                ctx.primary_defender,
+                rec_fatigue,
+                ctx.primary_defender_fatigue,
+                state.attribute_keys(),
+                &ctx.duel_context,
+            )
+            .with_tables(Some(rec_table), Some(&ctx.primary_defender_table))
+            .with_team_powers(
+                Some(offense_power.offensive_power()),
+                Some(defense_power.defensive_power()),
+            );
+
+            let raw_rec_duel = resolve_duel(rec_req, rng);
+            let catch_won = raw_rec_duel.attacker_won();
+
+            let attacker_won = throw_won && catch_won;
+            let net_advantage = (raw_throw_duel.net_advantage() + raw_rec_duel.net_advantage()) * 0.5;
+
+            let turnover_team = if !attacker_won && raw_rec_duel.net_advantage() <= -2.0 {
+                Some(ctx.defense_team_id)
+            } else {
+                None
+            };
+            let recovering_player_id = turnover_team.map(|_| ctx.primary_defender.id());
+
+            let primary_duel = AttributedDuelOutcome::new(
+                raw_throw_duel,
+                smallvec![ctx.carrier.id()],
+                smallvec![ctx.primary_defender.id()],
+            );
+            let secondary_duel = AttributedDuelOutcome::new(
+                raw_rec_duel,
+                smallvec![receiver.id()],
+                smallvec![ctx.primary_defender.id()],
+            );
+
+            let flight_info = DistributionFlightInfo {
+                receiver_id: receiver.id(),
+                passer_id: ctx.carrier.id(),
+                decision_kind: decision,
+                is_aerial,
+                reception_point: VectorPosition::zero(),
+                distance_mirim: 0.0,
+                caught: attacker_won,
+            };
+
+            ActionContestOutcome {
+                primary_duel: Some(primary_duel),
+                secondary_duel: Some(secondary_duel),
+                receiver: Some(receiver),
+                turnover_team,
+                recovering_player_id,
+                attacker_won,
+                net_advantage,
+                is_aerial,
+                distribution_flight: Some(flight_info),
+            }
+        }
+        ArtrineDecisionKind::Cross => {
+            let finisher_id = select_finisher(
+                &ctx.target_candidates,
+                Some(state.role_index_for_team(ctx.offense_team_id)),
+                state.pitch(),
+                state.offensive_position_index_for_team(ctx.offense_team_id),
+                state.instructions_index_for_team(ctx.offense_team_id),
+                state.teams.player_attribute_tables(),
+                ctx.is_home_offense,
+                &HashMap::new(),
+                Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
+                rng,
+            )
+            .unwrap_or(ctx.carrier.id());
+
+            let finisher = ctx
+                .target_candidates
+                .iter()
+                .copied()
+                .find(|p| p.id() == finisher_id)
+                .unwrap_or(ctx.carrier);
+
+            let (att_prof, def_prof) = get_duel_profiles(DuelKind::CrossDistribution);
+            let att_rating = calculate_player_duel_rating_from_table(
+                ctx.carrier,
+                ctx.carrier_pos_domain,
+                &ctx.carrier_table,
+                att_prof,
+                &ctx.carrier_fatigue,
+            );
+            let def_rating = calculate_player_duel_rating_from_table(
+                ctx.primary_defender,
+                ctx.primary_defender_pos_domain,
+                &ctx.primary_defender_table,
+                def_prof,
+                &ctx.primary_defender_fatigue,
+            );
+
+            let offense_power = state.power_for_team(ctx.offense_team_id);
+            let defense_power = state.power_for_team(ctx.defense_team_id);
+
+            let req = DuelResolutionRequest::with_states(
+                DuelKind::CrossDistribution,
+                att_rating,
+                def_rating,
+                ctx.carrier,
+                ctx.primary_defender,
+                ctx.carrier_fatigue,
+                ctx.primary_defender_fatigue,
+                state.attribute_keys(),
+                &ctx.duel_context,
+            )
+            .with_tables(
+                Some(&ctx.carrier_table),
+                Some(&ctx.primary_defender_table),
+            )
+            .with_team_powers(
+                Some(offense_power.control_power()),
+                Some(defense_power.defensive_power()),
+            );
+
+            let raw_duel = resolve_duel(req, rng);
+            let attacker_won = raw_duel.attacker_won();
+            let net_advantage = raw_duel.net_advantage();
+
+            let primary_duel = AttributedDuelOutcome::new(
+                raw_duel,
+                smallvec![ctx.carrier.id()],
+                smallvec![ctx.primary_defender.id()],
+            );
+
+            ActionContestOutcome {
+                primary_duel: Some(primary_duel),
+                secondary_duel: None,
+                receiver: Some(finisher),
+                turnover_team: None,
+                recovering_player_id: None,
+                attacker_won,
+                net_advantage,
+                is_aerial: true,
+                distribution_flight: None,
+            }
+        }
+        ArtrineDecisionKind::SelfFinish => ActionContestOutcome {
+            primary_duel: None,
+            secondary_duel: None,
+            receiver: Some(ctx.carrier),
+            turnover_team: None,
+            recovering_player_id: None,
+            attacker_won: true,
+            net_advantage: 0.0,
+            is_aerial: false,
+            distribution_flight: None,
+        },
+    }
+}
