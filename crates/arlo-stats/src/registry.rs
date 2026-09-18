@@ -5,9 +5,9 @@ use crate::officiating::{
     RefereeStatsAggregator,
 };
 use crate::player::{
-    PlayerArtrineDecisionAggregator, PlayerAssistsAggregator, PlayerAvailabilityAggregator,
+    PlayerArtrineDecisionAggregator, PlayerAssistAggregator, PlayerAvailabilityAggregator,
     PlayerDrivesAggregator, PlayerDuelAggregator, PlayerImpulseAggregator, PlayerInjuryAggregator,
-    PlayerPhysicalAggregator, PlayerReceivingAggregator, PlayerScoringAttemptsAggregator,
+    PlayerPhysicalAggregator, PlayerReceivingAggregator, PlayerScoringAttemptAggregator,
     PlayerTouchesAggregator,
 };
 use crate::snapshot::{
@@ -37,10 +37,10 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerDuelAggregator::new());
         registry.register_aggregator(PlayerReceivingAggregator::new());
         registry.register_aggregator(PlayerTouchesAggregator::new());
-        registry.register_aggregator(PlayerScoringAttemptsAggregator::new());
+        registry.register_aggregator(PlayerScoringAttemptAggregator::new());
         registry.register_aggregator(PlayerPhysicalAggregator::new());
         registry.register_aggregator(PlayerImpulseAggregator::new());
-        registry.register_aggregator(PlayerAssistsAggregator::new());
+        registry.register_aggregator(PlayerAssistAggregator::new());
         registry.register_aggregator(PlayerFoulAggregator::new());
         registry.register_aggregator(PlayerPunishmentAggregator::new());
         registry.register_aggregator(PlayerAvailabilityAggregator::new());
@@ -132,7 +132,7 @@ impl AggregatorRegistry {
         if let Some(agg) = self.get::<PlayerReceivingAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
-        if let Some(agg) = self.get::<PlayerScoringAttemptsAggregator>() {
+        if let Some(agg) = self.get::<PlayerScoringAttemptAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
         if let Some(agg) = self.get::<PlayerArtrineDecisionAggregator>() {
@@ -144,7 +144,7 @@ impl AggregatorRegistry {
         if let Some(agg) = self.get::<PlayerImpulseAggregator>() {
             ids.extend(agg.all_player_stats().keys().copied());
         }
-        if let Some(agg) = self.get::<PlayerAssistsAggregator>() {
+        if let Some(agg) = self.get::<PlayerAssistAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
         if let Some(agg) = self.get::<PlayerFoulAggregator>() {
@@ -241,7 +241,7 @@ impl AggregatorRegistry {
             snap.average_mirins_per_reception = r.average_mirins_per_reception();
         }
 
-        if let Some(agg) = self.get::<PlayerScoringAttemptsAggregator>() {
+        if let Some(agg) = self.get::<PlayerScoringAttemptAggregator>() {
             let sc = agg.get_or_default(player_id);
             snap.scoring_attempts = sc.attempts;
             snap.scoring_conversions = sc.converted;
@@ -253,7 +253,7 @@ impl AggregatorRegistry {
             snap.total_points_scored = sc.total_points_scored;
         }
 
-        if let Some(agg) = self.get::<PlayerAssistsAggregator>() {
+        if let Some(agg) = self.get::<PlayerAssistAggregator>() {
             let a = agg.get_or_default(player_id);
             snap.goalpoint_assists = a.goalpoint_assists;
         }
@@ -313,14 +313,7 @@ impl AggregatorRegistry {
             snap.end_energy_level = p.end_energy_level;
             snap.peak_anaerobic_depletion = p.peak_anaerobic_depletion;
             snap.total_distance_covered = p.total_distance_covered;
-            snap.high_intensity_distance = p.high_intensity_distance;
-            snap.low_intensity_distance = p.low_intensity_distance;
-            snap.metabolic_energy_joules = p.metabolic_energy_joules;
-            snap.peak_speed_meters_per_sec = p.peak_speed_meters_per_sec;
             snap.intra_match_recovery_amount = p.intra_match_recovery_amount;
-            snap.distance_first_zone = p.distance_first_zone;
-            snap.distance_second_zone = p.distance_second_zone;
-            snap.distance_open_field = p.distance_open_field;
         }
 
         if let Some(agg) = self.get::<PlayerImpulseAggregator>() {

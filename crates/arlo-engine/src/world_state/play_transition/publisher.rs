@@ -33,7 +33,7 @@ use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::MatchState;
-use arlo_domain::{KickFoulDecisionKind, PitchZone};
+use arlo_domain::KickFoulDecisionKind;
 use arlo_events::{
     CountdownReason, EventArtroPlacement, EventSink, MatchClockInstant, MatchEvent,
     SubstitutionReason, TimeCallReason,
@@ -147,8 +147,6 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         recovering_player_id: Option<Uuid>,
         lost_by_player_id: Option<Uuid>,
         in_live_play: bool,
-        point_x_mirim: f64,
-        point_y_mirim: f64,
     ) {
         let turnover_event = translate_turnover(
             offense_team_id,
@@ -156,8 +154,6 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
             recovering_player_id,
             lost_by_player_id,
             in_live_play,
-            point_x_mirim,
-            point_y_mirim,
         );
         self.publish(turnover_event);
     }
@@ -166,12 +162,10 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         &mut self,
         offense_team_id: Uuid,
         last_player_id: Option<Uuid>,
-        out_x_mirim: f64,
-        out_y_mirim: f64,
         was_immediate: bool,
     ) {
         let oob_event =
-            translate_out_of_bounds(offense_team_id, last_player_id, out_x_mirim, out_y_mirim, was_immediate);
+            translate_out_of_bounds(offense_team_id, last_player_id, was_immediate);
         self.publish(oob_event);
     }
 
@@ -216,22 +210,12 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         energy: f64,
         w_bal: f64,
         distance_delta_mirim: f64,
-        high_intensity_distance_mirim: f64,
-        low_intensity_distance_mirim: f64,
-        metabolic_energy_joules: f64,
-        zone: PitchZone,
-        peak_speed_meters_per_sec: f64,
     ) {
         let strain_ev = translate_physical_strain_recorded(
             player_id,
             energy,
             w_bal,
             distance_delta_mirim,
-            high_intensity_distance_mirim,
-            low_intensity_distance_mirim,
-            metabolic_energy_joules,
-            zone,
-            peak_speed_meters_per_sec,
         );
         self.publish(strain_ev);
     }

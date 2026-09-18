@@ -5,7 +5,6 @@ use crate::resolution::AttributedDuelOutcome;
 use crate::rng::RngStream;
 use crate::team_identity::intensity_multiplier_scale;
 use crate::world_state::play_transition::publisher::EventPublisher;
-use arlo_domain::PitchZone;
 use arlo_events::EventSink;
 use std::collections::HashSet;
 use uuid::Uuid;
@@ -26,11 +25,6 @@ pub fn apply_duel_strain(
                 *attacker_id,
                 energy,
                 w_bal,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                PitchZone::OpenField,
                 0.0,
             );
         }
@@ -63,11 +57,6 @@ pub fn apply_duel_strain(
                 energy,
                 w_bal,
                 0.0,
-                0.0,
-                0.0,
-                0.0,
-                PitchZone::OpenField,
-                0.0,
             );
         }
     }
@@ -99,11 +88,6 @@ pub fn apply_movement_strain(
             pid,
             energy,
             w_bal,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            PitchZone::OpenField,
             0.0,
         );
 

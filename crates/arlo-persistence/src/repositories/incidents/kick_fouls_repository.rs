@@ -15,10 +15,8 @@ pub async fn insert_award(
             seconds_in_period,
             awarded_team_id,
             offending_team_id,
-            scoring_tier,
-            spot_x_mirim,
-            spot_y_mirim
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+            scoring_tier
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&row.id)
     .bind(&row.match_id)
@@ -28,8 +26,6 @@ pub async fn insert_award(
     .bind(&row.awarded_team_id)
     .bind(&row.offending_team_id)
     .bind(&row.scoring_tier)
-    .bind(row.spot_x_mirim)
-    .bind(row.spot_y_mirim)
     .execute(&mut **tx)
     .await?;
 

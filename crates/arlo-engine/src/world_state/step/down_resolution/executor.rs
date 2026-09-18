@@ -93,8 +93,6 @@ pub fn resolve_down<R: Rng + ?Sized>(
     let end_y_mirim = 42.5;
 
     let distribution_flight = contest.distribution_flight.map(|f| DistributionFlightInfo {
-        reception_x_mirim: end_x_mirim,
-        reception_y_mirim: end_y_mirim,
         distance_mirim: progression.mirins_advanced,
         ..f
     });

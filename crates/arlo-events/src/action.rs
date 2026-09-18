@@ -148,8 +148,6 @@ pub struct PassCompleted {
     passer_id: Uuid,
     receiver_id: Uuid,
     is_aerial: bool,
-    reception_x_mirim: f64,
-    reception_y_mirim: f64,
     distance_mirim: f64,
 }
 
@@ -158,16 +156,12 @@ impl PassCompleted {
         passer_id: Uuid,
         receiver_id: Uuid,
         is_aerial: bool,
-        reception_x_mirim: f64,
-        reception_y_mirim: f64,
         distance_mirim: f64,
     ) -> Self {
         Self {
             passer_id,
             receiver_id,
             is_aerial,
-            reception_x_mirim,
-            reception_y_mirim,
             distance_mirim,
         }
     }
@@ -184,14 +178,6 @@ impl PassCompleted {
         self.is_aerial
     }
 
-    pub fn reception_x_mirim(&self) -> f64 {
-        self.reception_x_mirim
-    }
-
-    pub fn reception_y_mirim(&self) -> f64 {
-        self.reception_y_mirim
-    }
-
     pub fn distance_mirim(&self) -> f64 {
         self.distance_mirim
     }
@@ -203,8 +189,6 @@ pub struct DistributionCompleted {
     passer_id: Uuid,
     decision_kind: ArtrineDecisionKind,
     is_aerial: bool,
-    reception_x_mirim: f64,
-    reception_y_mirim: f64,
     distance_mirim: f64,
     caught: bool,
 }
@@ -215,8 +199,6 @@ impl DistributionCompleted {
         passer_id: Uuid,
         decision_kind: ArtrineDecisionKind,
         is_aerial: bool,
-        reception_x_mirim: f64,
-        reception_y_mirim: f64,
         distance_mirim: f64,
         caught: bool,
     ) -> Self {
@@ -225,8 +207,6 @@ impl DistributionCompleted {
             passer_id,
             decision_kind,
             is_aerial,
-            reception_x_mirim,
-            reception_y_mirim,
             distance_mirim,
             caught,
         }
@@ -246,14 +226,6 @@ impl DistributionCompleted {
 
     pub fn is_aerial(&self) -> bool {
         self.is_aerial
-    }
-
-    pub fn reception_x_mirim(&self) -> f64 {
-        self.reception_x_mirim
-    }
-
-    pub fn reception_y_mirim(&self) -> f64 {
-        self.reception_y_mirim
     }
 
     pub fn distance_mirim(&self) -> f64 {

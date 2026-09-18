@@ -6,7 +6,7 @@ use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
     DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent,
-    MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded, PitchZone,
+    MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded,
     PossessionTimeRecorded, ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed,
     Turnover,
 };
@@ -80,16 +80,12 @@ pub fn translate_pass_completed(
     passer_id: Uuid,
     receiver_id: Uuid,
     is_aerial: bool,
-    reception_x_mirim: f64,
-    reception_y_mirim: f64,
     distance_mirim: f64,
 ) -> PassCompleted {
     PassCompleted::new(
         passer_id,
         receiver_id,
         is_aerial,
-        reception_x_mirim,
-        reception_y_mirim,
         distance_mirim,
     )
 }
@@ -100,8 +96,6 @@ pub fn translate_distribution_completed(info: &DistributionFlightInfo) -> Distri
         info.passer_id,
         info.decision_kind,
         info.is_aerial,
-        info.reception_x_mirim,
-        info.reception_y_mirim,
         info.distance_mirim,
         info.caught,
     )
@@ -129,8 +123,6 @@ pub fn translate_turnover(
     recovering_player: Option<Uuid>,
     lost_by_player_id: Option<Uuid>,
     in_live_play: bool,
-    point_x_mirim: f64,
-    point_y_mirim: f64,
 ) -> Turnover {
     Turnover::new(
         previous_offense,
@@ -138,23 +130,17 @@ pub fn translate_turnover(
         recovering_player,
         lost_by_player_id,
         in_live_play,
-        point_x_mirim,
-        point_y_mirim,
     )
 }
 
 pub fn translate_out_of_bounds(
     last_possession_team: Uuid,
     last_player: Option<Uuid>,
-    out_x_mirim: f64,
-    out_y_mirim: f64,
     was_immediate_loss: bool,
 ) -> OutOfBounds {
     OutOfBounds::new(
         last_possession_team,
         last_player,
-        out_x_mirim,
-        out_y_mirim,
         was_immediate_loss,
     )
 }
@@ -270,22 +256,12 @@ pub fn translate_physical_strain_recorded(
     energy_remaining: f64,
     w_prime_balance: f64,
     distance_delta_mirim: f64,
-    high_intensity_distance_mirim: f64,
-    low_intensity_distance_mirim: f64,
-    metabolic_energy_joules: f64,
-    zone: PitchZone,
-    peak_speed_meters_per_sec: f64,
 ) -> PhysicalStrainRecorded {
     PhysicalStrainRecorded::new(
         player_id,
         energy_remaining,
         w_prime_balance,
         distance_delta_mirim,
-        high_intensity_distance_mirim,
-        low_intensity_distance_mirim,
-        metabolic_energy_joules,
-        zone,
-        peak_speed_meters_per_sec,
     )
 }
 

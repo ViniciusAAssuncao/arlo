@@ -22,8 +22,6 @@ pub fn resolve_turnover_and_down_events(
             detailed_outcome.recovering_player_id,
             detailed_outcome.lost_by_player_id,
             !detailed_outcome.out_of_bounds,
-            detailed_outcome.last_valid_x_mirim,
-            detailed_outcome.last_valid_y_mirim,
         );
     }
 
@@ -35,8 +33,6 @@ pub fn resolve_turnover_and_down_events(
         publisher.emit_out_of_bounds_event(
             detailed_outcome.offense_team_id,
             Some(detailed_outcome.artrine_id),
-            detailed_outcome.last_valid_x_mirim,
-            detailed_outcome.last_valid_y_mirim,
             was_immediate,
         );
     }

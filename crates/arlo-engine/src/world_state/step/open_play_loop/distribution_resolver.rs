@@ -228,8 +228,6 @@ pub fn resolve_distribution<R: Rng + ?Sized>(
         passer_id: current_carrier.id(),
         decision_kind: chosen_decision,
         is_aerial,
-        reception_x_mirim: end_x_mirim,
-        reception_y_mirim: end_y_mirim,
         distance_mirim: advance_mirim,
         caught,
     };

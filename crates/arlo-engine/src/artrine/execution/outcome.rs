@@ -14,8 +14,6 @@ pub struct DistributionFlightInfo {
     pub passer_id: Uuid,
     pub decision_kind: ArtrineDecisionKind,
     pub is_aerial: bool,
-    pub reception_x_mirim: f64,
-    pub reception_y_mirim: f64,
     pub distance_mirim: f64,
     pub caught: bool,
 }

@@ -11,8 +11,6 @@ pub fn translate_kick_foul_awarded(
         pending.awarded_team_id(),
         offending_team_id,
         pending.scoring_tier(),
-        pending.spot_x_mirim(),
-        pending.spot_y_mirim(),
     )
 }
 

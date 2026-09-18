@@ -40,8 +40,6 @@ pub fn calculate_pass_kinematics(
             participants.passer.id(),
             participants.artrine.id(),
             is_aerial,
-            reception_x_mirim,
-            reception_y_mirim,
             pass_distance_mirim,
         );
         let seq = state.next_sequence();

@@ -7,8 +7,6 @@ pub struct KickFoulAwarded {
     awarded_team_id: Uuid,
     offending_team_id: Uuid,
     scoring_tier: KickFoulScoringTier,
-    spot_x_mirim: f64,
-    spot_y_mirim: f64,
 }
 
 impl KickFoulAwarded {
@@ -16,15 +14,11 @@ impl KickFoulAwarded {
         awarded_team_id: Uuid,
         offending_team_id: Uuid,
         scoring_tier: KickFoulScoringTier,
-        spot_x_mirim: f64,
-        spot_y_mirim: f64,
     ) -> Self {
         Self {
             awarded_team_id,
             offending_team_id,
             scoring_tier,
-            spot_x_mirim,
-            spot_y_mirim,
         }
     }
 
@@ -38,14 +32,6 @@ impl KickFoulAwarded {
 
     pub fn scoring_tier(&self) -> KickFoulScoringTier {
         self.scoring_tier
-    }
-
-    pub fn spot_x_mirim(&self) -> f64 {
-        self.spot_x_mirim
-    }
-
-    pub fn spot_y_mirim(&self) -> f64 {
-        self.spot_y_mirim
     }
 }
 

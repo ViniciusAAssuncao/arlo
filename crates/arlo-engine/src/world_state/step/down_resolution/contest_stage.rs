@@ -288,8 +288,6 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 passer_id: ctx.carrier.id(),
                 decision_kind: decision,
                 is_aerial,
-                reception_x_mirim: 0.0,
-                reception_y_mirim: 0.0,
                 distance_mirim: 0.0,
                 caught: attacker_won,
             };

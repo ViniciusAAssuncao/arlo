@@ -13,12 +13,9 @@ pub struct MatchTurnoverRow {
     pub recovering_player_id: Option<String>,
     pub lost_by_player_id: Option<String>,
     pub in_live_play: bool,
-    pub point_x: f64,
-    pub point_y: f64,
 }
 
 impl MatchTurnoverRow {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         match_id: Uuid,
@@ -30,8 +27,6 @@ impl MatchTurnoverRow {
         recovering_player_id: Option<Uuid>,
         lost_by_player_id: Option<Uuid>,
         in_live_play: bool,
-        point_x: f64,
-        point_y: f64,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -44,8 +39,6 @@ impl MatchTurnoverRow {
             recovering_player_id: recovering_player_id.map(|id| id.to_string()),
             lost_by_player_id: lost_by_player_id.map(|id| id.to_string()),
             in_live_play,
-            point_x,
-            point_y,
         }
     }
 
@@ -67,8 +60,6 @@ impl MatchTurnoverRow {
             event.recovering_player(),
             event.lost_by_player_id(),
             event.in_live_play(),
-            event.point_x(),
-            event.point_y(),
         )
     }
 }
