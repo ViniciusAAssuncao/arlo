@@ -7,7 +7,7 @@ use arlo_manager_control::ManagerDecisionInbox;
 use arlo_stats::AggregatorRegistry;
 use rand::Rng;
 
-pub const DEFAULT_MAX_ITERATIONS: usize = 300;
+pub const DEFAULT_MAX_ITERATIONS: usize = 100_000;
 
 pub fn run_match<R: Rng + ?Sized>(
     state: &mut MatchState,

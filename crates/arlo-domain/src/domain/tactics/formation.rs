@@ -6,7 +6,7 @@ use crate::domain::sport_constants::{
 use crate::domain::tactics::formation_builder::FormationBuilder;
 use crate::domain::tactics::formation_slot::FormationSlot;
 use crate::domain::validation::{
-    validate_exact_count, validate_no_duplicate_keys, validate_not_empty,
+    validate_exact_count, validate_not_empty,
 };
 use crate::error::DomainResult;
 use serde::{Deserialize, Serialize};
@@ -45,12 +45,6 @@ impl Formation {
             |s| s.offensive_position() == Position::Artrine,
             REQUIRED_ARTRINES_PER_FORMATION,
             "slots",
-        )?;
-        validate_no_duplicate_keys(
-            &slots,
-            |s| (s.offensive_position(), s.defensive_position(), s.role()),
-            "slots",
-            "slot_assignment",
         )?;
 
         Ok(Self { id, name, slots })
