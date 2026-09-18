@@ -33,18 +33,24 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         return ScoringDecision::NoOpportunity;
     }
 
+    let tables = &ctx.attribute_tables;
     let total_drives = ctx.drives_in_series + progression.drives_recorded;
     let total_adv = ctx.state_advanced_mirins + progression.mirins_advanced;
 
     let finisher = contest.receiver.unwrap_or(ctx.carrier);
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
+    let finisher_table = tables
+        .get(&finisher.id())
+        .copied()
+        .unwrap_or_else(|| *state.attribute_table_for(&finisher.id()));
+
     let fin_rating = calculate_player_duel_rating_from_table(
         finisher,
         Position::CenterOffense,
-        state.attribute_table_for(&finisher.id()),
+        &finisher_table,
         &att_prof,
         &state.fatigue_lookup().get(&finisher.id()),
-    );
+    ) * ctx.artrine_axis_multiplier;
 
     let is_scoring_action = decision == ArtrineDecisionKind::SelfFinish
         || decision == ArtrineDecisionKind::Cross
@@ -82,7 +88,6 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         if !candidates.iter().any(|p| p.id() == finisher.id()) {
             candidates.push(finisher);
         }
-        let tables = state.teams.player_attribute_tables();
         let fatigue_lookup = state.fatigue_lookup();
         let fatigue_for = |id: &Uuid| fatigue_lookup.get(id);
         select_kicker(
@@ -103,8 +108,8 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
 
     let fin_fatigue = state.fatigue_lookup().get(&effective_kicker.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
-    let fin_table = state.teams.player_attribute_tables().get(&effective_kicker.id());
-    let gg_table = state.teams.player_attribute_tables().get(&goalguard.id());
+    let fin_table = tables.get(&effective_kicker.id());
+    let gg_table = tables.get(&goalguard.id());
 
     let assister_id = state
         .possession()

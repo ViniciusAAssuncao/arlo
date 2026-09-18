@@ -30,6 +30,7 @@ pub struct ActionEvaluationConfig {
     pub profile_fn: fn() -> AttributeProfile,
     pub rating_additive_weight: f64,
     pub kind_config: ActionKindConfig,
+    pub rule_validator_fn: fn(&DecisionEvaluationContext<'_>) -> bool,
 }
 
 pub fn carry_config() -> ActionEvaluationConfig {
@@ -71,6 +72,7 @@ pub fn carry_config() -> ActionEvaluationConfig {
                 }
             },
         }),
+        rule_validator_fn: |_ctx| true,
     }
 }
 
@@ -96,6 +98,7 @@ pub fn short_pass_config() -> ActionEvaluationConfig {
             turnover_scale: 0.20,
             urgency_bonus_fn: |_, _, _| 0.0,
         }),
+        rule_validator_fn: |_ctx| true,
     }
 }
 
@@ -121,6 +124,7 @@ pub fn long_launch_config() -> ActionEvaluationConfig {
             turnover_scale: 0.35,
             urgency_bonus_fn: |_, _, _| 0.0,
         }),
+        rule_validator_fn: |_ctx| true,
     }
 }
 
@@ -139,6 +143,7 @@ pub fn cross_config() -> ActionEvaluationConfig {
             },
             geometry_factor_fn: |ctx| 0.70 + 0.60 * ctx.lateral_ratio(),
         }),
+        rule_validator_fn: |ctx| ctx.drives_in_series >= 1 || ctx.normalized_proximity >= 0.70,
     }
 }
 
@@ -163,6 +168,7 @@ pub fn finish_config() -> ActionEvaluationConfig {
                 zone_multiplier * shooting_lane_clearance
             },
         }),
+        rule_validator_fn: |ctx| ctx.drives_in_series >= 1,
     }
 }
 

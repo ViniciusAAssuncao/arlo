@@ -1,9 +1,14 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue_from_tables;
 use crate::attributes::PlayerAttributeTable;
+use crate::current_ability::calculate_player_ca;
 use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
+use crate::physical::systems::degradation::DegradationContext;
 use crate::physical::PhysicalState;
-use crate::playmaking::resolve_misdirection_logit_offset;
+use crate::playmaking::artrine_axis::ArtrineAxisEvaluator;
+use crate::playmaking::misdirection::{
+    apply_false_artrine_debuff_to_defense_tables, resolve_misdirection_logit_offset,
+};
 use crate::psychology::state::ImpulseState;
 use crate::resolution::DuelContext;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
@@ -55,6 +60,8 @@ pub struct DownResolutionContext<'a> {
     pub defense_pressing_multiplier: f64,
     pub offense_tempo_value: f64,
     pub state_advanced_mirins: f64,
+    pub artrine_axis_multiplier: f64,
+    pub attribute_tables: HashMap<Uuid, PlayerAttributeTable>,
 }
 
 impl<'a> DownResolutionContext<'a> {
@@ -91,12 +98,23 @@ impl<'a> DownResolutionContext<'a> {
             .filter(|p| p.id() != carrier.id())
             .collect();
 
+        let mut attribute_tables = state.teams.player_attribute_tables().clone();
+        let _false_artrine_debuff = apply_false_artrine_debuff_to_defense_tables(
+            &context.offense_lineup,
+            Some(&context.offense_role_index),
+            &context.defense_lineup,
+            &context.defense_pos_index,
+            &mut attribute_tables,
+        );
+
         let empty_openness = HashMap::new();
         let best_target_weight = target_candidates
             .iter()
             .map(|p| {
                 let p_state = state.fatigue_lookup().get(&p.id());
-                let table = state.attribute_table_for(&p.id());
+                let table = attribute_tables
+                    .get(&p.id())
+                    .unwrap_or_else(|| state.attribute_table_for(&p.id()));
                 calculate_player_target_weight(
                     p,
                     table,
@@ -116,19 +134,25 @@ impl<'a> DownResolutionContext<'a> {
 
         let offensive_gravity = calculate_team_max_finishing_gravity_with_fatigue_from_tables(
             &target_candidates,
-            state.teams.player_attribute_tables(),
+            &attribute_tables,
             &context.offense_pos_index,
             state.pitch(),
             context.is_home_offense,
             &|id| state.fatigue_lookup().get(id),
         );
 
-        let carrier_table = *state.attribute_table_for(&carrier.id());
+        let carrier_table = attribute_tables
+            .get(&carrier.id())
+            .copied()
+            .unwrap_or_else(|| *state.attribute_table_for(&carrier.id()));
         let carrier_fatigue = state.fatigue_lookup().get(&carrier.id());
         let carrier_impulse = state.impulse_for(&carrier.id());
 
         let primary_defender = defense_players.first().copied().unwrap_or(carrier);
-        let primary_defender_table = *state.attribute_table_for(&primary_defender.id());
+        let primary_defender_table = attribute_tables
+            .get(&primary_defender.id())
+            .copied()
+            .unwrap_or_else(|| *state.attribute_table_for(&primary_defender.id()));
         let primary_defender_fatigue = state.fatigue_lookup().get(&primary_defender.id());
 
         let carrier_pos_domain = context
@@ -199,6 +223,19 @@ impl<'a> DownResolutionContext<'a> {
         let passing_range = offense_instructions.in_possession().passing_range();
         let is_true_artrine = carrier.id() == pass_phase.artrine.id();
 
+        let artrine_table = attribute_tables
+            .get(&pass_phase.artrine.id())
+            .copied()
+            .unwrap_or_else(|| *state.attribute_table_for(&pass_phase.artrine.id()));
+        let artrine_fatigue = state.fatigue_lookup().get(&pass_phase.artrine.id());
+        let artrine_deg_ctx = DegradationContext::new(&artrine_fatigue);
+        let artrine_ca = calculate_player_ca(pass_phase.artrine, &artrine_table);
+        let artrine_axis_multiplier = ArtrineAxisEvaluator::calculate_multiplier(
+            &artrine_table,
+            artrine_ca,
+            Some(&artrine_deg_ctx),
+        );
+
         Self {
             offense_team_id: context.offense_team_id,
             defense_team_id: context.defense_team_id,
@@ -242,6 +279,8 @@ impl<'a> DownResolutionContext<'a> {
             defense_pressing_multiplier,
             offense_tempo_value,
             state_advanced_mirins: state.possession().series_state().advanced_mirins(),
+            artrine_axis_multiplier,
+            attribute_tables,
         }
     }
 }

@@ -1,11 +1,17 @@
 use crate::ai::evaluators::action_configs::{ActionEvaluationConfig, ActionKindConfig};
 use crate::ai::evaluators::context::DecisionEvaluationContext;
-use arlo_domain::sport_constants::{FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE};
+use arlo_domain::sport_constants::{
+    FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+};
 
 pub fn evaluate_action_utility(
     ctx: &DecisionEvaluationContext<'_>,
     config: &ActionEvaluationConfig,
 ) -> f64 {
+    if !(config.rule_validator_fn)(ctx) {
+        return 0.0;
+    }
+
     let profile = (config.profile_fn)();
     let intrinsic_rating = ctx.carrier_rating(&profile);
     let skill_mult = ctx.skill_multiplier(intrinsic_rating);
@@ -63,10 +69,10 @@ pub fn evaluate_action_utility(
             ActionKindConfig::TerminalScore(term) => {
                 let value = if ctx.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
                     GOAL_POINT_VALUE as f64
-                } else if ctx.drives_in_series >= 1 {
+                } else if ctx.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES {
                     FIELD_POINT_VALUE as f64
                 } else {
-                    2.0
+                    0.0
                 };
                 let v_opp = ctx.opponent_epa();
                 let raw_p = (term.success_prob_fn)(ctx, skill_mult);

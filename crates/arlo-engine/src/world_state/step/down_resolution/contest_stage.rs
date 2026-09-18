@@ -48,6 +48,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
     state: &MatchState,
     rng: &mut R,
 ) -> ActionContestOutcome<'a> {
+    let tables = &ctx.attribute_tables;
+
     match decision {
         ArtrineDecisionKind::SelfCarry => {
             let duel_kind = if ctx.is_true_artrine {
@@ -63,7 +65,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 &ctx.carrier_table,
                 &att_prof,
                 &ctx.carrier_fatigue,
-            );
+            ) * ctx.artrine_axis_multiplier;
             let def_rating = calculate_player_duel_rating_from_table(
                 ctx.primary_defender,
                 ctx.primary_defender_pos_domain,
@@ -88,7 +90,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             )
             .with_tables(Some(&ctx.carrier_table), Some(&ctx.primary_defender_table))
             .with_team_powers(
-                Some(offense_power.offensive_power()),
+                Some(offense_power.offensive_power() * ctx.artrine_axis_multiplier),
                 Some(defense_power.defensive_power()),
             );
 
@@ -136,7 +138,6 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             };
 
             let (att_prof, def_prof) = get_duel_profiles(throw_kind);
-            let tables = state.teams.player_attribute_tables();
             let offense_power = state.power_for_team(ctx.offense_team_id);
             let defense_power = state.power_for_team(ctx.defense_team_id);
 
@@ -149,10 +150,11 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 )
                 .with_fatigue(&|id| state.fatigue_lookup().get(id))
                 .with_attribute_tables(tables)
-                .with_team_power(offense_power.control_power()),
+                .with_team_power(offense_power.control_power() * ctx.artrine_axis_multiplier),
                 state.attribute_keys(),
                 &att_prof,
-            );
+            ) * ctx.artrine_axis_multiplier;
+
             let def_rating = calculate_side_rating(
                 RatingParticipants::from_slice_with_index(
                     &ctx.defense_players,
@@ -181,7 +183,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 Some(&ctx.primary_defender_table),
             )
             .with_team_powers(
-                Some(offense_power.control_power()),
+                Some(offense_power.control_power() * ctx.artrine_axis_multiplier),
                 Some(defense_power.defensive_power()),
             );
 
@@ -221,13 +223,21 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .get(&receiver_id)
                 .copied()
                 .unwrap_or(Position::CenterOffense);
+
+            let rec_table = tables
+                .get(&receiver_id)
+                .copied()
+                .unwrap_or_else(|| *state.attribute_table_for(&receiver_id));
+            let rec_fatigue = state.fatigue_lookup().get(&receiver_id);
+
             let rec_att_rating = calculate_player_duel_rating_from_table(
                 receiver,
                 rec_pos,
-                state.attribute_table_for(&receiver_id),
+                &rec_table,
                 &rec_att_prof,
-                &state.fatigue_lookup().get(&receiver_id),
-            );
+                &rec_fatigue,
+            ) * ctx.artrine_axis_multiplier;
+
             let rec_def_rating = calculate_side_rating(
                 RatingParticipants::from_slice_with_index(
                     &ctx.defense_players,
@@ -240,8 +250,6 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 &rec_def_prof,
             );
 
-            let rec_fatigue = state.fatigue_lookup().get(&receiver_id);
-            let rec_table = state.attribute_table_for(&receiver_id);
             let rec_req = DuelResolutionRequest::with_states(
                 rec_duel_kind,
                 rec_att_rating,
@@ -253,9 +261,9 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 state.attribute_keys(),
                 &ctx.duel_context,
             )
-            .with_tables(Some(rec_table), Some(&ctx.primary_defender_table))
+            .with_tables(Some(&rec_table), Some(&ctx.primary_defender_table))
             .with_team_powers(
-                Some(offense_power.offensive_power()),
+                Some(offense_power.offensive_power() * ctx.artrine_axis_multiplier),
                 Some(defense_power.defensive_power()),
             );
 
@@ -311,7 +319,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 state.pitch(),
                 state.offensive_position_index_for_team(ctx.offense_team_id),
                 state.instructions_index_for_team(ctx.offense_team_id),
-                state.teams.player_attribute_tables(),
+                tables,
                 ctx.is_home_offense,
                 &HashMap::new(),
                 Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
@@ -333,7 +341,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 &ctx.carrier_table,
                 &att_prof,
                 &ctx.carrier_fatigue,
-            );
+            ) * ctx.artrine_axis_multiplier;
             let def_rating = calculate_player_duel_rating_from_table(
                 ctx.primary_defender,
                 ctx.primary_defender_pos_domain,
@@ -361,7 +369,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 Some(&ctx.primary_defender_table),
             )
             .with_team_powers(
-                Some(offense_power.control_power()),
+                Some(offense_power.control_power() * ctx.artrine_axis_multiplier),
                 Some(defense_power.defensive_power()),
             );
 
