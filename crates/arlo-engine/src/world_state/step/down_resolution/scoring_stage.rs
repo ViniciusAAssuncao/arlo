@@ -1,12 +1,8 @@
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::scoring::{
-    duel_kind_for_opportunity,
-    evaluate_scoring_opportunity,
-    resolve_scoring_attempt,
-    ScoringAttemptRequest,
-    ScoringDecision,
-    ScoringOpportunity,
+    can_attempt_field_point, duel_kind_for_opportunity, evaluate_scoring_opportunity,
+    resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
 };
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::AttributedDuelOutcome;
@@ -18,7 +14,7 @@ use crate::world_state::step::down_resolution::contest_stage::ActionContestOutco
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
 use crate::world_state::step::down_resolution::progression_stage::ActionProgressionOutcome;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::{ ArtrineDecisionKind, Position };
+use arlo_domain::{ArtrineDecisionKind, Position};
 use rand::Rng;
 use uuid::Uuid;
 
@@ -31,7 +27,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
     call_context: &CallToActionContext,
     pass_phase: &PassPhaseResult<'_>,
     duels: &mut Vec<AttributedDuelOutcome>,
-    rng: &mut R
+    rng: &mut R,
 ) -> ScoringDecision {
     if contest.turnover_team.is_some() {
         return ScoringDecision::NoOpportunity;
@@ -59,22 +55,38 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         .copied()
         .unwrap_or_else(|| *state.attribute_table_for(&finisher.id()));
 
-    let fin_rating =
-        calculate_player_duel_rating_from_table(
-            finisher,
-            Position::CenterOffense,
-            &finisher_table,
-            &att_prof,
-            &state.fatigue_lookup().get(&finisher.id())
-        ) * ctx.artrine_axis_multiplier;
+    let fin_rating = calculate_player_duel_rating_from_table(
+        finisher,
+        Position::CenterOffense,
+        &finisher_table,
+        &att_prof,
+        &state.fatigue_lookup().get(&finisher.id()),
+    ) * ctx.artrine_axis_multiplier;
 
-    let opportunity = evaluate_scoring_opportunity(
+    let mut opportunity = evaluate_scoring_opportunity(
         ctx.is_bonus_phase,
         total_drives,
         total_adv,
         progression.new_normalized_proximity,
-        fin_rating
+        fin_rating,
     );
+
+    if opportunity == ScoringOpportunity::GoalPoint {
+        let can_field_point = can_attempt_field_point(
+            total_drives,
+            total_adv,
+            progression.new_normalized_proximity,
+        );
+        if can_field_point {
+            let under_defensive_pressure = progression.new_normalized_proximity < 0.88
+                || ctx.team_advantage < -1.5
+                || fin_rating < 11.5
+                || ctx.down >= 3;
+            if under_defensive_pressure {
+                opportunity = ScoringOpportunity::FieldPoint;
+            }
+        }
+    }
 
     if opportunity == ScoringOpportunity::None {
         return ScoringDecision::NoOpportunity;
@@ -89,9 +101,10 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
 
     let finish_ctx = ctx.duel_context.for_duel_kind(duel_kind_for_opportunity(opportunity));
 
-    let effective_kicker = if
-        matches!(opportunity, ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_))
-    {
+    let effective_kicker = if matches!(
+        opportunity,
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)
+    ) {
         let mut candidates = ctx.target_candidates.clone();
         if !candidates.iter().any(|p| p.id() == finisher.id()) {
             candidates.push(finisher);
@@ -107,8 +120,9 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
             tables,
             call_context.is_home_offense,
             Some(&fatigue_for),
-            rng
-        ).unwrap_or(finisher)
+            rng,
+        )
+        .unwrap_or(finisher)
     } else {
         finisher
     };
@@ -134,10 +148,10 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         opportunity,
         total_drives,
         total_adv,
-        &finish_ctx
+        &finish_ctx,
     )
-        .with_fatigue(fin_fatigue, gg_fatigue)
-        .with_tables(fin_table, gg_table);
+    .with_fatigue(fin_fatigue, gg_fatigue)
+    .with_tables(fin_table, gg_table);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
     duels.push(fin_duel);

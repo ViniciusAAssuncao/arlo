@@ -1,6 +1,7 @@
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
+use crate::resolution::zone_defensive_congestion_bonus;
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
@@ -29,13 +30,15 @@ pub fn resolve_carry_phase<'a, R: Rng + ?Sized>(
         &att_prof,
         &ctx.carrier_fatigue,
     ) * ctx.artrine_axis_multiplier;
+
+    let congestion = zone_defensive_congestion_bonus(ctx.normalized_proximity);
     let def_rating = calculate_player_duel_rating_from_table(
         ctx.primary_defender,
         ctx.primary_defender_pos_domain,
         &ctx.primary_defender_table,
         &def_prof,
         &ctx.primary_defender_fatigue,
-    );
+    ) + congestion;
 
     let offense_power = state.power_for_team(ctx.offense_team_id);
     let defense_power = state.power_for_team(ctx.defense_team_id);
@@ -54,7 +57,7 @@ pub fn resolve_carry_phase<'a, R: Rng + ?Sized>(
     .with_tables(Some(&ctx.carrier_table), Some(&ctx.primary_defender_table))
     .with_team_powers(
         Some(offense_power.offensive_power() * ctx.artrine_axis_multiplier),
-        Some(defense_power.defensive_power()),
+        Some(defense_power.defensive_power() + congestion * 0.5),
     );
 
     let raw_duel = resolve_duel(req, rng);

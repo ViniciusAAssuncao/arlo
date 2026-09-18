@@ -30,7 +30,7 @@ pub fn player_consistency_noise_std_dev(
     }
     let consistency = extract_effective_attribute_value(table, AttributeKey::Consistency, deg_ctx);
     let inconsistency = ((20.0 - consistency).max(0.0) / 20.0).clamp(0.0, 1.0);
-    0.010 * inconsistency * activation
+    0.004 * inconsistency.powi(2) * activation.powi(2)
 }
 
 pub fn player_consistency_noise_scale(
@@ -38,7 +38,8 @@ pub fn player_consistency_noise_scale(
     deg_ctx: &DegradationContext<'_>,
 ) -> f64 {
     let consistency = extract_effective_attribute_value(table, AttributeKey::Consistency, deg_ctx);
-    ((20.0 - consistency).max(0.0) * 0.0005).clamp(0.0, 0.01)
+    let inconsistency = ((20.0 - consistency).max(0.0) / 20.0).clamp(0.0, 1.0);
+    (inconsistency.powi(2) * 0.002).clamp(0.0, 0.005)
 }
 
 pub fn sample_player_noise_with_pressure<R: Rng + ?Sized>(

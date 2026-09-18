@@ -182,18 +182,18 @@ pub fn calculate_team_match_power(state: &MatchState, team_id: Uuid) -> TeamMatc
         total_ctrl_ca += ca * off_fit * fatigue_factor * ctrl_weight;
     }
 
-    let off_tactical_bonus = (manager_table.get(AttributeKey::OffensePlanning) * 0.06)
-        + (manager_table.get(AttributeKey::TacticalKnowledge) * 0.04);
-    let def_tactical_bonus = (manager_table.get(AttributeKey::DefenseOrganization) * 0.06)
-        + (manager_table.get(AttributeKey::TacticalKnowledge) * 0.04);
-    let ctrl_tactical_bonus = (manager_table.get(AttributeKey::ArtroStrategy) * 0.05)
-        + (manager_table.get(AttributeKey::TacticalKnowledge) * 0.05);
+    let off_tactical_bonus = (manager_table.get(AttributeKey::OffensePlanning) * 0.02)
+        + (manager_table.get(AttributeKey::TacticalKnowledge) * 0.015);
+    let def_tactical_bonus = (manager_table.get(AttributeKey::DefenseOrganization) * 0.02)
+        + (manager_table.get(AttributeKey::TacticalKnowledge) * 0.015);
+    let ctrl_tactical_bonus = (manager_table.get(AttributeKey::ArtroStrategy) * 0.02)
+        + (manager_table.get(AttributeKey::TacticalKnowledge) * 0.015);
 
-    let home_factor = if is_home { 0.5 } else { 0.0 };
+    let home_factor = if is_home { 0.08 } else { 0.0 };
 
-    let offensive_power = (total_off_ca / 70.0) + off_tactical_bonus + home_factor;
-    let defensive_power = (total_def_ca / 70.0) + def_tactical_bonus + home_factor;
-    let control_power = (total_ctrl_ca / 70.0) + ctrl_tactical_bonus + home_factor;
+    let offensive_power = (total_off_ca / 60.0) + off_tactical_bonus + home_factor;
+    let defensive_power = (total_def_ca / 60.0) + def_tactical_bonus + home_factor;
+    let control_power = (total_ctrl_ca / 60.0) + ctrl_tactical_bonus + home_factor;
 
     TeamMatchPower::new(offensive_power, defensive_power, control_power)
 }

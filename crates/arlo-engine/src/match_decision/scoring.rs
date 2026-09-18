@@ -251,6 +251,16 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
 
     attacker_rating += distance_adjustment;
 
+    match request.opportunity {
+        ScoringOpportunity::GoalPoint => {
+            attacker_rating -= 1.6;
+        }
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_) => {
+            attacker_rating += 1.2;
+        }
+        ScoringOpportunity::None => {}
+    }
+
     let req = DuelResolutionRequest::with_states(
         duel_kind,
         attacker_rating,

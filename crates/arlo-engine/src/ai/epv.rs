@@ -31,10 +31,11 @@ impl DynamicEpvModel {
             return 0.0;
         }
         let x = normalized_x.clamp(0.0, 1.0);
-        let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.10;
-        let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.30);
-        let grav_bonus = (self.offensive_gravity - 1.0) * 0.10;
-        (x * 0.80 - down_penalty - dist_penalty + grav_bonus).clamp(0.0, 0.95)
+        let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.08;
+        let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.25);
+        let grav_bonus = (self.offensive_gravity - 1.0) * 0.06;
+        let base = 0.38 * x.powf(2.2);
+        (base - down_penalty - dist_penalty + grav_bonus).clamp(0.0, 0.45)
     }
 
     pub fn field_point_probability(
@@ -48,14 +49,14 @@ impl DynamicEpvModel {
             return 0.0;
         }
         let advance_in_series = (10.0 - remaining_advance_mirim).max(0.0);
-        if advance_in_series < FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM && normalized_x < 0.60 {
+        if advance_in_series < FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM && normalized_x < 0.55 {
             return 0.0;
         }
         let x = normalized_x.clamp(0.0, 1.0);
-        let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.08;
-        let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.25);
+        let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.05;
+        let dist_penalty = (remaining_advance_mirim.max(0.0) / 25.0).clamp(0.0, 0.18);
         let grav_bonus = (self.offensive_gravity - 1.0) * 0.08;
-        (x * 0.65 - down_penalty - dist_penalty + grav_bonus).clamp(0.0, 0.90)
+        (0.18 + x * 0.65 - down_penalty - dist_penalty + grav_bonus).clamp(0.0, 0.90)
     }
 
     pub fn turnover_probability(

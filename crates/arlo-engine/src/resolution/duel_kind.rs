@@ -58,17 +58,17 @@ impl DuelKind {
 
 pub fn logistic_slope_for(kind: DuelKind) -> f64 {
     let factor = match kind {
-        DuelKind::FinishingAttempt => 12.0,
-        DuelKind::ArtroBreakthrough => 11.5,
-        DuelKind::ShortDistribution => 11.0,
-        DuelKind::LongDistribution | DuelKind::CrossDistribution => 10.5,
-        DuelKind::FieldGoalAttempt => 10.0,
-        DuelKind::RouteContest | DuelKind::BallSecurityDistribution => 9.2,
-        DuelKind::PassProtection | DuelKind::RunBreakthrough | DuelKind::AerialDuel => 8.8,
-        DuelKind::LateralBlock => 8.2,
-        DuelKind::CentralBlock | DuelKind::BallSecurityCarry => 8.0,
+        DuelKind::FinishingAttempt => 18.0,
+        DuelKind::ArtroBreakthrough => 17.0,
+        DuelKind::ShortDistribution => 16.0,
+        DuelKind::LongDistribution | DuelKind::CrossDistribution => 15.5,
+        DuelKind::FieldGoalAttempt => 15.0,
+        DuelKind::RouteContest | DuelKind::BallSecurityDistribution => 14.0,
+        DuelKind::PassProtection | DuelKind::RunBreakthrough | DuelKind::AerialDuel => 13.5,
+        DuelKind::LateralBlock => 12.5,
+        DuelKind::CentralBlock | DuelKind::BallSecurityCarry => 12.0,
         DuelKind::KickBlockAttempt => {
-            KICK_BLOCK_ATTEMPT_LOGISTIC_FACTOR * ATTRIBUTE_SATURATION_THRESHOLD * 1.8
+            KICK_BLOCK_ATTEMPT_LOGISTIC_FACTOR * ATTRIBUTE_SATURATION_THRESHOLD * 2.8
         }
     };
     factor / ATTRIBUTE_SATURATION_THRESHOLD
