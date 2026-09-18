@@ -1,15 +1,24 @@
-use crate::ai::cognitive::action_probability;
 use crate::attributes::RefereeAttributeTable;
+use crate::resolution::context::DuelContext;
+use crate::resolution::duel_kind::DuelKind;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use arlo_domain::sport_constants::{
     PEACE_REFEREE_AUTHORITY_SCALE, PEACE_REFEREE_BASE_SENSITIVITY,
     PEACE_REFEREE_INTERVENTION_STEEPNESS,
 };
 use arlo_domain::AttributeKey;
-use arlo_math::Probability;
 use rand::Rng;
 
 pub fn flip_officiating_coin<R: Rng + ?Sized>(rng: &mut R) -> bool {
-    Probability::new_clamped(0.5).sample(rng)
+    let context = DuelContext::neutral();
+    let req = DuelResolutionRequest::for_contest(
+        DuelKind::PassProtection,
+        10.0,
+        10.0,
+        &context,
+    )
+    .with_slope(0.25);
+    resolve_duel(req, rng).attacker_won()
 }
 
 pub fn resolve_peace_referee_review<R: Rng + ?Sized>(
@@ -18,13 +27,23 @@ pub fn resolve_peace_referee_review<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> (bool, bool) {
     let original_call_correct = flip_officiating_coin(rng);
-    let intervention_prob = action_probability(
-        stimulus,
-        peace_referee_table.get(AttributeKey::Authority),
-        PEACE_REFEREE_BASE_SENSITIVITY,
-        PEACE_REFEREE_AUTHORITY_SCALE,
-        PEACE_REFEREE_INTERVENTION_STEEPNESS,
-    );
-    let peace_referee_intervened = intervention_prob.sample(rng);
+
+    let authority = peace_referee_table.get(AttributeKey::Authority);
+    let stimulus_drive = stimulus.clamp(0.0, 1.0) * PEACE_REFEREE_BASE_SENSITIVITY * 10.0;
+    let authority_bonus = authority * PEACE_REFEREE_AUTHORITY_SCALE * 5.0;
+    let attacker_rating = stimulus_drive + authority_bonus;
+    let defender_rating = 10.0;
+
+    let context = DuelContext::neutral();
+    let req = DuelResolutionRequest::for_contest(
+        DuelKind::PassProtection,
+        attacker_rating,
+        defender_rating,
+        &context,
+    )
+    .with_slope(PEACE_REFEREE_INTERVENTION_STEEPNESS);
+
+    let peace_referee_intervened = resolve_duel(req, rng).attacker_won();
+
     (original_call_correct, peace_referee_intervened)
 }

@@ -26,6 +26,9 @@ pub use group_rating::{
     calculate_player_duel_rating, calculate_player_duel_rating_from_table,
     calculate_player_duel_rating_with_state, calculate_side_rating, RatingParticipants,
 };
-pub use outcome::DuelOutcome;
+pub use outcome::{ContestOutcome, DuelOutcome};
 pub use progression_strategy::ProgressionResolutionStrategy;
-pub use resolver::{calculate_velocity_mitigation, resolve_duel, DuelResolutionRequest};
+pub use resolver::{
+    calculate_velocity_mitigation, resolve_contest, resolve_duel, ContestRequest,
+    DuelResolutionRequest,
+};

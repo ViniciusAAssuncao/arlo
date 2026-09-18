@@ -2,12 +2,20 @@ use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
 use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::TeamSpaceRating;
-use arlo_domain::sport_constants::ATTRIBUTE_MAX;
-use arlo_domain::{ArtroPlacement, AttributeKey, PitchZone};
+use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
+use crate::resolution::context::DuelContext;
+use crate::resolution::duel_kind::DuelKind;
+use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
+use crate::resolution::outcome::DuelOutcome;
+use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
+use arlo_domain::{ArtroPlacement, AttributeKey, PitchZone, Player, Position};
 use arlo_math::stats::contrast::logistic;
 use arlo_math::Probability;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -20,69 +28,111 @@ pub struct CrossActionResult {
     pub net_advantage: f64,
     pub win_probability: Probability,
     pub next_pitch_state: PitchState,
+    pub duel_outcome: DuelOutcome,
+}
+
+pub struct CrossActionRequest<'a> {
+    pub crosser: &'a Player,
+    pub crosser_table: &'a PlayerAttributeTable,
+    pub crosser_fatigue: &'a PhysicalState,
+    pub target_finisher: &'a Player,
+    pub target_finisher_table: &'a PlayerAttributeTable,
+    pub target_finisher_fatigue: &'a PhysicalState,
+    pub defender: &'a Player,
+    pub defender_table: &'a PlayerAttributeTable,
+    pub defender_fatigue: &'a PhysicalState,
+    pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
+    pub duel_context: &'a DuelContext,
+    pub space_rating: &'a TeamSpaceRating,
+    pub pitch_state: &'a PitchState,
+    pub pitch_length_mirim: f64,
+    pub attacker_team_power: Option<f64>,
+    pub defender_team_power: Option<f64>,
 }
 
 pub fn resolve_cross_action<R: Rng + ?Sized>(
-    crosser_table: &PlayerAttributeTable,
-    crosser_fatigue: &PhysicalState,
-    target_finisher_id: Uuid,
-    target_finisher_table: &PlayerAttributeTable,
-    space_rating: &TeamSpaceRating,
-    pitch_state: &PitchState,
-    pitch_length_mirim: f64,
+    request: &CrossActionRequest<'_>,
     rng: &mut R,
 ) -> CrossActionResult {
-    let crossing = crosser_table.get(AttributeKey::Crossing) / ATTRIBUTE_MAX;
-    let vision = crosser_table.get(AttributeKey::Vision) / ATTRIBUTE_MAX;
-    let flair = crosser_table.get(AttributeKey::Flair) / ATTRIBUTE_MAX;
-    let tech = crosser_table.get(AttributeKey::Technique) / ATTRIBUTE_MAX;
-    let fatigue_penalty = (1.0 - crosser_fatigue.energy()) * 0.20;
+    let (att_prof, def_prof) = get_duel_profiles(DuelKind::CrossDistribution);
 
-    let crosser_skill =
-        (crossing * 0.45 + vision * 0.25 + flair * 0.15 + tech * 0.15 - fatigue_penalty)
-            .clamp(0.1, 1.5);
+    let crosser_rating = calculate_player_duel_rating_from_table(
+        request.crosser,
+        Position::WingOffense,
+        request.crosser_table,
+        att_prof,
+        request.crosser_fatigue,
+    );
+    let defender_rating = calculate_player_duel_rating_from_table(
+        request.defender,
+        Position::OutsideZonerback,
+        request.defender_table,
+        def_prof,
+        request.defender_fatigue,
+    );
 
-    let finishing = target_finisher_table.get(AttributeKey::Finishing) / ATTRIBUTE_MAX;
-    let ant = target_finisher_table.get(AttributeKey::Anticipation) / ATTRIBUTE_MAX;
-    let jumping = target_finisher_table.get(AttributeKey::JumpingReach) / ATTRIBUTE_MAX;
-    let receiver_skill = (finishing * 0.40 + ant * 0.35 + jumping * 0.25).clamp(0.1, 1.5);
-
-    let channel_bonus = match pitch_state.channel() {
-        ArtroPlacement::LeftLateral | ArtroPlacement::RightLateral => 0.35,
-        ArtroPlacement::Central => -0.15,
+    let channel_bonus = match request.pitch_state.channel() {
+        ArtroPlacement::LeftLateral | ArtroPlacement::RightLateral => 0.5,
+        ArtroPlacement::Central => -0.2,
     };
+    let flank_mod = (request.space_rating.flank_openness() - 0.5) * 1.5;
+    let attacker_rating = (crosser_rating + channel_bonus + flank_mod).max(0.1);
 
-    let cross_logit = (crosser_skill - 0.5) * 3.5
-        + (receiver_skill - 0.5) * 2.5
-        + (space_rating.flank_openness() - 0.5) * 3.5
-        + channel_bonus;
-    let win_prob_val = logistic(cross_logit).clamp(0.10, 0.96);
-    let win_probability = Probability::new_clamped(win_prob_val);
-    let completed = win_probability.sample(rng);
+    let req = DuelResolutionRequest::with_states(
+        DuelKind::CrossDistribution,
+        attacker_rating,
+        defender_rating,
+        request.crosser,
+        request.defender,
+        *request.crosser_fatigue,
+        *request.defender_fatigue,
+        request.attribute_keys,
+        request.duel_context,
+    )
+    .with_tables(Some(request.crosser_table), Some(request.defender_table))
+    .with_team_powers(request.attacker_team_power, request.defender_team_power);
 
-    let net_advantage =
-        (crosser_skill + receiver_skill - 2.0 * space_rating.pressure_intensity()) * 3.5;
+    let duel_outcome = resolve_duel(req, rng);
+    let completed = duel_outcome.attacker_won();
+    let net_advantage = duel_outcome.net_advantage();
+    let win_probability = duel_outcome.win_probability();
+
+    let (shape, base_mean, adv_factor, min_mean) = if completed {
+        (2.5, 8.0, 0.35, 3.0)
+    } else {
+        (2.0, 1.0, 0.10, 0.0)
+    };
+    let strategy = AggregateProgressionStrategy::new(shape, base_mean, adv_factor, min_mean);
+    let actual_advance = if completed {
+        strategy.resolve_progression(&duel_outcome, rng)
+    } else {
+        0.0
+    };
 
     let target_zone = PitchZone::FirstZone;
     let (turnover, scoring_attempt_ready) = if completed {
         (false, true)
     } else {
-        let to_p = (0.25 * space_rating.pressure_intensity()).clamp(0.05, 0.50);
+        let to_p = (logistic(-1.2 - 0.20 * net_advantage)
+            * request.space_rating.pressure_intensity())
+        .clamp(0.05, 0.50);
         (Probability::new_clamped(to_p).sample(rng), false)
     };
 
-    let next_pitch_state = pitch_state
-        .with_advance(8.0, pitch_length_mirim)
+    let next_pitch_state = request
+        .pitch_state
+        .with_advance(actual_advance, request.pitch_length_mirim)
         .with_channel(ArtroPlacement::Central);
 
     CrossActionResult {
         completed,
-        target_player_id: Some(target_finisher_id),
+        target_player_id: Some(request.target_finisher.id()),
         target_zone,
         turnover,
         scoring_attempt_ready,
         net_advantage,
         win_probability,
         next_pitch_state,
+        duel_outcome,
     }
 }

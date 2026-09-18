@@ -19,17 +19,20 @@ pub struct DuelResolutionRequest<'a> {
     pub kind: DuelKind,
     pub attacker_rating: f64,
     pub defender_rating: f64,
-    pub attacker_primary: &'a Player,
-    pub defender_primary: &'a Player,
+    pub attacker_primary: Option<&'a Player>,
+    pub defender_primary: Option<&'a Player>,
     pub attacker_state: PhysicalState,
     pub defender_state: PhysicalState,
-    pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
+    pub attribute_keys: Option<&'a HashMap<Uuid, AttributeKey>>,
     pub context: &'a DuelContext,
     pub attacker_table: Option<&'a PlayerAttributeTable>,
     pub defender_table: Option<&'a PlayerAttributeTable>,
     pub attacker_team_power: Option<f64>,
     pub defender_team_power: Option<f64>,
+    pub slope_override: Option<f64>,
 }
+
+pub type ContestRequest<'a> = DuelResolutionRequest<'a>;
 
 impl<'a> DuelResolutionRequest<'a> {
     pub fn new(
@@ -45,16 +48,17 @@ impl<'a> DuelResolutionRequest<'a> {
             kind,
             attacker_rating,
             defender_rating,
-            attacker_primary,
-            defender_primary,
+            attacker_primary: Some(attacker_primary),
+            defender_primary: Some(defender_primary),
             attacker_state: PhysicalState::initial(),
             defender_state: PhysicalState::initial(),
-            attribute_keys,
+            attribute_keys: Some(attribute_keys),
             context,
             attacker_table: None,
             defender_table: None,
             attacker_team_power: None,
             defender_team_power: None,
+            slope_override: None,
         }
     }
 
@@ -73,16 +77,17 @@ impl<'a> DuelResolutionRequest<'a> {
             kind,
             attacker_rating,
             defender_rating,
-            attacker_primary,
-            defender_primary,
+            attacker_primary: Some(attacker_primary),
+            defender_primary: Some(defender_primary),
             attacker_state,
             defender_state,
-            attribute_keys,
+            attribute_keys: Some(attribute_keys),
             context,
             attacker_table: None,
             defender_table: None,
             attacker_team_power: None,
             defender_team_power: None,
+            slope_override: None,
         }
     }
 
@@ -119,16 +124,41 @@ impl<'a> DuelResolutionRequest<'a> {
             kind,
             attacker_rating,
             defender_rating,
-            attacker_primary,
-            defender_primary,
+            attacker_primary: Some(attacker_primary),
+            defender_primary: Some(defender_primary),
             attacker_state,
             defender_state,
-            attribute_keys,
+            attribute_keys: Some(attribute_keys),
             context,
             attacker_table,
             defender_table,
             attacker_team_power: attackers.team_power,
             defender_team_power: defenders.team_power,
+            slope_override: None,
+        }
+    }
+
+    pub fn for_contest(
+        kind: DuelKind,
+        attacker_rating: f64,
+        defender_rating: f64,
+        context: &'a DuelContext,
+    ) -> Self {
+        Self {
+            kind,
+            attacker_rating,
+            defender_rating,
+            attacker_primary: None,
+            defender_primary: None,
+            attacker_state: PhysicalState::initial(),
+            defender_state: PhysicalState::initial(),
+            attribute_keys: None,
+            context,
+            attacker_table: None,
+            defender_table: None,
+            attacker_team_power: None,
+            defender_team_power: None,
+            slope_override: None,
         }
     }
 
@@ -149,6 +179,11 @@ impl<'a> DuelResolutionRequest<'a> {
     ) -> Self {
         self.attacker_team_power = attacker_team_power;
         self.defender_team_power = defender_team_power;
+        self
+    }
+
+    pub fn with_slope(mut self, slope: f64) -> Self {
+        self.slope_override = Some(slope);
         self
     }
 }
@@ -203,33 +238,38 @@ pub fn resolve_duel<R: Rng + ?Sized>(
     let effective_attacker = request.attacker_team_power.unwrap_or(request.attacker_rating);
     let effective_defender = request.defender_team_power.unwrap_or(request.defender_rating);
 
-    let noise_a = match request.attacker_table {
-        Some(table) => sample_player_noise_from_table_with_baseline(
-            request.attacker_primary,
+    let noise_a = match (request.attacker_primary, request.attacker_table) {
+        (Some(p), Some(table)) => sample_player_noise_from_table_with_baseline(
+            p,
             table,
             &request.attacker_state,
             rng,
         ),
-        None => sample_player_noise(
-            request.attacker_primary,
-            request.attribute_keys,
-            &request.attacker_state,
-            rng,
-        ),
+        (Some(p), None) => {
+            if let Some(keys) = request.attribute_keys {
+                sample_player_noise(p, keys, &request.attacker_state, rng)
+            } else {
+                0.0
+            }
+        }
+        (None, _) => 0.0,
     };
-    let noise_b = match request.defender_table {
-        Some(table) => sample_player_noise_from_table_with_baseline(
-            request.defender_primary,
+
+    let noise_b = match (request.defender_primary, request.defender_table) {
+        (Some(p), Some(table)) => sample_player_noise_from_table_with_baseline(
+            p,
             table,
             &request.defender_state,
             rng,
         ),
-        None => sample_player_noise(
-            request.defender_primary,
-            request.attribute_keys,
-            &request.defender_state,
-            rng,
-        ),
+        (Some(p), None) => {
+            if let Some(keys) = request.attribute_keys {
+                sample_player_noise(p, keys, &request.defender_state, rng)
+            } else {
+                0.0
+            }
+        }
+        (None, _) => 0.0,
     };
 
     let mut hfa_logit = 0.0;
@@ -245,7 +285,9 @@ pub fn resolve_duel<R: Rng + ?Sized>(
 
     let noisy_attacker = effective_attacker + noise_a;
     let noisy_defender = effective_defender + noise_b;
-    let slope = logistic_slope_for(request.kind);
+    let slope = request
+        .slope_override
+        .unwrap_or_else(|| logistic_slope_for(request.kind));
 
     let win_prob = bradley_terry_with_offset(noisy_attacker, noisy_defender, slope, hfa_logit);
 
@@ -264,11 +306,15 @@ pub fn resolve_duel<R: Rng + ?Sized>(
         velocity_mitigation,
     );
 
-    crate::psychology::systems::instrumentation::instrument_duel_outcome(
-        &outcome,
-        request.attacker_primary.id(),
-        request.defender_primary.id(),
-    );
+    if let (Some(att), Some(def)) = (request.attacker_primary, request.defender_primary) {
+        crate::psychology::systems::instrumentation::instrument_duel_outcome(
+            &outcome,
+            att.id(),
+            def.id(),
+        );
+    }
 
     outcome
 }
+
+pub use resolve_duel as resolve_contest;

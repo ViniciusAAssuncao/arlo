@@ -7,11 +7,13 @@ use crate::officiating::line_fault::{
     is_line_fault, LineFaultEvaluationContext,
 };
 use crate::play_resolution::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
+use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
     RatingParticipants,
 };
+use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
@@ -171,13 +173,24 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     let offense_instructions = *state.instructions_for_team(context.offense_team_id);
     let passing_range = offense_instructions.in_possession().passing_range();
 
-    let throw_advance = if chosen_decision == ArtrineDecisionKind::ShortPass {
-        (SHORT_PASS_BASE_ADVANCE_MIRIM * short_pass_advance_multiplier(passing_range))
-            .max(SHORT_PASS_MIN_ADVANCE_MIRIM)
-    } else {
-        (LONG_LAUNCH_BASE_ADVANCE_MIRIM * long_launch_advance_multiplier(passing_range))
-            .max(LONG_LAUNCH_MIN_ADVANCE_MIRIM)
-    };
+    let (shape, base_mean, adv_factor, min_mean) =
+        if chosen_decision == ArtrineDecisionKind::ShortPass {
+            (
+                2.5,
+                SHORT_PASS_BASE_ADVANCE_MIRIM * short_pass_advance_multiplier(passing_range),
+                0.40,
+                SHORT_PASS_MIN_ADVANCE_MIRIM,
+            )
+        } else {
+            (
+                2.5,
+                LONG_LAUNCH_BASE_ADVANCE_MIRIM * long_launch_advance_multiplier(passing_range),
+                0.60,
+                LONG_LAUNCH_MIN_ADVANCE_MIRIM,
+            )
+        };
+    let strategy = AggregateProgressionStrategy::new(shape, base_mean, adv_factor, min_mean);
+    let throw_advance = strategy.resolve_progression(&raw_throw_duel, rng);
 
     let pass_speed = calculate_pass_speed(current_carrier, attribute_keys, &carrier_fatigue);
     let flight_duration = ball_flight_duration(throw_advance, pass_speed);

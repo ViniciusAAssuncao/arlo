@@ -2,14 +2,22 @@ use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
 use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::TeamSpaceRating;
-use crate::psychology::state::ImpulseState;
+use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
+use crate::resolution::context::DuelContext;
+use crate::resolution::duel_kind::DuelKind;
+use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
+use crate::resolution::outcome::DuelOutcome;
+use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::team_identity::passing_style::short_pass_advance_multiplier;
-use arlo_domain::sport_constants::ATTRIBUTE_MAX;
-use arlo_domain::AttributeKey;
+use arlo_domain::{AttributeKey, Player, Position};
+use arlo_math::stats::contrast::logistic;
 use arlo_math::Probability;
 use arlo_tactics::PassingRange;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -22,69 +30,103 @@ pub struct ShortPassActionResult {
     pub net_advantage: f64,
     pub win_probability: Probability,
     pub next_pitch_state: PitchState,
+    pub duel_outcome: DuelOutcome,
+}
+
+pub struct ShortPassActionRequest<'a> {
+    pub passer: &'a Player,
+    pub passer_table: &'a PlayerAttributeTable,
+    pub passer_fatigue: &'a PhysicalState,
+    pub receiver: &'a Player,
+    pub receiver_table: &'a PlayerAttributeTable,
+    pub receiver_fatigue: &'a PhysicalState,
+    pub defender: &'a Player,
+    pub defender_table: &'a PlayerAttributeTable,
+    pub defender_fatigue: &'a PhysicalState,
+    pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
+    pub duel_context: &'a DuelContext,
+    pub space_rating: &'a TeamSpaceRating,
+    pub pitch_state: &'a PitchState,
+    pub passing_range: PassingRange,
+    pub pitch_length_mirim: f64,
+    pub attacker_team_power: Option<f64>,
+    pub defender_team_power: Option<f64>,
 }
 
 pub fn resolve_short_pass_action<R: Rng + ?Sized>(
-    passer_table: &PlayerAttributeTable,
-    passer_fatigue: &PhysicalState,
-    passer_impulse: &ImpulseState,
-    receiver_id: Uuid,
-    receiver_table: &PlayerAttributeTable,
-    space_rating: &TeamSpaceRating,
-    pitch_state: &PitchState,
-    passing_range: PassingRange,
-    pitch_length_mirim: f64,
+    request: &ShortPassActionRequest<'_>,
     rng: &mut R,
 ) -> ShortPassActionResult {
-    let passing = passer_table.get(AttributeKey::Passing) / ATTRIBUTE_MAX;
-    let decisions = passer_table.get(AttributeKey::Decisions) / ATTRIBUTE_MAX;
-    let composure = passer_table.get(AttributeKey::Composure) / ATTRIBUTE_MAX;
-    let technique = passer_table.get(AttributeKey::Technique) / ATTRIBUTE_MAX;
+    let (att_prof, def_prof) = get_duel_profiles(DuelKind::ShortDistribution);
 
-    let passer_fatigue_penalty = (1.0 - passer_fatigue.energy()) * 0.20;
-    let passer_impulse_mod = ((passer_impulse.accumulator() - 50.0) / 50.0) * 0.10;
-    let passer_skill = (passing * 0.40 + decisions * 0.30 + composure * 0.15 + technique * 0.15
-        + passer_impulse_mod
-        - passer_fatigue_penalty)
-        .clamp(0.1, 1.5);
+    let passer_rating = calculate_player_duel_rating_from_table(
+        request.passer,
+        Position::Midcenter,
+        request.passer_table,
+        att_prof,
+        request.passer_fatigue,
+    );
+    let defender_rating = calculate_player_duel_rating_from_table(
+        request.defender,
+        Position::Lineback,
+        request.defender_table,
+        def_prof,
+        request.defender_fatigue,
+    );
 
-    let hands = receiver_table.get(AttributeKey::HandsReception) / ATTRIBUTE_MAX;
-    let ant = receiver_table.get(AttributeKey::Anticipation) / ATTRIBUTE_MAX;
-    let agility = receiver_table.get(AttributeKey::Agility) / ATTRIBUTE_MAX;
-    let receiver_skill = (hands * 0.45 + ant * 0.35 + agility * 0.20).clamp(0.1, 1.5);
+    let space_mod = (request.space_rating.space_index() - 0.5) * 1.5;
+    let attacker_rating = (passer_rating + space_mod).max(0.1);
 
-    let attack_strength = passer_skill * 0.55 + receiver_skill * 0.45;
-    let defense_strength = space_rating.pressure_intensity().max(0.1);
-    let total_strength = attack_strength + defense_strength;
-    let base_prob = attack_strength / total_strength;
-    let space_modifier = (space_rating.space_index() - 0.5) * 0.10;
-    let win_prob_val = (base_prob + space_modifier).clamp(0.08, 0.95);
-    let win_probability = Probability::new_clamped(win_prob_val);
-    let completed = win_probability.sample(rng);
+    let req = DuelResolutionRequest::with_states(
+        DuelKind::ShortDistribution,
+        attacker_rating,
+        defender_rating,
+        request.passer,
+        request.defender,
+        *request.passer_fatigue,
+        *request.defender_fatigue,
+        request.attribute_keys,
+        request.duel_context,
+    )
+    .with_tables(Some(request.passer_table), Some(request.defender_table))
+    .with_team_powers(request.attacker_team_power, request.defender_team_power);
 
-    let net_advantage = (attack_strength - defense_strength) * 3.5;
+    let duel_outcome = resolve_duel(req, rng);
+    let completed = duel_outcome.attacker_won();
+    let net_advantage = duel_outcome.net_advantage();
+    let win_probability = duel_outcome.win_probability();
 
-    let pass_mult = short_pass_advance_multiplier(passing_range);
-    let (turnover, interception, actual_advance) = if completed {
-        let advance = (10.0 * pass_mult + 3.0 * passer_skill + 2.0 * receiver_skill).clamp(8.0, 18.0);
-        (false, false, advance)
+    let pass_mult = short_pass_advance_multiplier(request.passing_range);
+    let actual_advance = if completed {
+        let strategy = AggregateProgressionStrategy::new(2.5, 10.0 * pass_mult, 0.40, 4.0);
+        strategy.resolve_progression(&duel_outcome, rng)
     } else {
-        let int_p =
-            (0.10 * space_rating.pressure_intensity() * (1.0 - decisions)).clamp(0.02, 0.25);
-        let is_int = Probability::new_clamped(int_p).sample(rng);
-        (is_int, is_int, 0.0)
+        0.0
     };
 
-    let next_pitch_state = pitch_state.with_advance(actual_advance, pitch_length_mirim);
+    let (turnover, interception) = if completed {
+        (false, false)
+    } else {
+        let int_p = (logistic(-2.0 - 0.25 * net_advantage)
+            * request.space_rating.pressure_intensity())
+        .clamp(0.02, 0.35);
+        let is_int = Probability::new_clamped(int_p).sample(rng);
+        (is_int, is_int)
+    };
+
+    let next_pitch_state = request
+        .pitch_state
+        .with_advance(actual_advance, request.pitch_length_mirim);
 
     ShortPassActionResult {
         completed,
         advance_mirim: actual_advance,
         turnover,
         interception,
-        target_player_id: Some(receiver_id),
+        target_player_id: Some(request.receiver.id()),
         net_advantage,
         win_probability,
         next_pitch_state,
+        duel_outcome,
     }
 }

@@ -2,13 +2,16 @@ use crate::artrine::detect_drive_crossings;
 use crate::injury::contact::evaluate_and_resolve_contact_injury;
 use crate::injury::contact::ContactInjuryContext;
 use crate::officiating::foul::{evaluate_and_resolve_foul, FoulEvaluationContext};
-use crate::play_resolution::action_resolution::resolve_carry_action;
 use crate::play_resolution::contact_events::{evaluate_contact_likelihood, sample_contact_event};
 use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::calculate_team_space_rating;
 use crate::possession::TouchActionType;
+use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_kind::DuelKind;
-use crate::resolution::outcome::DuelOutcome;
+use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
+use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
+use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -17,8 +20,10 @@ use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationC
 use crate::world_state::step::open_play_loop::distribution_scoring::check_distribution_scoring_opportunity;
 use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::Player;
+use arlo_domain::{Player, Position};
+use arlo_math::stats::contrast::logistic;
 use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_math::Probability;
 use rand::Rng;
 use smallvec::smallvec;
 
@@ -47,7 +52,43 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
 
     let carrier_table = *state.attribute_table_for(&current_carrier.id());
     let carrier_fatigue = state.fatigue_lookup().get(&current_carrier.id());
-    let carrier_impulse = state.impulse_for(&current_carrier.id());
+
+    let primary_defender = defense_players.first().copied().unwrap_or(current_carrier);
+    let defender_table = *state.attribute_table_for(&primary_defender.id());
+    let defender_fatigue = state.fatigue_lookup().get(&primary_defender.id());
+
+    let duel_kind = if is_true_artrine {
+        DuelKind::ArtroBreakthrough
+    } else {
+        DuelKind::RunBreakthrough
+    };
+
+    let (att_prof, def_prof) = get_duel_profiles(duel_kind);
+    let carrier_pos_domain = context
+        .offense_pos_index
+        .get(&current_carrier.id())
+        .copied()
+        .unwrap_or(Position::CenterOffense);
+    let defender_pos_domain = context
+        .defense_pos_index
+        .get(&primary_defender.id())
+        .copied()
+        .unwrap_or(Position::Centerback);
+
+    let base_att_rating = calculate_player_duel_rating_from_table(
+        current_carrier,
+        carrier_pos_domain,
+        &carrier_table,
+        att_prof,
+        &carrier_fatigue,
+    );
+    let base_def_rating = calculate_player_duel_rating_from_table(
+        primary_defender,
+        defender_pos_domain,
+        &defender_table,
+        def_prof,
+        &defender_fatigue,
+    );
 
     let offense_tables: Vec<_> = iter_ctx
         .target_candidates
@@ -85,21 +126,39 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         0.0,
     );
 
-    let carry_result = resolve_carry_action(
-        &carrier_table,
-        &carrier_fatigue,
-        &carrier_impulse,
-        &iter_ctx.risk_profile,
-        &space_rating,
-        &pitch_state,
-        pitch.length_mirim(),
-        is_true_artrine,
-        rng,
+    let space_mod = (space_rating.space_index() - 0.5) * 2.0;
+    let attacker_rating = (base_att_rating + space_mod).max(0.1);
+    let defender_rating = base_def_rating.max(0.1);
+
+    let offense_power = state.power_for_team(context.offense_team_id);
+    let defense_power = state.power_for_team(context.defense_team_id);
+
+    let req = DuelResolutionRequest::with_states(
+        duel_kind,
+        attacker_rating,
+        defender_rating,
+        current_carrier,
+        primary_defender,
+        carrier_fatigue,
+        defender_fatigue,
+        state.attribute_keys(),
+        &iter_ctx.duel_context,
+    )
+    .with_tables(Some(&carrier_table), Some(&defender_table))
+    .with_team_powers(
+        Some(offense_power.offensive_power()),
+        Some(defense_power.defensive_power()),
     );
 
-    let primary_defender = defense_players.first().copied().unwrap_or(current_carrier);
-    let defender_table = *state.attribute_table_for(&primary_defender.id());
-    let defender_fatigue = state.fatigue_lookup().get(&primary_defender.id());
+    let duel_outcome = resolve_duel(req, rng);
+
+    let attributed_duel = AttributedDuelOutcome::new(
+        duel_outcome,
+        smallvec![current_carrier.id()],
+        smallvec![primary_defender.id()],
+    );
+    loop_state.accumulated_duels.push(attributed_duel);
+
     let carrier_susceptibility = state
         .player_injury_profile(&current_carrier.id())
         .injury_susceptibility_multiplier();
@@ -122,25 +181,6 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
     );
 
     let contact_sampling = sample_contact_event(&contact_profile, rng);
-
-    let offense_power = state.power_for_team(context.offense_team_id);
-    let defense_power = state.power_for_team(context.defense_team_id);
-
-    let duel_outcome = DuelOutcome::new(
-        DuelKind::ArtroBreakthrough,
-        carry_result.success,
-        offense_power.offensive_power(),
-        defense_power.defensive_power(),
-        carry_result.win_probability,
-        carry_result.net_advantage,
-    );
-
-    let attributed_duel = AttributedDuelOutcome::new(
-        duel_outcome,
-        smallvec![current_carrier.id()],
-        smallvec![primary_defender.id()],
-    );
-    loop_state.accumulated_duels.push(attributed_duel);
 
     let peace_referee_table = state.peace_referee_attribute_table();
     let fault_catalog = state.fault_catalog_arc();
@@ -199,11 +239,19 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         }
     }
 
-    let macro_advance = if carry_result.success {
-        carry_result.mirins_advanced.max(8.0)
+    let (shape, base_mean, adv_factor, min_mean) = if duel_outcome.attacker_won() {
+        (2.5, 12.0, 0.45, 4.0)
     } else {
-        (carry_result.mirins_advanced * 0.3).min(3.0)
+        (2.0, 1.8, 0.15, 0.2)
     };
+    let strategy = AggregateProgressionStrategy::new(shape, base_mean, adv_factor, min_mean);
+    let macro_advance = strategy.resolve_progression(&duel_outcome, rng);
+
+    let to_base = if duel_outcome.attacker_won() { -3.5 } else { -1.5 };
+    let to_p = (logistic(to_base - 0.20 * duel_outcome.net_advantage())
+        / iter_ctx.risk_profile.tolerance_index())
+    .clamp(0.005, 0.45);
+    let is_turnover = Probability::new_clamped(to_p).sample(rng);
 
     let shift_meters = macro_advance * MIRIM_TO_METERS;
     let new_x_m = if context.is_home_offense {
@@ -229,7 +277,7 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         }
     }
 
-    let carry_time_secs = if carry_result.turnover { 18.0 } else { 28.0 };
+    let carry_time_secs = if is_turnover { 18.0 } else { 28.0 };
     loop_state.accumulated_duration_ledger.record_live(
         DurationComponentKind::CarrierMovement,
         Duration::new(carry_time_secs),
@@ -238,10 +286,10 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
     loop_state.accumulated_mirins_advanced += macro_advance;
     loop_state.current_carrier_pos = end_pos;
 
-    if carry_result.turnover {
+    if is_turnover {
         loop_state.turnover_team = Some(context.defense_team_id);
         loop_state.recovering_player = Some(primary_defender.id());
-    } else if carry_result.success {
+    } else if duel_outcome.attacker_won() {
         check_distribution_scoring_opportunity(
             state,
             context,
@@ -251,7 +299,7 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
             current_carrier,
             current_carrier,
             defense_players,
-            carry_result.net_advantage.max(10.0),
+            duel_outcome.net_advantage().max(10.0),
             rng,
         );
     }
