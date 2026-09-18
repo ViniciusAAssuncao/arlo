@@ -65,7 +65,8 @@ impl RiskProfile {
         let profile = crate::caching::impulse_baseline_profile();
         let baseline = calculate_player_impulse_baseline(table, profile);
 
-        let deg_ctx = DegradationContext::with_impulse(physical_state, impulse_state, baseline);
+        let deg_ctx = DegradationContext::with_impulse(physical_state, impulse_state, baseline)
+            .with_cerebral_role(true);
 
         let flair = extract_effective_attribute_value(table, AttributeKey::Flair, &deg_ctx);
         let bravery = extract_effective_attribute_value(table, AttributeKey::Bravery, &deg_ctx);

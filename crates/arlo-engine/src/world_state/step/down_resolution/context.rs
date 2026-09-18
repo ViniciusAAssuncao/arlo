@@ -228,7 +228,7 @@ impl<'a> DownResolutionContext<'a> {
             .copied()
             .unwrap_or_else(|| *state.attribute_table_for(&pass_phase.artrine.id()));
         let artrine_fatigue = state.fatigue_lookup().get(&pass_phase.artrine.id());
-        let artrine_deg_ctx = DegradationContext::new(&artrine_fatigue);
+        let artrine_deg_ctx = DegradationContext::new(&artrine_fatigue).with_cerebral_role(true);
         let artrine_ca = calculate_player_ca(pass_phase.artrine, &artrine_table);
         let artrine_axis_multiplier = ArtrineAxisEvaluator::calculate_multiplier(
             &artrine_table,

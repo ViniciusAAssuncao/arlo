@@ -79,7 +79,8 @@ pub fn calculate_player_duel_rating_from_table(
     profile: &DuelProfile,
     state: &PhysicalState,
 ) -> f64 {
-    let deg_ctx = DegradationContext::new(state);
+    let is_cerebral = matches!(functional_position, Position::Artrine | Position::Passer);
+    let deg_ctx = DegradationContext::new(state).with_cerebral_role(is_cerebral);
     let raw = profile.evaluate_weighted_average(|key| {
         extract_effective_attribute_value(table, key, &deg_ctx)
     });

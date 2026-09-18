@@ -74,11 +74,20 @@ impl MatchState {
         player_id: Uuid,
         event: &ImpulseEvent,
     ) -> Option<ImpulseShift> {
+        let is_home = self.teams.is_home_player(&player_id);
+        let score_deficit = if is_home {
+            (self.scoreboard.away_score().total_points as i32)
+                - (self.scoreboard.home_score().total_points as i32)
+        } else {
+            (self.scoreboard.home_score().total_points as i32)
+                - (self.scoreboard.away_score().total_points as i32)
+        };
         self.impulse.apply_impulse_event(
             player_id,
             event,
             &self.teams,
             &self.fatigue,
+            score_deficit,
         )
     }
 }

@@ -211,6 +211,7 @@ impl ImpulseTracker {
         event: &ImpulseEvent,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
+        score_deficit: i32,
     ) -> Option<ImpulseShift> {
         let is_home = teams.is_home_player(&player_id);
         let table = teams.player_attribute_table(&player_id).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
@@ -233,7 +234,7 @@ impl ImpulseTracker {
         let composure = extract_effective_attribute_value(table, AttributeKey::Composure, &deg_ctx);
         let consistency = extract_effective_attribute_value(table, AttributeKey::Consistency, &deg_ctx);
 
-        let context = PlayerImpulseContext::new(
+        let context = PlayerImpulseContext::with_deficit(
             determination,
             bravery,
             composure,
@@ -242,6 +243,7 @@ impl ImpulseTracker {
             captain_influence,
             is_captain,
             is_home,
+            score_deficit,
         );
 
         let state = if is_home {

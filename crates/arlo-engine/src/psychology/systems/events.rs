@@ -1,8 +1,13 @@
+use crate::psychology::math::{
+    apply_desperation_buff, calculate_effective_ceiling, calculate_effective_floor,
+    calculate_impulse_delta, calculate_loss_aversion_lambda_with_deficit, calculate_reaction_scale,
+    calculate_shift_magnitude, desperation_dampener, desperation_floor_offset,
+};
+pub use crate::psychology::math::{calculate_loss_aversion_lambda, calculate_reaction_scale as calculate_reaction_scale_fn};
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::dynamics::fatigue_depression;
 use arlo_domain::sport_constants::{
-    impulse_floor_for_baseline, CAPTAINCY_LOSS_AVERSION_BUFFER,
-    HOME_MOMENTUM_RESILIENCE_BOOST, IMPULSE_SCALE_MAX,
+    CAPTAINCY_LOSS_AVERSION_BUFFER, HOME_MOMENTUM_RESILIENCE_BOOST,
 };
 use serde::{Deserialize, Serialize};
 
@@ -163,6 +168,7 @@ pub struct PlayerImpulseContext {
     pub captain_influence: f64,
     pub is_captain: bool,
     pub is_home: bool,
+    pub score_deficit: i32,
 }
 
 impl PlayerImpulseContext {
@@ -185,46 +191,33 @@ impl PlayerImpulseContext {
             captain_influence,
             is_captain,
             is_home,
+            score_deficit: 0,
         }
     }
-}
 
-pub fn calculate_reaction_scale(
-    determination: f64,
-    bravery: f64,
-    composure: f64,
-    consistency: f64,
-    involved: bool,
-) -> f64 {
-    let norm_det = determination.clamp(0.0, 20.0) / 10.0;
-    let norm_brav = bravery.clamp(0.0, 20.0) / 10.0;
-    let norm_comp = composure.clamp(0.0, 20.0) / 10.0;
-    let norm_cons = consistency.clamp(0.0, 20.0) / 10.0;
-
-    let involvement_factor = if involved { 1.0 } else { 0.45 };
-    let mental_drive = (0.4 * norm_det + 0.35 * norm_brav + 0.25 * norm_comp).clamp(0.5, 2.0);
-    let stability_dampener = (1.0 / (0.6 + 0.25 * norm_comp + 0.15 * norm_cons)).clamp(0.5, 1.5);
-
-    12.0 * involvement_factor * mental_drive * stability_dampener
-}
-
-pub fn calculate_loss_aversion_lambda(
-    composure: f64,
-    determination: f64,
-    bravery: f64,
-    exhaustion: f64,
-) -> f64 {
-    let norm_comp = composure.clamp(0.0, 20.0) / 10.0;
-    let norm_det = determination.clamp(0.0, 20.0) / 10.0;
-    let norm_brav = bravery.clamp(0.0, 20.0) / 10.0;
-
-    let base_lambda = 2.25
-        - 0.4 * (norm_comp - 1.0)
-        - 0.35 * (norm_det - 1.0)
-        - 0.25 * (norm_brav - 1.0)
-        + 0.5 * exhaustion.clamp(0.0, 1.0);
-
-    base_lambda.clamp(1.1, 3.8)
+    pub fn with_deficit(
+        determination: f64,
+        bravery: f64,
+        composure: f64,
+        consistency: f64,
+        exhaustion: f64,
+        captain_influence: f64,
+        is_captain: bool,
+        is_home: bool,
+        score_deficit: i32,
+    ) -> Self {
+        Self {
+            determination,
+            bravery,
+            composure,
+            consistency,
+            exhaustion,
+            captain_influence,
+            is_captain,
+            is_home,
+            score_deficit,
+        }
+    }
 }
 
 pub fn apply_impulse_event(
@@ -233,7 +226,12 @@ pub fn apply_impulse_event(
     event: &ImpulseEvent,
 ) -> ImpulseShift {
     let is_positive = event.kind().is_positive();
-    let sign = if is_positive { 1.0 } else { -1.0 };
+
+    let (effective_det, effective_brav) = apply_desperation_buff(
+        context.determination,
+        context.bravery,
+        context.score_deficit,
+    );
 
     let reaction_scale = calculate_reaction_scale(
         context.determination,
@@ -248,40 +246,53 @@ pub fn apply_impulse_event(
     let raw_stimulus = ALPHA_SURPRISAL_WEIGHT * surprisal_norm + BETA_EPV_WEIGHT * epv_norm;
     let base_magnitude = reaction_scale * raw_stimulus;
 
-    let base_lambda = calculate_loss_aversion_lambda(
+    let base_lambda = calculate_loss_aversion_lambda_with_deficit(
         context.composure,
         context.determination,
         context.bravery,
         context.exhaustion,
+        context.score_deficit,
     );
     let captain_modifier = context.captain_influence * CAPTAINCY_LOSS_AVERSION_BUFFER;
     let effective_lambda = (base_lambda - captain_modifier).clamp(1.1, 3.8);
 
     let baseline = state.baseline();
-    let base_floor = impulse_floor_for_baseline(baseline);
+    let floor_offset = desperation_floor_offset(context.score_deficit, baseline);
     let fatigue_dep = fatigue_depression(context.exhaustion);
-    let effective_floor = (base_floor * fatigue_dep).clamp(0.0, baseline);
-    let norm_det = context.determination.clamp(0.0, 20.0) / 10.0;
-    let effective_ceiling = (baseline
-        + ((IMPULSE_SCALE_MAX as f64) - baseline) * (0.35 + 0.3 * (norm_det / 2.0)))
-        .clamp(baseline, IMPULSE_SCALE_MAX as f64);
+    let effective_floor = calculate_effective_floor(baseline, floor_offset, fatigue_dep);
+    let effective_ceiling = calculate_effective_ceiling(baseline, effective_det);
 
     let raw_momentum_multiplier = state.momentum_multiplier_for(is_positive);
     let momentum_multiplier = if !is_positive && context.is_home {
         (raw_momentum_multiplier * (1.0 - HOME_MOMENTUM_RESILIENCE_BOOST)).max(0.4)
     } else if is_positive && context.is_home {
-        raw_momentum_multiplier * 1.05
+        raw_momentum_multiplier * 1.10
     } else {
         raw_momentum_multiplier
     };
 
-    let magnitude = if is_positive {
-        base_magnitude * momentum_multiplier
-    } else {
-        base_magnitude * effective_lambda * momentum_multiplier
-    };
+    let dampener = desperation_dampener(
+        context.score_deficit,
+        effective_det,
+        effective_brav,
+    );
 
-    let delta = sign * magnitude;
+    let is_turnover_or_series_success = matches!(
+        event.kind(),
+        ImpulseEventKind::TurnoverWon | ImpulseEventKind::SeriesSuccess
+    );
+
+    let magnitude = calculate_shift_magnitude(
+        base_magnitude,
+        effective_lambda,
+        momentum_multiplier,
+        dampener,
+        is_positive,
+        context.is_home,
+        is_turnover_or_series_success,
+    );
+
+    let delta = calculate_impulse_delta(is_positive, magnitude);
     let previous_accumulator = state.accumulator();
     let previous_value = state.value();
 
