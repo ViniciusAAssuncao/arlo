@@ -33,6 +33,17 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         return ScoringDecision::NoOpportunity;
     }
 
+    let is_scoring_action = decision == ArtrineDecisionKind::SelfFinish
+        || decision == ArtrineDecisionKind::Cross;
+
+    if !is_scoring_action {
+        return ScoringDecision::NoOpportunity;
+    }
+
+    if decision == ArtrineDecisionKind::Cross && !contest.attacker_won {
+        return ScoringDecision::NoOpportunity;
+    }
+
     let tables = &ctx.attribute_tables;
     let total_drives = ctx.drives_in_series + progression.drives_recorded;
     let total_adv = ctx.state_advanced_mirins + progression.mirins_advanced;
@@ -51,14 +62,6 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         &att_prof,
         &state.fatigue_lookup().get(&finisher.id()),
     ) * ctx.artrine_axis_multiplier;
-
-    let is_scoring_action = decision == ArtrineDecisionKind::SelfFinish
-        || decision == ArtrineDecisionKind::Cross
-        || progression.new_normalized_proximity >= 0.70;
-
-    if !is_scoring_action {
-        return ScoringDecision::NoOpportunity;
-    }
 
     let opportunity = evaluate_scoring_opportunity(
         ctx.is_bonus_phase,

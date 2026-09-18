@@ -3,8 +3,6 @@ use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::officiating::punishment::PlayReversalSnapshot;
 use crate::resolution::AttributedDuelOutcome;
-use crate::rng::RngStream;
-use crate::set_piece::execute_bonus_phase_conversion;
 use crate::time::DurationLedger;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -17,7 +15,7 @@ use crate::world_state::play_transition::possession_resolver::{
 };
 use crate::world_state::play_transition::publisher::EventPublisher;
 use crate::world_state::play_transition::scoring_handler::{
-    apply_match_score, enrich_scoring_decision_assister,
+    apply_match_score, enrich_scoring_decision_assister, process_goal_point_bonus_phase,
 };
 use crate::world_state::play_transition::stamina_processor::{
     process_play_stamina, StaminaProcessingRequest,
@@ -116,18 +114,10 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
             self.execution_outcome.scoring_decision,
             ScoringDecision::GoalPoint { .. }
         ) {
-            let seq = self.publisher.state_mut().next_sequence();
-            let mut bonus_rng = self
-                .publisher
-                .state()
-                .rng_provider()
-                .indexed_rng_for(RngStream::DuelResolution, seq);
-
-            execute_bonus_phase_conversion(
+            process_goal_point_bonus_phase(
                 &mut self.publisher,
                 self.offense_team_id,
                 self.pass_phase.scrimmage_x_mirim,
-                &mut bonus_rng,
             );
         }
     }
