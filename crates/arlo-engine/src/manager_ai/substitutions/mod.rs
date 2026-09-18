@@ -7,7 +7,9 @@ pub mod injury_substitution;
 pub mod replacement_selection;
 pub mod tactical_trigger;
 
-pub use decision::{SubstitutionDecisionEngine, SubstitutionPlan};
+pub use decision::{
+    calculate_substitution_stimulus, SubstitutionDecisionEngine, SubstitutionPlan,
+};
 pub use disciplinary_trigger::disciplinary_urgency;
 pub use execution::execute_substitutions;
 pub use fatigue_trigger::{

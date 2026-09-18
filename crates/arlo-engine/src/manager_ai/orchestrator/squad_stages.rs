@@ -1,13 +1,31 @@
 use crate::manager_ai::cognition::{derive_cooldown_seconds, ManagerDecisionKind};
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::human_control::try_apply_human_substitutions;
-use crate::manager_ai::substitutions::{execute_substitutions, SubstitutionDecisionEngine};
+use crate::manager_ai::substitutions::{
+    execute_forced_injury_substitutions, execute_substitutions,
+    resolve_forced_substitutions_for_team, SubstitutionDecisionEngine,
+};
 use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_domain::ManagerControlMode;
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
 use rand::Rng;
 use uuid::Uuid;
+
+pub fn evaluate_injury_substitution_stage(
+    publisher: &mut EventPublisher<'_, impl EventSink>,
+    team_id: Uuid,
+    manager_decision_inbox: &ManagerDecisionInbox,
+) {
+    if publisher.state().control_mode_for_team(team_id) == ManagerControlMode::Ai {
+        execute_forced_injury_substitutions(publisher, team_id);
+        publisher
+            .state_mut()
+            .clear_pending_forced_substitutions(team_id);
+    } else {
+        resolve_forced_substitutions_for_team(publisher, team_id, manager_decision_inbox);
+    }
+}
 
 pub fn evaluate_substitution_stage<R: Rng + ?Sized>(
     publisher: &mut EventPublisher<'_, impl EventSink>,

@@ -1,20 +1,19 @@
-use crate::ai::cognitive::sample_manager_action;
-use crate::manager_ai::cognition::sample_manager_decision_noise;
+use crate::ai::cognitive::ManagerDecisionFactory;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::officiating::ReviewableCall;
 use arlo_domain::sport_constants::{CHALLENGE_CALLS_PER_MATCH, CHALLENGE_LEVERAGE_WEIGHT};
 use rand::Rng;
 
-pub fn base_challenge_stimulus<R: Rng + ?Sized>(
-    context: &ManagerDecisionContext,
-    rng: &mut R,
-) -> f64 {
+pub fn calculate_challenge_stimulus(context: &ManagerDecisionContext) -> f64 {
     let total_challenges = CHALLENGE_CALLS_PER_MATCH.max(1) as f64;
     let challenge_ratio = (context.remaining_challenges as f64) / total_challenges;
     let leverage_mult =
         1.0 + context.situational_awareness.leverage() * CHALLENGE_LEVERAGE_WEIGHT;
-    let noise = sample_manager_decision_noise(context.manager_snapshot.discipline, rng);
-    (challenge_ratio * leverage_mult + noise).clamp(0.0, 1.0)
+    (challenge_ratio * leverage_mult).clamp(0.0, 1.0)
+}
+
+pub fn base_challenge_stimulus(context: &ManagerDecisionContext) -> f64 {
+    calculate_challenge_stimulus(context)
 }
 
 pub struct ChallengeDecisionEngine;
@@ -30,7 +29,12 @@ impl ChallengeDecisionEngine {
             return false;
         }
 
-        let stimulus = base_challenge_stimulus(context, rng);
-        sample_manager_action(stimulus, context.manager_snapshot.challenge_judgment, rng)
+        let stimulus = calculate_challenge_stimulus(context);
+        ManagerDecisionFactory::decide(
+            stimulus,
+            context.manager_snapshot.challenge_judgment,
+            context.manager_snapshot.discipline,
+            rng,
+        )
     }
 }

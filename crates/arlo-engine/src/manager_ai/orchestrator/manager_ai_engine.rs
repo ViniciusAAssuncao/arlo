@@ -1,11 +1,14 @@
 use crate::manager_ai::context::ManagerDecisionContext;
-use crate::manager_ai::orchestrator::foul_challenge_stage::evaluate_foul_challenge_stage;
-use crate::manager_ai::orchestrator::injury_substitution_stage::evaluate_injury_substitution_stage;
-use crate::manager_ai::orchestrator::kick_foul_realignment_stage::evaluate_kick_foul_realignment_stage;
-use crate::manager_ai::orchestrator::reviewable_call_stage::evaluate_reviewable_call_challenge_stage;
-use crate::manager_ai::orchestrator::substitution_stage::evaluate_substitution_stage;
-use crate::manager_ai::orchestrator::tactical_adjustment_stage::evaluate_tactical_adjustment_stage;
-use crate::manager_ai::orchestrator::time_call_stage::evaluate_time_call_stage;
+use crate::manager_ai::orchestrator::officiating_stages::{
+    evaluate_foul_challenge_stage, evaluate_reviewable_call_challenge_stage,
+};
+use crate::manager_ai::orchestrator::squad_stages::{
+    evaluate_injury_substitution_stage, evaluate_substitution_stage,
+};
+use crate::manager_ai::orchestrator::tactical_stages::{
+    evaluate_kick_foul_realignment_stage, evaluate_tactical_adjustment_stage,
+    evaluate_time_call_stage,
+};
 use crate::manager_ai::play_calling::{
     execute_play_call_selection, rank_playbook, PlayCallDecisionEngine,
 };

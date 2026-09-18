@@ -1,7 +1,6 @@
-use crate::ai::cognitive::sample_manager_action;
+use crate::ai::cognitive::ManagerDecisionFactory;
 use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::Lineup;
-use crate::manager_ai::cognition::sample_manager_decision_noise;
 use crate::manager_ai::context::squad_fatigue_summary::SquadFatigueSummary;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::substitutions::disciplinary_trigger::disciplinary_urgency;
@@ -26,6 +25,17 @@ pub struct SubstitutionPlan {
     pub outgoing_id: Uuid,
     pub incoming_id: Uuid,
     pub reason: SubstitutionReason,
+}
+
+pub fn calculate_substitution_stimulus(
+    fatigue_urgency: f64,
+    tactical_urgency: f64,
+    disciplinary_urgency: f64,
+) -> f64 {
+    (fatigue_urgency * SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT
+        + tactical_urgency * SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT
+        + disciplinary_urgency * SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT)
+        .clamp(0.0, 1.0)
 }
 
 pub struct SubstitutionDecisionEngine;
@@ -73,14 +83,14 @@ impl SubstitutionDecisionEngine {
             );
             let disc_urg = disciplinary_urgency(p_avail);
 
-            let noise = sample_manager_decision_noise(discipline, rng);
-            let combined_urgency = ((fat_urg * SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT
-                + tac_urg * SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT
-                + disc_urg * SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT)
-                + noise)
-                .clamp(0.0, 1.0);
+            let stimulus = calculate_substitution_stimulus(fat_urg, tac_urg, disc_urg);
 
-            if sample_manager_action(combined_urgency, context.manager_snapshot.man_management, rng) {
+            if ManagerDecisionFactory::decide(
+                stimulus,
+                context.manager_snapshot.man_management,
+                discipline,
+                rng,
+            ) {
                 let available_candidates: Vec<_> = bench
                     .available_replacements()
                     .filter(|p| !used_candidates.contains(&p.id()))
