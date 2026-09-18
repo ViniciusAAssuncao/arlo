@@ -5,11 +5,9 @@ use crate::artrine::event_translation::translate_artrine_decision_made;
 use crate::match_decision::event_translation::create_envelope;
 use crate::open_play::carrier_sampler::sample_carrier_decision_from_table;
 use crate::open_play::CarrierDecisionEvaluator;
-use crate::play_resolution::ball_kinematics::calculate_distance_mirim;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
-use crate::world_state::step::open_play_loop::loop_state::OpenPlayLoopState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Player, Position, SlotRole};
 use arlo_events::EventSink;
@@ -20,14 +18,12 @@ pub fn select_carrier_decision<R: Rng + ?Sized>(
     context: &CallToActionContext,
     iter_ctx: &OpenPlayIterationContext<'_>,
     pass_phase: &PassPhaseResult<'_>,
-    loop_state: &OpenPlayLoopState,
     current_carrier: &Player,
     rng: &mut R,
     sink: &mut impl EventSink,
 ) -> ArtrineDecisionKind {
-    let total_drives = state.drives_in_current_series() + loop_state.accumulated_drives_recorded;
-    let total_advance = state.possession().series_state().advanced_mirins()
-        + loop_state.accumulated_mirins_advanced;
+    let total_drives = state.drives_in_current_series();
+    let total_advance = state.possession().series_state().advanced_mirins();
     let is_last_down = state.possession().series_state().is_last_down();
     let is_bonus_phase = state.possession().is_bonus_phase();
 
@@ -35,12 +31,10 @@ pub fn select_carrier_decision<R: Rng + ?Sized>(
         available_decision_kinds(total_drives, total_advance, is_last_down, is_bonus_phase);
 
     let epv_model = DynamicEpvModel::new(iter_ctx.offensive_gravity_mult);
-    let remaining_advance = (state
+    let remaining_advance = state
         .possession()
         .series_state()
-        .remaining_mirins_to_target()
-        - loop_state.accumulated_mirins_advanced)
-        .max(0.0);
+        .remaining_mirins_to_target();
     let current_epv = epv_model.calculate_epa(
         iter_ctx.normalized_proximity,
         state.possession().down(),
@@ -73,16 +67,11 @@ pub fn select_carrier_decision<R: Rng + ?Sized>(
         .unwrap_or_default();
 
     let carrier_physical_state = state.fatigue_lookup().get(&current_carrier.id());
-
-    let distance_to_next_artro_mirim =
-        calculate_distance_mirim(loop_state.current_carrier_pos, iter_ctx.next_artro_pos);
+    let carrier_table = *state.attribute_table_for(&current_carrier.id());
 
     let offense_instructions = *state.instructions_for_team(context.offense_team_id);
     let passing_range = offense_instructions.in_possession().passing_range();
-
-    let is_true_artrine = loop_state.current_carrier_id == pass_phase.artrine.id();
-
-    let carrier_table = *state.attribute_table_for(&current_carrier.id());
+    let is_true_artrine = current_carrier.id() == pass_phase.artrine.id();
 
     let eval_ctx = DecisionEvaluationContext::new(
         current_carrier,
@@ -101,18 +90,14 @@ pub fn select_carrier_decision<R: Rng + ?Sized>(
         pass_phase.pass_duel_outcome.outcome().net_advantage(),
         iter_ctx.best_available_target_weight,
         iter_ctx.long_launch_target_weight,
-        iter_ctx.pitch_control_ahead,
-        distance_to_next_artro_mirim,
-        state.pitch().length_mirim(),
-        state.pitch().width_mirim(),
-        loop_state.current_carrier_pos,
+        iter_ctx.team_advantage,
+        iter_ctx.channel,
         iter_ctx.offensive_gravity_mult,
         passing_range,
         iter_ctx.risk_profile,
         iter_ctx.game_state_pressure,
         context.decision_emphasis,
         is_true_artrine,
-        iter_ctx.expected_free_path_mirim,
     );
 
     let utilities =

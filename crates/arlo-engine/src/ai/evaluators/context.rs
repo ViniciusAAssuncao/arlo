@@ -9,7 +9,7 @@ use crate::resolution::duel_noise::player_noise_distribution_from_table_with_imp
 use crate::resolution::duel_profiles::DuelProfile;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::world_state::GameStatePressure;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position, SlotRole};
+use arlo_domain::{ArtrineDecisionKind, ArtroPlacement, AttributeKey, Player, Position, SlotRole};
 use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
 use std::collections::HashMap;
@@ -33,6 +33,8 @@ pub struct DecisionEvaluationContext<'a> {
     pub pass_protection_net_advantage: f64,
     pub best_available_target_weight: f64,
     pub long_launch_target_weight: f64,
+    pub team_advantage: f64,
+    pub channel: ArtroPlacement,
     pub pitch_control_ahead: f64,
     pub distance_to_next_artro_mirim: f64,
     pub pitch_length_mirim: f64,
@@ -67,21 +69,41 @@ impl<'a> DecisionEvaluationContext<'a> {
         pass_protection_net_advantage: f64,
         best_available_target_weight: f64,
         long_launch_target_weight: f64,
-        pitch_control_ahead: f64,
-        distance_to_next_artro_mirim: f64,
-        pitch_length_mirim: f64,
-        pitch_width_mirim: f64,
-        carrier_pos_vec: VectorPosition,
+        team_advantage: f64,
+        channel: ArtroPlacement,
         offensive_gravity: f64,
         passing_range: PassingRange,
         risk_profile: RiskProfile,
         game_state_pressure: GameStatePressure,
         play_call_emphasis: DecisionEmphasis,
         is_true_artrine: bool,
-        expected_free_path_mirim: f64,
     ) -> Self {
+        let pitch_length_mirim = 145.0;
+        let pitch_width_mirim = 85.0;
+
+        let control_val = (0.50 + 0.04 * team_advantage - 0.08 * normalized_proximity
+            + 0.04 * game_state_pressure.urgency_index())
+        .clamp(0.15, 0.85);
+        let pitch_control_ahead = control_val;
+
+        let expected_free_path_mirim =
+            (pitch_control_ahead * (1.0 - normalized_proximity) * 35.0).clamp(1.5, 25.0);
+
+        let pos_mirim = normalized_proximity * pitch_length_mirim;
+        let next_artro = ((pos_mirim / 3.0).floor() + 1.0) * 3.0;
+        let distance_to_next_artro_mirim = (next_artro - pos_mirim).clamp(0.1, 3.0);
+
+        let center_y_m = pitch_width_mirim * 0.5 * MIRIM_TO_METERS;
+        let y_m = match channel {
+            ArtroPlacement::LeftLateral => 15.0 * MIRIM_TO_METERS,
+            ArtroPlacement::RightLateral => 70.0 * MIRIM_TO_METERS,
+            ArtroPlacement::Central => center_y_m,
+        };
+        let x_m = normalized_proximity * pitch_length_mirim * MIRIM_TO_METERS;
+        let carrier_pos_vec = VectorPosition::from_components(x_m, y_m, 0.0);
+
         let opponent_epa_at_proximity = epv_model.opponent_epa(normalized_proximity);
-        let cached_probability_bounds = Self::calculate_probability_bounds_from_table(
+        let cached_probability_bounds = Self::calculate_probability_bounds(
             carrier,
             carrier_table,
             &carrier_physical_state,
@@ -104,6 +126,8 @@ impl<'a> DecisionEvaluationContext<'a> {
             pass_protection_net_advantage,
             best_available_target_weight,
             long_launch_target_weight,
+            team_advantage,
+            channel,
             pitch_control_ahead,
             distance_to_next_artro_mirim,
             pitch_length_mirim,
@@ -121,7 +145,7 @@ impl<'a> DecisionEvaluationContext<'a> {
         }
     }
 
-    pub fn calculate_probability_bounds_from_table(
+    pub fn calculate_probability_bounds(
         carrier: &Player,
         table: &PlayerAttributeTable,
         physical_state: &PhysicalState,
@@ -147,15 +171,6 @@ impl<'a> DecisionEvaluationContext<'a> {
         (floor, ceiling)
     }
 
-    pub fn calculate_probability_bounds(
-        carrier: &Player,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
-        physical_state: &PhysicalState,
-    ) -> (f64, f64) {
-        let table = PlayerAttributeTable::from_player(carrier, attribute_keys);
-        Self::calculate_probability_bounds_from_table(carrier, &table, physical_state)
-    }
-
     pub fn carrier(&self) -> &'a Player {
         self.carrier
     }
@@ -177,16 +192,11 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn pitch_control(&self) -> f64 {
-        self.pitch_control_ahead.max(0.0).min(1.0)
+        self.pitch_control_ahead.clamp(0.0, 1.0)
     }
 
     pub fn expected_free_path(&self) -> f64 {
-        if self.expected_free_path_mirim > 0.0 {
-            self.expected_free_path_mirim
-        } else {
-            let rem_len = ((1.0 - self.normalized_proximity) * self.pitch_length_mirim).max(0.0);
-            (self.pitch_control() * rem_len * 0.35).clamp(0.5, 25.0)
-        }
+        self.expected_free_path_mirim
     }
 
     pub fn carrier_rating(&self, profile: &DuelProfile) -> f64 {
@@ -228,17 +238,34 @@ impl<'a> DecisionEvaluationContext<'a> {
         self.opponent_epa_at_proximity
     }
 
+    pub fn is_lateral(&self) -> bool {
+        self.channel != ArtroPlacement::Central
+    }
+
+    pub fn lateral_ratio(&self) -> f64 {
+        if self.is_lateral() {
+            0.85
+        } else {
+            0.0
+        }
+    }
+
+    pub fn shooting_angle_factor(&self) -> f64 {
+        if self.is_lateral() {
+            0.75
+        } else {
+            1.0
+        }
+    }
+
     pub fn carrier_tactical_bias(&self, kind: ArtrineDecisionKind) -> f64 {
-        let center_y_m = (self.pitch_width_mirim * 0.5) * MIRIM_TO_METERS;
-        let dist_from_center_m = (self.carrier_pos_vec.raw().1 - center_y_m).abs();
-        let is_lateral = dist_from_center_m > (self.pitch_width_mirim * 0.20 * MIRIM_TO_METERS);
         crate::open_play::CarrierTacticalBias::calculate_bias(
             self.carrier_position,
             self.carrier_role,
             &self.carrier_instructions,
             kind,
             self.normalized_proximity,
-            is_lateral,
+            self.is_lateral(),
         )
     }
 }
