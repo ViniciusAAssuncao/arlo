@@ -21,6 +21,7 @@ pub fn resolve_decision<R: Rng + ?Sized>(
     let available_kinds = available_decision_kinds(
         ctx.drives_in_series,
         ctx.state_advanced_mirins,
+        ctx.normalized_proximity,
         ctx.down >= 4,
         ctx.is_bonus_phase,
     );

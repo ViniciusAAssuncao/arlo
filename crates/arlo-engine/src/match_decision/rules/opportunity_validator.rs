@@ -20,9 +20,14 @@ pub fn can_attempt_goal_point(drives_in_series: u32) -> bool {
     drives_in_series >= GOAL_POINT_REQUIRED_DRIVES
 }
 
-pub fn can_attempt_field_point(drives_in_series: u32, territory_advance_mirim: f64) -> bool {
+pub fn can_attempt_field_point(
+    drives_in_series: u32,
+    territory_advance_mirim: f64,
+    normalized_proximity: f64,
+) -> bool {
     drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
-        && territory_advance_mirim >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+        && (territory_advance_mirim >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+            || normalized_proximity >= 0.70)
 }
 
 pub fn can_attempt_field_goal(is_bonus_phase: bool) -> bool {
@@ -33,6 +38,7 @@ pub fn validate_scoring_opportunity(
     is_bonus_phase: bool,
     drives_in_series: u32,
     territory_advance_mirim: f64,
+    normalized_proximity: f64,
     finisher_rating: f64,
 ) -> Result<ScoringOpportunity, ScoringValidationError> {
     if is_bonus_phase {
@@ -44,7 +50,7 @@ pub fn validate_scoring_opportunity(
         return Ok(ScoringOpportunity::GoalPoint);
     }
 
-    if can_attempt_field_point(drives_in_series, territory_advance_mirim) {
+    if can_attempt_field_point(drives_in_series, territory_advance_mirim, normalized_proximity) {
         return Ok(ScoringOpportunity::FieldPoint);
     }
 
@@ -55,26 +61,24 @@ pub fn validate_scoring_opportunity(
         });
     }
 
-    if territory_advance_mirim < FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM {
-        return Err(ScoringValidationError::InsufficientTerritoryAdvance {
-            current_mirim: territory_advance_mirim.max(0.0) as u32,
-            required_mirim: FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM as u32,
-        });
-    }
-
-    Err(ScoringValidationError::NoOpportunityCriteriaMet)
+    Err(ScoringValidationError::InsufficientTerritoryAdvance {
+        current_mirim: territory_advance_mirim.max(0.0) as u32,
+        required_mirim: FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM as u32,
+    })
 }
 
 pub fn evaluate_scoring_opportunity(
     is_bonus_phase: bool,
     drives_in_series: u32,
     territory_advance_mirim: f64,
+    normalized_proximity: f64,
     finisher_rating: f64,
 ) -> ScoringOpportunity {
     validate_scoring_opportunity(
         is_bonus_phase,
         drives_in_series,
         territory_advance_mirim,
+        normalized_proximity,
         finisher_rating,
     )
     .unwrap_or(ScoringOpportunity::None)

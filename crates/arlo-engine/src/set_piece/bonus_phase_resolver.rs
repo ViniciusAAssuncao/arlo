@@ -147,27 +147,28 @@ pub fn execute_bonus_phase_conversion<R: Rng + ?Sized>(
     spot_x_mirim: f64,
     rng: &mut R,
 ) -> Option<BonusPhaseResolutionOutcome> {
-    let outcome = resolve_bonus_phase_field_goal(publisher.state(), scoring_team_id, spot_x_mirim, rng)?;
+    let outcome_opt = resolve_bonus_phase_field_goal(publisher.state(), scoring_team_id, spot_x_mirim, rng);
 
-    if outcome.scored {
-        apply_match_score(publisher.state_mut(), scoring_team_id, &outcome.scoring_decision);
+    if let Some(outcome) = &outcome_opt {
+        if outcome.scored {
+            apply_match_score(publisher.state_mut(), scoring_team_id, &outcome.scoring_decision);
+        }
+        publisher.emit_scoring_event(&outcome.scoring_decision);
+        publisher.emit_duel_events(&[outcome.duel.clone()], outcome.kicker_id);
+
+        let (k_energy, k_w_bal) = publisher
+            .state_mut()
+            .apply_duel_contest_strain(outcome.kicker_id, 1.2);
+        publisher.emit_physical_strain(outcome.kicker_id, k_energy, k_w_bal, 0.0);
+
+        let (g_energy, g_w_bal) = publisher
+            .state_mut()
+            .apply_duel_contest_strain(outcome.goalguard_id, 1.2);
+        publisher.emit_physical_strain(outcome.goalguard_id, g_energy, g_w_bal, 0.0);
     }
-    publisher.emit_scoring_event(&outcome.scoring_decision);
-
-    publisher.emit_duel_events(&[outcome.duel.clone()], outcome.kicker_id);
-
-    let (k_energy, k_w_bal) = publisher
-        .state_mut()
-        .apply_duel_contest_strain(outcome.kicker_id, 1.2);
-    publisher.emit_physical_strain(outcome.kicker_id, k_energy, k_w_bal, 0.0);
-
-    let (g_energy, g_w_bal) = publisher
-        .state_mut()
-        .apply_duel_contest_strain(outcome.goalguard_id, 1.2);
-    publisher.emit_physical_strain(outcome.goalguard_id, g_energy, g_w_bal, 0.0);
 
     publisher.state_mut().possession_mut().series_state_mut().set_bonus_phase(false);
     publisher.state_mut().reset_drives();
 
-    Some(outcome)
+    outcome_opt
 }
