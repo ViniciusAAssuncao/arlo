@@ -1,5 +1,6 @@
 use crate::error::DbResult;
 use crate::models::position_code::position_to_code;
+use crate::models::slot_role_code::slot_role_to_code;
 use crate::models::{FormationRow, FormationSlotRow};
 use crate::repositories::fetch::{fetch_all, fetch_optional_by_param};
 use arlo_domain::Formation;
@@ -68,6 +69,7 @@ pub async fn insert(pool: &SqlitePool, formation: &Formation) -> DbResult<()> {
     for (index, slot) in formation.slots().iter().enumerate() {
         let slot_id = Uuid::new_v4().to_string();
         let pos_code = position_to_code(slot.position());
+        let role_code = slot_role_to_code(slot.role());
         sqlx::query(
             "INSERT INTO formation_slots (id, formation_id, slot_index, position, pitch_length_ratio, pitch_width_ratio, slot_role) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
@@ -75,9 +77,9 @@ pub async fn insert(pool: &SqlitePool, formation: &Formation) -> DbResult<()> {
         .bind(formation.id().to_string())
         .bind(index as i32)
         .bind(pos_code)
-        .bind(slot.pitch_length_ratio())
-        .bind(slot.pitch_width_ratio())
-        .bind("Standard")
+        .bind(0.0)
+        .bind(0.0)
+        .bind(role_code)
         .execute(&mut *tx)
         .await?;
     }

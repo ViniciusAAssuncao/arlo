@@ -29,7 +29,7 @@ pub fn apply_duel_strain(
                 0.0,
                 0.0,
                 0.0,
-                PitchZone::Central,
+                PitchZone::OpenField,
                 0.0,
             );
         }
@@ -65,7 +65,7 @@ pub fn apply_duel_strain(
                 0.0,
                 0.0,
                 0.0,
-                PitchZone::Central,
+                PitchZone::OpenField,
                 0.0,
             );
         }
@@ -119,7 +119,7 @@ pub fn apply_movement_strain(publisher: &mut EventPublisher<'_, impl EventSink>)
 
         let metabolic_joules = base_dist_mirim * 300.0 * (1.5 - stamina * 0.5);
         let peak_spd = 5.0 + pace * 4.0;
-        let zone = PitchZone::Central;
+        let zone = PitchZone::OpenField;
 
         publisher.emit_physical_strain(
             pid,

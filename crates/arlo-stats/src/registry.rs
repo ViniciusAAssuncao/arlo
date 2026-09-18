@@ -1,33 +1,21 @@
 use crate::aggregator::StatAggregator;
-use crate::manager::{ ManagerDecisionAggregator, PlayCallOutcomeAggregator };
+use crate::manager::{ManagerDecisionAggregator, PlayCallOutcomeAggregator};
 use crate::officiating::{
-    PlayerFoulAggregator,
-    PlayerKickFoulAggregator,
-    PlayerPunishmentAggregator,
+    PlayerFoulAggregator, PlayerKickFoulAggregator, PlayerPunishmentAggregator,
     RefereeStatsAggregator,
 };
 use crate::player::{
-    PlayerArtrineDecisionAggregator,
-    PlayerAssistsAggregator,
-    PlayerAvailabilityAggregator,
-    PlayerDrivesAggregator,
-    PlayerDuelAggregator,
-    PlayerImpulseAggregator,
-    PlayerInjuryAggregator,
-    PlayerPhysicalAggregator,
-    PlayerReceivingAggregator,
-    PlayerScoringAttemptsAggregator,
+    PlayerArtrineDecisionAggregator, PlayerAssistsAggregator, PlayerAvailabilityAggregator,
+    PlayerDrivesAggregator, PlayerDuelAggregator, PlayerImpulseAggregator, PlayerInjuryAggregator,
+    PlayerPhysicalAggregator, PlayerReceivingAggregator, PlayerScoringAttemptsAggregator,
     PlayerTouchesAggregator,
 };
 use crate::snapshot::{
-    IntoSnapshot,
-    PeriodicMatchSnapshot,
-    PlayerMatchSnapshot,
-    TeamMatchSnapshot,
+    IntoSnapshot, PeriodicMatchSnapshot, PlayerMatchSnapshot, TeamMatchSnapshot,
 };
 use crate::team::TeamPossessionAggregator;
-use arlo_events::{ MatchClockInstant, MatchEvent, MatchEventEnvelope };
-use std::collections::{ HashMap, HashSet };
+use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 #[derive(Default)]
@@ -105,7 +93,7 @@ impl AggregatorRegistry {
 
     pub fn handle_envelopes<'a>(
         &mut self,
-        envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>
+        envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>,
     ) {
         for envelope in envelopes {
             self.handle_envelope(envelope);
@@ -332,8 +320,7 @@ impl AggregatorRegistry {
             snap.intra_match_recovery_amount = p.intra_match_recovery_amount;
             snap.distance_first_zone = p.distance_first_zone;
             snap.distance_second_zone = p.distance_second_zone;
-            snap.distance_corridors = p.distance_corridors;
-            snap.distance_central = p.distance_central;
+            snap.distance_open_field = p.distance_open_field;
         }
 
         if let Some(agg) = self.get::<PlayerImpulseAggregator>() {
@@ -387,13 +374,13 @@ impl AggregatorRegistry {
     pub fn capture_periodic_snapshot(
         &self,
         sequence_number: u64,
-        clock: MatchClockInstant
+        clock: MatchClockInstant,
     ) -> PeriodicMatchSnapshot {
         PeriodicMatchSnapshot::new(
             sequence_number,
             clock,
             self.player_snapshots_vec(),
-            self.team_snapshots_vec()
+            self.team_snapshots_vec(),
         )
     }
 }

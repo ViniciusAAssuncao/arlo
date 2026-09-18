@@ -1,51 +1,33 @@
 use crate::domain::position::{Position, PositionLine};
-use crate::domain::sport_constants::{NORMALIZED_RATIO_MAX, NORMALIZED_RATIO_MIN};
-use crate::domain::validation::validate_float_range;
-use crate::error::DomainResult;
+use crate::domain::tactics::slot_role::SlotRole;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FormationSlot {
     offensive_position: Position,
     defensive_position: Position,
-    pitch_length_ratio: f64,
-    pitch_width_ratio: f64,
+    role: SlotRole,
 }
 
 impl FormationSlot {
-    pub fn new(
-        position: Position,
-        pitch_length_ratio: f64,
-        pitch_width_ratio: f64,
-    ) -> DomainResult<Self> {
-        Self::with_dual_positions(position, position, pitch_length_ratio, pitch_width_ratio)
+    pub fn new(position: Position, role: SlotRole) -> Self {
+        Self {
+            offensive_position: position,
+            defensive_position: position,
+            role,
+        }
     }
 
     pub fn with_dual_positions(
         offensive_position: Position,
         defensive_position: Position,
-        pitch_length_ratio: f64,
-        pitch_width_ratio: f64,
-    ) -> DomainResult<Self> {
-        validate_float_range(
-            pitch_length_ratio,
-            NORMALIZED_RATIO_MIN,
-            NORMALIZED_RATIO_MAX,
-            "pitch_length_ratio",
-        )?;
-        validate_float_range(
-            pitch_width_ratio,
-            NORMALIZED_RATIO_MIN,
-            NORMALIZED_RATIO_MAX,
-            "pitch_width_ratio",
-        )?;
-
-        Ok(Self {
+        role: SlotRole,
+    ) -> Self {
+        Self {
             offensive_position,
             defensive_position,
-            pitch_length_ratio,
-            pitch_width_ratio,
-        })
+            role,
+        }
     }
 
     pub fn position(&self) -> Position {
@@ -60,12 +42,8 @@ impl FormationSlot {
         self.defensive_position
     }
 
-    pub fn pitch_length_ratio(&self) -> f64 {
-        self.pitch_length_ratio
-    }
-
-    pub fn pitch_width_ratio(&self) -> f64 {
-        self.pitch_width_ratio
+    pub fn role(&self) -> SlotRole {
+        self.role
     }
 
     pub fn line(&self) -> PositionLine {

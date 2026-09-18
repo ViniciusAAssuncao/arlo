@@ -14,8 +14,7 @@ pub struct PlayerPhysicalSnapshot {
     pub intra_match_recovery_amount: f64,
     pub distance_first_zone: f64,
     pub distance_second_zone: f64,
-    pub distance_corridors: f64,
-    pub distance_central: f64,
+    pub distance_open_field: f64,
 }
 
 impl PlayerPhysicalSnapshot {
@@ -31,8 +30,7 @@ impl PlayerPhysicalSnapshot {
         intra_match_recovery_amount: f64,
         distance_first_zone: f64,
         distance_second_zone: f64,
-        distance_corridors: f64,
-        distance_central: f64,
+        distance_open_field: f64,
     ) -> Self {
         Self {
             player_id,
@@ -46,8 +44,7 @@ impl PlayerPhysicalSnapshot {
             intra_match_recovery_amount,
             distance_first_zone,
             distance_second_zone,
-            distance_corridors,
-            distance_central,
+            distance_open_field,
         }
     }
 }
@@ -66,8 +63,7 @@ impl Default for PlayerPhysicalSnapshot {
             intra_match_recovery_amount: 0.0,
             distance_first_zone: 0.0,
             distance_second_zone: 0.0,
-            distance_corridors: 0.0,
-            distance_central: 0.0,
+            distance_open_field: 0.0,
         }
     }
 }

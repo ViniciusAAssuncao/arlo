@@ -80,7 +80,7 @@ impl<'a> DownResolutionContext<'a> {
         } else if normalized_proximity >= 0.72 {
             PitchZone::SecondZone
         } else {
-            PitchZone::Central
+            PitchZone::OpenField
         };
 
         let channel = ArtroPlacement::Central;

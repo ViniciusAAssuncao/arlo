@@ -16,8 +16,7 @@ pub struct MatchPlayerPhysicalRow {
     pub intra_match_recovery_amount: f64,
     pub distance_first_zone: f64,
     pub distance_second_zone: f64,
-    pub distance_corridors: f64,
-    pub distance_central: f64,
+    pub distance_open_field: f64,
 }
 
 impl MatchPlayerPhysicalRow {
@@ -36,8 +35,7 @@ impl MatchPlayerPhysicalRow {
         intra_match_recovery_amount: f64,
         distance_first_zone: f64,
         distance_second_zone: f64,
-        distance_corridors: f64,
-        distance_central: f64,
+        distance_open_field: f64,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -53,8 +51,7 @@ impl MatchPlayerPhysicalRow {
             intra_match_recovery_amount,
             distance_first_zone,
             distance_second_zone,
-            distance_corridors,
-            distance_central,
+            distance_open_field,
         }
     }
 
@@ -73,8 +70,7 @@ impl MatchPlayerPhysicalRow {
             stats.intra_match_recovery_amount,
             stats.distance_first_zone,
             stats.distance_second_zone,
-            stats.distance_corridors,
-            stats.distance_central,
+            stats.distance_open_field,
         )
     }
 }

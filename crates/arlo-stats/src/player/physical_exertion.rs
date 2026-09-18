@@ -18,8 +18,7 @@ pub struct PlayerPhysicalStats {
     pub intra_match_recovery_amount: f64,
     pub distance_first_zone: f64,
     pub distance_second_zone: f64,
-    pub distance_corridors: f64,
-    pub distance_central: f64,
+    pub distance_open_field: f64,
     pub by_zone: HashMap<PitchZone, f64>,
 }
 
@@ -37,8 +36,7 @@ impl PlayerPhysicalStats {
             intra_match_recovery_amount: 0.0,
             distance_first_zone: 0.0,
             distance_second_zone: 0.0,
-            distance_corridors: 0.0,
-            distance_central: 0.0,
+            distance_open_field: 0.0,
             by_zone: HashMap::new(),
         }
     }
@@ -87,12 +85,8 @@ impl PlayerPhysicalStats {
         self.distance_second_zone
     }
 
-    pub fn distance_corridors(&self) -> f64 {
-        self.distance_corridors
-    }
-
-    pub fn distance_central(&self) -> f64 {
-        self.distance_central
+    pub fn distance_open_field(&self) -> f64 {
+        self.distance_open_field
     }
 
     pub fn by_zone(&self) -> &HashMap<PitchZone, f64> {
@@ -120,8 +114,7 @@ impl IntoSnapshot for PlayerPhysicalStats {
             intra_match_recovery_amount: self.intra_match_recovery_amount,
             distance_first_zone: self.distance_first_zone,
             distance_second_zone: self.distance_second_zone,
-            distance_corridors: self.distance_corridors,
-            distance_central: self.distance_central,
+            distance_open_field: self.distance_open_field,
         }
     }
 }
@@ -190,8 +183,7 @@ impl PlayerPhysicalAggregator {
         match zone {
             PitchZone::FirstZone => stats.distance_first_zone += distance_mirim.max(0.0),
             PitchZone::SecondZone => stats.distance_second_zone += distance_mirim.max(0.0),
-            PitchZone::Corridor => stats.distance_corridors += distance_mirim.max(0.0),
-            PitchZone::Central => stats.distance_central += distance_mirim.max(0.0),
+            PitchZone::OpenField => stats.distance_open_field += distance_mirim.max(0.0),
         }
 
         *stats.by_zone.entry(zone).or_insert(0.0) += distance_mirim.max(0.0);

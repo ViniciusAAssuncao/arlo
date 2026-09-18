@@ -66,7 +66,7 @@ pub fn resolve_pass_phase<'a>(
     } else if norm_prox >= 0.72 {
         PitchZone::SecondZone
     } else {
-        PitchZone::Central
+        PitchZone::OpenField
     };
 
     let current_time = state.clock().seconds_in_period();

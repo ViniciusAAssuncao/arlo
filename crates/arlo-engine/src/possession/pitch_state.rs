@@ -1,6 +1,6 @@
-use arlo_domain::sport_constants::{ FIELD_POINT_REQUIRED_DRIVES, GOAL_POINT_REQUIRED_DRIVES };
-use arlo_domain::{ ArtroPlacement, PitchZone };
-use serde::{ Deserialize, Serialize };
+use arlo_domain::sport_constants::{FIELD_POINT_REQUIRED_DRIVES, GOAL_POINT_REQUIRED_DRIVES};
+use arlo_domain::{ArtroPlacement, PitchZone};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PitchState {
@@ -21,7 +21,7 @@ impl PitchState {
         channel: ArtroPlacement,
         normalized_proximity: f64,
         drives_in_series: u32,
-        is_bonus_phase: bool
+        is_bonus_phase: bool,
     ) -> Self {
         Self {
             down: down.clamp(1, 4),
@@ -38,7 +38,7 @@ impl PitchState {
         Self {
             down: 1,
             remaining_advance_mirim: 10.0,
-            zone: PitchZone::Central,
+            zone: PitchZone::OpenField,
             channel: ArtroPlacement::Central,
             normalized_proximity: 0.5,
             drives_in_series: 0,
@@ -87,10 +87,10 @@ impl PitchState {
     }
 
     pub fn can_attempt_field_point(&self) -> bool {
-        self.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES &&
-            (self.normalized_proximity >= 0.6 ||
-                self.zone == PitchZone::SecondZone ||
-                self.zone == PitchZone::FirstZone)
+        self.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
+            && (self.normalized_proximity >= 0.6
+                || self.zone == PitchZone::SecondZone
+                || self.zone == PitchZone::FirstZone)
     }
 
     pub fn determine_zone_from_proximity(normalized_proximity: f64) -> PitchZone {
@@ -100,20 +100,21 @@ impl PitchState {
         } else if p >= 0.72 {
             PitchZone::SecondZone
         } else {
-            PitchZone::Central
+            PitchZone::OpenField
         }
     }
 
     pub fn with_advance(&self, mirins: f64, pitch_length_mirim: f64) -> Self {
-        let new_norm_prox = (
-            self.normalized_proximity +
-            mirins / pitch_length_mirim.max(1.0)
-        ).clamp(0.0, 1.0);
+        let new_norm_prox =
+            (self.normalized_proximity + mirins / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0);
         let new_zone = Self::determine_zone_from_proximity(new_norm_prox);
         let (new_down, new_rem) = if mirins >= self.remaining_advance_mirim {
             (1, 10.0)
         } else {
-            (self.down.saturating_add(1).min(4), (self.remaining_advance_mirim - mirins).max(0.0))
+            (
+                self.down.saturating_add(1).min(4),
+                (self.remaining_advance_mirim - mirins).max(0.0),
+            )
         };
         Self {
             down: new_down,

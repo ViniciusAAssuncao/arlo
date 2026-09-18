@@ -84,7 +84,7 @@ pub fn resolve_progression<R: Rng + ?Sized>(
     } else if new_normalized_proximity >= 0.72 {
         PitchZone::SecondZone
     } else {
-        PitchZone::Central
+        PitchZone::OpenField
     };
 
     let base_seconds =

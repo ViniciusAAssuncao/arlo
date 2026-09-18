@@ -3,7 +3,7 @@ use crate::physical::systems::degradation::extract_effective_attribute_value_wit
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
-use arlo_domain::sport_constants::decision_steepness_with_impulse;
+use arlo_domain::sport_constants::decision_steepness_for;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use arlo_math::stats::categorical::sample_categorical;
 use arlo_math::stats::contrast::softmax_weights;
@@ -62,7 +62,7 @@ pub fn sample_carrier_decision_from_table<R: Rng + ?Sized>(
         carrier_impulse_state,
         baseline,
     );
-    let steepness = decision_steepness_with_impulse(decisions_val, carrier_impulse_state.value());
+    let steepness = decision_steepness_for(decisions_val);
     let weights = softmax_weights(&raw_utilities, steepness);
     let total_weight: f64 = weights.iter().sum();
 

@@ -21,9 +21,8 @@ pub async fn insert(
             intra_match_recovery_amount,
             distance_first_zone,
             distance_second_zone,
-            distance_corridors,
-            distance_central
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+            distance_open_field
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&row.id)
     .bind(&row.match_id)
@@ -38,8 +37,7 @@ pub async fn insert(
     .bind(row.intra_match_recovery_amount)
     .bind(row.distance_first_zone)
     .bind(row.distance_second_zone)
-    .bind(row.distance_corridors)
-    .bind(row.distance_central)
+    .bind(row.distance_open_field)
     .execute(&mut **tx)
     .await?;
 
