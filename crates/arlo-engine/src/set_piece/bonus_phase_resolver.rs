@@ -167,7 +167,7 @@ pub fn execute_bonus_phase_conversion<R: Rng + ?Sized>(
         publisher.emit_physical_strain(outcome.goalguard_id, g_energy, g_w_bal, 0.0);
     }
 
-    publisher.state_mut().possession_mut().series_state_mut().set_bonus_phase(false);
+    publisher.state_mut().possession_mut().series_state_mut().exit_bonus_phase();
     publisher.state_mut().reset_drives();
 
     outcome_opt

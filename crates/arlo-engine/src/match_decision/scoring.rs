@@ -1,6 +1,7 @@
-pub use crate::match_decision::rules::opportunity_validator::{
+pub use crate::match_decision::rules::{
     can_attempt_field_goal, can_attempt_field_point, can_attempt_goal_point,
-    evaluate_scoring_opportunity, validate_scoring_opportunity, ScoringValidationError,
+    evaluate_scoring_opportunity, validate_bonus_phase_field_goal, validate_field_point,
+    validate_goal_point, validate_scoring_opportunity, ScoringValidationError,
 };
 
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;

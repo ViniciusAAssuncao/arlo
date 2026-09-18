@@ -21,7 +21,9 @@ pub fn finalize_possession_flip(
     if scoring_decision.is_scored() {
         let center_scrimmage_x_mirim = state.pitch().length_mirim() / 2.0;
         next_snapshot.series_state_mut().reset(center_scrimmage_x_mirim);
-        next_snapshot.series_state_mut().is_bonus_phase = false;
+        next_snapshot.series_state_mut().exit_bonus_phase();
+    } else {
+        next_snapshot.series_state_mut().exit_bonus_phase();
     }
 
     next_snapshot.live_sequence.clear();

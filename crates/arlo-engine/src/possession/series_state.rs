@@ -8,7 +8,7 @@ pub struct SeriesState {
     down: u8,
     advanced_mirins: f64,
     scrimmage_x_mirim: f64,
-    pub is_bonus_phase: bool,
+    is_bonus_phase: bool,
 }
 
 impl SeriesState {
@@ -60,6 +60,14 @@ impl SeriesState {
         self.is_bonus_phase
     }
 
+    pub fn enter_bonus_phase(&mut self) {
+        self.is_bonus_phase = true;
+    }
+
+    pub fn exit_bonus_phase(&mut self) {
+        self.is_bonus_phase = false;
+    }
+
     pub fn set_bonus_phase(&mut self, is_bonus_phase: bool) {
         self.is_bonus_phase = is_bonus_phase;
     }
@@ -70,9 +78,13 @@ impl SeriesState {
 
     pub fn record_advance(&mut self, mirins: f64) {
         self.advanced_mirins += mirins;
+        if mirins > 0.0 {
+            self.is_bonus_phase = false;
+        }
     }
 
     pub fn advance_down(&mut self) -> bool {
+        self.is_bonus_phase = false;
         if self.down < MAX_CALL_TO_ACTIONS_PER_SERIES as u8 {
             self.down += 1;
             true

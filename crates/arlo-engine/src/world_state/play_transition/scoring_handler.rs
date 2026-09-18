@@ -57,7 +57,7 @@ pub fn process_goal_point_bonus_phase<S: EventSink>(
         .state_mut()
         .possession_mut()
         .series_state_mut()
-        .set_bonus_phase(true);
+        .enter_bonus_phase();
 
     execute_bonus_phase_conversion(
         publisher,
@@ -70,7 +70,7 @@ pub fn process_goal_point_bonus_phase<S: EventSink>(
         .state_mut()
         .possession_mut()
         .series_state_mut()
-        .set_bonus_phase(false);
+        .exit_bonus_phase();
     publisher.state_mut().reset_drives();
 }
 
@@ -87,7 +87,9 @@ pub fn post_transition_score_reset(
     if scoring_decision.is_scored() {
         let center_scrimmage_x_mirim = state.pitch().length_mirim() / 2.0;
         next_snapshot.series_state_mut().reset(center_scrimmage_x_mirim);
-        next_snapshot.series_state_mut().set_bonus_phase(false);
+        next_snapshot.series_state_mut().exit_bonus_phase();
+    } else {
+        next_snapshot.series_state_mut().exit_bonus_phase();
     }
 
     next_snapshot.live_sequence.clear();

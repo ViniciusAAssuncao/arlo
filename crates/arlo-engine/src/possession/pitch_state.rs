@@ -1,7 +1,6 @@
-use arlo_domain::sport_constants::{
-    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM, FIELD_POINT_REQUIRED_DRIVES,
-    GOAL_POINT_REQUIRED_DRIVES,
-};
+use crate::match_decision::rules::bonus_phase_rules::can_attempt_field_goal;
+use crate::match_decision::rules::field_point_rules::can_attempt_field_point;
+use crate::match_decision::rules::goal_point_rules::can_attempt_goal_point;
 use arlo_domain::{ArtroPlacement, PitchZone};
 use serde::{Deserialize, Serialize};
 
@@ -86,15 +85,21 @@ impl PitchState {
     }
 
     pub fn can_attempt_goal_point(&self) -> bool {
-        self.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES && !self.is_bonus_phase
+        !self.is_bonus_phase && can_attempt_goal_point(self.drives_in_series)
     }
 
     pub fn can_attempt_field_point(&self) -> bool {
         let advance_in_series = (10.0 - self.remaining_advance_mirim).max(0.0);
-        self.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
-            && !self.is_bonus_phase
-            && (advance_in_series >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
-                || self.normalized_proximity >= 0.70)
+        !self.is_bonus_phase
+            && can_attempt_field_point(
+                self.drives_in_series,
+                advance_in_series,
+                self.normalized_proximity,
+            )
+    }
+
+    pub fn can_attempt_field_goal(&self) -> bool {
+        can_attempt_field_goal(self.is_bonus_phase)
     }
 
     pub fn determine_zone_from_proximity(normalized_proximity: f64) -> PitchZone {
@@ -127,7 +132,7 @@ impl PitchState {
             channel: self.channel,
             normalized_proximity: new_norm_prox,
             drives_in_series: self.drives_in_series,
-            is_bonus_phase: self.is_bonus_phase,
+            is_bonus_phase: false,
         }
     }
 

@@ -9,7 +9,14 @@ pub fn logistic_scaled(x: f64, steepness: f64) -> f64 {
 }
 
 pub fn softmax_weights(utilities: &[f64], steepness: f64) -> Vec<f64> {
-    utilities.iter().map(|&u| (steepness * u).exp()).collect()
+    if utilities.is_empty() {
+        return Vec::new();
+    }
+    let max_u = utilities.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    utilities
+        .iter()
+        .map(|&u| (steepness * (u - max_u)).exp())
+        .collect()
 }
 
 pub fn bradley_terry_probability(rating_a: f64, rating_b: f64, steepness: f64) -> Probability {

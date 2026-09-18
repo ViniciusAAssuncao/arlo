@@ -18,7 +18,7 @@ pub fn apply_score_outcome(
     let swapped_role = publisher.state().possession().role().swap();
     let mut new_series = publisher.state().possession().series_state().clone();
     new_series.reset(center_scrimmage_x_mirim);
-    new_series.set_bonus_phase(false);
+    new_series.exit_bonus_phase();
 
     replace_possession_preserving_ball_and_clock(publisher.state_mut(), swapped_role, new_series);
 }
