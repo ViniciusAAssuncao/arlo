@@ -189,7 +189,7 @@ pub fn calculate_team_match_power(state: &MatchState, team_id: Uuid) -> TeamMatc
     let ctrl_tactical_bonus = (manager_table.get(AttributeKey::ArtroStrategy) * 0.05)
         + (manager_table.get(AttributeKey::TacticalKnowledge) * 0.05);
 
-    let home_factor = if is_home { 1.5 } else { 0.0 };
+    let home_factor = if is_home { 0.5 } else { 0.0 };
 
     let offensive_power = (total_off_ca / 70.0) + off_tactical_bonus + home_factor;
     let defensive_power = (total_def_ca / 70.0) + def_tactical_bonus + home_factor;
