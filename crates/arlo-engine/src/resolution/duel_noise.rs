@@ -1,6 +1,6 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::caching::impulse_baseline_profile;
-use crate::physical::systems::degradation::extract_effective_attribute_value_with_impulse;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
@@ -39,12 +39,15 @@ pub fn player_noise_distribution_from_table_with_impulse(
     impulse_state: &ImpulseState,
     baseline: f64,
 ) -> SkewNormalParams {
-    let consistency = extract_effective_attribute_value_with_impulse(
-        table,
-        AttributeKey::Consistency,
+    let deg_ctx = DegradationContext::with_impulse(
         physical_state,
         impulse_state,
         baseline,
+    );
+    let consistency = extract_effective_attribute_value(
+        table,
+        AttributeKey::Consistency,
+        &deg_ctx,
     );
     let scale = ((20.0 - consistency).max(0.0) * 0.015).clamp(0.0, 0.30);
     SkewNormalParams::new(0.0, scale, 0.0)

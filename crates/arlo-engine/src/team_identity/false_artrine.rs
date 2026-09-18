@@ -1,5 +1,5 @@
 use crate::attributes::PlayerAttributeTable;
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use arlo_domain::sport_constants::{ATTRIBUTE_MAX, ATTRIBUTE_MIN, TACTICAL_STYLE_LOGIT_SCALE};
 use arlo_domain::{AttributeKey, Player};
@@ -51,13 +51,14 @@ pub fn calculate_false_artrine_bluff_rating(
     table: &PlayerAttributeTable,
     physical_state: &PhysicalState,
 ) -> f64 {
+    let deg_ctx = DegradationContext::new(physical_state);
     let bluff =
-        extract_effective_attribute_value(table, AttributeKey::FalseArtrineBluff, physical_state);
+        extract_effective_attribute_value(table, AttributeKey::FalseArtrineBluff, &deg_ctx);
     let technique =
-        extract_effective_attribute_value(table, AttributeKey::Technique, physical_state);
-    let flair = extract_effective_attribute_value(table, AttributeKey::Flair, physical_state);
+        extract_effective_attribute_value(table, AttributeKey::Technique, &deg_ctx);
+    let flair = extract_effective_attribute_value(table, AttributeKey::Flair, &deg_ctx);
     let composure =
-        extract_effective_attribute_value(table, AttributeKey::Composure, physical_state);
+        extract_effective_attribute_value(table, AttributeKey::Composure, &deg_ctx);
 
     let raw = bluff * 0.45 + technique * 0.25 + flair * 0.20 + composure * 0.10;
     raw.clamp(ATTRIBUTE_MIN, ATTRIBUTE_MAX)
@@ -68,15 +69,16 @@ pub fn calculate_bluff_deception_probability(
     defender_table: &PlayerAttributeTable,
     defender_physical_state: &PhysicalState,
 ) -> Probability {
+    let deg_ctx = DegradationContext::new(defender_physical_state);
     let anticipation = extract_effective_attribute_value(
         defender_table,
         AttributeKey::Anticipation,
-        defender_physical_state,
+        &deg_ctx,
     );
     let decisions = extract_effective_attribute_value(
         defender_table,
         AttributeKey::Decisions,
-        defender_physical_state,
+        &deg_ctx,
     );
     let defender_awareness = anticipation * 0.60 + decisions * 0.40;
 

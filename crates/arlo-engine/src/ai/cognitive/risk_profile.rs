@@ -1,6 +1,6 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::{
-    calculate_physical_exhaustion, extract_effective_attribute_value_with_impulse,
+    calculate_physical_exhaustion, extract_effective_attribute_value, DegradationContext,
 };
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
@@ -67,34 +67,12 @@ impl RiskProfile {
         let profile = crate::caching::impulse_baseline_profile();
         let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
 
-        let flair = extract_effective_attribute_value_with_impulse(
-            table,
-            AttributeKey::Flair,
-            physical_state,
-            impulse_state,
-            baseline,
-        );
-        let bravery = extract_effective_attribute_value_with_impulse(
-            table,
-            AttributeKey::Bravery,
-            physical_state,
-            impulse_state,
-            baseline,
-        );
-        let vision = extract_effective_attribute_value_with_impulse(
-            table,
-            AttributeKey::Vision,
-            physical_state,
-            impulse_state,
-            baseline,
-        );
-        let decisions = extract_effective_attribute_value_with_impulse(
-            table,
-            AttributeKey::Decisions,
-            physical_state,
-            impulse_state,
-            baseline,
-        );
+        let deg_ctx = DegradationContext::with_impulse(physical_state, impulse_state, baseline);
+
+        let flair = extract_effective_attribute_value(table, AttributeKey::Flair, &deg_ctx);
+        let bravery = extract_effective_attribute_value(table, AttributeKey::Bravery, &deg_ctx);
+        let vision = extract_effective_attribute_value(table, AttributeKey::Vision, &deg_ctx);
+        let decisions = extract_effective_attribute_value(table, AttributeKey::Decisions, &deg_ctx);
 
         let norm_flair = (flair.clamp(0.0, 20.0)) / 10.0;
         let norm_bravery = (bravery.clamp(0.0, 20.0)) / 10.0;

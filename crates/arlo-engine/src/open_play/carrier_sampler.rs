@@ -1,5 +1,5 @@
 use crate::attributes::PlayerAttributeTable;
-use crate::physical::systems::degradation::extract_effective_attribute_value_with_impulse;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
@@ -55,12 +55,15 @@ pub fn sample_carrier_decision_from_table<R: Rng + ?Sized>(
     let raw_utilities: SmallVec<[f64; 5]> = utilities.iter().map(|(_, u)| *u).collect();
     let profile = crate::caching::impulse_baseline_profile();
     let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
-    let decisions_val = extract_effective_attribute_value_with_impulse(
-        table,
-        AttributeKey::Decisions,
+    let deg_ctx = DegradationContext::with_impulse(
         carrier_physical_state,
         carrier_impulse_state,
         baseline,
+    );
+    let decisions_val = extract_effective_attribute_value(
+        table,
+        AttributeKey::Decisions,
+        &deg_ctx,
     );
     let steepness = decision_steepness_for(decisions_val);
     let weights = softmax_weights(&raw_utilities, steepness);

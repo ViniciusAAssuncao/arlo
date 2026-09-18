@@ -14,17 +14,14 @@ use rand::Rng;
 
 pub fn evaluate_exertion_injury_probability(ctx: &ExertionInjuryContext<'_>) -> f64 {
     let fatigue = calculate_physical_exhaustion(&ctx.physical_state).clamp(0.0, 1.0);
-    let speed_ratio = (ctx.peak_speed_meters_per_sec
-        / ctx.critical_speed_meters_per_sec.max(1.0))
-    .clamp(0.0, 2.0)
-        / 2.0;
+    let intensity = ctx.intensity_strain.clamp(0.0, 1.0);
 
     let agility = ctx.player_table.get(AttributeKey::Agility);
     let decel_vulnerability = ((ATTRIBUTE_MAX - agility) / ATTRIBUTE_MAX).clamp(0.0, 1.0);
 
     let exertion_score = calculate_weighted_average(&[
         (fatigue, NON_CONTACT_FATIGUE_WEIGHT),
-        (speed_ratio, NON_CONTACT_VELOCITY_WEIGHT),
+        (intensity, NON_CONTACT_VELOCITY_WEIGHT),
         (decel_vulnerability, NON_CONTACT_DECELERATION_WEIGHT),
     ])
     .unwrap_or(0.1);

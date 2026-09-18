@@ -2,7 +2,7 @@ use crate::ai::cognitive::RiskProfile;
 use crate::ai::epv::DynamicEpvModel;
 use crate::attributes::profiles::AttributeProfile as DuelProfile;
 use crate::attributes::PlayerAttributeTable;
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
@@ -138,8 +138,8 @@ impl<'a> DecisionEvaluationContext<'a> {
         table: &PlayerAttributeTable,
         physical_state: &PhysicalState,
     ) -> (f64, f64) {
-        let consistency =
-            extract_effective_attribute_value(table, AttributeKey::Consistency, physical_state);
+        let deg_ctx = DegradationContext::new(physical_state);
+        let consistency = extract_effective_attribute_value(table, AttributeKey::Consistency, &deg_ctx);
         let profile = crate::caching::impulse_baseline_profile();
         let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
         let impulse_state = ImpulseState::from_baseline(baseline);
@@ -206,10 +206,11 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn consistency(&self) -> f64 {
+        let deg_ctx = DegradationContext::new(&self.carrier_physical_state);
         extract_effective_attribute_value(
             self.carrier_table,
             AttributeKey::Consistency,
-            &self.carrier_physical_state,
+            &deg_ctx,
         )
     }
 

@@ -1,7 +1,7 @@
 use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::calculate_fit_for_position;
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use arlo_domain::{AttributeKey, Pitch, Player, Position, SlotRole};
 use arlo_math::stats::sample_categorical;
@@ -25,33 +25,34 @@ pub fn player_base_reception_weight(
 ) -> f64 {
     let default_state = PhysicalState::initial();
     let effective_state = state.unwrap_or(&default_state);
+    let deg_ctx = DegradationContext::new(effective_state);
 
     match role {
         ReceptionRole::OpenPlayReceiver => {
             let hands = extract_effective_attribute_value(
                 table,
                 AttributeKey::HandsReception,
-                effective_state,
+                &deg_ctx,
             );
             let ant = extract_effective_attribute_value(
                 table,
                 AttributeKey::Anticipation,
-                effective_state,
+                &deg_ctx,
             );
             let pos = extract_effective_attribute_value(
                 table,
                 AttributeKey::Positioning,
-                effective_state,
+                &deg_ctx,
             );
             (hands * 0.45 + ant * 0.35 + pos * 0.20).max(0.1)
         }
         ReceptionRole::Finisher => {
             let finishing =
-                extract_effective_attribute_value(table, AttributeKey::Finishing, effective_state);
+                extract_effective_attribute_value(table, AttributeKey::Finishing, &deg_ctx);
             let technique =
-                extract_effective_attribute_value(table, AttributeKey::Technique, effective_state);
+                extract_effective_attribute_value(table, AttributeKey::Technique, &deg_ctx);
             let composure =
-                extract_effective_attribute_value(table, AttributeKey::Composure, effective_state);
+                extract_effective_attribute_value(table, AttributeKey::Composure, &deg_ctx);
             (finishing * 0.50 + technique * 0.30 + composure * 0.20).max(0.1)
         }
     }

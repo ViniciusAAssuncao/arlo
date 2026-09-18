@@ -21,15 +21,12 @@ pub fn evaluate_and_resolve_exertion_injury<R: Rng + ?Sized>(
     }
 
     let fatigue = calculate_physical_exhaustion(&ctx.physical_state).clamp(0.0, 1.0);
-    let speed_ratio = (ctx.peak_speed_meters_per_sec
-        / ctx.critical_speed_meters_per_sec.max(1.0))
-    .clamp(0.0, 2.0)
-        / 2.0;
+    let intensity = ctx.intensity_strain.clamp(0.0, 1.0);
     let susceptibility = derive_effective_susceptibility(ctx.player_table, &ctx.injury_profile);
 
     let stimulus = calculate_weighted_average(&[
         (fatigue, NON_CONTACT_FATIGUE_WEIGHT),
-        (speed_ratio, NON_CONTACT_VELOCITY_WEIGHT),
+        (intensity, NON_CONTACT_VELOCITY_WEIGHT),
         ((susceptibility / 2.0).clamp(0.0, 1.0), 0.20),
     ])
     .unwrap_or(0.3);

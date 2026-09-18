@@ -1,8 +1,5 @@
-use crate::attributes::PlayerAttributeTable;
 use crate::physical::state::PhysicalState;
-use arlo_domain::{AttributeKey, Player};
-use std::collections::HashMap;
-use uuid::Uuid;
+use arlo_domain::Player;
 
 pub const SECONDS_PER_YEAR: f64 = 31557600.0;
 pub const AGE_DEGRADATION_THRESHOLD: f64 = 30.0;
@@ -29,79 +26,31 @@ pub fn calculate_age_degradation(age_years: f64) -> f64 {
     }
 }
 
-pub fn calculate_aerobic_capacity(stamina: f64, natural_fitness: f64, age_years: f64) -> f64 {
-    let norm_stamina = stamina.clamp(0.0, 20.0) / 20.0;
-    let norm_fitness = natural_fitness.clamp(0.0, 20.0) / 20.0;
-    let age_factor = calculate_age_degradation(age_years);
-    let base_capacity = 8000.0 + (norm_stamina * 6000.0) + (norm_fitness * 4000.0);
-    base_capacity * age_factor
-}
-
-pub fn calculate_aerobic_energy_decay(
-    distance_mirim: f64,
+pub fn calculate_event_energy_decay(
+    live_duration_seconds: f64,
     stamina: f64,
     natural_fitness: f64,
     age_years: f64,
 ) -> f64 {
-    let capacity = calculate_aerobic_capacity(stamina, natural_fitness, age_years);
-    let distance_ratio = distance_mirim.max(0.0) / capacity.max(1.0);
-    let decay = 1.0 / (1.0 + (distance_ratio.powf(2.4) * 2.2));
-    decay.clamp(0.0, 1.0)
+    if live_duration_seconds <= 0.0 {
+        return 0.0;
+    }
+    let norm_stamina = (stamina.clamp(0.0, 20.0)) / 20.0;
+    let norm_fitness = (natural_fitness.clamp(0.0, 20.0)) / 20.0;
+    let resilience = 0.55 * norm_stamina + 0.45 * norm_fitness;
+    let age_penalty = 2.0 - calculate_age_degradation(age_years);
+    let base_decay_rate = 0.0012;
+    (live_duration_seconds * base_decay_rate * (1.6 - resilience) * age_penalty).clamp(0.0, 0.15)
 }
 
-pub fn calculate_player_aerobic_energy_from_table(
-    player: &Player,
-    table: &PlayerAttributeTable,
-    cumulative_distance_mirim: f64,
-    current_time_unix_seconds: i64,
-) -> f64 {
-    let stamina = table.get(AttributeKey::Stamina);
-    let natural_fitness = table.get(AttributeKey::NaturalFitness);
-    let age_years = calculate_player_age(player, current_time_unix_seconds);
-    calculate_aerobic_energy_decay(
-        cumulative_distance_mirim,
-        stamina,
-        natural_fitness,
-        age_years,
-    )
-}
-
-pub fn calculate_player_aerobic_energy(
-    player: &Player,
-    cumulative_distance_mirim: f64,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    current_time_unix_seconds: i64,
-) -> f64 {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    calculate_player_aerobic_energy_from_table(
-        player,
-        &table,
-        cumulative_distance_mirim,
-        current_time_unix_seconds,
-    )
-}
-
-pub fn update_physical_state_aerobic_from_table(
+pub fn apply_event_energy_decay(
     state: &mut PhysicalState,
-    player: &Player,
-    table: &PlayerAttributeTable,
-    current_time_unix_seconds: i64,
+    live_duration_seconds: f64,
+    stamina: f64,
+    natural_fitness: f64,
+    age_years: f64,
 ) {
-    let energy = calculate_player_aerobic_energy_from_table(
-        player,
-        table,
-        state.cumulative_distance_mirim(),
-        current_time_unix_seconds,
-    );
-    state.set_energy(energy);
-}
-
-pub fn update_physical_state_aerobic(
-    state: &mut PhysicalState,
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    current_time_unix_seconds: i64,
-) {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    update_physical_state_aerobic_from_table(state, player, &table, current_time_unix_seconds);
+    let decay = calculate_event_energy_decay(live_duration_seconds, stamina, natural_fitness, age_years);
+    let new_energy = (state.energy() - decay).clamp(0.0, 1.0);
+    state.set_energy(new_energy);
 }

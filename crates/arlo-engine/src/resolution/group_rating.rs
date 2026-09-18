@@ -1,7 +1,7 @@
 use crate::attributes::profiles::AttributeProfile as DuelProfile;
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use arlo_domain::{AttributeKey, Player, Position};
 use std::collections::HashMap;
@@ -79,8 +79,9 @@ pub fn calculate_player_duel_rating_from_table(
     profile: &DuelProfile,
     state: &PhysicalState,
 ) -> f64 {
+    let deg_ctx = DegradationContext::new(state);
     let raw = profile.evaluate_weighted_average(|key| {
-        extract_effective_attribute_value(table, key, state)
+        extract_effective_attribute_value(table, key, &deg_ctx)
     });
     let fit = calculate_fit_for_position(player, functional_position);
     raw * fit.efficiency_multiplier()

@@ -4,7 +4,7 @@ use crate::attributes::profiles::{
 };
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use arlo_domain::{Player, Position};
 use std::collections::HashMap;
@@ -29,12 +29,14 @@ pub fn calculate_player_offensive_gravity(
     let finishing_profile = gravity_finishing_threat_profile();
     let creation_profile = gravity_creation_threat_profile();
 
+    let deg_ctx = DegradationContext::new(state);
+
     let finishing_avg = finishing_profile.evaluate_saturated_average(|key| {
-        extract_effective_attribute_value(table, key, state)
+        extract_effective_attribute_value(table, key, &deg_ctx)
     });
 
     let creation_avg = creation_profile.evaluate_saturated_average(|key| {
-        extract_effective_attribute_value(table, key, state)
+        extract_effective_attribute_value(table, key, &deg_ctx)
     });
 
     let fit = calculate_fit_for_position(player, assigned_position);

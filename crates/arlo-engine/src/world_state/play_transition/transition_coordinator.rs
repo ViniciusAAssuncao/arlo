@@ -22,6 +22,7 @@ use crate::world_state::play_transition::turnover_and_down_events::resolve_turno
 use arlo_domain::{ArtrineDecisionKind, PunishmentKind};
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
+use std::collections::HashSet;
 use uuid::Uuid;
 
 pub struct TransitionPipeline<'a, 'b, 'c, S: EventSink> {
@@ -85,7 +86,22 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
         self.publisher
             .emit_duel_events(&self.execution_outcome.duels, self.pass_phase.artrine.id());
 
-        apply_movement_strain(&mut self.publisher);
+        let mut participated_ids = HashSet::new();
+        participated_ids.insert(self.pass_phase.passer.id());
+        participated_ids.insert(self.pass_phase.artrine.id());
+        if let Some(rid) = self.execution_outcome.receiver_id {
+            participated_ids.insert(rid);
+        }
+        for d in &self.play_duels {
+            for id in d.attacker_ids() {
+                participated_ids.insert(*id);
+            }
+            for id in d.defender_ids() {
+                participated_ids.insert(*id);
+            }
+        }
+        let live_seconds = self.play_ledger.total_live().value().max(1.0);
+        apply_movement_strain(&mut self.publisher, &participated_ids, live_seconds);
     }
 
     fn emit_fouls(&mut self) {
