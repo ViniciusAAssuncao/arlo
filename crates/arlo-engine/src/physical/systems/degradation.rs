@@ -94,15 +94,15 @@ pub fn is_cognitive_or_technical_attribute(key: AttributeKey) -> bool {
 }
 
 pub fn calculate_physical_exhaustion(state: &PhysicalState) -> f64 {
-    (1.0 - state.w_prime_balance()).max(0.0) * 0.65 + (1.0 - state.energy()).max(0.0) * 0.35
+    (1.0 - state.w_prime_balance()).max(0.0) * 0.70 + (1.0 - state.energy()).max(0.0) * 0.30
 }
 
 pub fn physical_attribute_modifier(state: &PhysicalState) -> f64 {
     let energy = state.energy().clamp(0.0, 1.0);
     let w_bal = state.w_prime_balance().clamp(0.0, 1.0);
-    let combined = energy * (0.85 + 0.15 * w_bal);
-    let mod_val = 0.7 + 0.3 * combined.powf(0.8);
-    mod_val.clamp(0.4, 1.0)
+    let combined = energy * (0.80 + 0.20 * w_bal);
+    let mod_val = 0.65 + 0.35 * combined.powf(0.85);
+    mod_val.clamp(0.35, 1.0)
 }
 
 pub fn cerebral_attribute_modifier(

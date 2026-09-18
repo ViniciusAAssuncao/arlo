@@ -8,10 +8,11 @@ pub mod group_rating;
 pub mod outcome;
 pub mod outcome_distribution;
 pub mod resolver;
+pub mod slope_calibration;
 
 pub use attributed_outcome::AttributedDuelOutcome;
 pub use context::DuelContext;
-pub use duel_kind::{logistic_slope_for, DuelKind};
+pub use duel_kind::DuelKind;
 pub use duel_noise::{
     player_consistency_noise_scale, player_consistency_noise_std_dev,
     pressure_urgency_activation, sample_player_noise, sample_player_noise_with_pressure,
@@ -26,6 +27,7 @@ pub use group_rating::{
 pub use outcome::{ContestOutcome, DuelOutcome};
 pub use outcome_distribution::*;
 pub use resolver::{resolve_contest, resolve_duel, ContestRequest, DuelResolutionRequest};
+pub use slope_calibration::logistic_slope_for;
 
 pub use crate::attributes::profiles::{
     get_duel_attribute_profiles as get_duel_profiles, AttributeProfile as DuelProfile,

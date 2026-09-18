@@ -1,9 +1,9 @@
+use crate::resolution::slope_calibration::logistic_slope_for;
 use arlo_domain::sport_constants::{
-    ATTRIBUTE_SATURATION_THRESHOLD, DUEL_PHYSICALITY_BASELINE_ARTRO_BREAKTHROUGH,
+    DUEL_PHYSICALITY_BASELINE_ARTRO_BREAKTHROUGH,
     DUEL_PHYSICALITY_BASELINE_BALL_SECURITY_CARRY,
     DUEL_PHYSICALITY_BASELINE_BALL_SECURITY_DISTRIBUTION,
     DUEL_PHYSICALITY_BASELINE_CENTRAL_BLOCK, DUEL_PHYSICALITY_BASELINE_LATERAL_BLOCK,
-    KICK_BLOCK_ATTEMPT_LOGISTIC_FACTOR,
 };
 use serde::{Deserialize, Serialize};
 
@@ -56,20 +56,4 @@ impl DuelKind {
     }
 }
 
-pub fn logistic_slope_for(kind: DuelKind) -> f64 {
-    let factor = match kind {
-        DuelKind::FinishingAttempt => 18.0,
-        DuelKind::ArtroBreakthrough => 17.0,
-        DuelKind::ShortDistribution => 16.0,
-        DuelKind::LongDistribution | DuelKind::CrossDistribution => 15.5,
-        DuelKind::FieldGoalAttempt => 15.0,
-        DuelKind::RouteContest | DuelKind::BallSecurityDistribution => 14.0,
-        DuelKind::PassProtection | DuelKind::RunBreakthrough | DuelKind::AerialDuel => 13.5,
-        DuelKind::LateralBlock => 12.5,
-        DuelKind::CentralBlock | DuelKind::BallSecurityCarry => 12.0,
-        DuelKind::KickBlockAttempt => {
-            KICK_BLOCK_ATTEMPT_LOGISTIC_FACTOR * ATTRIBUTE_SATURATION_THRESHOLD * 2.8
-        }
-    };
-    factor / ATTRIBUTE_SATURATION_THRESHOLD
-}
+pub use crate::resolution::slope_calibration::logistic_slope_for as duel_logistic_slope_for;

@@ -3,6 +3,7 @@ use crate::match_decision::scoring::{
     can_attempt_field_point, duel_kind_for_opportunity, evaluate_scoring_opportunity,
     field_goal_points, field_point_points, goal_point_points, ScoringOpportunity,
 };
+use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::physical::PhysicalState;
 use crate::possession::PitchState;
 use crate::resolution::context::DuelContext;
@@ -85,9 +86,11 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
             norm_prox,
         );
         if can_field {
+            let ex = calculate_physical_exhaustion(request.finisher_fatigue);
             let under_pressure = norm_prox < 0.88
                 || raw_fin_rating < 11.5
-                || request.pitch_state.down() >= 3;
+                || request.pitch_state.down() >= 3
+                || ex > 0.40;
             if under_pressure {
                 opportunity = ScoringOpportunity::FieldPoint;
             }

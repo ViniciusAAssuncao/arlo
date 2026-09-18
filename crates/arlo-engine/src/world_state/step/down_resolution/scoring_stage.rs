@@ -4,6 +4,7 @@ use crate::match_decision::scoring::{
     can_attempt_field_point, duel_kind_for_opportunity, evaluate_scoring_opportunity,
     resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
 };
+use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::AttributedDuelOutcome;
 use crate::resolution::DuelKind;
@@ -55,12 +56,15 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         .copied()
         .unwrap_or_else(|| *state.attribute_table_for(&finisher.id()));
 
+    let fin_fatigue = state.fatigue_lookup().get(&finisher.id());
+    let fin_exhaustion = calculate_physical_exhaustion(&fin_fatigue);
+
     let fin_rating = calculate_player_duel_rating_from_table(
         finisher,
         Position::CenterOffense,
         &finisher_table,
         &att_prof,
-        &state.fatigue_lookup().get(&finisher.id()),
+        &fin_fatigue,
     ) * ctx.artrine_axis_multiplier;
 
     let mut opportunity = evaluate_scoring_opportunity(
@@ -81,7 +85,8 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
             let under_defensive_pressure = progression.new_normalized_proximity < 0.88
                 || ctx.team_advantage < -1.5
                 || fin_rating < 11.5
-                || ctx.down >= 3;
+                || ctx.down >= 3
+                || fin_exhaustion > 0.40;
             if under_defensive_pressure {
                 opportunity = ScoringOpportunity::FieldPoint;
             }
@@ -127,7 +132,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         finisher
     };
 
-    let fin_fatigue = state.fatigue_lookup().get(&effective_kicker.id());
+    let kicker_fatigue = state.fatigue_lookup().get(&effective_kicker.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
     let fin_table = tables.get(&effective_kicker.id());
     let gg_table = tables.get(&goalguard.id());
@@ -150,7 +155,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         total_adv,
         &finish_ctx,
     )
-    .with_fatigue(fin_fatigue, gg_fatigue)
+    .with_fatigue(kicker_fatigue, gg_fatigue)
     .with_tables(fin_table, gg_table);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);

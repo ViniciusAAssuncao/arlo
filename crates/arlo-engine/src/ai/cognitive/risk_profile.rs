@@ -94,13 +94,13 @@ impl RiskProfile {
         let lambda_impulse_shift = -0.20 * (2.0 / (1.0 + (-2.5 * norm_impulse_delta).exp()) - 1.0);
 
         let tolerance_index = ((base_tolerance + tolerance_impulse_shift)
-            * (1.0 - 0.40 * physical_exhaustion))
+            * (1.0 - 0.45 * physical_exhaustion))
             .clamp(0.40, 2.50);
 
         let loss_aversion_lambda = (2.25 - 0.45 * (norm_bravery - 1.0) - 0.35 * (norm_flair - 1.0)
             + 0.20 * (1.0 - norm_decisions)
             + lambda_impulse_shift
-            + 0.60 * physical_exhaustion)
+            + 0.85 * physical_exhaustion)
             .clamp(1.10, 4.50);
 
         let gain_diminishing_alpha = (0.88 + 0.06 * (norm_vision - 1.0)).clamp(0.70, 1.00);
@@ -108,7 +108,7 @@ impl RiskProfile {
 
         let probability_distortion_gamma = (0.92 - 0.04 * (norm_flair - 1.0)
             + 0.05 * (norm_decisions - 1.0)
-            - 0.03 * physical_exhaustion)
+            - 0.04 * physical_exhaustion)
             .clamp(0.85, 1.00);
 
         Self {
@@ -207,13 +207,13 @@ impl RiskProfile {
         let delta = self.tolerance_index - 1.0;
         let ex = self.physical_exhaustion;
         let raw = match kind {
-            ArtrineDecisionKind::SelfCarry => (1.0 + delta * 0.15) * (1.0 - 0.65 * ex),
-            ArtrineDecisionKind::ShortPass => (1.0 - delta * 0.20) * (1.0 + 0.45 * ex),
-            ArtrineDecisionKind::LongLaunch => (1.0 + delta * 0.35) * (1.0 + 0.35 * ex),
-            ArtrineDecisionKind::Cross => (1.0 + delta * 0.30) * (1.0 + 0.10 * ex),
-            ArtrineDecisionKind::SelfFinish => (1.0 + delta * 0.25) * (1.0 - 0.50 * ex),
+            ArtrineDecisionKind::SelfCarry => (1.0 + delta * 0.15) * (1.0 - 0.75 * ex),
+            ArtrineDecisionKind::ShortPass => (1.0 - delta * 0.20) * (1.0 + 0.55 * ex),
+            ArtrineDecisionKind::LongLaunch => (1.0 + delta * 0.35) * (1.0 + 0.25 * ex),
+            ArtrineDecisionKind::Cross => (1.0 + delta * 0.30) * (1.0 + 0.15 * ex),
+            ArtrineDecisionKind::SelfFinish => (1.0 + delta * 0.25) * (1.0 - 0.70 * ex),
         };
-        raw.clamp(0.20, 2.50)
+        raw.clamp(0.15, 2.50)
     }
 }
 

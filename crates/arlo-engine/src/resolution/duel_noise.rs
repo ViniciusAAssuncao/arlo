@@ -1,5 +1,7 @@
 use crate::attributes::PlayerAttributeTable;
-use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
+use crate::physical::systems::degradation::{
+    calculate_physical_exhaustion, extract_effective_attribute_value, DegradationContext,
+};
 use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::AttributeKey;
 use arlo_math::stats::sample_gaussian_noise;
@@ -24,13 +26,17 @@ pub fn player_consistency_noise_std_dev(
     deg_ctx: &DegradationContext<'_>,
     pressure: Option<&GameStatePressure>,
 ) -> f64 {
-    let activation = pressure_urgency_activation(pressure);
-    if activation <= 0.0 {
-        return 0.0;
-    }
     let consistency = extract_effective_attribute_value(table, AttributeKey::Consistency, deg_ctx);
-    let inconsistency = ((20.0 - consistency).max(0.0) / 20.0).clamp(0.0, 1.0);
-    0.004 * inconsistency.powi(2) * activation.powi(2)
+    let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
+    let inconsistency = (1.0 - norm_consistency).clamp(0.0, 1.0);
+
+    let base_inconsistency = inconsistency.powi(3);
+
+    let exhaustion = calculate_physical_exhaustion(deg_ctx.physical_state()).clamp(0.0, 1.0);
+    let pressure_factor = pressure_urgency_activation(pressure);
+    let stress_multiplier = 1.0 + 1.5 * exhaustion + 1.5 * pressure_factor;
+
+    (0.035 * base_inconsistency * stress_multiplier).clamp(0.0, 0.08)
 }
 
 pub fn player_consistency_noise_scale(
@@ -38,8 +44,11 @@ pub fn player_consistency_noise_scale(
     deg_ctx: &DegradationContext<'_>,
 ) -> f64 {
     let consistency = extract_effective_attribute_value(table, AttributeKey::Consistency, deg_ctx);
-    let inconsistency = ((20.0 - consistency).max(0.0) / 20.0).clamp(0.0, 1.0);
-    (inconsistency.powi(2) * 0.002).clamp(0.0, 0.005)
+    let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
+    let inconsistency = (1.0 - norm_consistency).clamp(0.0, 1.0);
+    let exhaustion = calculate_physical_exhaustion(deg_ctx.physical_state()).clamp(0.0, 1.0);
+
+    (inconsistency.powi(2) * (0.001 + 0.003 * exhaustion)).clamp(0.0, 0.01)
 }
 
 pub fn sample_player_noise_with_pressure<R: Rng + ?Sized>(

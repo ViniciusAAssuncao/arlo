@@ -1,8 +1,9 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::DegradationContext;
-use crate::resolution::duel_kind::{logistic_slope_for, DuelKind};
+use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::duel_noise::sample_player_noise_with_pressure;
 use crate::resolution::resolver::DuelResolutionRequest;
+use crate::resolution::slope_calibration::logistic_slope_for;
 use arlo_domain::sport_constants::HOME_FIELD_ADVANTAGE_LOGIT;
 use arlo_math::stats::{calculate_duel_probability, calculate_net_advantage, Probability};
 use rand::Rng;
