@@ -1,5 +1,7 @@
-use crate::attributes::PlayerAttributeTable;
-use arlo_domain::{AttributeKey, Player, Position as DomainPosition};
+use crate::officiating::line_fault::context::LineFaultEvaluationContext;
+use crate::resolution::{resolve_contest, ContestRequest, DuelKind};
+use arlo_domain::{AttributeKey, PitchZone, Player, Position as DomainPosition};
+use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -23,32 +25,38 @@ pub fn identify_last_defender<'a>(
         .or_else(|| outfield_defenders.first().copied())
 }
 
-pub fn is_line_fault(
-    _receiver: &Player,
-    receiver_table: &PlayerAttributeTable,
-    receiver_x_mirim: f64,
-    _last_defender: &Player,
-    defender_table: &PlayerAttributeTable,
-    defender_x_mirim: f64,
-    attacking_positive_x: bool,
+pub fn is_line_fault<R: Rng + ?Sized>(
+    ctx: &LineFaultEvaluationContext<'_>,
+    rng: &mut R,
 ) -> (bool, f64) {
-    let raw_margin = if attacking_positive_x {
-        receiver_x_mirim - defender_x_mirim
-    } else {
-        defender_x_mirim - receiver_x_mirim
+    let def_pos = ctx.defender_table.get(AttributeKey::Positioning);
+    let def_ant = ctx.defender_table.get(AttributeKey::Anticipation);
+    let defense_trap_rating = def_pos * 0.55 + def_ant * 0.45;
+
+    let rec_ant = ctx.receiver_table.get(AttributeKey::Anticipation);
+    let rec_dec = ctx.receiver_table.get(AttributeKey::Decisions);
+    let receiver_timing_rating = rec_ant * 0.55 + rec_dec * 0.45;
+
+    let zone_defense_bonus = match ctx.zone {
+        PitchZone::FirstZone => 1.5,
+        PitchZone::SecondZone => 0.5,
+        PitchZone::OpenField => 0.0,
     };
 
-    let rec_ant = receiver_table.get(AttributeKey::Anticipation);
-    let rec_dec = receiver_table.get(AttributeKey::Decisions);
-    let def_pos = defender_table.get(AttributeKey::Positioning);
-    let def_ant = defender_table.get(AttributeKey::Anticipation);
+    let defense_effective = defense_trap_rating + zone_defense_bonus;
+    let receiver_effective = receiver_timing_rating + 4.0;
 
-    let skill_offset = ((def_pos + def_ant) - (rec_ant + rec_dec)) * 0.05;
-    let effective_margin = raw_margin + skill_offset;
+    let req = ContestRequest::for_contest(
+        DuelKind::RouteContest,
+        defense_effective,
+        receiver_effective,
+        ctx.duel_context,
+    )
+    .with_slope(0.35);
 
-    if effective_margin > 0.5 {
-        (true, effective_margin)
-    } else {
-        (false, 0.0)
-    }
+    let outcome = resolve_contest(req, rng);
+    let fault_occurred = outcome.attacker_won();
+    let margin = (outcome.net_advantage() * 0.2).max(0.0);
+
+    (fault_occurred, margin)
 }

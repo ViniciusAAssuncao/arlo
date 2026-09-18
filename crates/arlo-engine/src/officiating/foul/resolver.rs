@@ -4,11 +4,10 @@ use crate::officiating::foul::origin::FoulOrigin;
 use crate::officiating::foul::outcome::FoulResolution;
 use crate::officiating::foul::punishment_selection::select_punishment;
 use crate::officiating::foul::severity_estimation::estimate_foul_severity;
-use crate::officiating::foul::trigger::{evaluate_foul_trigger_probability, sample_foul_trigger};
+use crate::officiating::foul::trigger::resolve_foul_trigger;
 use crate::officiating::heads_or_tails::resolve_peace_referee_review;
 use crate::officiating::stimulus::saturating_stimulus;
 use arlo_domain::FaultCatalog;
-use arlo_math::stats::contrast::logistic;
 use rand::Rng;
 
 pub fn evaluate_and_resolve_foul<R: Rng + ?Sized>(
@@ -16,7 +15,8 @@ pub fn evaluate_and_resolve_foul<R: Rng + ?Sized>(
     catalog: &FaultCatalog,
     rng: &mut R,
 ) -> Option<FoulResolution> {
-    if !sample_foul_trigger(ctx, rng) {
+    let (triggered, trigger_probability) = resolve_foul_trigger(ctx, rng);
+    if !triggered {
         return None;
     }
 
@@ -54,8 +54,6 @@ pub fn evaluate_and_resolve_foul<R: Rng + ?Sized>(
 
     let (original_call_correct, peace_referee_intervened) =
         resolve_peace_referee_review(stimulus, ctx.peace_referee_table, rng);
-
-    let trigger_probability = logistic(evaluate_foul_trigger_probability(ctx));
 
     Some(FoulResolution::new(
         offending_player_id,

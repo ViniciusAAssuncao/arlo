@@ -9,9 +9,7 @@ use crate::possession::PitchState;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
-use arlo_domain::sport_constants::FIRST_ZONE_DEPTH_MIRIM;
-use arlo_domain::{AttributeKey, Player};
-use arlo_math::units::MIRIM_TO_METERS;
+use arlo_domain::Player;
 use rand::Rng;
 
 pub struct ActionCollateralOutcome {
@@ -112,35 +110,20 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
                 let rec_table = state.attribute_table_for(&receiver.id());
                 let def_table = state.attribute_table_for(&last_defender.id());
 
-                let receiver_dist_to_goal =
-                    (1.0 - ctx.normalized_proximity) * ctx.pitch_length_mirim * MIRIM_TO_METERS;
-                let defender_dist_to_goal =
-                    (FIRST_ZONE_DEPTH_MIRIM + 8.0) * MIRIM_TO_METERS;
-
-                if receiver_dist_to_goal < defender_dist_to_goal {
-                    let raw_margin = defender_dist_to_goal - receiver_dist_to_goal;
-                    let rec_ant = rec_table.get(AttributeKey::Anticipation);
-                    let rec_dec = rec_table.get(AttributeKey::Decisions);
-                    let def_pos = def_table.get(AttributeKey::Positioning);
-                    let def_ant = def_table.get(AttributeKey::Anticipation);
-
-                    let skill_offset = ((def_pos + def_ant) - (rec_ant + rec_dec)) * 0.05;
-                    let effective_margin = raw_margin + skill_offset;
-
-                    if effective_margin > 0.5 {
-                        let lf_ctx = LineFaultEvaluationContext::new(
-                            receiver.id(),
-                            ctx.offense_team_id,
-                            last_defender.id(),
-                            ctx.defense_team_id,
-                            effective_margin,
-                            &referee_table,
-                            &peace_referee_table,
-                        );
-                        if let Some(lf_res) = evaluate_and_resolve_line_fault(&lf_ctx, rng) {
-                            fouls.push(lf_res);
-                        }
-                    }
+                let lf_ctx = LineFaultEvaluationContext::new(
+                    receiver.id(),
+                    ctx.offense_team_id,
+                    last_defender.id(),
+                    ctx.defense_team_id,
+                    rec_table,
+                    def_table,
+                    &referee_table,
+                    &peace_referee_table,
+                    &ctx.duel_context,
+                    ctx.zone,
+                );
+                if let Some(lf_res) = evaluate_and_resolve_line_fault(&lf_ctx, rng) {
+                    fouls.push(lf_res);
                 }
             }
         }
