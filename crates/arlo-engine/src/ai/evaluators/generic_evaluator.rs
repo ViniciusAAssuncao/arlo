@@ -1,7 +1,8 @@
 use crate::ai::evaluators::action_configs::{ActionEvaluationConfig, ActionKindConfig};
 use crate::ai::evaluators::context::DecisionEvaluationContext;
 use arlo_domain::sport_constants::{
-    FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM, FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE,
+    GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 
 pub fn evaluate_action_utility(
@@ -67,9 +68,13 @@ pub fn evaluate_action_utility(
                 )
             }
             ActionKindConfig::TerminalScore(term) => {
+                let advance_in_series = (10.0 - ctx.remaining_advance_mirim).max(0.0);
                 let value = if ctx.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
                     GOAL_POINT_VALUE as f64
-                } else if ctx.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES {
+                } else if ctx.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
+                    && (advance_in_series >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+                        || ctx.normalized_proximity >= 0.70)
+                {
                     FIELD_POINT_VALUE as f64
                 } else {
                     0.0

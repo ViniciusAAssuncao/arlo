@@ -1,4 +1,7 @@
-use arlo_domain::sport_constants::{FIELD_POINT_REQUIRED_DRIVES, GOAL_POINT_REQUIRED_DRIVES};
+use arlo_domain::sport_constants::{
+    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM, FIELD_POINT_REQUIRED_DRIVES,
+    GOAL_POINT_REQUIRED_DRIVES,
+};
 use arlo_domain::{ArtroPlacement, PitchZone};
 use serde::{Deserialize, Serialize};
 
@@ -87,10 +90,11 @@ impl PitchState {
     }
 
     pub fn can_attempt_field_point(&self) -> bool {
+        let advance_in_series = (10.0 - self.remaining_advance_mirim).max(0.0);
         self.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
-            && (self.normalized_proximity >= 0.6
-                || self.zone == PitchZone::SecondZone
-                || self.zone == PitchZone::FirstZone)
+            && !self.is_bonus_phase
+            && (advance_in_series >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+                || self.normalized_proximity >= 0.70)
     }
 
     pub fn determine_zone_from_proximity(normalized_proximity: f64) -> PitchZone {

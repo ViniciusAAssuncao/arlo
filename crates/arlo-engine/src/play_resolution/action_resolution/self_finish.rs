@@ -1,7 +1,7 @@
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::match_decision::scoring::{
-    duel_kind_for_opportunity, field_goal_points, field_point_points, goal_point_points,
-    ScoringOpportunity,
+    duel_kind_for_opportunity, evaluate_scoring_opportunity, field_goal_points, field_point_points,
+    goal_point_points, ScoringOpportunity,
 };
 use crate::physical::PhysicalState;
 use crate::possession::PitchState;
@@ -10,7 +10,7 @@ use crate::resolution::finish_distance_multiplier;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
-use arlo_domain::sport_constants::GOAL_POINT_REQUIRED_DRIVES;
+use crate::resolution::DuelKind;
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_events::ScoringPost;
 use arlo_math::Probability;
@@ -51,16 +51,7 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
     request: &SelfFinishActionRequest<'_>,
     rng: &mut R,
 ) -> FinishActionResult {
-    let opportunity = if request.pitch_state.is_bonus_phase() {
-        ScoringOpportunity::FieldGoal(ScoringPost::Goalpost)
-    } else if request.pitch_state.drives_in_series() >= GOAL_POINT_REQUIRED_DRIVES {
-        ScoringOpportunity::GoalPoint
-    } else {
-        ScoringOpportunity::FieldPoint
-    };
-
-    let duel_kind = duel_kind_for_opportunity(opportunity);
-    let (att_prof, def_prof) = get_duel_profiles(duel_kind);
+    let (att_prof, def_prof) = get_duel_profiles(DuelKind::FinishingAttempt);
 
     let raw_fin_rating = calculate_player_duel_rating_from_table(
         request.finisher,
@@ -77,6 +68,38 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
         request.goalguard_fatigue,
     );
 
+    let territory_advance = (10.0 - request.pitch_state.remaining_advance_mirim()).max(0.0);
+    let opportunity = evaluate_scoring_opportunity(
+        request.pitch_state.is_bonus_phase(),
+        request.pitch_state.drives_in_series(),
+        territory_advance,
+        raw_fin_rating,
+    );
+
+    if opportunity == ScoringOpportunity::None {
+        let duel_outcome = DuelOutcome::new(
+            DuelKind::FinishingAttempt,
+            false,
+            raw_fin_rating,
+            raw_gg_rating,
+            Probability::new_clamped(0.0),
+            -5.0,
+        );
+        return FinishActionResult {
+            scored: false,
+            opportunity: ScoringOpportunity::None,
+            post: ScoringPost::Fieldpost,
+            points_awarded: 0,
+            win_probability: Probability::new_clamped(0.0),
+            net_advantage: -5.0,
+            next_pitch_state: request
+                .pitch_state
+                .with_advance(0.0, request.pitch_length_mirim),
+            duel_outcome,
+        };
+    }
+
+    let duel_kind = duel_kind_for_opportunity(opportunity);
     let distance_multiplier =
         finish_distance_multiplier(request.pitch_state.normalized_proximity());
     let effective_fin_rating = raw_fin_rating * distance_multiplier;

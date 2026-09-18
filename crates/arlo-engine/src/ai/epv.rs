@@ -1,5 +1,6 @@
 use arlo_domain::sport_constants::{
-    FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM, FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE,
+    GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use serde::{Deserialize, Serialize};
 
@@ -27,12 +28,13 @@ impl DynamicEpvModel {
         remaining_advance_mirim: f64,
     ) -> f64 {
         if drives_in_series < GOAL_POINT_REQUIRED_DRIVES {
-            return (normalized_x * 0.05).clamp(0.0, 0.05);
+            return 0.0;
         }
         let x = normalized_x.clamp(0.0, 1.0);
         let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.10;
         let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.30);
-        (x * 0.80 - down_penalty - dist_penalty).clamp(0.05, 0.95)
+        let grav_bonus = (self.offensive_gravity - 1.0) * 0.10;
+        (x * 0.80 - down_penalty - dist_penalty + grav_bonus).clamp(0.0, 0.95)
     }
 
     pub fn field_point_probability(
@@ -42,13 +44,18 @@ impl DynamicEpvModel {
         down: u8,
         remaining_advance_mirim: f64,
     ) -> f64 {
-        if drives_in_series < FIELD_POINT_REQUIRED_DRIVES && normalized_x < 0.40 {
+        if drives_in_series < FIELD_POINT_REQUIRED_DRIVES {
+            return 0.0;
+        }
+        let advance_in_series = (10.0 - remaining_advance_mirim).max(0.0);
+        if advance_in_series < FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM && normalized_x < 0.60 {
             return 0.0;
         }
         let x = normalized_x.clamp(0.0, 1.0);
         let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.08;
         let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.25);
-        (x * 0.65 - down_penalty - dist_penalty).clamp(0.05, 0.90)
+        let grav_bonus = (self.offensive_gravity - 1.0) * 0.08;
+        (x * 0.65 - down_penalty - dist_penalty + grav_bonus).clamp(0.0, 0.90)
     }
 
     pub fn turnover_probability(
@@ -83,7 +90,15 @@ impl DynamicEpvModel {
         let p_to = self.turnover_probability(normalized_x, down, remaining_advance_mirim);
         let opp_val = self.opponent_epa(normalized_x);
 
-        p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
+        let drive_progression_value = if drives_in_series < GOAL_POINT_REQUIRED_DRIVES {
+            (drives_in_series as f64) * 0.75 * normalized_x.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        p_goal * (GOAL_POINT_VALUE as f64)
+            + p_field * (FIELD_POINT_VALUE as f64)
+            + drive_progression_value
             - p_to * opp_val
     }
 
@@ -125,8 +140,10 @@ impl DynamicEpvModel {
     pub fn score_value(drives_in_series: u32) -> f64 {
         if drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
             GOAL_POINT_VALUE as f64
-        } else {
+        } else if drives_in_series >= FIELD_POINT_REQUIRED_DRIVES {
             FIELD_POINT_VALUE as f64
+        } else {
+            0.0
         }
     }
 

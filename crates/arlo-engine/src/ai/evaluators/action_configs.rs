@@ -2,6 +2,10 @@ use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::ai::evaluators::generic_evaluator::evaluate_action_utility;
 use crate::attributes::profiles::AttributeProfile;
+use arlo_domain::sport_constants::{
+    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM, FIELD_POINT_REQUIRED_DRIVES,
+    GOAL_POINT_REQUIRED_DRIVES,
+};
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Clone, Copy)]
@@ -143,7 +147,12 @@ pub fn cross_config() -> ActionEvaluationConfig {
             },
             geometry_factor_fn: |ctx| 0.70 + 0.60 * ctx.lateral_ratio(),
         }),
-        rule_validator_fn: |ctx| ctx.drives_in_series >= 1 || ctx.normalized_proximity >= 0.70,
+        rule_validator_fn: |ctx| {
+            ctx.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES
+                || (ctx.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
+                    && ((10.0 - ctx.remaining_advance_mirim) >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+                        || ctx.normalized_proximity >= 0.70))
+        },
     }
 }
 
@@ -168,7 +177,12 @@ pub fn finish_config() -> ActionEvaluationConfig {
                 zone_multiplier * shooting_lane_clearance
             },
         }),
-        rule_validator_fn: |ctx| ctx.drives_in_series >= 1,
+        rule_validator_fn: |ctx| {
+            ctx.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES
+                || (ctx.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
+                    && ((10.0 - ctx.remaining_advance_mirim) >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+                        || ctx.normalized_proximity >= 0.70))
+        },
     }
 }
 
