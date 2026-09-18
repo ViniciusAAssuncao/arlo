@@ -1,10 +1,6 @@
-use crate::ai::cognitive::decision_threshold::action_probability;
+use crate::ai::cognitive::manager_action_probability;
 use crate::attributes::PlayerAttributeTable;
 use crate::manager_ai::context::ManagerSnapshot;
-use arlo_domain::sport_constants::manager_cognition::{
-    DECISION_THRESHOLD_LOGIT_STEEPNESS, SIGNAL_DETECTION_BASE_SENSITIVITY,
-    SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-};
 use arlo_domain::sport_constants::managerial::{
     BLOCKER_ROLE_BASE_THRESHOLD, BLOCKER_ROLE_PHYSICALITY_ADJUSTMENT,
     LAUNCHER_PASSING_RANGE_PREFERENCE_WEIGHT,
@@ -147,12 +143,9 @@ pub fn assign_roles(
 
     let false_artrine_stimulus =
         ((planning_norm * 0.5 + strategy_norm * 0.5) * dep_modifier_false_artrine).clamp(0.0, 1.0);
-    let false_artrine_prob = action_probability(
+    let false_artrine_prob = manager_action_probability(
         false_artrine_stimulus,
         manager_snapshot.artro_strategy,
-        SIGNAL_DETECTION_BASE_SENSITIVITY,
-        SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-        DECISION_THRESHOLD_LOGIT_STEEPNESS,
     );
 
     if false_artrine_prob.value() >= 0.5 {
@@ -172,12 +165,9 @@ pub fn assign_roles(
         + (pass_pref_norm * LAUNCHER_PASSING_RANGE_PREFERENCE_WEIGHT))
         * dep_modifier_launcher)
         .clamp(0.0, 1.0);
-    let launcher_prob = action_probability(
+    let launcher_prob = manager_action_probability(
         launcher_stimulus,
         manager_snapshot.offense_planning,
-        SIGNAL_DETECTION_BASE_SENSITIVITY,
-        SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-        DECISION_THRESHOLD_LOGIT_STEEPNESS,
     );
 
     if launcher_prob.value() >= 0.5 {
@@ -191,12 +181,9 @@ pub fn assign_roles(
         );
     }
 
-    let safeguard_prob = action_probability(
+    let safeguard_prob = manager_action_probability(
         def_org_norm,
         manager_snapshot.defense_organization,
-        SIGNAL_DETECTION_BASE_SENSITIVITY,
-        SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-        DECISION_THRESHOLD_LOGIT_STEEPNESS,
     );
 
     if safeguard_prob.value() >= 0.5 {

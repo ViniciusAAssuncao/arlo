@@ -1,9 +1,9 @@
-use crate::manager_ai::cognition::derive_manager_decision_noise;
+use crate::ai::cognitive::sample_manager_action;
+use crate::manager_ai::cognition::sample_manager_decision_noise;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::tactical_adjustment::fit_scoring::score_candidate;
 use arlo_domain::sport_constants::tactical_adaptation::{
     PROFILE_SWITCH_FIT_MARGIN_BASE, PROFILE_SWITCH_FLEXIBILITY_SCALE,
-    PROFILE_SWITCH_TACTICAL_KNOWLEDGE_NOISE_SCALE,
 };
 use arlo_tactics::{SituationalContext, TeamTacticalProfile};
 use rand::Rng;
@@ -24,17 +24,12 @@ impl TacticalAdjustmentDecisionEngine {
         }
 
         let mtp = context.manager_snapshot.tactical_profile.as_ref();
-        let norm_tk = (context.manager_snapshot.tactical_knowledge.clamp(0.0, 20.0)) / 20.0;
-        let noise_scale = (1.0 - norm_tk) * PROFILE_SWITCH_TACTICAL_KNOWLEDGE_NOISE_SCALE;
-        let discipline_noise_params =
-            derive_manager_decision_noise(context.manager_snapshot.discipline);
+        let discipline = context.manager_snapshot.discipline;
 
-        let calculate_perceived_score = |profile: &TeamTacticalProfile, rng: &mut R| -> f64 {
+        let calculate_perceived_score = |profile: &TeamTacticalProfile, rng_val: &mut R| -> f64 {
             let raw_score = score_candidate(profile, situational_context, mtp);
-            let id_hash = (profile.id().as_u128() & 0xFFFF) as f64 / 65535.0;
-            let id_noise = (id_hash * 2.0 - 1.0) * noise_scale;
-            let discipline_noise = discipline_noise_params.sample(rng);
-            (raw_score + id_noise + discipline_noise).clamp(0.0, 1.0)
+            let noise = sample_manager_decision_noise(discipline, rng_val);
+            (raw_score + noise).clamp(0.0, 1.0)
         };
 
         let active_profile = available_profiles
@@ -67,6 +62,13 @@ impl TacticalAdjustmentDecisionEngine {
             }
         }
 
-        best_candidate_id
+        if let Some(candidate_id) = best_candidate_id {
+            let stimulus = (best_candidate_score - threshold + 0.5).clamp(0.0, 1.0);
+            if sample_manager_action(stimulus, context.manager_snapshot.adaptability, rng) {
+                return Some(candidate_id);
+            }
+        }
+
+        None
     }
 }

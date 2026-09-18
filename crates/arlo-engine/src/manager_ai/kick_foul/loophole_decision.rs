@@ -1,10 +1,6 @@
-use crate::ai::cognitive::decision_threshold::action_probability;
+use crate::ai::cognitive::sample_manager_action;
 use crate::ai::epv::DynamicEpvModel;
 use crate::manager_ai::context::ManagerDecisionContext;
-use arlo_domain::sport_constants::manager_cognition::{
-    DECISION_THRESHOLD_LOGIT_STEEPNESS, SIGNAL_DETECTION_BASE_SENSITIVITY,
-    SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-};
 use arlo_domain::sport_constants::{
     FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
     KICK_FOUL_REALIGNMENT_VALUE_STEEPNESS, MINIMUM_ADVANCE_MIRINS_PER_SERIES,
@@ -53,13 +49,9 @@ pub fn evaluate_kick_foul_realignment<R: Rng + ?Sized>(
     let stimulus =
         logistic((realignment_epv - kick_epv) * KICK_FOUL_REALIGNMENT_VALUE_STEEPNESS);
 
-    let prob = action_probability(
+    sample_manager_action(
         stimulus,
         context.manager_snapshot.in_game_adjustments,
-        SIGNAL_DETECTION_BASE_SENSITIVITY,
-        SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-        DECISION_THRESHOLD_LOGIT_STEEPNESS,
-    );
-
-    prob.sample(rng)
+        rng,
+    )
 }

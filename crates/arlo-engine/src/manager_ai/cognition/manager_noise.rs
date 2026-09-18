@@ -2,6 +2,7 @@ use arlo_domain::sport_constants::{
     ATTRIBUTE_SATURATION_THRESHOLD, MANAGER_NOISE_DISCIPLINE_SCALE,
 };
 use arlo_math::stats::SkewNormalParams;
+use rand::Rng;
 
 pub fn derive_manager_decision_noise(discipline: f64) -> SkewNormalParams {
     let disc = discipline.clamp(0.0, 20.0);
@@ -10,4 +11,8 @@ pub fn derive_manager_decision_noise(discipline: f64) -> SkewNormalParams {
     let location = 0.0;
     let shape = 0.0;
     SkewNormalParams::new(location, scale, shape)
+}
+
+pub fn sample_manager_decision_noise<R: Rng + ?Sized>(discipline: f64, rng: &mut R) -> f64 {
+    derive_manager_decision_noise(discipline).sample(rng)
 }

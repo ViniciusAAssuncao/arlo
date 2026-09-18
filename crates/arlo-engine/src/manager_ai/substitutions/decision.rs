@@ -1,7 +1,7 @@
-use crate::ai::cognitive::decision_threshold::action_probability;
+use crate::ai::cognitive::sample_manager_action;
 use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::Lineup;
-use crate::manager_ai::cognition::derive_manager_decision_noise;
+use crate::manager_ai::cognition::sample_manager_decision_noise;
 use crate::manager_ai::context::squad_fatigue_summary::SquadFatigueSummary;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::substitutions::disciplinary_trigger::disciplinary_urgency;
@@ -11,10 +11,6 @@ use crate::manager_ai::substitutions::tactical_trigger::tactical_urgency;
 use crate::physical::FatigueState;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::AvailabilityState;
-use arlo_domain::sport_constants::manager_cognition::{
-    DECISION_THRESHOLD_LOGIT_STEEPNESS, SIGNAL_DETECTION_BASE_SENSITIVITY,
-    SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-};
 use arlo_domain::sport_constants::substitution::{
     SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT, SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT,
     SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT,
@@ -57,7 +53,7 @@ impl SubstitutionDecisionEngine {
             .unwrap_or(RotationPolicy::Situational);
         let load_management = context.manager_snapshot.load_management;
         let tac_urg = tactical_urgency(context);
-        let noise_params = derive_manager_decision_noise(context.manager_snapshot.discipline);
+        let discipline = context.manager_snapshot.discipline;
 
         let mut used_candidates = HashSet::new();
         let mut plans = Vec::new();
@@ -77,22 +73,14 @@ impl SubstitutionDecisionEngine {
             );
             let disc_urg = disciplinary_urgency(p_avail);
 
-            let noise = noise_params.sample(rng);
+            let noise = sample_manager_decision_noise(discipline, rng);
             let combined_urgency = ((fat_urg * SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT
                 + tac_urg * SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT
                 + disc_urg * SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT)
                 + noise)
                 .clamp(0.0, 1.0);
 
-            let prob = action_probability(
-                combined_urgency,
-                context.manager_snapshot.man_management,
-                SIGNAL_DETECTION_BASE_SENSITIVITY,
-                SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-                DECISION_THRESHOLD_LOGIT_STEEPNESS,
-            );
-
-            if prob.sample(rng) {
+            if sample_manager_action(combined_urgency, context.manager_snapshot.man_management, rng) {
                 let available_candidates: Vec<_> = bench
                     .available_replacements()
                     .filter(|p| !used_candidates.contains(&p.id()))
