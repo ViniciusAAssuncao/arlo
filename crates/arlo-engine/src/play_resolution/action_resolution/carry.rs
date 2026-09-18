@@ -3,14 +3,13 @@ use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
 use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::TeamSpaceRating;
-use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
-use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
+use crate::resolution::{sample_action_progression, ActionProgressionKind};
 use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_math::stats::contrast::logistic;
@@ -100,13 +99,12 @@ pub fn resolve_carry_action<R: Rng + ?Sized>(
     let net_advantage = duel_outcome.net_advantage();
     let win_probability = duel_outcome.win_probability();
 
-    let (shape, base_mean, adv_factor, min_mean) = if success {
-        (2.5, 12.0, 0.45, 4.0)
-    } else {
-        (2.0, 1.8, 0.15, 0.2)
-    };
-    let strategy = AggregateProgressionStrategy::new(shape, base_mean, adv_factor, min_mean);
-    let actual_advance = strategy.resolve_progression(&duel_outcome, rng);
+    let actual_advance = sample_action_progression(
+        ActionProgressionKind::Carry,
+        net_advantage,
+        1.0,
+        rng,
+    );
 
     let drives_crossed = if request.is_true_artrine && actual_advance >= ARTRO_ROW_SPACING_MIRIM {
         (actual_advance / ARTRO_ROW_SPACING_MIRIM).floor() as u32

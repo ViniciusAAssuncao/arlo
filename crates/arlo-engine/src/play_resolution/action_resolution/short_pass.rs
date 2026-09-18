@@ -2,14 +2,13 @@ use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
 use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::TeamSpaceRating;
-use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
-use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
+use crate::resolution::{sample_action_progression, ActionProgressionKind};
 use crate::team_identity::passing_style::short_pass_advance_multiplier;
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_math::stats::contrast::logistic;
@@ -98,8 +97,12 @@ pub fn resolve_short_pass_action<R: Rng + ?Sized>(
 
     let pass_mult = short_pass_advance_multiplier(request.passing_range);
     let actual_advance = if completed {
-        let strategy = AggregateProgressionStrategy::new(2.5, 10.0 * pass_mult, 0.40, 4.0);
-        strategy.resolve_progression(&duel_outcome, rng)
+        sample_action_progression(
+            ActionProgressionKind::ShortPass,
+            net_advantage,
+            pass_mult,
+            rng,
+        )
     } else {
         0.0
     };

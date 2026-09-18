@@ -7,6 +7,7 @@ pub mod duel_profiles;
 pub mod duel_timing;
 pub mod group_rating;
 pub mod outcome;
+pub mod outcome_distribution;
 pub mod progression_strategy;
 pub mod resolver;
 
@@ -27,6 +28,7 @@ pub use group_rating::{
     calculate_player_duel_rating_with_state, calculate_side_rating, RatingParticipants,
 };
 pub use outcome::{ContestOutcome, DuelOutcome};
+pub use outcome_distribution::*;
 pub use progression_strategy::ProgressionResolutionStrategy;
 pub use resolver::{
     calculate_velocity_mitigation, resolve_contest, resolve_duel, ContestRequest,

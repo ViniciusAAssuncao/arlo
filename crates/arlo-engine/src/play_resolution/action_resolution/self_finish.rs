@@ -8,11 +8,12 @@ use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::TeamSpaceRating;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_profiles::get_duel_profiles;
+use crate::resolution::finish_distance_multiplier;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use arlo_domain::sport_constants::GOAL_POINT_REQUIRED_DRIVES;
-use arlo_domain::{AttributeKey, PitchZone, Player, Position};
+use arlo_domain::{AttributeKey, Player, Position};
 use arlo_events::ScoringPost;
 use arlo_math::Probability;
 use rand::Rng;
@@ -79,13 +80,10 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
         request.goalguard_fatigue,
     );
 
-    let zone_multiplier = match request.pitch_state.zone() {
-        PitchZone::FirstZone => 1.85,
-        PitchZone::SecondZone => 1.45,
-        _ => 0.90,
-    };
+    let distance_multiplier =
+        finish_distance_multiplier(request.pitch_state.normalized_proximity());
     let effective_fin_rating =
-        raw_fin_rating * zone_multiplier * request.space_rating.lane_clearance();
+        raw_fin_rating * distance_multiplier * request.space_rating.lane_clearance();
 
     let req = DuelResolutionRequest::with_states(
         duel_kind,

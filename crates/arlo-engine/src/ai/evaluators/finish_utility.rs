@@ -1,9 +1,9 @@
 use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::artrine::decision_profiles::self_finish_profile;
+use crate::resolution::finish_distance_multiplier;
 use arlo_domain::sport_constants::{
-    AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM, FIELD_POINT_VALUE, FIRST_ZONE_DEPTH_MIRIM,
-    GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+    FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use arlo_domain::ArtrineDecisionKind;
 use arlo_math::units::MIRIM_TO_METERS;
@@ -31,18 +31,7 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
 
         let distance_to_goal_mirim =
             ((1.0 - ctx.normalized_proximity) * ctx.pitch_length_mirim).max(0.0);
-        let second_zone_limit = FIRST_ZONE_DEPTH_MIRIM + AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
-
-        let zone_multiplier = if distance_to_goal_mirim <= FIRST_ZONE_DEPTH_MIRIM {
-            1.85
-        } else if distance_to_goal_mirim <= second_zone_limit {
-            1.45
-        } else if distance_to_goal_mirim <= second_zone_limit + 15.0 {
-            1.10
-        } else {
-            (1.0 / (1.0 + (distance_to_goal_mirim - second_zone_limit - 15.0) * 0.08))
-                .clamp(0.30, 1.0)
-        };
+        let zone_multiplier = finish_distance_multiplier(ctx.normalized_proximity);
 
         let center_y_m = (ctx.pitch_width_mirim * 0.5) * MIRIM_TO_METERS;
         let angle_offset = ((ctx.carrier_pos_vec.raw().1 - center_y_m).abs() / center_y_m.max(1.0))

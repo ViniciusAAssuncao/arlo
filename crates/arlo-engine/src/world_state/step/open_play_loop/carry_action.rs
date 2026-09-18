@@ -6,13 +6,11 @@ use crate::play_resolution::contact_events::{evaluate_contact_likelihood, sample
 use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::calculate_team_space_rating;
 use crate::possession::TouchActionType;
-use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
-use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
-use crate::resolution::AttributedDuelOutcome;
+use crate::resolution::{sample_action_progression, ActionProgressionKind, AttributedDuelOutcome};
 use crate::time::DurationComponentKind;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -239,13 +237,12 @@ pub fn execute_carry_action<R: Rng + ?Sized>(
         }
     }
 
-    let (shape, base_mean, adv_factor, min_mean) = if duel_outcome.attacker_won() {
-        (2.5, 12.0, 0.45, 4.0)
-    } else {
-        (2.0, 1.8, 0.15, 0.2)
-    };
-    let strategy = AggregateProgressionStrategy::new(shape, base_mean, adv_factor, min_mean);
-    let macro_advance = strategy.resolve_progression(&duel_outcome, rng);
+    let macro_advance = sample_action_progression(
+        ActionProgressionKind::Carry,
+        duel_outcome.net_advantage(),
+        1.0,
+        rng,
+    );
 
     let to_base = if duel_outcome.attacker_won() { -3.5 } else { -1.5 };
     let to_p = (logistic(to_base - 0.20 * duel_outcome.net_advantage())

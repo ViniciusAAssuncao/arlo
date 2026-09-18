@@ -2,14 +2,13 @@ use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
 use crate::play_resolution::field_context::PitchState;
 use crate::play_resolution::space_index::TeamSpaceRating;
-use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
-use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
+use crate::resolution::{sample_action_progression, ActionProgressionKind};
 use arlo_domain::{ArtroPlacement, AttributeKey, PitchZone, Player, Position};
 use arlo_math::stats::contrast::logistic;
 use arlo_math::Probability;
@@ -97,14 +96,13 @@ pub fn resolve_cross_action<R: Rng + ?Sized>(
     let net_advantage = duel_outcome.net_advantage();
     let win_probability = duel_outcome.win_probability();
 
-    let (shape, base_mean, adv_factor, min_mean) = if completed {
-        (2.5, 8.0, 0.35, 3.0)
-    } else {
-        (2.0, 1.0, 0.10, 0.0)
-    };
-    let strategy = AggregateProgressionStrategy::new(shape, base_mean, adv_factor, min_mean);
     let actual_advance = if completed {
-        strategy.resolve_progression(&duel_outcome, rng)
+        sample_action_progression(
+            ActionProgressionKind::Cross,
+            net_advantage,
+            1.0,
+            rng,
+        )
     } else {
         0.0
     };

@@ -7,23 +7,20 @@ use crate::officiating::line_fault::{
     is_line_fault, LineFaultEvaluationContext,
 };
 use crate::play_resolution::ball_kinematics::{ball_flight_duration, calculate_pass_speed};
-use crate::resolution::aggregate_progression::AggregateProgressionStrategy;
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
     RatingParticipants,
 };
-use crate::resolution::progression_strategy::ProgressionResolutionStrategy;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
-use crate::resolution::{AttributedDuelOutcome, DuelKind};
+use crate::resolution::{
+    sample_action_progression, ActionProgressionKind, AttributedDuelOutcome, DuelKind,
+};
 use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::sport_constants::{
-    LONG_LAUNCH_BASE_ADVANCE_MIRIM, LONG_LAUNCH_MIN_ADVANCE_MIRIM, MINIMUM_ENGAGEMENT_SECONDS,
-    SHORT_PASS_BASE_ADVANCE_MIRIM, SHORT_PASS_MIN_ADVANCE_MIRIM,
-};
+use arlo_domain::sport_constants::MINIMUM_ENGAGEMENT_SECONDS;
 use arlo_domain::{ArtrineDecisionKind, Player, Position as DomainPosition};
 use arlo_math::units::{Duration, Length, Position as VectorPosition, Velocity, MIRIM_TO_METERS};
 use rand::Rng;
@@ -173,24 +170,23 @@ pub fn resolve_distribution_reception<'a, R: Rng + ?Sized>(
     let offense_instructions = *state.instructions_for_team(context.offense_team_id);
     let passing_range = offense_instructions.in_possession().passing_range();
 
-    let (shape, base_mean, adv_factor, min_mean) =
-        if chosen_decision == ArtrineDecisionKind::ShortPass {
-            (
-                2.5,
-                SHORT_PASS_BASE_ADVANCE_MIRIM * short_pass_advance_multiplier(passing_range),
-                0.40,
-                SHORT_PASS_MIN_ADVANCE_MIRIM,
-            )
-        } else {
-            (
-                2.5,
-                LONG_LAUNCH_BASE_ADVANCE_MIRIM * long_launch_advance_multiplier(passing_range),
-                0.60,
-                LONG_LAUNCH_MIN_ADVANCE_MIRIM,
-            )
-        };
-    let strategy = AggregateProgressionStrategy::new(shape, base_mean, adv_factor, min_mean);
-    let throw_advance = strategy.resolve_progression(&raw_throw_duel, rng);
+    let (prog_kind, pass_mult) = if chosen_decision == ArtrineDecisionKind::ShortPass {
+        (
+            ActionProgressionKind::ShortPass,
+            short_pass_advance_multiplier(passing_range),
+        )
+    } else {
+        (
+            ActionProgressionKind::LongLaunch,
+            long_launch_advance_multiplier(passing_range),
+        )
+    };
+    let throw_advance = sample_action_progression(
+        prog_kind,
+        raw_throw_duel.net_advantage(),
+        pass_mult,
+        rng,
+    );
 
     let pass_speed = calculate_pass_speed(current_carrier, attribute_keys, &carrier_fatigue);
     let flight_duration = ball_flight_duration(throw_advance, pass_speed);
