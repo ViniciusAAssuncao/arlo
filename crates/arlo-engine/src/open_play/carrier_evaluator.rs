@@ -1,8 +1,6 @@
-use crate::ai::evaluators::{
-    ActionUtilityEvaluator, CarryUtilityEvaluator, CrossUtilityEvaluator,
-    DecisionEvaluationContext, LongLaunchUtilityEvaluator, SelfFinishUtilityEvaluator,
-    ShortPassUtilityEvaluator,
-};
+use crate::ai::evaluators::action_configs::get_action_config;
+use crate::ai::evaluators::context::DecisionEvaluationContext;
+use crate::ai::evaluators::generic_evaluator::evaluate_action_utility;
 use arlo_domain::ArtrineDecisionKind;
 use smallvec::SmallVec;
 
@@ -14,25 +12,12 @@ impl CarrierDecisionEvaluator {
         ctx: &DecisionEvaluationContext<'_>,
         available_kinds: &[ArtrineDecisionKind],
     ) -> SmallVec<[(ArtrineDecisionKind, f64); 5]> {
-        let carry_evaluator = CarryUtilityEvaluator;
-        let short_pass_evaluator = ShortPassUtilityEvaluator;
-        let long_launch_evaluator = LongLaunchUtilityEvaluator;
-        let cross_evaluator = CrossUtilityEvaluator;
-        let finish_evaluator = SelfFinishUtilityEvaluator;
-
         let mut results = SmallVec::with_capacity(available_kinds.len());
-
         for &kind in available_kinds {
-            let utility = match kind {
-                ArtrineDecisionKind::SelfCarry => carry_evaluator.evaluate(ctx),
-                ArtrineDecisionKind::ShortPass => short_pass_evaluator.evaluate(ctx),
-                ArtrineDecisionKind::LongLaunch => long_launch_evaluator.evaluate(ctx),
-                ArtrineDecisionKind::Cross => cross_evaluator.evaluate(ctx),
-                ArtrineDecisionKind::SelfFinish => finish_evaluator.evaluate(ctx),
-            };
+            let config = get_action_config(kind);
+            let utility = evaluate_action_utility(ctx, &config);
             results.push((kind, utility));
         }
-
         results
     }
 }

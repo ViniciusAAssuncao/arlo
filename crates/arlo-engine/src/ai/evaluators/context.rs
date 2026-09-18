@@ -30,22 +30,19 @@ pub struct DecisionEvaluationContext<'a> {
     pub down: u8,
     pub remaining_advance_mirim: f64,
     pub pass_protection_net_advantage: f64,
-    pub best_available_target_weight: f64,
-    pub long_launch_target_weight: f64,
+    pub target_quality: f64,
+    pub long_launch_target_quality: f64,
     pub team_advantage: f64,
     pub channel: ArtroPlacement,
-    pub pitch_control_ahead: f64,
-    pub pitch_length_mirim: f64,
-    pub pitch_width_mirim: f64,
+    pub pitch_control: f64,
+    pub expected_free_path: f64,
     pub offensive_gravity: f64,
     pub passing_range: PassingRange,
     pub risk_profile: RiskProfile,
     pub game_state_pressure: GameStatePressure,
     pub play_call_emphasis: DecisionEmphasis,
     pub is_true_artrine: bool,
-    pub expected_free_path_mirim: f64,
-    pub opponent_epa_at_proximity: f64,
-    pub cached_probability_bounds: (f64, f64),
+    pub probability_bounds: (f64, f64),
 }
 
 impl<'a> DecisionEvaluationContext<'a> {
@@ -75,19 +72,17 @@ impl<'a> DecisionEvaluationContext<'a> {
         play_call_emphasis: DecisionEmphasis,
         is_true_artrine: bool,
     ) -> Self {
-        let pitch_length_mirim = 145.0;
-        let pitch_width_mirim = 85.0;
-
-        let control_val = (0.50 + 0.04 * team_advantage - 0.08 * normalized_proximity
+        let pitch_control = (0.50 + 0.04 * team_advantage - 0.08 * normalized_proximity
             + 0.04 * game_state_pressure.urgency_index())
         .clamp(0.15, 0.85);
-        let pitch_control_ahead = control_val;
 
-        let expected_free_path_mirim =
-            (pitch_control_ahead * (1.0 - normalized_proximity) * 35.0).clamp(1.5, 25.0);
+        let expected_free_path =
+            (pitch_control * (1.0 - normalized_proximity) * 35.0).clamp(1.5, 25.0);
 
-        let opponent_epa_at_proximity = epv_model.opponent_epa(normalized_proximity);
-        let cached_probability_bounds = Self::calculate_probability_bounds(
+        let target_quality = (best_available_target_weight - 8.0) / 10.0;
+        let long_launch_target_quality = (long_launch_target_weight - 8.0) / 10.0;
+
+        let probability_bounds = Self::calculate_probability_bounds(
             carrier,
             carrier_table,
             &carrier_physical_state,
@@ -108,22 +103,19 @@ impl<'a> DecisionEvaluationContext<'a> {
             down,
             remaining_advance_mirim,
             pass_protection_net_advantage,
-            best_available_target_weight,
-            long_launch_target_weight,
+            target_quality,
+            long_launch_target_quality,
             team_advantage,
             channel,
-            pitch_control_ahead,
-            pitch_length_mirim,
-            pitch_width_mirim,
+            pitch_control,
+            expected_free_path,
             offensive_gravity,
             passing_range,
             risk_profile,
             game_state_pressure,
             play_call_emphasis,
             is_true_artrine,
-            expected_free_path_mirim,
-            opponent_epa_at_proximity,
-            cached_probability_bounds,
+            probability_bounds,
         }
     }
 
@@ -164,19 +156,23 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn target_quality(&self) -> f64 {
-        (self.best_available_target_weight - 8.0) / 10.0
+        self.target_quality
     }
 
     pub fn long_launch_target_quality(&self) -> f64 {
-        (self.long_launch_target_weight - 8.0) / 10.0
+        self.long_launch_target_quality
     }
 
     pub fn pitch_control(&self) -> f64 {
-        self.pitch_control_ahead.clamp(0.0, 1.0)
+        self.pitch_control
     }
 
     pub fn expected_free_path(&self) -> f64 {
-        self.expected_free_path_mirim
+        self.expected_free_path
+    }
+
+    pub fn pitch_length_mirim(&self) -> f64 {
+        145.0
     }
 
     pub fn carrier_rating(&self, profile: &DuelProfile) -> f64 {
@@ -207,16 +203,16 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn probability_bounds(&self) -> (f64, f64) {
-        self.cached_probability_bounds
+        self.probability_bounds
     }
 
     pub fn bound_probability(&self, raw_p: f64) -> f64 {
-        let (floor, ceiling) = self.probability_bounds();
+        let (floor, ceiling) = self.probability_bounds;
         raw_p.clamp(floor, ceiling)
     }
 
     pub fn opponent_epa(&self) -> f64 {
-        self.opponent_epa_at_proximity
+        self.epv_model.opponent_epa(self.normalized_proximity)
     }
 
     pub fn is_lateral(&self) -> bool {
@@ -236,6 +232,16 @@ impl<'a> DecisionEvaluationContext<'a> {
             0.75
         } else {
             1.0
+        }
+    }
+
+    pub fn emphasis_for(&self, kind: ArtrineDecisionKind) -> f64 {
+        match kind {
+            ArtrineDecisionKind::SelfCarry => self.play_call_emphasis.self_carry().value(),
+            ArtrineDecisionKind::ShortPass => self.play_call_emphasis.short_pass().value(),
+            ArtrineDecisionKind::LongLaunch => self.play_call_emphasis.long_launch().value(),
+            ArtrineDecisionKind::Cross => self.play_call_emphasis.cross().value(),
+            ArtrineDecisionKind::SelfFinish => self.play_call_emphasis.self_finish().value(),
         }
     }
 

@@ -3,5 +3,5 @@ use arlo_domain::ArtrineDecisionKind;
 
 pub trait ActionUtilityEvaluator {
     fn decision_kind(&self) -> ArtrineDecisionKind;
-    fn evaluate(&self, ctx: &DecisionEvaluationContext) -> f64;
+    fn evaluate(&self, ctx: &DecisionEvaluationContext<'_>) -> f64;
 }
