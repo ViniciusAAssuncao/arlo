@@ -1,5 +1,5 @@
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
-use crate::current_ability::{calculate_player_ca, calculate_player_ca_from_table};
+use crate::current_ability::calculate_player_ca;
 use crate::lineup_runtime::fit_calculator::calculate_fit_for_position;
 use arlo_domain::{AttributeKey, Player, Position};
 use std::collections::HashMap;
@@ -29,8 +29,8 @@ pub fn best_replacement_from_tables<'a>(
             let table_b = attribute_tables
                 .get(&b.id())
                 .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-            let ca_a = calculate_player_ca_from_table(a.as_ref(), table_a);
-            let ca_b = calculate_player_ca_from_table(b.as_ref(), table_b);
+            let ca_a = calculate_player_ca(a.as_ref(), table_a);
+            let ca_b = calculate_player_ca(b.as_ref(), table_b);
             ca_a.partial_cmp(&ca_b).unwrap_or(std::cmp::Ordering::Equal)
         }
     })
@@ -53,8 +53,10 @@ pub fn best_replacement<'a>(
         if prof_cmp != std::cmp::Ordering::Equal {
             prof_cmp
         } else {
-            let ca_a = calculate_player_ca(a.as_ref(), attribute_keys);
-            let ca_b = calculate_player_ca(b.as_ref(), attribute_keys);
+            let table_a = PlayerAttributeTable::from_player(a.as_ref(), attribute_keys);
+            let table_b = PlayerAttributeTable::from_player(b.as_ref(), attribute_keys);
+            let ca_a = calculate_player_ca(a.as_ref(), &table_a);
+            let ca_b = calculate_player_ca(b.as_ref(), &table_b);
             ca_a.partial_cmp(&ca_b).unwrap_or(std::cmp::Ordering::Equal)
         }
     })

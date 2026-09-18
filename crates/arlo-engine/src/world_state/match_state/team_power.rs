@@ -1,7 +1,8 @@
-use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
+use crate::current_ability::calculate_player_ca;
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::world_state::match_state::state::MatchState;
-use arlo_domain::sport_constants::CA_FORMULA_MULTIPLIER;
+use arlo_domain::sport_constants::MIN_CURRENT_ABILITY;
 use arlo_domain::{AttributeKey, Position, PositionLine};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -111,14 +112,6 @@ impl Default for MatchPowerCache {
     }
 }
 
-pub fn calculate_player_ca_from_table(table: &PlayerAttributeTable) -> f64 {
-    let mut sum = 0.0;
-    for &key in &AttributeKey::all() {
-        sum += table.get(key);
-    }
-    (sum / (AttributeKey::COUNT as f64)) * CA_FORMULA_MULTIPLIER
-}
-
 pub fn calculate_team_match_power(state: &MatchState, team_id: Uuid) -> TeamMatchPower {
     let is_home = team_id == state.home_team_id();
     let lineup = if is_home {
@@ -145,7 +138,7 @@ pub fn calculate_team_match_power(state: &MatchState, team_id: Uuid) -> TeamMatc
         }
 
         let table = tables.get(&pid).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-        let ca = calculate_player_ca_from_table(table);
+        let ca = calculate_player_ca(player, table).unwrap_or(MIN_CURRENT_ABILITY) as f64;
 
         let off_pos = offense_pos_index
             .get(&pid)

@@ -1,12 +1,13 @@
 use crate::ai::gravity::model::OffensiveGravity;
+use crate::attributes::profiles::{
+    gravity_creation_threat_profile, gravity_finishing_threat_profile,
+};
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
-use crate::weighting::calculate_weighted_saturated_average;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{
-    ATTRIBUTE_SATURATION_MULTIPLIER, ATTRIBUTE_SATURATION_THRESHOLD,
     AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM, FIRST_ZONE_DEPTH_MIRIM,
 };
 use arlo_domain::{AttributeKey, Player, Position};
@@ -21,73 +22,16 @@ pub fn calculate_player_offensive_gravity_with_state_from_table(
     zone_factor: f64,
     state: &PhysicalState,
 ) -> OffensiveGravity {
-    let finishing_attrs = [
-        (
-            extract_effective_attribute_value(table, AttributeKey::Finishing, state),
-            5.0,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Composure, state),
-            4.0,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Anticipation, state),
-            3.5,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Technique, state),
-            3.5,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Positioning, state),
-            3.0,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Decisions, state),
-            2.5,
-        ),
-    ];
+    let finishing_profile = gravity_finishing_threat_profile();
+    let creation_profile = gravity_creation_threat_profile();
 
-    let creation_attrs = [
-        (
-            extract_effective_attribute_value(table, AttributeKey::Passing, state),
-            4.5,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Vision, state),
-            4.5,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Flair, state),
-            3.5,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Agility, state),
-            3.0,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::Acceleration, state),
-            3.0,
-        ),
-        (
-            extract_effective_attribute_value(table, AttributeKey::ArloControl, state),
-            3.0,
-        ),
-    ];
+    let finishing_avg = finishing_profile.evaluate_saturated_average(|key| {
+        extract_effective_attribute_value(table, key, state)
+    });
 
-    let finishing_avg = calculate_weighted_saturated_average(
-        &finishing_attrs,
-        ATTRIBUTE_SATURATION_THRESHOLD,
-        ATTRIBUTE_SATURATION_MULTIPLIER,
-    )
-    .unwrap_or(10.0);
-
-    let creation_avg = calculate_weighted_saturated_average(
-        &creation_attrs,
-        ATTRIBUTE_SATURATION_THRESHOLD,
-        ATTRIBUTE_SATURATION_MULTIPLIER,
-    )
-    .unwrap_or(10.0);
+    let creation_avg = creation_profile.evaluate_saturated_average(|key| {
+        extract_effective_attribute_value(table, key, state)
+    });
 
     let fit = calculate_fit_for_position(player, assigned_position);
     let fit_mult = fit.efficiency_multiplier();

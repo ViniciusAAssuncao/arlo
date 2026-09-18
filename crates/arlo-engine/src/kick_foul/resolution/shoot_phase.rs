@@ -1,9 +1,9 @@
+use crate::attributes::profiles::{field_goal_profile, finishing_attempt_profile};
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::kick_foul::resolution::tier_opportunity::evaluate_kick_foul_scoring_opportunity;
 use crate::match_decision::scoring::{
     duel_kind_for_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
 };
-use crate::resolution::duel_profiles::offense_duels::{field_goal_profile, finishing_attempt_profile};
 use crate::resolution::{AttributedDuelOutcome, DuelContext};
 use arlo_domain::{AttributeKey, KickFoulScoringTier, Player};
 use rand::Rng;

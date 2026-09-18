@@ -1,61 +1,21 @@
+pub use crate::attributes::profiles::default_impulse_baseline_profile;
+use crate::attributes::profiles::AttributeProfile;
 use crate::attributes::PlayerAttributeTable;
 use crate::caching::impulse_baseline_profile;
-use crate::weighting::{calculate_weighted_saturated_average, AttributeWeight};
 use arlo_domain::sport_constants::{
-    ATTRIBUTE_SATURATION_MULTIPLIER, ATTRIBUTE_SATURATION_THRESHOLD, HOME_IMPULSE_BASELINE_BOOST,
-    MAX_CAPTAINCY_BASELINE_BOOST,
+    HOME_IMPULSE_BASELINE_BOOST, MAX_CAPTAINCY_BASELINE_BOOST,
 };
 use arlo_domain::{AttributeKey, CaptaincyRole, Player};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ImpulseBaselineProfile {
-    weights: Vec<AttributeWeight>,
-}
-
-impl ImpulseBaselineProfile {
-    pub fn new(weights: Vec<AttributeWeight>) -> Self {
-        Self { weights }
-    }
-
-    pub fn weights(&self) -> &[AttributeWeight] {
-        &self.weights
-    }
-}
-
-pub fn default_impulse_baseline_profile() -> ImpulseBaselineProfile {
-    ImpulseBaselineProfile::new(vec![
-        AttributeWeight::new(AttributeKey::Determination, 5.0),
-        AttributeWeight::new(AttributeKey::Composure, 4.5),
-        AttributeWeight::new(AttributeKey::Bravery, 4.0),
-        AttributeWeight::new(AttributeKey::Consistency, 4.0),
-        AttributeWeight::new(AttributeKey::Concentration, 3.5),
-        AttributeWeight::new(AttributeKey::Leadership, 3.0),
-        AttributeWeight::new(AttributeKey::Teamwork, 2.5),
-    ])
-}
+pub type ImpulseBaselineProfile = AttributeProfile;
 
 pub fn calculate_player_impulse_baseline_from_table_with_profile(
     table: &PlayerAttributeTable,
     profile: &ImpulseBaselineProfile,
 ) -> f64 {
-    let mut items = Vec::with_capacity(profile.weights().len());
-    for w in profile.weights() {
-        if w.weight > 0.0 {
-            let val = table.get(w.key);
-            items.push((val, w.weight));
-        }
-    }
-
-    let avg = calculate_weighted_saturated_average(
-        &items,
-        ATTRIBUTE_SATURATION_THRESHOLD,
-        ATTRIBUTE_SATURATION_MULTIPLIER,
-    )
-    .unwrap_or(10.0);
-
+    let avg = profile.evaluate_saturated_average(|key| table.get(key));
     let norm = (avg - 10.0) / 10.0;
     let mapped = 100.0 / (1.0 + (-1.8 * norm).exp());
     mapped.clamp(0.0, 100.0)

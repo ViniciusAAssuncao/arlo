@@ -1,3 +1,4 @@
+use crate::attributes::PlayerAttributeTable;
 use crate::current_ability::calculate_player_ca;
 use crate::lineup_runtime::fit_calculator::calculate_fit_for_position;
 use arlo_domain::{AttributeKey, Formation, FormationSlot, Player, Position};
@@ -61,8 +62,10 @@ pub fn assign_players(
                 if prof_cmp != std::cmp::Ordering::Equal {
                     prof_cmp
                 } else {
-                    let ca_a = calculate_player_ca(a, attribute_keys);
-                    let ca_b = calculate_player_ca(b, attribute_keys);
+                    let table_a = PlayerAttributeTable::from_player(a, attribute_keys);
+                    let table_b = PlayerAttributeTable::from_player(b, attribute_keys);
+                    let ca_a = calculate_player_ca(a, &table_a);
+                    let ca_b = calculate_player_ca(b, &table_b);
                     ca_a.partial_cmp(&ca_b).unwrap_or(std::cmp::Ordering::Equal)
                 }
             });

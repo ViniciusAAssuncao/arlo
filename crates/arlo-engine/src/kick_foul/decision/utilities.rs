@@ -1,8 +1,8 @@
-use crate::attributes::PlayerAttributeTable;
-use crate::resolution::duel_profiles::offense_duels::{
+use crate::attributes::profiles::{
     cross_distribution_profile, field_goal_profile, long_distribution_profile,
     short_distribution_profile,
 };
+use crate::attributes::PlayerAttributeTable;
 use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::{KickFoulDecisionKind, KickFoulScoringTier};
 use smallvec::{smallvec, SmallVec};

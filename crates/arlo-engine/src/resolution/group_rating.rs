@@ -79,22 +79,9 @@ pub fn calculate_player_duel_rating_from_table(
     profile: &DuelProfile,
     state: &PhysicalState,
 ) -> f64 {
-    let mut total_weight = 0.0;
-    let mut accumulated = 0.0;
-
-    for w in profile.weights() {
-        if w.weight > 0.0 {
-            let val = extract_effective_attribute_value(table, w.key, state);
-            accumulated += val * w.weight;
-            total_weight += w.weight;
-        }
-    }
-
-    let raw = if total_weight > 0.0 {
-        accumulated / total_weight
-    } else {
-        0.0
-    };
+    let raw = profile.evaluate_weighted_average(|key| {
+        extract_effective_attribute_value(table, key, state)
+    });
     let fit = calculate_fit_for_position(player, functional_position);
     raw * fit.efficiency_multiplier()
 }
