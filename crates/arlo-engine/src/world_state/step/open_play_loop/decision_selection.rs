@@ -124,11 +124,6 @@ pub fn select_carrier_decision<R: Rng + ?Sized>(
         );
         let clock_inst = state.clock().to_instant();
         sink.record(create_envelope(seq, clock_inst, decision_event));
-
-        crate::psychology::systems::instrumentation::instrument_artrine_decision(
-            current_carrier.id(),
-            &result,
-        );
     }
 
     result.chosen()

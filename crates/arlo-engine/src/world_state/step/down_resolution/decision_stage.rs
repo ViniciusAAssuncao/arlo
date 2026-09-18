@@ -5,7 +5,6 @@ use crate::artrine::event_translation::translate_artrine_decision_made;
 use crate::match_decision::event_translation::create_envelope;
 use crate::open_play::carrier_sampler::sample_carrier_decision_from_table;
 use crate::open_play::CarrierDecisionEvaluator;
-use crate::psychology::systems::instrumentation::instrument_artrine_decision;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
 use arlo_domain::ArtrineDecisionKind;
@@ -82,8 +81,6 @@ pub fn resolve_decision<R: Rng + ?Sized>(
         );
         let clock_inst = state.clock().to_instant();
         sink.record(create_envelope(seq, clock_inst, decision_event));
-
-        instrument_artrine_decision(ctx.carrier.id(), &result);
     }
 
     result.chosen()

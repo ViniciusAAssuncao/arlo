@@ -90,7 +90,7 @@ impl MatchState {
             params.away.available_profiles,
             params.home.playbook,
             params.away.playbook,
-            player_attribute_tables,
+            player_attribute_tables.clone(),
             home_manager_table,
             away_manager_table,
         );
@@ -98,7 +98,7 @@ impl MatchState {
         let home_squad = MatchdaySquad::from_roster_and_lineup(&params.home.roster, &home_lineup);
         let away_squad = MatchdaySquad::from_roster_and_lineup(&params.away.roster, &away_lineup);
 
-        let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &params.attribute_keys);
+        let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &player_attribute_tables);
         let fatigue = FatigueTracker::new();
         let availability = PlayerAvailabilityTracker::new();
         let scoreboard = MatchScoreboard::new();

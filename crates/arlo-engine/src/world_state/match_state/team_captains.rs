@@ -1,5 +1,5 @@
 use crate::world_state::match_state::teams::TeamRegistry;
-use arlo_domain::{AttributeKey, CaptaincyRole, Player};
+use arlo_domain::{ AttributeKey, CaptaincyRole, Player };
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -48,34 +48,32 @@ impl TeamRegistry {
 
     pub fn home_captain<'a>(
         &'a self,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        _attribute_keys: &HashMap<Uuid, AttributeKey>
     ) -> Option<&'a Player> {
-        let players: Vec<&Player> = self
-            .home_lineup
+        let players: Vec<&Player> = self.home_lineup
             .assignments()
             .iter()
             .map(|a| a.player())
             .collect();
-        crate::psychology::systems::baseline::find_active_captain(&players, attribute_keys)
+        crate::psychology::systems::baseline::find_active_captain(&players)
     }
 
     pub fn away_captain<'a>(
         &'a self,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        _attribute_keys: &HashMap<Uuid, AttributeKey>
     ) -> Option<&'a Player> {
-        let players: Vec<&Player> = self
-            .away_lineup
+        let players: Vec<&Player> = self.away_lineup
             .assignments()
             .iter()
             .map(|a| a.player())
             .collect();
-        crate::psychology::systems::baseline::find_active_captain(&players, attribute_keys)
+        crate::psychology::systems::baseline::find_active_captain(&players)
     }
 
     pub fn team_captain<'a>(
         &'a self,
         team_id: Uuid,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
+        attribute_keys: &HashMap<Uuid, AttributeKey>
     ) -> Option<&'a Player> {
         if team_id == self.home_team_id {
             self.home_captain(attribute_keys)

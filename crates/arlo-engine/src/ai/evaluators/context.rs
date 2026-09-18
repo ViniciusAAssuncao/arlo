@@ -5,7 +5,7 @@ use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::resolution::duel_noise::player_noise_distribution_from_table_with_impulse;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::world_state::GameStatePressure;
@@ -141,7 +141,7 @@ impl<'a> DecisionEvaluationContext<'a> {
         let deg_ctx = DegradationContext::new(physical_state);
         let consistency = extract_effective_attribute_value(table, AttributeKey::Consistency, &deg_ctx);
         let profile = crate::caching::impulse_baseline_profile();
-        let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
+        let baseline = calculate_player_impulse_baseline(table, profile);
         let impulse_state = ImpulseState::from_baseline(baseline);
         let noise_params = player_noise_distribution_from_table_with_impulse(
             carrier,

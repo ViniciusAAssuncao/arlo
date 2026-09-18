@@ -378,13 +378,5 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         smallvec![request.goalguard.id()],
     );
 
-    crate::psychology::systems::instrumentation::instrument_scoring_attempt(
-        &decision,
-        request.opportunity,
-        request.finisher.id(),
-        request.goalguard.id(),
-        raw_outcome.win_probability().value(),
-    );
-
     (decision, outcome)
 }

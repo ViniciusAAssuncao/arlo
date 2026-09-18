@@ -4,9 +4,7 @@ use crate::physical::systems::degradation::{
 };
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::{
-    calculate_player_impulse_baseline, calculate_player_impulse_baseline_from_table_with_profile,
-};
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -65,7 +63,7 @@ impl RiskProfile {
         impulse_state: &ImpulseState,
     ) -> Self {
         let profile = crate::caching::impulse_baseline_profile();
-        let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
+        let baseline = calculate_player_impulse_baseline(table, profile);
 
         let deg_ctx = DegradationContext::with_impulse(physical_state, impulse_state, baseline);
 
@@ -137,7 +135,9 @@ impl RiskProfile {
         attribute_keys: &HashMap<Uuid, AttributeKey>,
         physical_state: &PhysicalState,
     ) -> Self {
-        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+        let table = PlayerAttributeTable::from_player(player, attribute_keys);
+        let profile = crate::caching::impulse_baseline_profile();
+        let baseline = calculate_player_impulse_baseline(&table, profile);
         Self::from_player_with_impulse(
             player,
             attribute_keys,

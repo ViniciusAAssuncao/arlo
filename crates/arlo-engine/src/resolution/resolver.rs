@@ -296,7 +296,7 @@ pub fn resolve_duel<R: Rng + ?Sized>(
     let velocity_mitigation =
         calculate_velocity_mitigation(request.kind, attacker_won, net_advantage);
 
-    let outcome = DuelOutcome::with_mitigation(
+    DuelOutcome::with_mitigation(
         request.kind,
         attacker_won,
         effective_attacker,
@@ -304,17 +304,7 @@ pub fn resolve_duel<R: Rng + ?Sized>(
         win_prob,
         net_advantage,
         velocity_mitigation,
-    );
-
-    if let (Some(att), Some(def)) = (request.attacker_primary, request.defender_primary) {
-        crate::psychology::systems::instrumentation::instrument_duel_outcome(
-            &outcome,
-            att.id(),
-            def.id(),
-        );
-    }
-
-    outcome
+    )
 }
 
 pub use resolve_duel as resolve_contest;

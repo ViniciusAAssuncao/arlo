@@ -1,8 +1,6 @@
-use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::{LiveSequenceTracker, PossessionSnapshot};
 use crate::world_state::match_state::MatchState;
-use arlo_domain::Player;
 use uuid::Uuid;
 
 pub fn enrich_scoring_decision_assister(
@@ -18,29 +16,6 @@ pub fn enrich_scoring_decision_assister(
         if assister_id.is_none() {
             *assister_id = live_sequence.primary_assister(*scorer_id);
         }
-    }
-}
-
-pub fn publish_scoring_impulse(
-    state: &mut MatchState,
-    scoring_decision: &ScoringDecision,
-    finisher_id: Uuid,
-    defense_players: &[&Player],
-    offense_players: &[&Player],
-) {
-    if scoring_decision.is_scored() || matches!(scoring_decision, ScoringDecision::Missed { .. }) {
-        let goalguard = match find_goalguard(defense_players) {
-            Ok(g) => g,
-            Err(_) => return,
-        };
-        state.impulse_bus_mut().publish_scoring_decision(
-            scoring_decision,
-            finisher_id,
-            goalguard.id(),
-            0.5,
-            offense_players,
-            defense_players,
-        );
     }
 }
 

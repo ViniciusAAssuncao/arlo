@@ -1,21 +1,10 @@
-use crate::attributes::PlayerAttributeTable;
-use crate::physical::systems::degradation::{
-    calculate_physical_exhaustion, extract_effective_attribute_value, DegradationContext,
-};
-use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::{
-    calculate_captaincy_influence, calculate_player_contextual_baseline_from_table,
-};
 use crate::psychology::systems::dynamics::fatigue_depression;
 use arlo_domain::sport_constants::{
     impulse_floor_for_baseline, CAPTAINCY_LOSS_AVERSION_BUFFER,
     HOME_MOMENTUM_RESILIENCE_BOOST, IMPULSE_SCALE_MAX,
 };
-use arlo_domain::{AttributeKey, Player};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use uuid::Uuid;
 
 pub const ALPHA_SURPRISAL_WEIGHT: f64 = 0.6;
 pub const BETA_EPV_WEIGHT: f64 = 0.4;
@@ -164,6 +153,42 @@ impl ImpulseShift {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PlayerImpulseContext {
+    pub determination: f64,
+    pub bravery: f64,
+    pub composure: f64,
+    pub consistency: f64,
+    pub exhaustion: f64,
+    pub captain_influence: f64,
+    pub is_captain: bool,
+    pub is_home: bool,
+}
+
+impl PlayerImpulseContext {
+    pub fn new(
+        determination: f64,
+        bravery: f64,
+        composure: f64,
+        consistency: f64,
+        exhaustion: f64,
+        captain_influence: f64,
+        is_captain: bool,
+        is_home: bool,
+    ) -> Self {
+        Self {
+            determination,
+            bravery,
+            composure,
+            consistency,
+            exhaustion,
+            captain_influence,
+            is_captain,
+            is_home,
+        }
+    }
+}
+
 pub fn calculate_reaction_scale(
     determination: f64,
     bravery: f64,
@@ -202,92 +227,19 @@ pub fn calculate_loss_aversion_lambda(
     base_lambda.clamp(1.1, 3.8)
 }
 
-pub fn calculate_contextual_loss_aversion_lambda_from_table(
-    table: &PlayerAttributeTable,
-    exhaustion: f64,
-    captain_influence: f64,
-) -> f64 {
-    let initial_state = PhysicalState::initial();
-    let deg_ctx = DegradationContext::new(&initial_state);
-    let composure = extract_effective_attribute_value(
-        table,
-        AttributeKey::Composure,
-        &deg_ctx,
-    );
-    let determination = extract_effective_attribute_value(
-        table,
-        AttributeKey::Determination,
-        &deg_ctx,
-    );
-    let bravery = extract_effective_attribute_value(
-        table,
-        AttributeKey::Bravery,
-        &deg_ctx,
-    );
-    let base_lambda = calculate_loss_aversion_lambda(composure, determination, bravery, exhaustion);
-    let captain_modifier = captain_influence * CAPTAINCY_LOSS_AVERSION_BUFFER;
-    (base_lambda - captain_modifier).clamp(1.1, 3.8)
-}
-
-pub fn calculate_contextual_loss_aversion_lambda(
-    composure: f64,
-    determination: f64,
-    bravery: f64,
-    exhaustion: f64,
-    captain: Option<&Player>,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-) -> f64 {
-    let base_lambda = calculate_loss_aversion_lambda(composure, determination, bravery, exhaustion);
-    let captain_modifier = match captain {
-        Some(cap) => {
-            let influence = calculate_captaincy_influence(cap, attribute_keys);
-            influence * CAPTAINCY_LOSS_AVERSION_BUFFER
-        }
-        None => 0.0,
-    };
-    (base_lambda - captain_modifier).clamp(1.1, 3.8)
-}
-
-pub fn apply_impulse_event_contextual_from_table_at(
+pub fn apply_impulse_event(
     state: &mut ImpulseState,
-    player: &Player,
-    table: &PlayerAttributeTable,
-    physical_state: &PhysicalState,
+    context: &PlayerImpulseContext,
     event: &ImpulseEvent,
-    timestamp_seconds: f64,
-    captain_influence: f64,
-    is_captain: bool,
-    is_home: bool,
 ) -> ImpulseShift {
     let is_positive = event.kind().is_positive();
     let sign = if is_positive { 1.0 } else { -1.0 };
 
-    let deg_ctx = DegradationContext::new(physical_state);
-
-    let determination = extract_effective_attribute_value(
-        table,
-        AttributeKey::Determination,
-        &deg_ctx,
-    );
-    let bravery = extract_effective_attribute_value(table, AttributeKey::Bravery, &deg_ctx);
-    let composure = extract_effective_attribute_value(
-        table,
-        AttributeKey::Composure,
-        &deg_ctx,
-    );
-    let consistency = extract_effective_attribute_value(
-        table,
-        AttributeKey::Consistency,
-        &deg_ctx,
-    );
-
-    let exhaustion = calculate_physical_exhaustion(physical_state);
-
     let reaction_scale = calculate_reaction_scale(
-        determination,
-        bravery,
-        composure,
-        consistency,
+        context.determination,
+        context.bravery,
+        context.composure,
+        context.consistency,
         event.involved(),
     );
 
@@ -296,30 +248,28 @@ pub fn apply_impulse_event_contextual_from_table_at(
     let raw_stimulus = ALPHA_SURPRISAL_WEIGHT * surprisal_norm + BETA_EPV_WEIGHT * epv_norm;
     let base_magnitude = reaction_scale * raw_stimulus;
 
-    let base_lambda = calculate_loss_aversion_lambda(composure, determination, bravery, exhaustion);
-    let captain_modifier = captain_influence * CAPTAINCY_LOSS_AVERSION_BUFFER;
+    let base_lambda = calculate_loss_aversion_lambda(
+        context.composure,
+        context.determination,
+        context.bravery,
+        context.exhaustion,
+    );
+    let captain_modifier = context.captain_influence * CAPTAINCY_LOSS_AVERSION_BUFFER;
     let effective_lambda = (base_lambda - captain_modifier).clamp(1.1, 3.8);
 
-    let baseline = calculate_player_contextual_baseline_from_table(
-        player,
-        table,
-        captain_influence,
-        is_captain,
-        is_home,
-    );
+    let baseline = state.baseline();
     let base_floor = impulse_floor_for_baseline(baseline);
-    let fatigue_dep = fatigue_depression(physical_state);
+    let fatigue_dep = fatigue_depression(context.exhaustion);
     let effective_floor = (base_floor * fatigue_dep).clamp(0.0, baseline);
-    let norm_det = determination.clamp(0.0, 20.0) / 10.0;
+    let norm_det = context.determination.clamp(0.0, 20.0) / 10.0;
     let effective_ceiling = (baseline
         + ((IMPULSE_SCALE_MAX as f64) - baseline) * (0.35 + 0.3 * (norm_det / 2.0)))
         .clamp(baseline, IMPULSE_SCALE_MAX as f64);
 
-    let momentum = state.momentum_index(timestamp_seconds);
-    let raw_momentum_multiplier = state.momentum_multiplier_for(is_positive, momentum);
-    let momentum_multiplier = if !is_positive && is_home {
+    let raw_momentum_multiplier = state.momentum_multiplier_for(is_positive);
+    let momentum_multiplier = if !is_positive && context.is_home {
         (raw_momentum_multiplier * (1.0 - HOME_MOMENTUM_RESILIENCE_BOOST)).max(0.4)
-    } else if is_positive && is_home {
+    } else if is_positive && context.is_home {
         raw_momentum_multiplier * 1.05
     } else {
         raw_momentum_multiplier
@@ -337,7 +287,13 @@ pub fn apply_impulse_event_contextual_from_table_at(
 
     let new_accumulator = (previous_accumulator + delta).clamp(effective_floor, effective_ceiling);
     state.set_accumulator(new_accumulator);
-    state.record_event(is_positive, raw_stimulus.max(0.1), timestamp_seconds);
+
+    let event_signal = if is_positive {
+        raw_stimulus.clamp(0.1, 1.0)
+    } else {
+        -raw_stimulus.clamp(0.1, 1.0)
+    };
+    state.update_momentum(event_signal, 0.35);
 
     ImpulseShift::new(
         delta,
@@ -348,62 +304,4 @@ pub fn apply_impulse_event_contextual_from_table_at(
         momentum_multiplier,
         effective_lambda,
     )
-}
-
-pub fn apply_impulse_event_contextual_at(
-    state: &mut ImpulseState,
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    physical_state: &PhysicalState,
-    event: &ImpulseEvent,
-    timestamp_seconds: f64,
-    captain: Option<&Player>,
-    is_home: bool,
-) -> ImpulseShift {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    let (captain_influence, is_captain) = match captain {
-        Some(cap) => (calculate_captaincy_influence(cap, attribute_keys), cap.id() == player.id()),
-        None => (0.0, false),
-    };
-    apply_impulse_event_contextual_from_table_at(
-        state,
-        player,
-        &table,
-        physical_state,
-        event,
-        timestamp_seconds,
-        captain_influence,
-        is_captain,
-        is_home,
-    )
-}
-
-pub fn apply_impulse_event_at(
-    state: &mut ImpulseState,
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    physical_state: &PhysicalState,
-    event: &ImpulseEvent,
-    timestamp_seconds: f64,
-) -> ImpulseShift {
-    apply_impulse_event_contextual_at(
-        state,
-        player,
-        attribute_keys,
-        physical_state,
-        event,
-        timestamp_seconds,
-        None,
-        false,
-    )
-}
-
-pub fn apply_impulse_event(
-    state: &mut ImpulseState,
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    physical_state: &PhysicalState,
-    event: &ImpulseEvent,
-) -> ImpulseShift {
-    apply_impulse_event_at(state, player, attribute_keys, physical_state, event, 0.0)
 }

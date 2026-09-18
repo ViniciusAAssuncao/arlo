@@ -3,7 +3,7 @@ use crate::caching::impulse_baseline_profile;
 use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use arlo_domain::{AttributeKey, Player};
 use rand::Rng;
 use std::collections::HashMap;
@@ -78,7 +78,7 @@ pub fn sample_player_noise_from_table_with_baseline<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> f64 {
     let profile = impulse_baseline_profile();
-    let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
+    let baseline = calculate_player_impulse_baseline(table, profile);
     let impulse_state = ImpulseState::from_baseline(baseline);
     sample_player_noise_from_table_with_impulse(
         player,
@@ -99,7 +99,7 @@ pub fn sample_player_noise_with_impulse<R: Rng + ?Sized>(
 ) -> f64 {
     let table = PlayerAttributeTable::from_player(player, attribute_keys);
     let profile = impulse_baseline_profile();
-    let baseline = calculate_player_impulse_baseline_from_table_with_profile(&table, profile);
+    let baseline = calculate_player_impulse_baseline(&table, profile);
     sample_player_noise_from_table_with_impulse(
         player,
         &table,

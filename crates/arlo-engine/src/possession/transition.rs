@@ -3,8 +3,6 @@ use crate::possession::clock_state::{ClockState, ClockStopReason};
 use crate::possession::immediate_loss::is_immediate_loss;
 use crate::possession::role::PossessionRole;
 use crate::possession::snapshot::PossessionSnapshot;
-use crate::psychology::systems::event_bus::DispatchedImpulseEvent;
-use crate::psychology::systems::instrumentation::instrument_transition;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -26,7 +24,6 @@ pub struct TransitionResult {
     pub snapshot: PossessionSnapshot,
     pub countdown_to_size_triggered: bool,
     pub next_scrimmage_x_mirim: Option<f64>,
-    pub impulse_events: Vec<DispatchedImpulseEvent>,
 }
 
 pub fn handle_turnover_without_out(
@@ -44,25 +41,10 @@ pub fn handle_turnover_without_out(
         current.live_sequence.clone(),
     );
 
-    let dummy_outcome = PlayOutcome {
-        turnover: Some(new_offense),
-        out_of_bounds: false,
-        arbitral_stoppage: false,
-        mirins_advanced: 0.0,
-        last_valid_x_mirim: current.scrimmage_x_mirim(),
-        last_valid_y_mirim: 42.5,
-        possession_control_seconds: None,
-        score_occurred: false,
-        is_goal_point: false,
-    };
-
-    let impulse_events = instrument_transition(&dummy_outcome, current, &new_snapshot);
-
     TransitionResult {
         snapshot: new_snapshot,
         countdown_to_size_triggered: false,
         next_scrimmage_x_mirim: None,
-        impulse_events,
     }
 }
 
@@ -134,13 +116,10 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             current.live_sequence.clone(),
         );
 
-        let impulse_events = instrument_transition(outcome, current, &new_snapshot);
-
         TransitionResult {
             snapshot: new_snapshot,
             countdown_to_size_triggered: true,
             next_scrimmage_x_mirim: Some(next_scrimmage_x),
-            impulse_events,
         }
     } else {
         let (next_role, countdown) = if was_bonus_phase {
@@ -173,13 +152,10 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             current.live_sequence.clone(),
         );
 
-        let impulse_events = instrument_transition(outcome, current, &new_snapshot);
-
         TransitionResult {
             snapshot: new_snapshot,
             countdown_to_size_triggered: countdown,
             next_scrimmage_x_mirim: Some(next_scrimmage_x),
-            impulse_events,
         }
     }
 }
