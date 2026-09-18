@@ -27,22 +27,23 @@ use crate::world_state::play_transition::{apply_play_transition, EventPublisher}
 use arlo_domain::ArtrineDecisionKind;
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
-use arlo_math::units::{Duration, MIRIM_TO_METERS};
+use arlo_math::units::Duration;
 use smallvec::SmallVec;
 use uuid::Uuid;
 
 fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
-    let scrimmage = state.possession().scrimmage_point();
+    let scrimmage_x = state.possession().scrimmage_x_mirim();
     DetailedPlayOutcome {
         offense_team_id: state.possession().offense(),
         defense_team_id: state.possession().defense(),
         passer_id: Uuid::nil(),
         artrine_id: Uuid::nil(),
         down_number: state.possession().down() as u32,
-        scrimmage_x_mirim: scrimmage.raw().0 / MIRIM_TO_METERS,
+        scrimmage_x_mirim: scrimmage_x,
         pass_completed: false,
         pass_is_aerial: false,
-        reception_point: scrimmage,
+        reception_x_mirim: scrimmage_x,
+        reception_y_mirim: 42.5,
         drives_recorded: 0,
         mirins_advanced: 0.0,
         duels: Vec::new(),
@@ -51,7 +52,8 @@ fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
         lost_by_player_id: None,
         out_of_bounds: false,
         arbitral_stoppage: true,
-        last_valid_possession_point: scrimmage,
+        last_valid_x_mirim: scrimmage_x,
+        last_valid_y_mirim: 42.5,
         possession_control_seconds: None,
         scoring_decision: ScoringDecision::NoOpportunity,
     }
@@ -131,7 +133,8 @@ pub fn step_call_to_action(
                 recovering_player_id: None,
                 scoring_decision: ScoringDecision::NoOpportunity,
                 duration_ledger: ledger,
-                end_position: pass_phase.scrimmage_point,
+                end_x_mirim: pass_phase.scrimmage_x_mirim,
+                end_y_mirim: 42.5,
                 duels: Vec::new(),
                 fouls: Vec::new(),
                 injuries: Vec::new(),

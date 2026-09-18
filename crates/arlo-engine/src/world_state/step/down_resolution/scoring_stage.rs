@@ -1,9 +1,9 @@
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::scoring::{
     duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
     ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
 };
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::AttributedDuelOutcome;
 use crate::resolution::DuelKind;
@@ -41,7 +41,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         finisher,
         Position::CenterOffense,
         state.attribute_table_for(&finisher.id()),
-        att_prof,
+        &att_prof,
         &state.fatigue_lookup().get(&finisher.id()),
     );
 

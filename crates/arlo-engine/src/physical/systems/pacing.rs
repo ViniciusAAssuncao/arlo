@@ -8,7 +8,7 @@ use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
 use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::{AttributeKey, Player};
-use arlo_math::units::{Position, Speed, MIRIM_TO_METERS};
+use arlo_math::units::Speed;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -74,18 +74,6 @@ pub struct PacingRequest<'a> {
     pub game_state_pressure: &'a GameStatePressure,
     pub fatigue_multiplier: f64,
     pub effort_multiplier: f64,
-}
-
-pub fn is_player_near_ball(
-    player_pos: Position,
-    ball_pos: Position,
-    proximity_threshold_mirim: f64,
-) -> bool {
-    let dx = player_pos.raw().0 - ball_pos.raw().0;
-    let dy = player_pos.raw().1 - ball_pos.raw().1;
-    let dist_meters = (dx * dx + dy * dy).sqrt();
-    let dist_mirim = dist_meters / MIRIM_TO_METERS;
-    dist_mirim <= proximity_threshold_mirim
 }
 
 pub fn calculate_pacing_state(request: &PacingRequest<'_>) -> PacingState {

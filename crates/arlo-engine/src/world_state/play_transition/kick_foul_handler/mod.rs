@@ -34,12 +34,12 @@ pub fn resolve_and_apply_kick_foul<R: Rng + ?Sized>(
             );
         } else if let Some(restart) = &outcome.restart {
             if restart.caught {
-                apply_restart_outcome(publisher, restart.reception_point);
+                apply_restart_outcome(publisher, restart.reception_x_mirim);
             } else {
-                apply_turnover_outcome(publisher, restart.reception_point);
+                apply_turnover_outcome(publisher, restart.reception_x_mirim);
             }
         } else {
-            apply_turnover_outcome(publisher, pending.spot());
+            apply_turnover_outcome(publisher, pending.spot_x_mirim());
         }
     }
 

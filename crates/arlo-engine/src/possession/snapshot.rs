@@ -3,7 +3,6 @@ use crate::possession::clock_state::{ClockState, ClockStopReason};
 use crate::possession::live_sequence::LiveSequenceTracker;
 use crate::possession::role::{opening_possession, PossessionRole};
 use crate::possession::series_state::SeriesState;
-use arlo_math::units::Position;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -48,12 +47,12 @@ impl PossessionSnapshot {
         }
     }
 
-    pub fn opening(home_team: Uuid, away_team: Uuid, initial_scrimmage: Position) -> Self {
+    pub fn opening(home_team: Uuid, away_team: Uuid, initial_scrimmage_x_mirim: f64) -> Self {
         Self {
             ball_state: BallState::Dead,
             clock_state: ClockState::Stopped(ClockStopReason::PeriodEnd),
             role: opening_possession(home_team, away_team),
-            series_state: SeriesState::initial(initial_scrimmage),
+            series_state: SeriesState::initial(initial_scrimmage_x_mirim),
             live_sequence: LiveSequenceTracker::new(),
         }
     }
@@ -110,8 +109,8 @@ impl PossessionSnapshot {
         self.series_state.advanced_mirins()
     }
 
-    pub fn scrimmage_point(&self) -> Position {
-        self.series_state.scrimmage_point()
+    pub fn scrimmage_x_mirim(&self) -> f64 {
+        self.series_state.scrimmage_x_mirim()
     }
 
     pub fn is_bonus_phase(&self) -> bool {

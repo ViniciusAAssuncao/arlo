@@ -5,7 +5,6 @@ use arlo_domain::sport_constants::{
     FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use arlo_domain::ArtrineDecisionKind;
-use arlo_math::units::MIRIM_TO_METERS;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CrossUtilityEvaluator;
@@ -29,9 +28,7 @@ impl ActionUtilityEvaluator for CrossUtilityEvaluator {
             2.0
         };
 
-        let center_y_m = (ctx.pitch_width_mirim * 0.5) * MIRIM_TO_METERS;
-        let dist_from_center_m = (ctx.carrier_pos_vec.raw().1 - center_y_m).abs();
-        let lateral_ratio = (dist_from_center_m / center_y_m.max(1.0)).clamp(0.0, 1.0);
+        let lateral_ratio = ctx.lateral_ratio();
         let lateral_geometry_factor = 0.70 + 0.60 * lateral_ratio;
 
         let raw_p =

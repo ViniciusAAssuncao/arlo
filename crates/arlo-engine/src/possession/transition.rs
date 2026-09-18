@@ -5,7 +5,6 @@ use crate::possession::role::PossessionRole;
 use crate::possession::snapshot::PossessionSnapshot;
 use crate::psychology::systems::event_bus::DispatchedImpulseEvent;
 use crate::psychology::systems::instrumentation::instrument_transition;
-use arlo_math::units::Position;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -15,7 +14,8 @@ pub struct PlayOutcome {
     pub out_of_bounds: bool,
     pub arbitral_stoppage: bool,
     pub mirins_advanced: f64,
-    pub last_valid_possession_point: Position,
+    pub last_valid_x_mirim: f64,
+    pub last_valid_y_mirim: f64,
     pub possession_control_seconds: Option<f64>,
     pub score_occurred: bool,
     pub is_goal_point: bool,
@@ -25,7 +25,7 @@ pub struct PlayOutcome {
 pub struct TransitionResult {
     pub snapshot: PossessionSnapshot,
     pub countdown_to_size_triggered: bool,
-    pub next_scrimmage_point: Option<Position>,
+    pub next_scrimmage_x_mirim: Option<f64>,
     pub impulse_events: Vec<DispatchedImpulseEvent>,
 }
 
@@ -49,7 +49,8 @@ pub fn handle_turnover_without_out(
         out_of_bounds: false,
         arbitral_stoppage: false,
         mirins_advanced: 0.0,
-        last_valid_possession_point: current.scrimmage_point(),
+        last_valid_x_mirim: current.scrimmage_x_mirim(),
+        last_valid_y_mirim: 42.5,
         possession_control_seconds: None,
         score_occurred: false,
         is_goal_point: false,
@@ -60,13 +61,13 @@ pub fn handle_turnover_without_out(
     TransitionResult {
         snapshot: new_snapshot,
         countdown_to_size_triggered: false,
-        next_scrimmage_point: None,
+        next_scrimmage_x_mirim: None,
         impulse_events,
     }
 }
 
 pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> TransitionResult {
-    let next_scrimmage = outcome.last_valid_possession_point;
+    let next_scrimmage_x = outcome.last_valid_x_mirim;
     let was_bonus_phase = current.series_state.is_bonus_phase;
 
     if let Some(new_offense) = outcome.turnover {
@@ -94,23 +95,23 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
         };
 
         let next_role = if was_bonus_phase {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             current.role().swap()
         } else if outcome.is_goal_point {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             updated_series.is_bonus_phase = true;
             *current.role()
         } else if outcome.score_occurred {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             current.role().swap()
         } else if let Some(turnover_team) = outcome.turnover {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             PossessionRole::new(turnover_team, current.role().offense())
         } else if updated_series.should_turnover_on_downs() {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             current.role().swap()
         } else if updated_series.has_achieved_target() {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             *current.role()
         } else {
             let is_immediate = outcome
@@ -120,7 +121,7 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
 
             if !is_immediate {
                 updated_series.advance_down();
-                updated_series.set_scrimmage_point(next_scrimmage);
+                updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
             }
             *current.role()
         };
@@ -138,29 +139,29 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
         TransitionResult {
             snapshot: new_snapshot,
             countdown_to_size_triggered: true,
-            next_scrimmage_point: Some(next_scrimmage),
+            next_scrimmage_x_mirim: Some(next_scrimmage_x),
             impulse_events,
         }
     } else {
         let (next_role, countdown) = if was_bonus_phase {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             (current.role().swap(), true)
         } else if outcome.is_goal_point {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             updated_series.is_bonus_phase = true;
             (*current.role(), true)
         } else if outcome.score_occurred {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             (current.role().swap(), true)
         } else if updated_series.has_achieved_target() {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             (*current.role(), false)
         } else if updated_series.should_turnover_on_downs() {
-            updated_series.reset(next_scrimmage);
+            updated_series.reset(next_scrimmage_x);
             (current.role().swap(), true)
         } else {
             updated_series.advance_down();
-            updated_series.set_scrimmage_point(next_scrimmage);
+            updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
             (*current.role(), false)
         };
 
@@ -177,7 +178,7 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
         TransitionResult {
             snapshot: new_snapshot,
             countdown_to_size_triggered: countdown,
-            next_scrimmage_point: Some(next_scrimmage),
+            next_scrimmage_x_mirim: Some(next_scrimmage_x),
             impulse_events,
         }
     }

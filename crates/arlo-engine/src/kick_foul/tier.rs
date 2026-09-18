@@ -1,11 +1,5 @@
-use arlo_domain::pitch::Pitch;
-use arlo_domain::KickFoulScoringTier;
-use arlo_math::units::Position as VectorPosition;
+use arlo_domain::{KickFoulScoringTier, PitchZone};
 
-pub fn determine_kick_foul_scoring_tier(
-    pitch: &Pitch,
-    spot: VectorPosition,
-) -> KickFoulScoringTier {
-    let zone = pitch.zone_at_position(spot);
+pub fn determine_kick_foul_scoring_tier(zone: PitchZone) -> KickFoulScoringTier {
     KickFoulScoringTier::from_zone(zone)
 }

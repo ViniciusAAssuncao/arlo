@@ -1,23 +1,22 @@
 use arlo_domain::sport_constants::{
     MAX_CALL_TO_ACTIONS_PER_SERIES, MINIMUM_ADVANCE_MIRINS_PER_SERIES,
 };
-use arlo_math::units::Position;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SeriesState {
     down: u8,
     advanced_mirins: f64,
-    scrimmage_point: Position,
+    scrimmage_x_mirim: f64,
     pub is_bonus_phase: bool,
 }
 
 impl SeriesState {
-    pub fn new(down: u8, advanced_mirins: f64, scrimmage_point: Position) -> Self {
+    pub fn new(down: u8, advanced_mirins: f64, scrimmage_x_mirim: f64) -> Self {
         Self {
             down,
             advanced_mirins,
-            scrimmage_point,
+            scrimmage_x_mirim,
             is_bonus_phase: false,
         }
     }
@@ -25,22 +24,22 @@ impl SeriesState {
     pub fn with_bonus_phase(
         down: u8,
         advanced_mirins: f64,
-        scrimmage_point: Position,
+        scrimmage_x_mirim: f64,
         is_bonus_phase: bool,
     ) -> Self {
         Self {
             down,
             advanced_mirins,
-            scrimmage_point,
+            scrimmage_x_mirim,
             is_bonus_phase,
         }
     }
 
-    pub fn initial(scrimmage_point: Position) -> Self {
+    pub fn initial(scrimmage_x_mirim: f64) -> Self {
         Self {
             down: 1,
             advanced_mirins: 0.0,
-            scrimmage_point,
+            scrimmage_x_mirim,
             is_bonus_phase: false,
         }
     }
@@ -53,12 +52,8 @@ impl SeriesState {
         self.advanced_mirins
     }
 
-    pub fn scrimmage_point(&self) -> Position {
-        self.scrimmage_point
-    }
-
-    pub fn line_of_scrimmage(&self) -> Position {
-        self.scrimmage_point
+    pub fn scrimmage_x_mirim(&self) -> f64 {
+        self.scrimmage_x_mirim
     }
 
     pub fn is_bonus_phase(&self) -> bool {
@@ -69,8 +64,8 @@ impl SeriesState {
         self.is_bonus_phase = is_bonus_phase;
     }
 
-    pub fn set_scrimmage_point(&mut self, new_scrimmage: Position) {
-        self.scrimmage_point = new_scrimmage;
+    pub fn set_scrimmage_x_mirim(&mut self, new_scrimmage_x_mirim: f64) {
+        self.scrimmage_x_mirim = new_scrimmage_x_mirim;
     }
 
     pub fn record_advance(&mut self, mirins: f64) {
@@ -98,10 +93,10 @@ impl SeriesState {
         self.is_last_down() && !self.has_achieved_target()
     }
 
-    pub fn reset(&mut self, new_scrimmage: Position) {
+    pub fn reset(&mut self, new_scrimmage_x_mirim: f64) {
         self.down = 1;
         self.advanced_mirins = 0.0;
-        self.scrimmage_point = new_scrimmage;
+        self.scrimmage_x_mirim = new_scrimmage_x_mirim;
         self.is_bonus_phase = false;
     }
 

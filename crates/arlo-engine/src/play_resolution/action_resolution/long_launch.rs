@@ -1,10 +1,9 @@
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
-use crate::play_resolution::field_context::PitchState;
-use crate::play_resolution::space_index::TeamSpaceRating;
+use crate::possession::PitchState;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
@@ -45,7 +44,6 @@ pub struct LongLaunchActionRequest<'a> {
     pub defender_fatigue: &'a PhysicalState,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
     pub duel_context: &'a DuelContext,
-    pub space_rating: &'a TeamSpaceRating,
     pub pitch_state: &'a PitchState,
     pub passing_range: PassingRange,
     pub pitch_length_mirim: f64,
@@ -63,19 +61,18 @@ pub fn resolve_long_launch_action<R: Rng + ?Sized>(
         request.passer,
         Position::Passer,
         request.passer_table,
-        att_prof,
+        &att_prof,
         request.passer_fatigue,
     );
     let defender_rating = calculate_player_duel_rating_from_table(
         request.defender,
         Position::OutsideZonerback,
         request.defender_table,
-        def_prof,
+        &def_prof,
         request.defender_fatigue,
     );
 
-    let space_mod = (request.space_rating.space_index() - 0.5) * 1.5;
-    let attacker_rating = (passer_rating + space_mod).max(0.1);
+    let attacker_rating = passer_rating.max(0.1);
 
     let req = DuelResolutionRequest::with_states(
         DuelKind::LongDistribution,
@@ -111,9 +108,7 @@ pub fn resolve_long_launch_action<R: Rng + ?Sized>(
     let (turnover, interception) = if completed {
         (false, false)
     } else {
-        let int_p = (logistic(-1.8 - 0.25 * net_advantage)
-            * request.space_rating.pressure_intensity())
-        .clamp(0.04, 0.45);
+        let int_p = logistic(-1.8 - 0.25 * net_advantage).clamp(0.04, 0.45);
         let is_int = Probability::new_clamped(int_p).sample(rng);
         (is_int, is_int)
     };

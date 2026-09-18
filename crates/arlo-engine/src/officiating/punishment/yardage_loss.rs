@@ -1,6 +1,5 @@
 use crate::world_state::match_state::state::MatchState;
 use arlo_domain::sport_constants::DEFAULT_YARDAGE_LOSS_MIRIM;
-use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
 
 pub fn apply_yardage_loss(
@@ -20,25 +19,19 @@ pub fn apply_yardage_loss(
     }
 
     let is_offender_home = offending_team_id == state.home_team_id();
-    let loss_meters = loss_mirim * MIRIM_TO_METERS;
-    let shift_meters = if is_offender_home {
-        -loss_meters
+    let shift_mirim = if is_offender_home {
+        -loss_mirim
     } else {
-        loss_meters
+        loss_mirim
     };
 
-    let current_scrimmage = state.possession().scrimmage_point();
-    let pitch_length_meters = state.pitch().length().value();
+    let current_x = state.possession().scrimmage_x_mirim();
+    let pitch_length_mirim = state.pitch().length_mirim();
 
-    let new_x = (current_scrimmage.raw().0 + shift_meters).clamp(0.0, pitch_length_meters);
-    let new_scrimmage = Position::from_components(
-        new_x,
-        current_scrimmage.raw().1,
-        current_scrimmage.raw().2,
-    );
+    let new_x = (current_x + shift_mirim).clamp(0.0, pitch_length_mirim);
 
     state
         .possession_mut()
         .series_state_mut()
-        .set_scrimmage_point(new_scrimmage);
+        .set_scrimmage_x_mirim(new_x);
 }

@@ -13,7 +13,6 @@ use crate::world_state::step::down_resolution::scoring_stage::resolve_scoring;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
-use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use rand::Rng;
 
 pub fn resolve_down<R: Rng + ?Sized>(
@@ -86,15 +85,16 @@ pub fn resolve_down<R: Rng + ?Sized>(
         progression.live_duration,
     );
 
-    let end_x_m = if ctx.is_home_offense {
-        progression.new_normalized_proximity * ctx.pitch_length_mirim * MIRIM_TO_METERS
+    let end_x_mirim = if ctx.is_home_offense {
+        progression.new_normalized_proximity * ctx.pitch_length_mirim
     } else {
-        (1.0 - progression.new_normalized_proximity) * ctx.pitch_length_mirim * MIRIM_TO_METERS
+        (1.0 - progression.new_normalized_proximity) * ctx.pitch_length_mirim
     };
-    let end_position = VectorPosition::from_components(end_x_m, state.pitch().width().value() * 0.5, 0.0);
+    let end_y_mirim = 42.5;
 
     let distribution_flight = contest.distribution_flight.map(|f| DistributionFlightInfo {
-        reception_point: end_position,
+        reception_x_mirim: end_x_mirim,
+        reception_y_mirim: end_y_mirim,
         distance_mirim: progression.mirins_advanced,
         ..f
     });
@@ -112,7 +112,8 @@ pub fn resolve_down<R: Rng + ?Sized>(
         recovering_player_id: contest.recovering_player_id,
         scoring_decision: scoring,
         duration_ledger,
-        end_position,
+        end_x_mirim,
+        end_y_mirim,
         duels,
         fouls: collateral.fouls,
         injuries: collateral.injuries,

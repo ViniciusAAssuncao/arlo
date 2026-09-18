@@ -1,16 +1,15 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::epv::DynamicEpvModel;
+use crate::attributes::profiles::AttributeProfile as DuelProfile;
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
 use crate::resolution::duel_noise::player_noise_distribution_from_table_with_impulse;
-use crate::resolution::duel_profiles::DuelProfile;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, ArtroPlacement, AttributeKey, Player, Position, SlotRole};
-use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -39,7 +38,6 @@ pub struct DecisionEvaluationContext<'a> {
     pub distance_to_next_artro_mirim: f64,
     pub pitch_length_mirim: f64,
     pub pitch_width_mirim: f64,
-    pub carrier_pos_vec: VectorPosition,
     pub offensive_gravity: f64,
     pub passing_range: PassingRange,
     pub risk_profile: RiskProfile,
@@ -93,15 +91,6 @@ impl<'a> DecisionEvaluationContext<'a> {
         let next_artro = ((pos_mirim / 3.0).floor() + 1.0) * 3.0;
         let distance_to_next_artro_mirim = (next_artro - pos_mirim).clamp(0.1, 3.0);
 
-        let center_y_m = pitch_width_mirim * 0.5 * MIRIM_TO_METERS;
-        let y_m = match channel {
-            ArtroPlacement::LeftLateral => 15.0 * MIRIM_TO_METERS,
-            ArtroPlacement::RightLateral => 70.0 * MIRIM_TO_METERS,
-            ArtroPlacement::Central => center_y_m,
-        };
-        let x_m = normalized_proximity * pitch_length_mirim * MIRIM_TO_METERS;
-        let carrier_pos_vec = VectorPosition::from_components(x_m, y_m, 0.0);
-
         let opponent_epa_at_proximity = epv_model.opponent_epa(normalized_proximity);
         let cached_probability_bounds = Self::calculate_probability_bounds(
             carrier,
@@ -132,7 +121,6 @@ impl<'a> DecisionEvaluationContext<'a> {
             distance_to_next_artro_mirim,
             pitch_length_mirim,
             pitch_width_mirim,
-            carrier_pos_vec,
             offensive_gravity,
             passing_range,
             risk_profile,

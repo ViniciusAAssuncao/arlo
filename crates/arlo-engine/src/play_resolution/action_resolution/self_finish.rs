@@ -1,13 +1,11 @@
-use crate::attributes::PlayerAttributeTable;
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::match_decision::scoring::{
     duel_kind_for_opportunity, field_goal_points, field_point_points, goal_point_points,
     ScoringOpportunity,
 };
 use crate::physical::PhysicalState;
-use crate::play_resolution::field_context::PitchState;
-use crate::play_resolution::space_index::TeamSpaceRating;
+use crate::possession::PitchState;
 use crate::resolution::context::DuelContext;
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::finish_distance_multiplier;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
@@ -35,14 +33,13 @@ pub struct FinishActionResult {
 
 pub struct SelfFinishActionRequest<'a> {
     pub finisher: &'a Player,
-    pub finisher_table: &'a PlayerAttributeTable,
+    pub finisher_table: &'a crate::attributes::PlayerAttributeTable,
     pub finisher_fatigue: &'a PhysicalState,
     pub goalguard: &'a Player,
-    pub goalguard_table: &'a PlayerAttributeTable,
+    pub goalguard_table: &'a crate::attributes::PlayerAttributeTable,
     pub goalguard_fatigue: &'a PhysicalState,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
     pub duel_context: &'a DuelContext,
-    pub space_rating: &'a TeamSpaceRating,
     pub pitch_state: &'a PitchState,
     pub is_home_offense: bool,
     pub pitch_length_mirim: f64,
@@ -69,21 +66,20 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
         request.finisher,
         Position::CenterOffense,
         request.finisher_table,
-        att_prof,
+        &att_prof,
         request.finisher_fatigue,
     );
     let raw_gg_rating = calculate_player_duel_rating_from_table(
         request.goalguard,
         Position::Goalguard,
         request.goalguard_table,
-        def_prof,
+        &def_prof,
         request.goalguard_fatigue,
     );
 
     let distance_multiplier =
         finish_distance_multiplier(request.pitch_state.normalized_proximity());
-    let effective_fin_rating =
-        raw_fin_rating * distance_multiplier * request.space_rating.lane_clearance();
+    let effective_fin_rating = raw_fin_rating * distance_multiplier;
 
     let req = DuelResolutionRequest::with_states(
         duel_kind,

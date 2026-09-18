@@ -6,7 +6,6 @@ use arlo_domain::sport_constants::{
     FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
 use arlo_domain::ArtrineDecisionKind;
-use arlo_math::units::MIRIM_TO_METERS;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SelfFinishUtilityEvaluator;
@@ -32,11 +31,7 @@ impl ActionUtilityEvaluator for SelfFinishUtilityEvaluator {
         let distance_to_goal_mirim =
             ((1.0 - ctx.normalized_proximity) * ctx.pitch_length_mirim).max(0.0);
         let zone_multiplier = finish_distance_multiplier(ctx.normalized_proximity);
-
-        let center_y_m = (ctx.pitch_width_mirim * 0.5) * MIRIM_TO_METERS;
-        let angle_offset = ((ctx.carrier_pos_vec.raw().1 - center_y_m).abs() / center_y_m.max(1.0))
-            .clamp(0.0, 1.0);
-        let shooting_angle_factor = (1.0 - 0.40 * angle_offset).clamp(0.60, 1.0);
+        let shooting_angle_factor = ctx.shooting_angle_factor();
 
         let pitch_control = ctx.pitch_control();
         let shooting_lane_clearance = 0.60 + 0.40 * pitch_control;

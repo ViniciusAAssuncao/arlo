@@ -6,16 +6,20 @@ use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
-use arlo_domain::pitch::Pitch;
-use arlo_domain::sport_constants::{
-    AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM, FIRST_ZONE_DEPTH_MIRIM,
-};
-use arlo_domain::{AttributeKey, Player, Position};
-use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_domain::{Player, Position};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn calculate_player_offensive_gravity_with_state_from_table(
+pub fn calculate_zone_factor(assigned_position: Position) -> f64 {
+    match assigned_position {
+        Position::CenterOffense => 1.25,
+        Position::WingOffense | Position::WideEnd => 1.15,
+        Position::TightWing | Position::RunningEnd | Position::Corridor => 1.05,
+        _ => 1.00,
+    }
+}
+
+pub fn calculate_player_offensive_gravity(
     player: &Player,
     table: &PlayerAttributeTable,
     assigned_position: Position,
@@ -55,72 +59,11 @@ pub fn calculate_player_offensive_gravity_with_state_from_table(
     OffensiveGravity::new(multiplier, finishing_threat, creation_threat, zone_factor)
 }
 
-pub fn calculate_player_offensive_gravity_with_state(
-    player: &Player,
-    assigned_position: Position,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    zone_factor: f64,
-    state: &PhysicalState,
-) -> OffensiveGravity {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    calculate_player_offensive_gravity_with_state_from_table(
-        player,
-        &table,
-        assigned_position,
-        zone_factor,
-        state,
-    )
-}
-
-pub fn calculate_player_offensive_gravity(
-    player: &Player,
-    assigned_position: Position,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    zone_factor: f64,
-) -> OffensiveGravity {
-    calculate_player_offensive_gravity_with_state(
-        player,
-        assigned_position,
-        attribute_keys,
-        zone_factor,
-        &PhysicalState::initial(),
-    )
-}
-
-pub fn calculate_zone_factor(
-    player_pos: VectorPosition,
-    pitch: &Pitch,
-    attacking_positive_x: bool,
-) -> f64 {
-    let pitch_length_m = pitch.length().value();
-    let player_x_m = player_pos.raw().0;
-
-    let dist_to_goal_m = if attacking_positive_x {
-        (pitch_length_m - player_x_m).max(0.0)
-    } else {
-        player_x_m.max(0.0)
-    };
-
-    let first_zone_limit_m = FIRST_ZONE_DEPTH_MIRIM * MIRIM_TO_METERS;
-    let second_zone_limit_m =
-        (FIRST_ZONE_DEPTH_MIRIM + AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM) * MIRIM_TO_METERS;
-
-    if dist_to_goal_m <= first_zone_limit_m {
-        1.25
-    } else if dist_to_goal_m <= second_zone_limit_m {
-        1.15
-    } else if dist_to_goal_m <= second_zone_limit_m + (10.0 * MIRIM_TO_METERS) {
-        1.05
-    } else {
-        1.00
-    }
-}
-
 pub fn calculate_team_max_finishing_gravity_with_fatigue_from_tables<F>(
     players: &[&Player],
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     position_index: &HashMap<Uuid, Position>,
-    _pitch: &Pitch,
+    _pitch: &arlo_domain::pitch::Pitch,
     _attacking_positive_x: bool,
     fatigue_for: &F,
 ) -> OffensiveGravity
@@ -145,19 +88,13 @@ where
                     .unwrap_or(Position::CenterOffense)
             });
 
-        let zone_factor = match assigned_pos {
-            Position::CenterOffense => 1.25,
-            Position::WingOffense | Position::WideEnd => 1.15,
-            Position::TightWing | Position::RunningEnd | Position::Corridor => 1.05,
-            _ => 1.00,
-        };
-
+        let zone_factor = calculate_zone_factor(assigned_pos);
         let state = fatigue_for(&player.id());
         let table = attribute_tables
             .get(&player.id())
             .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
 
-        let grav = calculate_player_offensive_gravity_with_state_from_table(
+        let grav = calculate_player_offensive_gravity(
             player,
             table,
             assigned_pos,
@@ -173,17 +110,13 @@ where
     best_gravity
 }
 
-pub fn calculate_team_max_finishing_gravity_with_fatigue<F>(
+pub fn calculate_team_max_finishing_gravity(
     players: &[&Player],
     position_index: &HashMap<Uuid, Position>,
-    pitch: &Pitch,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    pitch: &arlo_domain::pitch::Pitch,
+    attribute_keys: &HashMap<Uuid, arlo_domain::AttributeKey>,
     attacking_positive_x: bool,
-    fatigue_for: &F,
-) -> OffensiveGravity
-where
-    F: Fn(&Uuid) -> PhysicalState,
-{
+) -> OffensiveGravity {
     let mut attribute_tables = HashMap::with_capacity(players.len());
     for p in players {
         attribute_tables.insert(p.id(), PlayerAttributeTable::from_player(p, attribute_keys));
@@ -193,23 +126,6 @@ where
         &attribute_tables,
         position_index,
         pitch,
-        attacking_positive_x,
-        fatigue_for,
-    )
-}
-
-pub fn calculate_team_max_finishing_gravity(
-    players: &[&Player],
-    position_index: &HashMap<Uuid, Position>,
-    pitch: &Pitch,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    attacking_positive_x: bool,
-) -> OffensiveGravity {
-    calculate_team_max_finishing_gravity_with_fatigue(
-        players,
-        position_index,
-        pitch,
-        attribute_keys,
         attacking_positive_x,
         &|_| PhysicalState::initial(),
     )

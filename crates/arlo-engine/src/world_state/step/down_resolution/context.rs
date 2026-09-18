@@ -67,13 +67,12 @@ impl<'a> DownResolutionContext<'a> {
         defense_players: &[&'a Player],
     ) -> Self {
         let pitch_length_mirim = state.pitch().length_mirim();
-        let cur_x_m = state.possession().scrimmage_point().raw().0;
-        let pitch_len_m = state.pitch().length().value().max(1.0);
+        let cur_x_mirim = state.possession().scrimmage_x_mirim();
 
         let normalized_proximity = if context.is_home_offense {
-            (cur_x_m / pitch_len_m).clamp(0.0, 1.0)
+            (cur_x_mirim / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
         } else {
-            ((pitch_len_m - cur_x_m) / pitch_len_m).clamp(0.0, 1.0)
+            ((pitch_length_mirim - cur_x_mirim) / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
         };
 
         let zone = if normalized_proximity >= 0.88 {

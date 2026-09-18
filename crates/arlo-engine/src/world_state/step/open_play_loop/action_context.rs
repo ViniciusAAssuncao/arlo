@@ -37,13 +37,13 @@ impl<'a> OpenPlayIterationContext<'a> {
         _defense_players: &[&Player],
     ) -> Self {
         let pitch = *state.pitch();
-        let pitch_len_m = pitch.length().value().max(1.0);
-        let cur_x_m = state.possession().scrimmage_point().raw().0;
+        let pitch_len_mirim = pitch.length_mirim().max(1.0);
+        let cur_x_mirim = state.possession().scrimmage_x_mirim();
 
         let normalized_proximity = if context.is_home_offense {
-            (cur_x_m / pitch_len_m).clamp(0.0, 1.0)
+            (cur_x_mirim / pitch_len_mirim).clamp(0.0, 1.0)
         } else {
-            ((pitch_len_m - cur_x_m) / pitch_len_m).clamp(0.0, 1.0)
+            ((pitch_len_mirim - cur_x_mirim) / pitch_len_mirim).clamp(0.0, 1.0)
         };
 
         let zone = if normalized_proximity >= 0.88 {
@@ -83,25 +83,7 @@ impl<'a> OpenPlayIterationContext<'a> {
             })
             .fold(0.0_f64, f64::max);
 
-        let long_launch_target_weight = target_candidates
-            .iter()
-            .map(|p| {
-                let p_state = state.fatigue_lookup().get(&p.id());
-                let table = state.attribute_table_for(&p.id());
-                calculate_player_target_weight(
-                    p,
-                    table,
-                    &pitch,
-                    &context.offense_pos_index,
-                    &context.offense_instructions_index,
-                    Some(&context.offense_role_index),
-                    context.is_home_offense,
-                    ReceptionRole::OpenPlayReceiver,
-                    &empty_openness,
-                    Some(&p_state),
-                )
-            })
-            .fold(0.0_f64, f64::max);
+        let long_launch_target_weight = best_available_target_weight;
 
         let offensive_gravity = calculate_team_max_finishing_gravity_with_fatigue_from_tables(
             &target_candidates,

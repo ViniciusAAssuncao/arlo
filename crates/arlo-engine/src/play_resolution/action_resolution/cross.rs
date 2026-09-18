@@ -1,10 +1,9 @@
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
-use crate::play_resolution::field_context::PitchState;
-use crate::play_resolution::space_index::TeamSpaceRating;
+use crate::possession::PitchState;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
@@ -42,7 +41,6 @@ pub struct CrossActionRequest<'a> {
     pub defender_fatigue: &'a PhysicalState,
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
     pub duel_context: &'a DuelContext,
-    pub space_rating: &'a TeamSpaceRating,
     pub pitch_state: &'a PitchState,
     pub pitch_length_mirim: f64,
     pub attacker_team_power: Option<f64>,
@@ -59,14 +57,14 @@ pub fn resolve_cross_action<R: Rng + ?Sized>(
         request.crosser,
         Position::WingOffense,
         request.crosser_table,
-        att_prof,
+        &att_prof,
         request.crosser_fatigue,
     );
     let defender_rating = calculate_player_duel_rating_from_table(
         request.defender,
         Position::OutsideZonerback,
         request.defender_table,
-        def_prof,
+        &def_prof,
         request.defender_fatigue,
     );
 
@@ -74,8 +72,7 @@ pub fn resolve_cross_action<R: Rng + ?Sized>(
         ArtroPlacement::LeftLateral | ArtroPlacement::RightLateral => 0.5,
         ArtroPlacement::Central => -0.2,
     };
-    let flank_mod = (request.space_rating.flank_openness() - 0.5) * 1.5;
-    let attacker_rating = (crosser_rating + channel_bonus + flank_mod).max(0.1);
+    let attacker_rating = (crosser_rating + channel_bonus).max(0.1);
 
     let req = DuelResolutionRequest::with_states(
         DuelKind::CrossDistribution,
@@ -111,9 +108,7 @@ pub fn resolve_cross_action<R: Rng + ?Sized>(
     let (turnover, scoring_attempt_ready) = if completed {
         (false, true)
     } else {
-        let to_p = (logistic(-1.2 - 0.20 * net_advantage)
-            * request.space_rating.pressure_intensity())
-        .clamp(0.05, 0.50);
+        let to_p = logistic(-1.2 - 0.20 * net_advantage).clamp(0.05, 0.50);
         (Probability::new_clamped(to_p).sample(rng), false)
     };
 

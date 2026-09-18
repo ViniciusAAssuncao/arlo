@@ -1,6 +1,5 @@
-use crate::attributes::profiles::get_duel_attribute_profiles;
+use crate::attributes::profiles::{get_duel_attribute_profiles, AttributeProfile as DuelProfile};
 use crate::resolution::duel_kind::DuelKind;
-use crate::resolution::duel_profiles::DuelProfile;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -38,4 +37,8 @@ fn init_duel_profiles_cache() -> HashMap<DuelKind, (DuelProfile, DuelProfile)> {
 
 pub fn get_cached_duel_profiles(kind: DuelKind) -> &'static (DuelProfile, DuelProfile) {
     &DUEL_PROFILES_CACHE.get_or_init(init_duel_profiles_cache)[&kind]
+}
+
+pub fn get_duel_profiles(kind: DuelKind) -> (DuelProfile, DuelProfile) {
+    get_duel_attribute_profiles(kind)
 }

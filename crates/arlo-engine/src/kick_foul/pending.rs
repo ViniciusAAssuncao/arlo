@@ -1,24 +1,26 @@
 use arlo_domain::KickFoulScoringTier;
-use arlo_math::units::Position as VectorPosition;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct KickFoulPending {
     pub awarded_team_id: Uuid,
-    pub spot: VectorPosition,
+    pub spot_x_mirim: f64,
+    pub spot_y_mirim: f64,
     pub scoring_tier: KickFoulScoringTier,
 }
 
 impl KickFoulPending {
     pub fn new(
         awarded_team_id: Uuid,
-        spot: VectorPosition,
+        spot_x_mirim: f64,
+        spot_y_mirim: f64,
         scoring_tier: KickFoulScoringTier,
     ) -> Self {
         Self {
             awarded_team_id,
-            spot,
+            spot_x_mirim,
+            spot_y_mirim,
             scoring_tier,
         }
     }
@@ -27,8 +29,12 @@ impl KickFoulPending {
         self.awarded_team_id
     }
 
-    pub fn spot(&self) -> VectorPosition {
-        self.spot
+    pub fn spot_x_mirim(&self) -> f64 {
+        self.spot_x_mirim
+    }
+
+    pub fn spot_y_mirim(&self) -> f64 {
+        self.spot_y_mirim
     }
 
     pub fn scoring_tier(&self) -> KickFoulScoringTier {

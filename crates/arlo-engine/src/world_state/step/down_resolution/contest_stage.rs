@@ -1,6 +1,6 @@
 use crate::artrine::DistributionFlightInfo;
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::match_decision::target_selection::{select_finisher, select_target, ReceptionRole};
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
     RatingParticipants,
@@ -11,7 +11,6 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
 use arlo_domain::{ArtrineDecisionKind, Player, Position};
 use arlo_math::stats::contrast::logistic;
-use arlo_math::units::Position as VectorPosition;
 use arlo_math::Probability;
 use rand::Rng;
 use smallvec::smallvec;
@@ -62,14 +61,14 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 ctx.carrier,
                 ctx.carrier_pos_domain,
                 &ctx.carrier_table,
-                att_prof,
+                &att_prof,
                 &ctx.carrier_fatigue,
             );
             let def_rating = calculate_player_duel_rating_from_table(
                 ctx.primary_defender,
                 ctx.primary_defender_pos_domain,
                 &ctx.primary_defender_table,
-                def_prof,
+                &def_prof,
                 &ctx.primary_defender_fatigue,
             );
 
@@ -152,7 +151,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .with_attribute_tables(tables)
                 .with_team_power(offense_power.control_power()),
                 state.attribute_keys(),
-                att_prof,
+                &att_prof,
             );
             let def_rating = calculate_side_rating(
                 RatingParticipants::from_slice_with_index(
@@ -163,7 +162,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .with_attribute_tables(tables)
                 .with_team_power(defense_power.defensive_power()),
                 state.attribute_keys(),
-                def_prof,
+                &def_prof,
             );
 
             let req = DuelResolutionRequest::with_states(
@@ -226,7 +225,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 receiver,
                 rec_pos,
                 state.attribute_table_for(&receiver_id),
-                rec_att_prof,
+                &rec_att_prof,
                 &state.fatigue_lookup().get(&receiver_id),
             );
             let rec_def_rating = calculate_side_rating(
@@ -238,7 +237,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .with_attribute_tables(tables)
                 .with_team_power(defense_power.defensive_power()),
                 state.attribute_keys(),
-                rec_def_prof,
+                &rec_def_prof,
             );
 
             let rec_fatigue = state.fatigue_lookup().get(&receiver_id);
@@ -289,7 +288,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 passer_id: ctx.carrier.id(),
                 decision_kind: decision,
                 is_aerial,
-                reception_point: VectorPosition::zero(),
+                reception_x_mirim: 0.0,
+                reception_y_mirim: 0.0,
                 distance_mirim: 0.0,
                 caught: attacker_won,
             };
@@ -333,14 +333,14 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 ctx.carrier,
                 ctx.carrier_pos_domain,
                 &ctx.carrier_table,
-                att_prof,
+                &att_prof,
                 &ctx.carrier_fatigue,
             );
             let def_rating = calculate_player_duel_rating_from_table(
                 ctx.primary_defender,
                 ctx.primary_defender_pos_domain,
                 &ctx.primary_defender_table,
-                def_prof,
+                &def_prof,
                 &ctx.primary_defender_fatigue,
             );
 

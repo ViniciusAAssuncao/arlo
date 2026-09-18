@@ -5,7 +5,7 @@ use crate::officiating::line_fault::{
     evaluate_and_resolve_line_fault, identify_last_defender, LineFaultEvaluationContext,
 };
 use crate::play_resolution::contact_events::{evaluate_contact_likelihood, sample_contact_event};
-use crate::play_resolution::field_context::PitchState;
+use crate::possession::PitchState;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;

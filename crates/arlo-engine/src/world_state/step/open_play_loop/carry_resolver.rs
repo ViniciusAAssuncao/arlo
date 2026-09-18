@@ -1,7 +1,7 @@
 use crate::artrine::execution::detect_drive_crossings_arithmetic;
 use crate::artrine::ArtrineExecutionOutcome;
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{
@@ -16,7 +16,7 @@ use crate::world_state::step::open_play_loop::scoring_attempt_evaluator::evaluat
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{Player, Position};
 use arlo_math::stats::contrast::logistic;
-use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_math::units::Duration;
 use arlo_math::Probability;
 use rand::Rng;
 use smallvec::{smallvec, SmallVec};
@@ -59,14 +59,14 @@ pub fn resolve_carry<R: Rng + ?Sized>(
         current_carrier,
         carrier_pos_domain,
         &carrier_table,
-        att_prof,
+        &att_prof,
         &carrier_fatigue,
     );
     let base_def_rating = calculate_player_duel_rating_from_table(
         primary_defender,
         defender_pos_domain,
         &defender_table,
-        def_prof,
+        &def_prof,
         &defender_fatigue,
     );
 
@@ -171,18 +171,13 @@ pub fn resolve_carry<R: Rng + ?Sized>(
         );
     }
 
-    let pitch_len_m = state.pitch().length().value();
-    let advance_m = macro_advance * MIRIM_TO_METERS;
-    let end_x_m = if context.is_home_offense {
-        (pass_phase.scrimmage_point.raw().0 + advance_m).min(pitch_len_m)
+    let pitch_len_mirim = state.pitch().length_mirim();
+    let end_x_mirim = if context.is_home_offense {
+        (pass_phase.scrimmage_x_mirim + macro_advance).min(pitch_len_mirim)
     } else {
-        (pass_phase.scrimmage_point.raw().0 - advance_m).max(0.0)
+        (pass_phase.scrimmage_x_mirim - macro_advance).max(0.0)
     };
-    let end_position = VectorPosition::from_components(
-        end_x_m,
-        pass_phase.scrimmage_point.raw().1,
-        0.0,
-    );
+    let end_y_mirim = 42.5;
 
     let (fouls, injuries) = evaluate_contact_events(
         state,
@@ -206,7 +201,8 @@ pub fn resolve_carry<R: Rng + ?Sized>(
         recovering_player_id,
         scoring_decision,
         duration_ledger: ledger,
-        end_position,
+        end_x_mirim,
+        end_y_mirim,
         duels,
         fouls,
         injuries,

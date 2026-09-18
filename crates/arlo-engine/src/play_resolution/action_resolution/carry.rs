@@ -1,11 +1,10 @@
 use crate::ai::cognitive::RiskProfile;
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
-use crate::play_resolution::field_context::PitchState;
-use crate::play_resolution::space_index::TeamSpaceRating;
+use crate::possession::PitchState;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::DuelKind;
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
@@ -42,7 +41,6 @@ pub struct CarryActionRequest<'a> {
     pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
     pub duel_context: &'a DuelContext,
     pub risk_profile: &'a RiskProfile,
-    pub space_rating: &'a TeamSpaceRating,
     pub pitch_state: &'a PitchState,
     pub pitch_length_mirim: f64,
     pub is_true_artrine: bool,
@@ -65,19 +63,18 @@ pub fn resolve_carry_action<R: Rng + ?Sized>(
         request.carrier,
         Position::CenterOffense,
         request.carrier_table,
-        att_prof,
+        &att_prof,
         request.carrier_fatigue,
     );
     let base_def_rating = calculate_player_duel_rating_from_table(
         request.defender,
         Position::Centerback,
         request.defender_table,
-        def_prof,
+        &def_prof,
         request.defender_fatigue,
     );
 
-    let space_mod = (request.space_rating.space_index() - 0.5) * 2.0;
-    let attacker_rating = (base_att_rating + space_mod).max(0.1);
+    let attacker_rating = base_att_rating.max(0.1);
     let defender_rating = base_def_rating.max(0.1);
 
     let req = DuelResolutionRequest::with_states(

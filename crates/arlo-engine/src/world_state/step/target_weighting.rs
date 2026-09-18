@@ -2,7 +2,7 @@ use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::match_decision::target_selection::{
     calculate_player_target_weight, ReceptionRole,
 };
-use crate::playmaking::routes::simulate_route_development_from_tables;
+use crate::playmaking::routes::simulate_route_development;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 pub fn resolve_decision_target_weights(
     context: &CallToActionContext,
-    pass_phase: &PassPhaseResult<'_>,
+    _pass_phase: &PassPhaseResult<'_>,
     state: &mut MatchState,
     target_candidates: &[&Player],
     defenders: &[&Player],
@@ -50,33 +50,19 @@ pub fn resolve_decision_target_weights(
             empty_openness,
         )
     } else {
-        let available_duration = pass_phase.duration_ledger.total_live();
-        let seq = state.next_sequence();
-        let mut drift_rng = state
-            .rng_provider()
-            .indexed_rng_for(crate::rng::RngStream::PositionalDrift, seq);
-
         let offense_route_runners: Vec<&Player> = target_candidates
             .iter()
             .copied()
             .filter(|p| context.offense_route_index.contains_key(&p.id()))
             .collect();
 
-        let pitch = *state.pitch();
-        let fatigue_tracker = state.fatigue.clone();
-        let openness_by_player = simulate_route_development_from_tables(
-            &pitch,
-            context.is_home_offense,
+        let openness_by_player = simulate_route_development(
             &offense_route_runners,
             &context.offense_route_index,
             &context.offense_pos_index,
             defenders,
-            &context.defense_pos_index,
             &context.defense_instructions_index,
             &tables,
-            &|id| fatigue_tracker.fatigue_for(id),
-            available_duration,
-            &mut drift_rng,
         );
 
         let best_available_target_weight = target_candidates

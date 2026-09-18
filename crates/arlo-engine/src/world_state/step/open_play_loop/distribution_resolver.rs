@@ -1,7 +1,7 @@
 use crate::artrine::{ArtrineExecutionOutcome, DistributionFlightInfo};
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::match_decision::target_selection::{select_target, ReceptionRole};
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_player_duel_rating_from_table, calculate_side_rating, RatingParticipants,
 };
@@ -17,7 +17,7 @@ use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationC
 use crate::world_state::step::open_play_loop::scoring_attempt_evaluator::evaluate_and_attempt_scoring;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Player, Position};
-use arlo_math::units::{Duration, Position as VectorPosition, MIRIM_TO_METERS};
+use arlo_math::units::Duration;
 use rand::Rng;
 use smallvec::{smallvec, SmallVec};
 use std::collections::HashMap;
@@ -77,7 +77,7 @@ pub fn resolve_distribution<R: Rng + ?Sized>(
         current_carrier,
         carrier_pos_domain,
         state.attribute_table_for(&current_carrier.id()),
-        att_prof,
+        &att_prof,
         &state.fatigue_lookup().get(&current_carrier.id()),
     );
     let def_rating = calculate_side_rating(
@@ -86,7 +86,7 @@ pub fn resolve_distribution<R: Rng + ?Sized>(
             .with_attribute_tables(tables)
             .with_team_power(defense_power.defensive_power()),
         state.attribute_keys(),
-        def_prof,
+        &def_prof,
     );
 
     let req = DuelResolutionRequest::with_states(
@@ -152,7 +152,7 @@ pub fn resolve_distribution<R: Rng + ?Sized>(
             .copied()
             .unwrap_or(Position::CenterOffense),
         state.attribute_table_for(&receiver.id()),
-        rec_att_prof,
+        &rec_att_prof,
         &state.fatigue_lookup().get(&receiver.id()),
     );
     let rec_def_rating = calculate_side_rating(
@@ -161,7 +161,7 @@ pub fn resolve_distribution<R: Rng + ?Sized>(
             .with_attribute_tables(tables)
             .with_team_power(defense_power.defensive_power()),
         state.attribute_keys(),
-        rec_def_prof,
+        &rec_def_prof,
     );
 
     let rec_req = DuelResolutionRequest::with_states(
@@ -215,25 +215,21 @@ pub fn resolve_distribution<R: Rng + ?Sized>(
     );
 
     let actual_advance = if caught { advance_mirim } else { 0.0 };
-    let pitch_len_m = state.pitch().length().value();
-    let advance_m = actual_advance * MIRIM_TO_METERS;
-    let end_x_m = if context.is_home_offense {
-        (pass_phase.scrimmage_point.raw().0 + advance_m).min(pitch_len_m)
+    let pitch_len_mirim = state.pitch().length_mirim();
+    let end_x_mirim = if context.is_home_offense {
+        (pass_phase.scrimmage_x_mirim + actual_advance).min(pitch_len_mirim)
     } else {
-        (pass_phase.scrimmage_point.raw().0 - advance_m).max(0.0)
+        (pass_phase.scrimmage_x_mirim - actual_advance).max(0.0)
     };
-    let end_position = VectorPosition::from_components(
-        end_x_m,
-        pass_phase.scrimmage_point.raw().1,
-        0.0,
-    );
+    let end_y_mirim = 42.5;
 
     let flight_info = DistributionFlightInfo {
         receiver_id: receiver.id(),
         passer_id: current_carrier.id(),
         decision_kind: chosen_decision,
         is_aerial,
-        reception_point: end_position,
+        reception_x_mirim: end_x_mirim,
+        reception_y_mirim: end_y_mirim,
         distance_mirim: advance_mirim,
         caught,
     };
@@ -264,7 +260,8 @@ pub fn resolve_distribution<R: Rng + ?Sized>(
         recovering_player_id,
         scoring_decision,
         duration_ledger: ledger,
-        end_position,
+        end_x_mirim,
+        end_y_mirim,
         duels,
         fouls: Vec::new(),
         injuries: Vec::new(),

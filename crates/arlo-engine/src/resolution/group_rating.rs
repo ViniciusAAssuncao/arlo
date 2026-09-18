@@ -1,8 +1,8 @@
+use crate::attributes::profiles::AttributeProfile as DuelProfile;
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
 use crate::physical::systems::degradation::extract_effective_attribute_value;
 use crate::physical::PhysicalState;
-use crate::resolution::duel_profiles::DuelProfile;
 use arlo_domain::{AttributeKey, Player, Position};
 use std::collections::HashMap;
 use uuid::Uuid;

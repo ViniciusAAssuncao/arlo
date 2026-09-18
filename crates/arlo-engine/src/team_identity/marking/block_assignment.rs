@@ -6,7 +6,6 @@ use arlo_domain::sport_constants::{
     ATTRIBUTE_MAX, BLOCK_MARKING_AGGRESSION_WEIGHT, BLOCK_MARKING_PROXIMITY_WEIGHT,
 };
 use arlo_domain::{AttributeKey, Player, Position, PositionLine};
-use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::{nearest_block_notation, PressBlockShape};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -40,7 +39,6 @@ pub fn extract_manager_artro_strategy_fidelity_from_table(table: &ManagerAttribu
 
 pub fn derive_block_marking_roles_from_tables(
     eligible_defenders: &[&Player],
-    _reference_pos: VectorPosition,
     press_block_shape: PressBlockShape,
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     execution_fidelity: f64,

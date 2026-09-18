@@ -3,7 +3,6 @@ use crate::world_state::play_transition::kick_foul_handler::possession_replaceme
 use crate::world_state::play_transition::publisher::EventPublisher;
 use crate::world_state::play_transition::scoring_handler::apply_match_score;
 use arlo_events::EventSink;
-use arlo_math::units::Position as VectorPosition;
 use uuid::Uuid;
 
 pub fn apply_score_outcome(
@@ -14,15 +13,11 @@ pub fn apply_score_outcome(
     apply_match_score(publisher.state_mut(), awarded_team_id, scoring_decision);
     publisher.emit_scoring_event(scoring_decision);
 
-    let center_scrimmage = VectorPosition::from_components(
-        publisher.state().pitch().length().value() / 2.0,
-        publisher.state().pitch().width().value() / 2.0,
-        0.0,
-    );
+    let center_scrimmage_x_mirim = publisher.state().pitch().length_mirim() / 2.0;
 
     let swapped_role = publisher.state().possession().role().swap();
     let mut new_series = publisher.state().possession().series_state().clone();
-    new_series.reset(center_scrimmage);
+    new_series.reset(center_scrimmage_x_mirim);
 
     if matches!(scoring_decision, ScoringDecision::GoalPoint { .. }) {
         new_series.is_bonus_phase = true;

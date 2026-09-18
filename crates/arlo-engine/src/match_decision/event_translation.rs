@@ -10,7 +10,6 @@ use arlo_events::{
     PossessionTimeRecorded, ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed,
     Turnover,
 };
-use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
 
 pub fn translate_duel_kind(kind: EngineDuelKind) -> PublicDuelKind {
@@ -81,29 +80,28 @@ pub fn translate_pass_completed(
     passer_id: Uuid,
     receiver_id: Uuid,
     is_aerial: bool,
-    reception_point: Position,
+    reception_x_mirim: f64,
+    reception_y_mirim: f64,
     distance_mirim: f64,
 ) -> PassCompleted {
     PassCompleted::new(
         passer_id,
         receiver_id,
         is_aerial,
-        reception_point.raw().0,
-        reception_point.raw().1,
+        reception_x_mirim,
+        reception_y_mirim,
         distance_mirim,
     )
 }
 
 pub fn translate_distribution_completed(info: &DistributionFlightInfo) -> DistributionCompleted {
-    let rx_mirim = info.reception_point.raw().0 / MIRIM_TO_METERS;
-    let ry_mirim = info.reception_point.raw().1 / MIRIM_TO_METERS;
     DistributionCompleted::new(
         info.receiver_id,
         info.passer_id,
         info.decision_kind,
         info.is_aerial,
-        rx_mirim,
-        ry_mirim,
+        info.reception_x_mirim,
+        info.reception_y_mirim,
         info.distance_mirim,
         info.caught,
     )
@@ -131,7 +129,8 @@ pub fn translate_turnover(
     recovering_player: Option<Uuid>,
     lost_by_player_id: Option<Uuid>,
     in_live_play: bool,
-    point: Position,
+    point_x_mirim: f64,
+    point_y_mirim: f64,
 ) -> Turnover {
     Turnover::new(
         previous_offense,
@@ -139,22 +138,23 @@ pub fn translate_turnover(
         recovering_player,
         lost_by_player_id,
         in_live_play,
-        point.raw().0,
-        point.raw().1,
+        point_x_mirim,
+        point_y_mirim,
     )
 }
 
 pub fn translate_out_of_bounds(
     last_possession_team: Uuid,
     last_player: Option<Uuid>,
-    out_point: Position,
+    out_x_mirim: f64,
+    out_y_mirim: f64,
     was_immediate_loss: bool,
 ) -> OutOfBounds {
     OutOfBounds::new(
         last_possession_team,
         last_player,
-        out_point.raw().0,
-        out_point.raw().1,
+        out_x_mirim,
+        out_y_mirim,
         was_immediate_loss,
     )
 }

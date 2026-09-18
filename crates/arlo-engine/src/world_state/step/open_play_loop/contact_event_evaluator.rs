@@ -4,7 +4,7 @@ use crate::injury::outcome::InjuryIncidentResolution;
 use crate::officiating::foul::{evaluate_and_resolve_foul, FoulEvaluationContext, FoulResolution};
 use crate::physical::PhysicalState;
 use crate::play_resolution::contact_events::{evaluate_contact_likelihood, sample_contact_event};
-use crate::play_resolution::field_context::PitchState;
+use crate::possession::PitchState;
 use crate::resolution::DuelOutcome;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;

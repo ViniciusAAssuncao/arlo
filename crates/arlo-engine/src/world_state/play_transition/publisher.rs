@@ -38,7 +38,6 @@ use arlo_events::{
     CountdownReason, EventArtroPlacement, EventSink, MatchClockInstant, MatchEvent,
     SubstitutionReason, TimeCallReason,
 };
-use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::PlayCallCategory;
 use uuid::Uuid;
 
@@ -148,7 +147,8 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         recovering_player_id: Option<Uuid>,
         lost_by_player_id: Option<Uuid>,
         in_live_play: bool,
-        point: VectorPosition,
+        point_x_mirim: f64,
+        point_y_mirim: f64,
     ) {
         let turnover_event = translate_turnover(
             offense_team_id,
@@ -156,7 +156,8 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
             recovering_player_id,
             lost_by_player_id,
             in_live_play,
-            point,
+            point_x_mirim,
+            point_y_mirim,
         );
         self.publish(turnover_event);
     }
@@ -165,11 +166,12 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         &mut self,
         offense_team_id: Uuid,
         last_player_id: Option<Uuid>,
-        point: VectorPosition,
+        out_x_mirim: f64,
+        out_y_mirim: f64,
         was_immediate: bool,
     ) {
         let oob_event =
-            translate_out_of_bounds(offense_team_id, last_player_id, point, was_immediate);
+            translate_out_of_bounds(offense_team_id, last_player_id, out_x_mirim, out_y_mirim, was_immediate);
         self.publish(oob_event);
     }
 

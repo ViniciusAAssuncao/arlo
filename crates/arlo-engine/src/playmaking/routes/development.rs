@@ -1,32 +1,18 @@
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
-use crate::physical::FatigueState;
-use arlo_domain::pitch::Pitch;
 use arlo_domain::sport_constants::{ATTRIBUTE_MAX, MAN_COVERAGE_OPENNESS_PENALTY};
 use arlo_domain::{AttributeKey, Player, Position};
-use arlo_math::units::Duration;
 use arlo_tactics::{MarkingAssignment, PlayerInstructions, RouteAssignment};
-use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn simulate_route_development_from_tables<F, R>(
-    _pitch: &Pitch,
-    _attacking_positive_x: bool,
+pub fn simulate_route_development(
     offense_route_runners: &[&Player],
     route_index: &HashMap<Uuid, RouteAssignment>,
     offense_position_index: &HashMap<Uuid, Position>,
     defenders: &[&Player],
-    _defense_position_index: &HashMap<Uuid, Position>,
     defense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
-    _fatigue_for: &F,
-    _available_duration: Duration,
-    _rng: &mut R,
-) -> HashMap<Uuid, f64>
-where
-    F: Fn(&Uuid) -> FatigueState,
-    R: Rng + ?Sized,
-{
+) -> HashMap<Uuid, f64> {
     let mut openness_map = HashMap::with_capacity(offense_route_runners.len());
     for runner in offense_route_runners {
         if let Some(route) = route_index.get(&runner.id()) {
@@ -66,46 +52,4 @@ where
     }
 
     openness_map
-}
-
-pub fn simulate_route_development<F, R>(
-    pitch: &Pitch,
-    attacking_positive_x: bool,
-    offense_route_runners: &[&Player],
-    route_index: &HashMap<Uuid, RouteAssignment>,
-    offense_position_index: &HashMap<Uuid, Position>,
-    defenders: &[&Player],
-    defense_position_index: &HashMap<Uuid, Position>,
-    defense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    fatigue_for: &F,
-    available_duration: Duration,
-    rng: &mut R,
-) -> HashMap<Uuid, f64>
-where
-    F: Fn(&Uuid) -> FatigueState,
-    R: Rng + ?Sized,
-{
-    let mut attribute_tables = HashMap::new();
-    for r in offense_route_runners {
-        attribute_tables.insert(r.id(), PlayerAttributeTable::from_player(r, attribute_keys));
-    }
-    for d in defenders {
-        attribute_tables.insert(d.id(), PlayerAttributeTable::from_player(d, attribute_keys));
-    }
-
-    simulate_route_development_from_tables(
-        pitch,
-        attacking_positive_x,
-        offense_route_runners,
-        route_index,
-        offense_position_index,
-        defenders,
-        defense_position_index,
-        defense_instructions_index,
-        &attribute_tables,
-        fatigue_for,
-        available_duration,
-        rng,
-    )
 }

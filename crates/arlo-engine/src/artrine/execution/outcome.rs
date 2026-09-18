@@ -4,7 +4,6 @@ use crate::officiating::foul::FoulResolution;
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationLedger;
 use arlo_domain::ArtrineDecisionKind;
-use arlo_math::units::Position as VectorPosition;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use uuid::Uuid;
@@ -15,7 +14,8 @@ pub struct DistributionFlightInfo {
     pub passer_id: Uuid,
     pub decision_kind: ArtrineDecisionKind,
     pub is_aerial: bool,
-    pub reception_point: VectorPosition,
+    pub reception_x_mirim: f64,
+    pub reception_y_mirim: f64,
     pub distance_mirim: f64,
     pub caught: bool,
 }
@@ -29,7 +29,8 @@ pub struct ArtrineExecutionOutcome {
     pub recovering_player_id: Option<Uuid>,
     pub scoring_decision: ScoringDecision,
     pub duration_ledger: DurationLedger,
-    pub end_position: VectorPosition,
+    pub end_x_mirim: f64,
+    pub end_y_mirim: f64,
     pub duels: Vec<AttributedDuelOutcome>,
     pub fouls: Vec<FoulResolution>,
     pub injuries: Vec<InjuryIncidentResolution>,
@@ -39,7 +40,8 @@ pub struct ArtrineExecutionOutcome {
 
 impl ArtrineExecutionOutcome {
     pub fn stopped(
-        end_position: VectorPosition,
+        end_x_mirim: f64,
+        end_y_mirim: f64,
         duels: Vec<AttributedDuelOutcome>,
         duration_ledger: DurationLedger,
         turnover: Option<Uuid>,
@@ -53,7 +55,8 @@ impl ArtrineExecutionOutcome {
             recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,
             duration_ledger,
-            end_position,
+            end_x_mirim,
+            end_y_mirim,
             duels,
             fouls: Vec::new(),
             injuries: Vec::new(),

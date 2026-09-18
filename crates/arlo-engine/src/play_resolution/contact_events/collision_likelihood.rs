@@ -1,6 +1,6 @@
 use crate::attributes::{PlayerAttributeTable, RefereeAttributeTable};
 use crate::physical::PhysicalState;
-use crate::play_resolution::field_context::PitchState;
+use crate::possession::PitchState;
 use arlo_domain::sport_constants::ATTRIBUTE_MAX;
 use arlo_domain::{AttributeKey, PitchZone};
 use arlo_math::stats::contrast::logistic;

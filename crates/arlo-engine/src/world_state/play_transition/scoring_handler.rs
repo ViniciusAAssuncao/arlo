@@ -3,7 +3,6 @@ use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::{LiveSequenceTracker, PossessionSnapshot};
 use crate::world_state::match_state::MatchState;
 use arlo_domain::Player;
-use arlo_math::units::Position as VectorPosition;
 use uuid::Uuid;
 
 pub fn enrich_scoring_decision_assister(
@@ -75,12 +74,8 @@ pub fn post_transition_score_reset(
     }
 
     if scoring_decision.is_scored() {
-        let center_scrimmage = VectorPosition::from_components(
-            state.pitch().length().value() / 2.0,
-            state.pitch().width().value() / 2.0,
-            0.0,
-        );
-        next_snapshot.series_state_mut().reset(center_scrimmage);
+        let center_scrimmage_x_mirim = state.pitch().length_mirim() / 2.0;
+        next_snapshot.series_state_mut().reset(center_scrimmage_x_mirim);
         if matches!(scoring_decision, ScoringDecision::GoalPoint { .. }) {
             next_snapshot.series_state_mut().is_bonus_phase = true;
         }

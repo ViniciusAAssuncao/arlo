@@ -25,7 +25,6 @@ use crate::world_state::match_state::setup_params::MatchSetupParams;
 use crate::world_state::match_state::state::MatchState;
 use crate::world_state::match_state::team_power::MatchPowerCache;
 use crate::world_state::match_state::teams::TeamRegistry;
-use arlo_math::units::Position;
 use std::collections::HashMap;
 
 impl MatchState {
@@ -41,15 +40,11 @@ impl MatchState {
             &params.away.roster,
         )?;
 
-        let initial_scrimmage = Position::from_components(
-            params.pitch.length().value() / 2.0,
-            params.pitch.width().value() / 2.0,
-            0.0,
-        );
+        let initial_scrimmage_x_mirim = params.pitch.length_mirim() / 2.0;
         let possession = PossessionSnapshot::opening(
             params.home.team_id,
             params.away.team_id,
-            initial_scrimmage,
+            initial_scrimmage_x_mirim,
         );
         let rng_provider = RngProvider::new(params.seed);
         let clock = MatchClock::new(&params.format_rules);

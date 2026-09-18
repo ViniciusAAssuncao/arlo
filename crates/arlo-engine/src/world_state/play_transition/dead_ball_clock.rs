@@ -12,7 +12,7 @@ use crate::world_state::play_transition::scoring_handler::post_transition_score_
 use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
-use arlo_math::units::{Duration, MIRIM_TO_METERS};
+use arlo_math::units::Duration;
 
 pub fn handle_dead_ball_and_clock(
     publisher: &mut EventPublisher<'_, impl EventSink>,
@@ -79,8 +79,7 @@ pub fn handle_dead_ball_and_clock(
             resolve_and_apply_kick_foul(publisher, &pending, &mut kick_foul_rng);
         }
 
-        let next_scrimmage_x_mirim =
-            publisher.state().possession().scrimmage_point().raw().0 / MIRIM_TO_METERS;
+        let next_scrimmage_x_mirim = publisher.state().possession().scrimmage_x_mirim();
         let (reorg_duration, huddle_duration) = derive_and_apply_reorganization(
             publisher,
             next_scrimmage_x_mirim,

@@ -24,12 +24,12 @@ pub fn evaluate_kick_foul_realignment_stage<R: Rng + ?Sized>(
         if pending.awarded_team_id() == team_id {
             if publisher.state().control_mode_for_team(team_id) == ManagerControlMode::Ai {
                 let context = ManagerDecisionContext::build(publisher.state(), team_id);
-                let pitch_length_m = publisher.state().pitch().length().value();
-                let spot_x_m = pending.spot().raw().0;
+                let pitch_length_mirim = publisher.state().pitch().length_mirim();
+                let spot_x_mirim = pending.spot_x_mirim();
                 let normalized_x = if is_home {
-                    (spot_x_m / pitch_length_m).clamp(0.0, 1.0)
+                    (spot_x_mirim / pitch_length_mirim).clamp(0.0, 1.0)
                 } else {
-                    ((pitch_length_m - spot_x_m) / pitch_length_m).clamp(0.0, 1.0)
+                    ((pitch_length_mirim - spot_x_mirim) / pitch_length_mirim).clamp(0.0, 1.0)
                 };
                 if evaluate_kick_foul_realignment(
                     &context,

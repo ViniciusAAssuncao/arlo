@@ -12,6 +12,8 @@ pub use offense::*;
 pub use profile::*;
 pub use psychology::*;
 
+pub use profile::AttributeProfile as DuelProfile;
+
 use crate::resolution::duel_kind::DuelKind;
 use arlo_domain::Position;
 
@@ -64,3 +66,5 @@ pub fn get_duel_attribute_profiles(kind: DuelKind) -> (AttributeProfile, Attribu
         ),
     }
 }
+
+pub use get_duel_attribute_profiles as get_duel_profiles;

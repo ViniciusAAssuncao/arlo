@@ -1,6 +1,4 @@
 use crate::possession::drive::artrine_identity::{ArtrineCarrier, TrueArtrine};
-use arlo_domain::pitch::Artro;
-use arlo_math::units::Position;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -32,73 +30,35 @@ impl DriveValidationResult {
 
 pub fn validate_drive(
     _artrine: TrueArtrine,
-    start_pos: Position,
-    end_pos: Position,
-    artro: &Artro,
+    start_x_mirim: f64,
+    end_x_mirim: f64,
+    row_x_mirim: f64,
     is_aerial_reception: bool,
 ) -> DriveValidationResult {
     if is_aerial_reception {
         return DriveValidationResult::new(DriveValidationStatus::AerialReceptionExcluded);
     }
 
-    let min_x = start_pos.raw().0.min(end_pos.raw().0);
-    let max_x = start_pos.raw().0.max(end_pos.raw().0);
-    let artro_x = artro.x().value();
-    let half_size = artro.size().value() / 2.0;
+    let min_x = start_x_mirim.min(end_x_mirim);
+    let max_x = start_x_mirim.max(end_x_mirim);
 
-    if artro_x + half_size < min_x || artro_x - half_size > max_x {
-        return DriveValidationResult::new(DriveValidationStatus::NotIntersected);
+    if row_x_mirim >= min_x && row_x_mirim <= max_x {
+        DriveValidationResult::new(DriveValidationStatus::Valid)
+    } else {
+        DriveValidationResult::new(DriveValidationStatus::NotIntersected)
     }
-
-    DriveValidationResult::new(DriveValidationStatus::Valid)
-}
-
-pub fn validate_continuous_trajectory(
-    artrine: TrueArtrine,
-    segments: &[(Position, Position)],
-    artro: &Artro,
-    is_aerial_reception: bool,
-) -> DriveValidationResult {
-    if is_aerial_reception {
-        return DriveValidationResult::new(DriveValidationStatus::AerialReceptionExcluded);
-    }
-
-    for &(start_pos, end_pos) in segments {
-        let res = validate_drive(artrine, start_pos, end_pos, artro, false);
-        if res.is_valid() {
-            return res;
-        }
-    }
-
-    DriveValidationResult::new(DriveValidationStatus::NotIntersected)
 }
 
 pub fn validate_carrier_drive(
     carrier: ArtrineCarrier,
-    start_pos: Position,
-    end_pos: Position,
-    artro: &Artro,
+    start_x_mirim: f64,
+    end_x_mirim: f64,
+    row_x_mirim: f64,
     is_aerial_reception: bool,
 ) -> DriveValidationResult {
     match carrier {
         ArtrineCarrier::True(true_artrine) => {
-            validate_drive(true_artrine, start_pos, end_pos, artro, is_aerial_reception)
-        }
-        ArtrineCarrier::False(_) => {
-            DriveValidationResult::new(DriveValidationStatus::InvalidIdentity)
-        }
-    }
-}
-
-pub fn validate_carrier_continuous_trajectory(
-    carrier: ArtrineCarrier,
-    segments: &[(Position, Position)],
-    artro: &Artro,
-    is_aerial_reception: bool,
-) -> DriveValidationResult {
-    match carrier {
-        ArtrineCarrier::True(true_artrine) => {
-            validate_continuous_trajectory(true_artrine, segments, artro, is_aerial_reception)
+            validate_drive(true_artrine, start_x_mirim, end_x_mirim, row_x_mirim, is_aerial_reception)
         }
         ArtrineCarrier::False(_) => {
             DriveValidationResult::new(DriveValidationStatus::InvalidIdentity)
@@ -108,19 +68,11 @@ pub fn validate_carrier_continuous_trajectory(
 
 pub fn is_drive_valid(
     artrine: TrueArtrine,
-    start_pos: Position,
-    end_pos: Position,
-    artro: &Artro,
+    start_x_mirim: f64,
+    end_x_mirim: f64,
+    row_x_mirim: f64,
     is_aerial_reception: bool,
 ) -> bool {
-    validate_drive(artrine, start_pos, end_pos, artro, is_aerial_reception).is_valid()
+    validate_drive(artrine, start_x_mirim, end_x_mirim, row_x_mirim, is_aerial_reception).is_valid()
 }
 
-pub fn is_trajectory_drive_valid(
-    artrine: TrueArtrine,
-    segments: &[(Position, Position)],
-    artro: &Artro,
-    is_aerial_reception: bool,
-) -> bool {
-    validate_continuous_trajectory(artrine, segments, artro, is_aerial_reception).is_valid()
-}

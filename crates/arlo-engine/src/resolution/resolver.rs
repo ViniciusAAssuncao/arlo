@@ -1,3 +1,4 @@
+use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
 use crate::resolution::context::DuelContext;
@@ -5,7 +6,6 @@ use crate::resolution::duel_kind::{logistic_slope_for, DuelKind};
 use crate::resolution::duel_noise::{
     sample_player_noise, sample_player_noise_from_table_with_baseline,
 };
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{calculate_side_rating, RatingParticipants};
 use crate::resolution::outcome::DuelOutcome;
 use arlo_domain::sport_constants::HOME_FIELD_ADVANTAGE_LOGIT;
@@ -101,8 +101,8 @@ impl<'a> DuelResolutionRequest<'a> {
         context: &'a DuelContext,
     ) -> Self {
         let (attacker_profile, defender_profile) = get_duel_profiles(kind);
-        let attacker_rating = calculate_side_rating(attackers, attribute_keys, attacker_profile);
-        let defender_rating = calculate_side_rating(defenders, attribute_keys, defender_profile);
+        let attacker_rating = calculate_side_rating(attackers, attribute_keys, &attacker_profile);
+        let defender_rating = calculate_side_rating(defenders, attribute_keys, &defender_profile);
         let default_state = PhysicalState::initial();
         let attacker_state = attackers
             .fatigue_lookup

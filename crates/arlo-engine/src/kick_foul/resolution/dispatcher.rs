@@ -8,7 +8,6 @@ use crate::kick_foul::resolution::restart_phase::resolve_kick_foul_restart;
 use crate::kick_foul::resolution::shoot_phase::resolve_kick_foul_shot;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::resolution::{AttributedDuelOutcome, DuelContext};
-use crate::team_identity::geometry::lateral_ratio_from_center;
 use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::{KickFoulDecisionKind, Player};
@@ -48,7 +47,6 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
     let offense_role_index = state.role_index_for_team(offense_team_id);
     let tables = state.teams.player_attribute_tables();
     let attribute_keys = state.attribute_keys();
-    let pitch = state.pitch();
 
     let participants = select_kick_foul_participants(
         &offense_players,
@@ -62,7 +60,9 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
     let kicker_table = state.attribute_table_for(&taker_id);
 
     let pressure = analyze_match_state(state);
-    let lateral_ratio = lateral_ratio_from_center(pending.spot().raw().1, pitch.width().value());
+    let center_y = state.pitch().width_mirim() * 0.5;
+    let lateral_ratio =
+        ((pending.spot_y_mirim() - center_y).abs() / center_y.max(1.0)).clamp(0.0, 1.0);
     let utilities = evaluate_kick_foul_decision_utilities(
         kicker_table,
         pending.scoring_tier(),
@@ -133,15 +133,14 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         KickFoulDecisionKind::Cross
         | KickFoulDecisionKind::ShortPass
         | KickFoulDecisionKind::LongLaunch => {
-            let kicker_pos = pending.spot();
             let restart = resolve_kick_foul_restart(
                 participants.kicker,
-                kicker_pos,
+                pending.spot_x_mirim(),
+                pending.spot_y_mirim(),
                 &participants.target_candidates,
                 &defense_players,
                 decision,
                 tables,
-                pitch,
                 attribute_keys,
                 &duel_context,
                 rng,

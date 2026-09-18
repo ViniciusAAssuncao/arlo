@@ -36,12 +36,12 @@ pub fn evaluate_tactical_adjustment_stage<R: Rng + ?Sized>(
                 .available_profiles_for_team(team_id)
                 .to_vec();
             let active_profile_id = publisher.state().tactical_profile_for_team(team_id).id();
-            let pitch_length_m = publisher.state().pitch().length().value();
-            let scrimmage_x_m = publisher.state().possession().scrimmage_point().raw().0;
+            let pitch_length_mirim = publisher.state().pitch().length_mirim();
+            let scrimmage_x_mirim = publisher.state().possession().scrimmage_x_mirim();
             let normalized_x_to_goal = if is_home {
-                (scrimmage_x_m / pitch_length_m).clamp(0.0, 1.0)
+                (scrimmage_x_mirim / pitch_length_mirim).clamp(0.0, 1.0)
             } else {
-                ((pitch_length_m - scrimmage_x_m) / pitch_length_m).clamp(0.0, 1.0)
+                ((pitch_length_mirim - scrimmage_x_mirim) / pitch_length_mirim).clamp(0.0, 1.0)
             };
             let situational_ctx =
                 build_situational_context(publisher.state(), normalized_x_to_goal);
