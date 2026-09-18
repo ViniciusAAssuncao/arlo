@@ -33,7 +33,7 @@ impl RiskProfile {
             loss_aversion_lambda: loss_aversion_lambda.clamp(1.10, 4.50),
             gain_diminishing_alpha: gain_diminishing_alpha.clamp(0.60, 1.00),
             loss_diminishing_beta: loss_diminishing_beta.clamp(0.60, 1.00),
-            probability_distortion_gamma: probability_distortion_gamma.clamp(0.40, 1.00),
+            probability_distortion_gamma: probability_distortion_gamma.clamp(0.85, 1.00),
             physical_exhaustion: 0.0,
         }
     }
@@ -51,7 +51,7 @@ impl RiskProfile {
             loss_aversion_lambda: loss_aversion_lambda.clamp(1.10, 4.50),
             gain_diminishing_alpha: gain_diminishing_alpha.clamp(0.60, 1.00),
             loss_diminishing_beta: loss_diminishing_beta.clamp(0.60, 1.00),
-            probability_distortion_gamma: probability_distortion_gamma.clamp(0.40, 1.00),
+            probability_distortion_gamma: probability_distortion_gamma.clamp(0.85, 1.00),
             physical_exhaustion: physical_exhaustion.clamp(0.0, 1.0),
         }
     }
@@ -105,10 +105,10 @@ impl RiskProfile {
         let gain_diminishing_alpha = (0.88 + 0.06 * (norm_vision - 1.0)).clamp(0.70, 1.00);
         let loss_diminishing_beta = (0.88 + 0.06 * (norm_decisions - 1.0)).clamp(0.70, 1.00);
 
-        let probability_distortion_gamma = (0.65 - 0.12 * (norm_flair - 1.0)
-            + 0.15 * (norm_decisions - 1.0)
-            - 0.10 * physical_exhaustion)
-            .clamp(0.40, 0.95);
+        let probability_distortion_gamma = (0.92 - 0.04 * (norm_flair - 1.0)
+            + 0.05 * (norm_decisions - 1.0)
+            - 0.03 * physical_exhaustion)
+            .clamp(0.85, 1.00);
 
         Self {
             tolerance_index,
@@ -199,15 +199,7 @@ impl RiskProfile {
     }
 
     pub fn weight_probability(&self, p: f64) -> f64 {
-        let p_clamped = p.clamp(0.0001, 0.9999);
-        let g = self.probability_distortion_gamma;
-        let num = p_clamped.powf(g);
-        let den = (p_clamped.powf(g) + (1.0 - p_clamped).powf(g)).powf(1.0 / g);
-        if den > 1e-9 {
-            (num / den).clamp(0.0, 1.0)
-        } else {
-            p_clamped
-        }
+        p.clamp(0.0, 1.0)
     }
 
     pub fn risk_multiplier_for_action(&self, kind: ArtrineDecisionKind) -> f64 {
@@ -231,7 +223,7 @@ impl Default for RiskProfile {
             loss_aversion_lambda: 2.25,
             gain_diminishing_alpha: 0.88,
             loss_diminishing_beta: 0.88,
-            probability_distortion_gamma: 0.65,
+            probability_distortion_gamma: 1.0,
             physical_exhaustion: 0.0,
         }
     }

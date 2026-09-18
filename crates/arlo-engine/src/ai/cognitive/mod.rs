@@ -8,4 +8,4 @@ pub use decision_factory::{
 };
 pub use decision_threshold::action_probability;
 pub use risk_profile::RiskProfile;
-pub use signal_detection::{sample_detection_outcome, SignalDetectionModel};
+pub use signal_detection::{detection_probability, sample_detection_outcome};

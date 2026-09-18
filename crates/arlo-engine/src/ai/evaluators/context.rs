@@ -6,7 +6,7 @@ use crate::physical::systems::degradation::{extract_effective_attribute_value, D
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
-use crate::resolution::duel_noise::player_noise_distribution_from_table_with_impulse;
+use crate::resolution::duel_noise::player_consistency_noise_scale;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, ArtroPlacement, AttributeKey, Player, Position, SlotRole};
@@ -128,7 +128,7 @@ impl<'a> DecisionEvaluationContext<'a> {
     }
 
     pub fn calculate_probability_bounds(
-        carrier: &Player,
+        _carrier: &Player,
         table: &PlayerAttributeTable,
         physical_state: &PhysicalState,
     ) -> (f64, f64) {
@@ -137,14 +137,12 @@ impl<'a> DecisionEvaluationContext<'a> {
         let profile = crate::caching::impulse_baseline_profile();
         let baseline = calculate_player_impulse_baseline(table, profile);
         let impulse_state = ImpulseState::from_baseline(baseline);
-        let noise_params = player_noise_distribution_from_table_with_impulse(
-            carrier,
-            table,
+        let deg_ctx_impulse = DegradationContext::with_impulse(
             physical_state,
             &impulse_state,
             baseline,
         );
-        let scale = noise_params.scale();
+        let scale = player_consistency_noise_scale(table, &deg_ctx_impulse);
         let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
         let floor =
             (0.001 + 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.0001, 0.15);

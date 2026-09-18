@@ -10,11 +10,7 @@ pub mod resolver;
 pub use attributed_outcome::AttributedDuelOutcome;
 pub use context::DuelContext;
 pub use duel_kind::{logistic_slope_for, DuelKind};
-pub use duel_noise::{
-    player_noise_distribution_from_table_with_impulse, sample_player_noise,
-    sample_player_noise_from_table_with_baseline, sample_player_noise_from_table_with_impulse,
-    sample_player_noise_with_impulse, SkewNormalParams,
-};
+pub use duel_noise::{player_consistency_noise_scale, sample_player_noise};
 pub use group_rating::{
     calculate_anchored_rating, calculate_anchored_side_rating, calculate_group_rating,
     calculate_player_duel_rating, calculate_player_duel_rating_from_table,

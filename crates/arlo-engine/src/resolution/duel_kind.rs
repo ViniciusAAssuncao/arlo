@@ -58,16 +58,15 @@ impl DuelKind {
 
 pub fn logistic_slope_for(kind: DuelKind) -> f64 {
     let factor = match kind {
-        DuelKind::FinishingAttempt | DuelKind::ShortDistribution | DuelKind::FieldGoalAttempt => {
-            4.8
-        }
-        DuelKind::LongDistribution | DuelKind::CrossDistribution | DuelKind::ArtroBreakthrough => {
-            4.2
-        }
-        DuelKind::RouteContest | DuelKind::BallSecurityDistribution => 3.9,
-        DuelKind::PassProtection | DuelKind::RunBreakthrough | DuelKind::AerialDuel => 3.6,
-        DuelKind::LateralBlock => 3.4,
-        DuelKind::CentralBlock | DuelKind::BallSecurityCarry => 3.2,
+        DuelKind::FinishingAttempt => 7.2,
+        DuelKind::ArtroBreakthrough => 7.0,
+        DuelKind::ShortDistribution => 6.8,
+        DuelKind::LongDistribution | DuelKind::CrossDistribution => 6.5,
+        DuelKind::FieldGoalAttempt => 6.0,
+        DuelKind::RouteContest | DuelKind::BallSecurityDistribution => 4.8,
+        DuelKind::PassProtection | DuelKind::RunBreakthrough | DuelKind::AerialDuel => 4.5,
+        DuelKind::LateralBlock => 4.2,
+        DuelKind::CentralBlock | DuelKind::BallSecurityCarry => 4.0,
         DuelKind::KickBlockAttempt => {
             KICK_BLOCK_ATTEMPT_LOGISTIC_FACTOR * ATTRIBUTE_SATURATION_THRESHOLD
         }

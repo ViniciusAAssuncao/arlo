@@ -3,6 +3,7 @@ use crate::ai::evaluators::DecisionEvaluationContext;
 use crate::artrine::available_decision_kinds;
 use crate::artrine::event_translation::translate_artrine_decision_made;
 use crate::match_decision::event_translation::create_envelope;
+pub use crate::open_play::carrier_sampler::carrier_decision_steepness;
 use crate::open_play::carrier_sampler::sample_carrier_decision_from_table;
 use crate::open_play::CarrierDecisionEvaluator;
 use crate::world_state::match_state::MatchState;

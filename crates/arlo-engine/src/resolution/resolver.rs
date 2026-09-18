@@ -1,11 +1,10 @@
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
+use crate::physical::systems::degradation::DegradationContext;
 use crate::physical::PhysicalState;
 use crate::resolution::context::DuelContext;
 use crate::resolution::duel_kind::{logistic_slope_for, DuelKind};
-use crate::resolution::duel_noise::{
-    sample_player_noise, sample_player_noise_from_table_with_baseline,
-};
+use crate::resolution::duel_noise::sample_player_noise;
 use crate::resolution::group_rating::{calculate_side_rating, RatingParticipants};
 use crate::resolution::outcome::DuelOutcome;
 use arlo_domain::sport_constants::HOME_FIELD_ADVANTAGE_LOGIT;
@@ -238,38 +237,38 @@ pub fn resolve_duel<R: Rng + ?Sized>(
     let effective_attacker = request.attacker_team_power.unwrap_or(request.attacker_rating);
     let effective_defender = request.defender_team_power.unwrap_or(request.defender_rating);
 
-    let noise_a = match (request.attacker_primary, request.attacker_table) {
-        (Some(p), Some(table)) => sample_player_noise_from_table_with_baseline(
-            p,
-            table,
-            &request.attacker_state,
-            rng,
-        ),
-        (Some(p), None) => {
-            if let Some(keys) = request.attribute_keys {
-                sample_player_noise(p, keys, &request.attacker_state, rng)
-            } else {
-                0.0
+    let deg_ctx_a = DegradationContext::new(&request.attacker_state);
+    let table_a;
+    let opt_table_a = match request.attacker_table {
+        Some(table) => Some(table),
+        None => match (request.attacker_primary, request.attribute_keys) {
+            (Some(p), Some(keys)) => {
+                table_a = PlayerAttributeTable::from_player(p, keys);
+                Some(&table_a)
             }
-        }
-        (None, _) => 0.0,
+            _ => None,
+        },
+    };
+    let noise_a = match opt_table_a {
+        Some(table) => sample_player_noise(table, &deg_ctx_a, rng),
+        None => 0.0,
     };
 
-    let noise_b = match (request.defender_primary, request.defender_table) {
-        (Some(p), Some(table)) => sample_player_noise_from_table_with_baseline(
-            p,
-            table,
-            &request.defender_state,
-            rng,
-        ),
-        (Some(p), None) => {
-            if let Some(keys) = request.attribute_keys {
-                sample_player_noise(p, keys, &request.defender_state, rng)
-            } else {
-                0.0
+    let deg_ctx_b = DegradationContext::new(&request.defender_state);
+    let table_b;
+    let opt_table_b = match request.defender_table {
+        Some(table) => Some(table),
+        None => match (request.defender_primary, request.attribute_keys) {
+            (Some(p), Some(keys)) => {
+                table_b = PlayerAttributeTable::from_player(p, keys);
+                Some(&table_b)
             }
-        }
-        (None, _) => 0.0,
+            _ => None,
+        },
+    };
+    let noise_b = match opt_table_b {
+        Some(table) => sample_player_noise(table, &deg_ctx_b, rng),
+        None => 0.0,
     };
 
     let mut hfa_logit = 0.0;
