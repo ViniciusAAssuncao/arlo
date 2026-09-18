@@ -36,13 +36,12 @@ pub fn resolve_down<R: Rng + ?Sized>(
 
     let decision = resolve_decision(&ctx, state, rng, sink);
 
-    let zone = ctx.zone;
-    let current_time = state.clock().seconds_in_period();
+    let current_time_seconds = state.clock().seconds_in_period();
     state.possession_mut().live_sequence_mut().record_touch(
         ctx.carrier.id(),
         TouchActionType::from(decision),
-        zone,
-        current_time,
+        ctx.zone,
+        current_time_seconds,
     );
 
     let contest = resolve_contest(&ctx, decision, state, rng);
@@ -64,11 +63,12 @@ pub fn resolve_down<R: Rng + ?Sized>(
 
     if let Some(receiver) = contest.receiver {
         if receiver.id() != ctx.carrier.id() && contest.attacker_won {
+            let reception_time = current_time_seconds + progression.live_duration.value() * 0.5;
             state.possession_mut().live_sequence_mut().record_touch(
                 receiver.id(),
                 TouchActionType::Reception,
                 progression.new_zone,
-                current_time + progression.live_duration.value() * 0.5,
+                reception_time,
             );
         }
     }

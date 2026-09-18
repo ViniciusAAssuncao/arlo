@@ -5,6 +5,7 @@ pub mod cross_resolver;
 pub mod decision_selection;
 pub mod distribution_resolver;
 pub mod finish_resolver;
+pub mod loop_state;
 pub mod runner;
 pub mod scoring_attempt_evaluator;
 
@@ -15,5 +16,6 @@ pub use cross_resolver::resolve_cross;
 pub use decision_selection::select_carrier_decision;
 pub use distribution_resolver::resolve_distribution;
 pub use finish_resolver::resolve_finish;
+pub use loop_state::OpenPlayLoopState;
 pub use runner::run_open_play_loop;
 pub use scoring_attempt_evaluator::evaluate_and_attempt_scoring;

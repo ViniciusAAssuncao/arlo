@@ -6,10 +6,10 @@ pub mod executor;
 pub mod progression_stage;
 pub mod scoring_stage;
 
-pub use collateral_stage::resolve_collateral_events;
-pub use contest_stage::resolve_contest;
+pub use collateral_stage::{resolve_collateral_events, ActionCollateralOutcome};
+pub use contest_stage::{resolve_contest, ActionContestOutcome};
 pub use context::DownResolutionContext;
 pub use decision_stage::resolve_decision;
 pub use executor::resolve_down;
-pub use progression_stage::resolve_progression;
+pub use progression_stage::{resolve_progression, ActionProgressionOutcome};
 pub use scoring_stage::resolve_scoring;

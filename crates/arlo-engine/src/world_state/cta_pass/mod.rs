@@ -57,11 +57,7 @@ pub fn resolve_pass_phase<'a>(
     let scrimmage_point = state.possession().scrimmage_point();
     let scrimmage_x_mirim = scrimmage_point.raw().0 / MIRIM_TO_METERS;
 
-    let passer_pos = scrimmage_point;
-    let artrine_pos = scrimmage_point;
-    let pass_rusher_pos = scrimmage_point;
-
-    let passer_zone = state.pitch().zone_at_position(passer_pos);
+    let passer_zone = state.pitch().zone_at_position(scrimmage_point);
     let current_time = state.clock().seconds_in_period();
     state.possession_mut().live_sequence_mut().record_touch(
         participants.passer.id(),
@@ -86,9 +82,6 @@ pub fn resolve_pass_phase<'a>(
         state,
         &participants,
         pass_won,
-        passer_pos,
-        artrine_pos,
-        pass_rusher_pos,
         sink,
     );
 

@@ -5,14 +5,14 @@ use crate::match_decision::scoring::{
 };
 use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
-use crate::resolution::{AttributedDuelOutcome, DuelKind};
-use crate::set_piece::attempt::attempt_placed_kick;
+use crate::resolution::AttributedDuelOutcome;
+use crate::resolution::DuelKind;
+use crate::set_piece::select_kicker;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
 use crate::world_state::step::down_resolution::progression_stage::ActionProgressionOutcome;
-use crate::world_state::step::open_play_loop::action_context::OpenPlayIterationContext;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Position};
 use rand::Rng;
@@ -64,43 +64,6 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         return ScoringDecision::NoOpportunity;
     }
 
-    if matches!(
-        opportunity,
-        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)
-    ) {
-        let iter_ctx = OpenPlayIterationContext::build(
-            state,
-            call_context,
-            pass_phase,
-            finisher,
-            &ctx.offense_players,
-            &ctx.defense_players,
-        );
-
-        let assister_id = state
-            .possession()
-            .live_sequence()
-            .primary_assister(finisher.id())
-            .or_else(|| Some(ctx.carrier.id()));
-
-        if let Some((score_dec, fin_duel)) = attempt_placed_kick(
-            state,
-            call_context,
-            &iter_ctx,
-            pass_phase,
-            finisher,
-            &ctx.defense_players,
-            opportunity,
-            total_drives,
-            total_adv,
-            assister_id,
-            rng,
-        ) {
-            duels.push(fin_duel);
-            return score_dec;
-        }
-    }
-
     let goalguard = match find_goalguard(&ctx.defense_players) {
         Ok(g) => g,
         Err(_) => return ScoringDecision::NoOpportunity,
@@ -109,19 +72,40 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
     let finish_ctx = ctx
         .duel_context
         .for_duel_kind(duel_kind_for_opportunity(opportunity));
-    let fin_fatigue = state.fatigue_lookup().get(&finisher.id());
+
+    let effective_kicker = if matches!(
+        opportunity,
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)
+    ) {
+        let mut candidates = ctx.target_candidates.clone();
+        if !candidates.iter().any(|p| p.id() == finisher.id()) {
+            candidates.push(finisher);
+        }
+        let tables = state.teams.player_attribute_tables();
+        select_kicker(
+            &candidates,
+            Some(&call_context.offense_role_index),
+            tables,
+            rng,
+        )
+        .unwrap_or(finisher)
+    } else {
+        finisher
+    };
+
+    let fin_fatigue = state.fatigue_lookup().get(&effective_kicker.id());
     let gg_fatigue = state.fatigue_lookup().get(&goalguard.id());
-    let fin_table = state.teams.player_attribute_tables().get(&finisher.id());
+    let fin_table = state.teams.player_attribute_tables().get(&effective_kicker.id());
     let gg_table = state.teams.player_attribute_tables().get(&goalguard.id());
 
     let assister_id = state
         .possession()
         .live_sequence()
-        .primary_assister(finisher.id())
+        .primary_assister(effective_kicker.id())
         .or_else(|| Some(ctx.carrier.id()));
 
     let req = ScoringAttemptRequest::new(
-        finisher,
+        effective_kicker,
         goalguard,
         state.attribute_keys(),
         ctx.offense_team_id,

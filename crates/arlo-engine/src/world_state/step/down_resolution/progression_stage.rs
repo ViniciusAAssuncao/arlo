@@ -1,10 +1,10 @@
 use crate::artrine::execution::detect_drive_crossings_arithmetic;
-use crate::resolution::outcome_distribution::{ sample_action_progression, ActionProgressionKind };
-use crate::team_identity::{ long_launch_advance_multiplier, short_pass_advance_multiplier };
+use crate::resolution::outcome_distribution::{sample_action_progression, ActionProgressionKind};
+use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
-use arlo_domain::{ ArtrineDecisionKind, PitchZone };
+use arlo_domain::{ArtrineDecisionKind, PitchZone};
 use arlo_math::units::Duration;
 use rand::Rng;
 use smallvec::SmallVec;
@@ -23,26 +23,30 @@ pub fn resolve_progression<R: Rng + ?Sized>(
     decision: ArtrineDecisionKind,
     contest: &ActionContestOutcome<'_>,
     state: &MatchState,
-    rng: &mut R
+    rng: &mut R,
 ) -> ActionProgressionOutcome {
     let (prog_kind, mult) = match decision {
         ArtrineDecisionKind::SelfCarry => (ActionProgressionKind::Carry, 1.0),
-        ArtrineDecisionKind::ShortPass =>
-            (ActionProgressionKind::ShortPass, short_pass_advance_multiplier(ctx.passing_range)),
-        ArtrineDecisionKind::LongLaunch =>
-            (ActionProgressionKind::LongLaunch, long_launch_advance_multiplier(ctx.passing_range)),
+        ArtrineDecisionKind::ShortPass => (
+            ActionProgressionKind::ShortPass,
+            short_pass_advance_multiplier(ctx.passing_range),
+        ),
+        ArtrineDecisionKind::LongLaunch => (
+            ActionProgressionKind::LongLaunch,
+            long_launch_advance_multiplier(ctx.passing_range),
+        ),
         ArtrineDecisionKind::Cross => (ActionProgressionKind::Cross, 1.0),
         ArtrineDecisionKind::SelfFinish => (ActionProgressionKind::Carry, 0.1),
     };
 
-    let effective_mult = if contest.attacker_won { mult } else { mult * 0.15 };
+    let effective_mult = if contest.attacker_won {
+        mult
+    } else {
+        mult * 0.15
+    };
 
-    let mirins_advanced = sample_action_progression(
-        prog_kind,
-        contest.net_advantage,
-        effective_mult,
-        rng
-    );
+    let mirins_advanced =
+        sample_action_progression(prog_kind, contest.net_advantage, effective_mult, rng);
 
     let mut drive_row_indices = SmallVec::new();
     let mut drives_recorded = 0;
@@ -64,7 +68,7 @@ pub fn resolve_progression<R: Rng + ?Sized>(
             state.pitch(),
             start_x_mirim,
             end_x_mirim,
-            ctx.is_home_offense
+            ctx.is_home_offense,
         );
         for row in crossed {
             drive_row_indices.push(row);
