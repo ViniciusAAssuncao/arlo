@@ -5,7 +5,6 @@ use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationLedger;
 use arlo_domain::ArtrineDecisionKind;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -22,7 +21,6 @@ pub struct DistributionFlightInfo {
 pub struct ArtrineExecutionOutcome {
     pub mirins_advanced: f64,
     pub drives_recorded: u32,
-    pub drive_row_indices: SmallVec<[usize; 4]>,
     pub turnover: Option<Uuid>,
     pub recovering_player_id: Option<Uuid>,
     pub scoring_decision: ScoringDecision,
@@ -48,7 +46,6 @@ impl ArtrineExecutionOutcome {
         Self {
             mirins_advanced: 0.0,
             drives_recorded: 0,
-            drive_row_indices: SmallVec::new(),
             turnover,
             recovering_player_id,
             scoring_decision: ScoringDecision::NoOpportunity,

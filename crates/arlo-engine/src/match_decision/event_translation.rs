@@ -103,17 +103,13 @@ pub fn translate_distribution_completed(info: &DistributionFlightInfo) -> Distri
 
 pub fn translate_drive_recorded(
     artrine_id: Uuid,
-    artro_row_index: usize,
-    placement: EventArtroPlacement,
     drives_in_series: u32,
-    x_mirim: f64,
+    placement: EventArtroPlacement,
 ) -> DriveRecorded {
     DriveRecorded::new(
         artrine_id,
-        artro_row_index,
-        placement,
         drives_in_series,
-        x_mirim,
+        placement,
     )
 }
 

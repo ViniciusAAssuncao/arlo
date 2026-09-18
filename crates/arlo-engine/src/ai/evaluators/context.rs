@@ -35,7 +35,6 @@ pub struct DecisionEvaluationContext<'a> {
     pub team_advantage: f64,
     pub channel: ArtroPlacement,
     pub pitch_control_ahead: f64,
-    pub distance_to_next_artro_mirim: f64,
     pub pitch_length_mirim: f64,
     pub pitch_width_mirim: f64,
     pub offensive_gravity: f64,
@@ -87,10 +86,6 @@ impl<'a> DecisionEvaluationContext<'a> {
         let expected_free_path_mirim =
             (pitch_control_ahead * (1.0 - normalized_proximity) * 35.0).clamp(1.5, 25.0);
 
-        let pos_mirim = normalized_proximity * pitch_length_mirim;
-        let next_artro = ((pos_mirim / 3.0).floor() + 1.0) * 3.0;
-        let distance_to_next_artro_mirim = (next_artro - pos_mirim).clamp(0.1, 3.0);
-
         let opponent_epa_at_proximity = epv_model.opponent_epa(normalized_proximity);
         let cached_probability_bounds = Self::calculate_probability_bounds(
             carrier,
@@ -118,7 +113,6 @@ impl<'a> DecisionEvaluationContext<'a> {
             team_advantage,
             channel,
             pitch_control_ahead,
-            distance_to_next_artro_mirim,
             pitch_length_mirim,
             pitch_width_mirim,
             offensive_gravity,

@@ -19,13 +19,19 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
 
         let free_path = ctx.expected_free_path();
         let adv_mirim = free_path * skill_mult;
-        let crosses_artro = adv_mirim >= ctx.distance_to_next_artro_mirim.max(0.5);
-        let artros_crossed = if crosses_artro && ctx.is_true_artrine {
-            1 + ((adv_mirim - ctx.distance_to_next_artro_mirim).max(0.0) / 3.0).floor() as u32
+
+        let estimated_drives = if ctx.is_true_artrine && adv_mirim >= 2.0 {
+            if adv_mirim >= 8.5 && skill_mult >= 1.4 {
+                3
+            } else if adv_mirim >= 4.5 && skill_mult >= 1.0 {
+                2
+            } else {
+                1
+            }
         } else {
             0
         };
-        let new_drives = ctx.drives_in_series + artros_crossed;
+        let new_drives = ctx.drives_in_series + estimated_drives;
 
         let (new_down, new_rem) = if adv_mirim >= ctx.remaining_advance_mirim {
             (1, 10.0)
@@ -90,8 +96,8 @@ impl ActionUtilityEvaluator for CarryUtilityEvaluator {
             .bias_for_decision(ArtrineDecisionKind::SelfCarry, ctx.drives_in_series);
 
         let drive_urgency_bonus =
-            if ctx.is_true_artrine && ctx.drives_in_series < 3 && artros_crossed > 0 {
-                (artros_crossed as f64) * ((3 - ctx.drives_in_series) as f64) * 0.45 * skill_mult
+            if ctx.is_true_artrine && ctx.drives_in_series < 3 && estimated_drives > 0 {
+                (estimated_drives as f64) * ((3 - ctx.drives_in_series) as f64) * 0.45 * skill_mult
             } else {
                 0.0
             };

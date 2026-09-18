@@ -280,26 +280,20 @@ impl ArtrineDecisionMade {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DriveRecorded {
     artrine_id: Uuid,
-    artro_row_index: usize,
-    placement: ArtroPlacement,
     drives_in_series: u32,
-    x_mirim: f64,
+    placement: ArtroPlacement,
 }
 
 impl DriveRecorded {
     pub fn new(
         artrine_id: Uuid,
-        artro_row_index: usize,
-        placement: ArtroPlacement,
         drives_in_series: u32,
-        x_mirim: f64,
+        placement: ArtroPlacement,
     ) -> Self {
         Self {
             artrine_id,
-            artro_row_index,
-            placement,
             drives_in_series,
-            x_mirim,
+            placement,
         }
     }
 
@@ -307,20 +301,12 @@ impl DriveRecorded {
         self.artrine_id
     }
 
-    pub fn artro_row_index(&self) -> usize {
-        self.artro_row_index
-    }
-
-    pub fn placement(&self) -> ArtroPlacement {
-        self.placement
-    }
-
     pub fn drives_in_series(&self) -> u32 {
         self.drives_in_series
     }
 
-    pub fn x_mirim(&self) -> f64 {
-        self.x_mirim
+    pub fn placement(&self) -> ArtroPlacement {
+        self.placement
     }
 }
 

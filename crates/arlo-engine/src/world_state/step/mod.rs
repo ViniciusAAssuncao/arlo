@@ -4,12 +4,12 @@ pub mod readiness;
 pub mod setup;
 pub mod step_outcome;
 
-
 pub use down_resolution::resolve_down;
 pub use play_resolution::*;
 pub use readiness::peek_pending_manager_decisions;
 pub use setup::{setup_call_to_action_context, CallToActionContext};
 pub use step_outcome::PlayStepOutcome;
+
 use crate::error::EngineResult;
 use crate::manager_ai::orchestrator::ManagerAiEngine;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
@@ -24,7 +24,6 @@ use arlo_domain::ArtrineDecisionKind;
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
 use arlo_math::units::Duration;
-use smallvec::SmallVec;
 use uuid::Uuid;
 
 fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
@@ -124,7 +123,6 @@ pub fn step_call_to_action(
             crate::artrine::ArtrineExecutionOutcome {
                 mirins_advanced: 0.0,
                 drives_recorded: 0,
-                drive_row_indices: SmallVec::new(),
                 turnover: None,
                 recovering_player_id: None,
                 scoring_decision: ScoringDecision::NoOpportunity,

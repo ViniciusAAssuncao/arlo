@@ -20,7 +20,7 @@ use crate::world_state::play_transition::scoring_handler::{
 };
 use crate::world_state::play_transition::turnover_and_down_events::resolve_turnover_and_down_events;
 use arlo_domain::{ArtrineDecisionKind, PunishmentKind};
-use arlo_events::EventSink;
+use arlo_events::{EventArtroPlacement, EventSink};
 use arlo_manager_control::ManagerDecisionInbox;
 use std::collections::HashSet;
 use uuid::Uuid;
@@ -75,7 +75,8 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
     fn apply_strains(&mut self) {
         self.publisher.emit_drives(
             self.pass_phase.artrine.id(),
-            &self.execution_outcome.drive_row_indices,
+            self.execution_outcome.drives_recorded,
+            EventArtroPlacement::Central,
         );
 
         if let Some(flight_info) = &self.execution_outcome.distribution_flight {

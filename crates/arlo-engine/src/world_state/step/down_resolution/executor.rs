@@ -105,7 +105,6 @@ pub fn resolve_down<R: Rng + ?Sized>(
     let outcome = ArtrineExecutionOutcome {
         mirins_advanced: progression.mirins_advanced,
         drives_recorded: progression.drives_recorded,
-        drive_row_indices: progression.drive_row_indices,
         turnover: contest.turnover_team,
         recovering_player_id: contest.recovering_player_id,
         scoring_decision: scoring,

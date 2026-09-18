@@ -1,5 +1,5 @@
 use crate::ai::cognitive::RiskProfile;
-use crate::artrine::constants::ARTRO_ROW_SPACING_MIRIM;
+use crate::artrine::award_drives;
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
@@ -10,7 +10,7 @@ use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{sample_action_progression, ActionProgressionKind};
-use arlo_domain::{AttributeKey, Player, Position};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position};
 use arlo_math::stats::contrast::logistic;
 use arlo_math::Probability;
 use rand::Rng;
@@ -103,11 +103,15 @@ pub fn resolve_carry_action<R: Rng + ?Sized>(
         rng,
     );
 
-    let drives_crossed = if request.is_true_artrine && actual_advance >= ARTRO_ROW_SPACING_MIRIM {
-        (actual_advance / ARTRO_ROW_SPACING_MIRIM).floor() as u32
-    } else {
-        0
-    };
+    let drives_crossed = award_drives(
+        request.is_true_artrine,
+        ArtrineDecisionKind::SelfCarry,
+        success,
+        net_advantage,
+        request.carrier_table,
+        actual_advance,
+        rng,
+    );
 
     let contact_severity = (0.50 - 0.05 * net_advantage).clamp(0.05, 1.0);
 

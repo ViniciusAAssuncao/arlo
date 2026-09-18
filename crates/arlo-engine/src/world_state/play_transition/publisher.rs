@@ -1,4 +1,3 @@
-use crate::artrine::constants::ARTRO_ROW_SPACING_MIRIM;
 use crate::artrine::DistributionFlightInfo;
 use crate::injury::event_translation::translate_injury_incident;
 use crate::injury::outcome::InjuryIncidentResolution;
@@ -69,16 +68,13 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         self.sink.record(create_envelope(seq, clock_inst, event));
     }
 
-    pub fn emit_drives(&mut self, artrine_id: Uuid, drive_row_indices: &[usize]) {
-        for &row_index in drive_row_indices {
+    pub fn emit_drives(&mut self, artrine_id: Uuid, drives_count: u32, placement: EventArtroPlacement) {
+        for _ in 0..drives_count {
             self.state.increment_drives();
-            let rx = ((row_index as f64) + 1.0) * ARTRO_ROW_SPACING_MIRIM;
             let drive_event = translate_drive_recorded(
                 artrine_id,
-                row_index,
-                EventArtroPlacement::Central,
                 self.state.drives_in_current_series(),
-                rx,
+                placement,
             );
             self.publish(drive_event);
         }

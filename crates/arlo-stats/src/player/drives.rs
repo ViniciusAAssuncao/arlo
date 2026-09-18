@@ -14,7 +14,6 @@ pub struct PlayerDriveStats {
     pub left_lateral_drives: u32,
     pub right_lateral_drives: u32,
     pub max_drives_in_series: u32,
-    pub drives_by_row: HashMap<usize, u32>,
 }
 
 impl PlayerDriveStats {
@@ -26,7 +25,6 @@ impl PlayerDriveStats {
             left_lateral_drives: 0,
             right_lateral_drives: 0,
             max_drives_in_series: 0,
-            drives_by_row: HashMap::new(),
         }
     }
 
@@ -56,10 +54,6 @@ impl PlayerDriveStats {
 
     pub fn max_drives_in_series(&self) -> u32 {
         self.max_drives_in_series
-    }
-
-    pub fn drives_by_row(&self) -> &HashMap<usize, u32> {
-        &self.drives_by_row
     }
 }
 
@@ -109,7 +103,6 @@ impl PlayerDrivesAggregator {
     pub fn record_drive(
         &mut self,
         player_id: Uuid,
-        artro_row_index: usize,
         placement: ArtroPlacement,
         drives_in_series: u32,
     ) {
@@ -128,8 +121,6 @@ impl PlayerDrivesAggregator {
         if drives_in_series > stats.max_drives_in_series {
             stats.max_drives_in_series = drives_in_series;
         }
-
-        *stats.drives_by_row.entry(artro_row_index).or_insert(0) += 1;
     }
 }
 
@@ -149,7 +140,6 @@ impl StatAggregator for PlayerDrivesAggregator {
         if let MatchEvent::DriveRecorded(e) = event {
             self.record_drive(
                 e.artrine_id(),
-                e.artro_row_index(),
                 e.placement(),
                 e.drives_in_series(),
             );
