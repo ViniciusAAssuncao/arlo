@@ -193,7 +193,8 @@ impl<'a> DownResolutionContext<'a> {
             aggression_offset,
             misdirection_offset,
             physicality_offset,
-        );
+        )
+        .with_pressure(game_state_pressure);
 
         let passing_range = offense_instructions.in_possession().passing_range();
         let is_true_artrine = carrier.id() == pass_phase.artrine.id();

@@ -30,3 +30,16 @@ pub fn bradley_terry_with_offset(
 pub fn bradley_terry(rating_a: f64, rating_b: f64, steepness: f64) -> Probability {
     bradley_terry_probability(rating_a, rating_b, steepness)
 }
+
+pub fn calculate_duel_probability(
+    rating_a: f64,
+    rating_b: f64,
+    slope: f64,
+    logit_offset: f64,
+) -> Probability {
+    bradley_terry_with_offset(rating_a, rating_b, slope, logit_offset)
+}
+
+pub fn calculate_net_advantage(rating_a: f64, rating_b: f64) -> f64 {
+    rating_a - rating_b
+}

@@ -1,15 +1,14 @@
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
-use crate::physical::systems::degradation::DegradationContext;
 use crate::physical::PhysicalState;
 use crate::resolution::context::DuelContext;
-use crate::resolution::duel_kind::{logistic_slope_for, DuelKind};
-use crate::resolution::duel_noise::sample_player_noise;
+use crate::resolution::duel_kind::DuelKind;
+use crate::resolution::evaluation::evaluate_duel;
+use crate::resolution::execution::execute_duel;
 use crate::resolution::group_rating::{calculate_side_rating, RatingParticipants};
 use crate::resolution::outcome::DuelOutcome;
-use arlo_domain::sport_constants::HOME_FIELD_ADVANTAGE_LOGIT;
+use crate::world_state::context_analyzer::GameStatePressure;
 use arlo_domain::{AttributeKey, Player};
-use arlo_math::stats::contrast::bradley_terry_with_offset;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -29,6 +28,7 @@ pub struct DuelResolutionRequest<'a> {
     pub attacker_team_power: Option<f64>,
     pub defender_team_power: Option<f64>,
     pub slope_override: Option<f64>,
+    pub pressure: Option<GameStatePressure>,
 }
 
 pub type ContestRequest<'a> = DuelResolutionRequest<'a>;
@@ -58,6 +58,7 @@ impl<'a> DuelResolutionRequest<'a> {
             attacker_team_power: None,
             defender_team_power: None,
             slope_override: None,
+            pressure: None,
         }
     }
 
@@ -87,6 +88,7 @@ impl<'a> DuelResolutionRequest<'a> {
             attacker_team_power: None,
             defender_team_power: None,
             slope_override: None,
+            pressure: None,
         }
     }
 
@@ -134,6 +136,7 @@ impl<'a> DuelResolutionRequest<'a> {
             attacker_team_power: attackers.team_power,
             defender_team_power: defenders.team_power,
             slope_override: None,
+            pressure: None,
         }
     }
 
@@ -158,6 +161,7 @@ impl<'a> DuelResolutionRequest<'a> {
             attacker_team_power: None,
             defender_team_power: None,
             slope_override: None,
+            pressure: None,
         }
     }
 
@@ -185,125 +189,21 @@ impl<'a> DuelResolutionRequest<'a> {
         self.slope_override = Some(slope);
         self
     }
-}
 
-pub fn calculate_velocity_mitigation(
-    kind: DuelKind,
-    attacker_won: bool,
-    net_advantage: f64,
-) -> f64 {
-    let base = match kind {
-        DuelKind::ArtroBreakthrough | DuelKind::RunBreakthrough => {
-            if attacker_won {
-                0.80 + (net_advantage * 0.04)
-            } else {
-                0.25 + (net_advantage * 0.03)
-            }
-        }
-        DuelKind::CentralBlock | DuelKind::LateralBlock => {
-            if attacker_won {
-                0.70 + (net_advantage * 0.03)
-            } else {
-                0.20 + (net_advantage * 0.02)
-            }
-        }
-        DuelKind::BallSecurityCarry | DuelKind::BallSecurityDistribution => {
-            if attacker_won {
-                0.60 + (net_advantage * 0.04)
-            } else {
-                0.00
-            }
-        }
-        _ => {
-            if attacker_won {
-                0.85 + (net_advantage * 0.02)
-            } else {
-                0.35 + (net_advantage * 0.02)
-            }
-        }
-    };
-
-    if attacker_won {
-        base.clamp(0.40, 1.00)
-    } else {
-        base.clamp(0.00, 0.40)
+    pub fn with_pressure(mut self, pressure: Option<GameStatePressure>) -> Self {
+        self.pressure = pressure;
+        self
     }
 }
+
+pub use crate::resolution::execution::calculate_velocity_mitigation;
 
 pub fn resolve_duel<R: Rng + ?Sized>(
     request: DuelResolutionRequest<'_>,
     rng: &mut R,
 ) -> DuelOutcome {
-    let effective_attacker = request.attacker_team_power.unwrap_or(request.attacker_rating);
-    let effective_defender = request.defender_team_power.unwrap_or(request.defender_rating);
-
-    let deg_ctx_a = DegradationContext::new(&request.attacker_state);
-    let table_a;
-    let opt_table_a = match request.attacker_table {
-        Some(table) => Some(table),
-        None => match (request.attacker_primary, request.attribute_keys) {
-            (Some(p), Some(keys)) => {
-                table_a = PlayerAttributeTable::from_player(p, keys);
-                Some(&table_a)
-            }
-            _ => None,
-        },
-    };
-    let noise_a = match opt_table_a {
-        Some(table) => sample_player_noise(table, &deg_ctx_a, rng),
-        None => 0.0,
-    };
-
-    let deg_ctx_b = DegradationContext::new(&request.defender_state);
-    let table_b;
-    let opt_table_b = match request.defender_table {
-        Some(table) => Some(table),
-        None => match (request.defender_primary, request.attribute_keys) {
-            (Some(p), Some(keys)) => {
-                table_b = PlayerAttributeTable::from_player(p, keys);
-                Some(&table_b)
-            }
-            _ => None,
-        },
-    };
-    let noise_b = match opt_table_b {
-        Some(table) => sample_player_noise(table, &deg_ctx_b, rng),
-        None => 0.0,
-    };
-
-    let mut hfa_logit = 0.0;
-    if request.context.attacker_is_home() {
-        hfa_logit += HOME_FIELD_ADVANTAGE_LOGIT;
-    }
-    if request.context.defender_is_home() {
-        hfa_logit -= HOME_FIELD_ADVANTAGE_LOGIT;
-    }
-    hfa_logit += request.context.aggression_logit_offset();
-    hfa_logit += request.context.physicality_logit_offset();
-    hfa_logit += request.context.misdirection_logit_offset();
-
-    let noisy_attacker = effective_attacker + noise_a;
-    let noisy_defender = effective_defender + noise_b;
-    let slope = request
-        .slope_override
-        .unwrap_or_else(|| logistic_slope_for(request.kind));
-
-    let win_prob = bradley_terry_with_offset(noisy_attacker, noisy_defender, slope, hfa_logit);
-
-    let attacker_won = win_prob.sample(rng);
-    let net_advantage = effective_attacker - effective_defender;
-    let velocity_mitigation =
-        calculate_velocity_mitigation(request.kind, attacker_won, net_advantage);
-
-    DuelOutcome::with_mitigation(
-        request.kind,
-        attacker_won,
-        effective_attacker,
-        effective_defender,
-        win_prob,
-        net_advantage,
-        velocity_mitigation,
-    )
+    let evaluated = evaluate_duel(&request, rng);
+    execute_duel(&evaluated, rng)
 }
 
 pub use resolve_duel as resolve_contest;
