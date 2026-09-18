@@ -34,10 +34,18 @@ pub fn attempt_placed_kick<R: Rng + ?Sized>(
     }
 
     let tables = state.teams.player_attribute_tables();
+    let fatigue_lookup = state.fatigue_lookup();
+    let fatigue_for = |id: &Uuid| fatigue_lookup.get(id);
+
     let kicker = select_kicker(
         &candidates,
         Some(&context.offense_role_index),
+        state.pitch(),
+        &context.offense_pos_index,
+        &context.offense_instructions_index,
         tables,
+        context.is_home_offense,
+        Some(&fatigue_for),
         rng,
     )
     .unwrap_or(designated_player);

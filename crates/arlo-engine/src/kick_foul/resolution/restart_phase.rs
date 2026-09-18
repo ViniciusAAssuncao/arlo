@@ -1,12 +1,14 @@
-use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
+use crate::caching::get_cached_duel_profiles;
 use crate::physical::FatigueState;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
     RatingParticipants,
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
-use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
+use crate::resolution::{
+    sample_action_progression, ActionProgressionKind, AttributedDuelOutcome, DuelContext, DuelKind,
+};
 use crate::team_identity::resolve_lead_defender_with_marking;
 use arlo_domain::{AttributeKey, KickFoulDecisionKind, Player, Position as DomainPosition};
 use rand::Rng;
@@ -63,19 +65,19 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         _ => DuelKind::ShortDistribution,
     };
 
-    let (off_prof, def_prof) = get_duel_profiles(duel_kind);
+    let (off_prof, def_prof) = get_cached_duel_profiles(duel_kind);
 
     let att_rating = calculate_anchored_side_rating(
         kicker,
         DomainPosition::CenterOffense,
         RatingParticipants::new(target_candidates).with_attribute_tables(tables),
         attribute_keys,
-        &off_prof,
+        off_prof,
     );
     let def_rating = calculate_side_rating(
         RatingParticipants::new(defense_players).with_attribute_tables(tables),
         attribute_keys,
-        &def_prof,
+        def_prof,
     );
 
     let dummy_instructions = HashMap::new();
@@ -134,20 +136,20 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         _ => DuelKind::RouteContest,
     };
 
-    let (rec_off, rec_def) = get_duel_profiles(rec_duel_kind);
+    let (rec_off, rec_def) = get_cached_duel_profiles(rec_duel_kind);
     let rec_att_rating = calculate_player_duel_rating_from_table(
         receiver,
         DomainPosition::CenterOffense,
         tables
             .get(&receiver_id)
             .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE),
-        &rec_off,
+        rec_off,
         &FatigueState::default(),
     );
     let rec_def_rating = calculate_side_rating(
         RatingParticipants::new(defense_players).with_attribute_tables(tables),
         attribute_keys,
-        &rec_def,
+        rec_def,
     );
 
     let rec_context = duel_context.for_duel_kind(rec_duel_kind);
@@ -181,9 +183,27 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         None
     };
 
+    let prog_kind = match decision {
+        KickFoulDecisionKind::Cross => ActionProgressionKind::Cross,
+        KickFoulDecisionKind::LongLaunch => ActionProgressionKind::LongLaunch,
+        _ => ActionProgressionKind::ShortPass,
+    };
+    let advance_mirim = if caught {
+        sample_action_progression(prog_kind, raw_rec_duel.net_advantage(), 1.0, rng)
+    } else {
+        0.0
+    };
+
+    let is_home = duel_context.attacker_is_home();
+    let reception_x_mirim = if is_home {
+        kicker_x_mirim + advance_mirim
+    } else {
+        kicker_x_mirim - advance_mirim
+    };
+
     KickFoulRestartResult::new(
         caught,
-        kicker_x_mirim,
+        reception_x_mirim,
         kicker_y_mirim,
         Some(receiver_id),
         turnover,

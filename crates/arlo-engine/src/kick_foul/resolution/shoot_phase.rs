@@ -1,10 +1,10 @@
-use crate::attributes::profiles::{field_goal_profile, finishing_attempt_profile};
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
+use crate::caching::get_cached_duel_profiles;
 use crate::kick_foul::resolution::tier_opportunity::evaluate_kick_foul_scoring_opportunity;
 use crate::match_decision::scoring::{
     duel_kind_for_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
 };
-use crate::resolution::{AttributedDuelOutcome, DuelContext};
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::{AttributeKey, KickFoulScoringTier, Player};
 use rand::Rng;
 use std::collections::HashMap;
@@ -27,9 +27,9 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
         .get(&goalguard.id())
         .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
 
-    let profile = match tier {
-        KickFoulScoringTier::FirstZone => finishing_attempt_profile(),
-        KickFoulScoringTier::Standard => field_goal_profile(),
+    let (profile, _) = match tier {
+        KickFoulScoringTier::FirstZone => get_cached_duel_profiles(DuelKind::FinishingAttempt),
+        KickFoulScoringTier::Standard => get_cached_duel_profiles(DuelKind::FieldGoalAttempt),
     };
 
     let finisher_rating = profile.rate(kicker_table);

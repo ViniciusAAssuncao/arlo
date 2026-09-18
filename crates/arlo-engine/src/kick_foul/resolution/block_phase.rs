@@ -1,6 +1,7 @@
 use crate::attributes::PlayerAttributeTable;
+use crate::caching::get_cached_duel_profiles;
 use crate::kick_foul::resolution::participants::KickFoulParticipants;
-use crate::resolution::group_rating::RatingParticipants;
+use crate::resolution::group_rating::{calculate_side_rating, RatingParticipants};
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::AttributeKey;
@@ -37,15 +38,33 @@ pub fn resolve_kick_block_duel<R: Rng + ?Sized>(
     }
 
     let c_context = duel_context.for_duel_kind(DuelKind::KickBlockAttempt);
+    let (att_prof, def_prof) = get_cached_duel_profiles(DuelKind::KickBlockAttempt);
 
-    let req = DuelResolutionRequest::from_participants(
-        DuelKind::KickBlockAttempt,
-        participants.kicker,
+    let att_rating = calculate_side_rating(
         RatingParticipants::new(&participants.protectors).with_attribute_tables(tables),
-        anchor_defender,
+        attribute_keys,
+        att_prof,
+    );
+    let def_rating = calculate_side_rating(
         RatingParticipants::new(&participants.rushers).with_attribute_tables(tables),
         attribute_keys,
+        def_prof,
+    );
+
+    let req = DuelResolutionRequest::with_states(
+        DuelKind::KickBlockAttempt,
+        att_rating,
+        def_rating,
+        participants.kicker,
+        anchor_defender,
+        crate::physical::PhysicalState::initial(),
+        crate::physical::PhysicalState::initial(),
+        attribute_keys,
         &c_context,
+    )
+    .with_tables(
+        tables.get(&participants.kicker.id()),
+        tables.get(&anchor_defender.id()),
     );
 
     let raw_duel = resolve_duel(req, rng);

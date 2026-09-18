@@ -45,14 +45,23 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         .collect();
 
     let offense_role_index = state.role_index_for_team(offense_team_id);
+    let offense_pos_index = state.offensive_position_index_for_team(offense_team_id);
+    let offense_instructions_index = state.instructions_index_for_team(offense_team_id);
     let tables = state.teams.player_attribute_tables();
     let attribute_keys = state.attribute_keys();
+    let fatigue_lookup = state.fatigue_lookup();
+    let fatigue_for = |id: &uuid::Uuid| fatigue_lookup.get(id);
 
     let participants = select_kick_foul_participants(
         &offense_players,
         &defense_players,
         offense_role_index,
+        offense_pos_index,
+        offense_instructions_index,
+        state.pitch(),
         tables,
+        is_home_offense,
+        Some(&fatigue_for),
         rng,
     )?;
 

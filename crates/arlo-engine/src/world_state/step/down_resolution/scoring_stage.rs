@@ -16,6 +16,7 @@ use crate::world_state::step::down_resolution::progression_stage::ActionProgress
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::{ArtrineDecisionKind, Position};
 use rand::Rng;
+use uuid::Uuid;
 
 pub fn resolve_scoring<R: Rng + ?Sized>(
     ctx: &DownResolutionContext<'_>,
@@ -82,10 +83,17 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
             candidates.push(finisher);
         }
         let tables = state.teams.player_attribute_tables();
+        let fatigue_lookup = state.fatigue_lookup();
+        let fatigue_for = |id: &Uuid| fatigue_lookup.get(id);
         select_kicker(
             &candidates,
             Some(&call_context.offense_role_index),
+            state.pitch(),
+            &call_context.offense_pos_index,
+            &call_context.offense_instructions_index,
             tables,
+            call_context.is_home_offense,
+            Some(&fatigue_for),
             rng,
         )
         .unwrap_or(finisher)
