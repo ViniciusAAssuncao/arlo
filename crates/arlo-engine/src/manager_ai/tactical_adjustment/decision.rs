@@ -2,7 +2,7 @@ use crate::ai::cognitive::sample_manager_action;
 use crate::manager_ai::cognition::sample_manager_decision_noise;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::tactical_adjustment::fit_scoring::score_candidate;
-use arlo_domain::sport_constants::tactical_adaptation::{
+use arlo_domain::sport_constants::{
     PROFILE_SWITCH_FIT_MARGIN_BASE, PROFILE_SWITCH_FLEXIBILITY_SCALE,
 };
 use arlo_tactics::{SituationalContext, TeamTacticalProfile};

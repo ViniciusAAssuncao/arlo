@@ -1,3 +1,4 @@
+use crate::artrine::constants::ARTRO_ROW_SPACING_MIRIM;
 use crate::artrine::DistributionFlightInfo;
 use crate::injury::event_translation::translate_injury_incident;
 use crate::injury::outcome::InjuryIncidentResolution;
@@ -32,7 +33,6 @@ use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::MatchState;
-use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::{KickFoulDecisionKind, PitchZone};
 use arlo_events::{
     CountdownReason, EventArtroPlacement, EventSink, MatchClockInstant, MatchEvent,

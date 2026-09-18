@@ -1,5 +1,5 @@
 use crate::attributes::ManagerAttributeTable;
-use arlo_domain::sport_constants::managerial::effective_manager_flexibility;
+use arlo_domain::sport_constants::effective_manager_flexibility;
 use arlo_domain::{AttributeKey, Manager, ManagerTacticalProfile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

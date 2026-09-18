@@ -11,7 +11,7 @@ use crate::manager_ai::substitutions::tactical_trigger::tactical_urgency;
 use crate::physical::FatigueState;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::AvailabilityState;
-use arlo_domain::sport_constants::substitution::{
+use arlo_domain::sport_constants::{
     SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT, SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT,
     SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT,
 };

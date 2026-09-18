@@ -2,8 +2,7 @@ use crate::ai::cognitive::sample_manager_action;
 use crate::manager_ai::cognition::sample_manager_decision_noise;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::officiating::ReviewableCall;
-use arlo_domain::sport_constants::manager_cognition::CHALLENGE_LEVERAGE_WEIGHT;
-use arlo_domain::sport_constants::CHALLENGE_CALLS_PER_MATCH;
+use arlo_domain::sport_constants::{CHALLENGE_CALLS_PER_MATCH, CHALLENGE_LEVERAGE_WEIGHT};
 use rand::Rng;
 
 pub fn base_challenge_stimulus<R: Rng + ?Sized>(

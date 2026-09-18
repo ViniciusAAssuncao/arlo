@@ -1,5 +1,5 @@
+use crate::artrine::constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::pitch::Pitch;
-use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use smallvec::SmallVec;
 
 pub fn detect_drive_crossings(

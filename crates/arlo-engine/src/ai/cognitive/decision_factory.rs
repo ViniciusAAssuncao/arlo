@@ -1,5 +1,5 @@
 use crate::ai::cognitive::decision_threshold::action_probability;
-use arlo_domain::sport_constants::manager_cognition::{
+use arlo_domain::sport_constants::{
     DECISION_THRESHOLD_LOGIT_STEEPNESS, SIGNAL_DETECTION_BASE_SENSITIVITY,
     SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
 };

@@ -1,7 +1,7 @@
 use crate::ai::cognitive::manager_action_probability;
 use crate::attributes::PlayerAttributeTable;
 use crate::manager_ai::context::ManagerSnapshot;
-use arlo_domain::sport_constants::managerial::{
+use arlo_domain::sport_constants::{
     BLOCKER_ROLE_BASE_THRESHOLD, BLOCKER_ROLE_PHYSICALITY_ADJUSTMENT,
     LAUNCHER_PASSING_RANGE_PREFERENCE_WEIGHT,
 };

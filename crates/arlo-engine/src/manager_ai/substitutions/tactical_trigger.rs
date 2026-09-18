@@ -1,5 +1,5 @@
 use crate::manager_ai::context::ManagerDecisionContext;
-use arlo_domain::sport_constants::substitution::{
+use arlo_domain::sport_constants::{
     SUBSTITUTION_LEVERAGE_WEIGHT, SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT,
 };
 

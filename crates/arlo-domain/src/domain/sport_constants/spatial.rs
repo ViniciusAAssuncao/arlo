@@ -1,1 +1,0 @@
-pub const PROXIMITY_CONTEST_RADIUS_MIRIM: f64 = 2.0;
