@@ -1,5 +1,4 @@
 pub mod aggression;
-pub mod false_artrine;
 pub mod line_bands;
 pub mod marking;
 pub mod passing_style;
@@ -8,7 +7,6 @@ pub mod pressing;
 pub mod tempo;
 
 pub use aggression::*;
-pub use false_artrine::*;
 pub use line_bands::*;
 pub use marking::*;
 pub use passing_style::*;

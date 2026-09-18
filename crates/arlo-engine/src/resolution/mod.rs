@@ -1,4 +1,3 @@
-pub mod aggregate_progression;
 pub mod attributed_outcome;
 pub mod context;
 pub mod duel_kind;
@@ -6,10 +5,8 @@ pub mod duel_noise;
 pub mod group_rating;
 pub mod outcome;
 pub mod outcome_distribution;
-pub mod progression_strategy;
 pub mod resolver;
 
-pub use aggregate_progression::AggregateProgressionStrategy;
 pub use attributed_outcome::AttributedDuelOutcome;
 pub use context::DuelContext;
 pub use duel_kind::{logistic_slope_for, DuelKind};
@@ -25,7 +22,6 @@ pub use group_rating::{
 };
 pub use outcome::{ContestOutcome, DuelOutcome};
 pub use outcome_distribution::*;
-pub use progression_strategy::ProgressionResolutionStrategy;
 pub use resolver::{
     calculate_velocity_mitigation, resolve_contest, resolve_duel, ContestRequest,
     DuelResolutionRequest,

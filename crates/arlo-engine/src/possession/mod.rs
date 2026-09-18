@@ -1,6 +1,5 @@
 pub mod ball_state;
 pub mod clock_state;
-pub mod drive;
 pub mod immediate_loss;
 pub mod live_sequence;
 pub mod pitch_state;
@@ -12,7 +11,6 @@ pub mod turnover_fsm;
 
 pub use ball_state::*;
 pub use clock_state::*;
-pub use drive::*;
 pub use immediate_loss::*;
 pub use live_sequence::*;
 pub use pitch_state::*;
