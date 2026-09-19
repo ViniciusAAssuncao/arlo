@@ -15,6 +15,8 @@ impl Default for ScoringDifficultyProfile {
             goal_point_rating_shift_weight: 0.25,
             field_point_rating_shift_weight: 0.25,
             field_goal_rating_shift_weight: 0.25,
+            rating_gap_saturation_point: 8.0,
+            rating_gap_slope: 1.0,
         }
     }
 }
