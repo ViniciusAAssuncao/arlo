@@ -1,5 +1,6 @@
 use arlo_domain::sport_constants::{
-    MAX_CALL_TO_ACTIONS_PER_SERIES, MINIMUM_ADVANCE_MIRINS_PER_SERIES,
+    DEFAULT_BONUS_PHASE_MAX_PLAYS, MAX_CALL_TO_ACTIONS_PER_SERIES,
+    MINIMUM_ADVANCE_MIRINS_PER_SERIES,
 };
 use serde::{Deserialize, Serialize};
 
@@ -72,8 +73,16 @@ impl SeriesState {
         self.advanced_mirins += mirins;
     }
 
+    pub fn max_downs(&self) -> u8 {
+        if self.is_bonus_phase {
+            DEFAULT_BONUS_PHASE_MAX_PLAYS as u8
+        } else {
+            MAX_CALL_TO_ACTIONS_PER_SERIES as u8
+        }
+    }
+
     pub fn advance_down(&mut self) -> bool {
-        if self.down < MAX_CALL_TO_ACTIONS_PER_SERIES as u8 {
+        if self.down < self.max_downs() {
             self.down += 1;
             true
         } else {
@@ -86,11 +95,15 @@ impl SeriesState {
     }
 
     pub fn is_last_down(&self) -> bool {
-        self.down >= MAX_CALL_TO_ACTIONS_PER_SERIES as u8
+        self.down >= self.max_downs()
     }
 
     pub fn should_turnover_on_downs(&self) -> bool {
-        self.is_last_down() && !self.has_achieved_target()
+        if self.is_bonus_phase {
+            self.is_last_down()
+        } else {
+            self.is_last_down() && !self.has_achieved_target()
+        }
     }
 
     pub fn reset(&mut self, new_scrimmage_x_mirim: f64) {
@@ -105,6 +118,6 @@ impl SeriesState {
     }
 
     pub fn remaining_downs(&self) -> u8 {
-        (MAX_CALL_TO_ACTIONS_PER_SERIES as u8).saturating_sub(self.down)
+        self.max_downs().saturating_sub(self.down)
     }
 }

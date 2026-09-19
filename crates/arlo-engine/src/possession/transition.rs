@@ -85,9 +85,30 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
         };
 
         let next_role = if was_bonus_phase {
-            updated_series.reset(next_scrimmage_x);
-            new_origin.reset(next_scrimmage_x);
-            current.role().swap()
+            if outcome.score_occurred
+                || outcome.turnover.is_some()
+                || updated_series.should_turnover_on_downs()
+            {
+                updated_series.reset(next_scrimmage_x);
+                updated_series.set_bonus_phase(false);
+                new_origin.reset(next_scrimmage_x);
+                if let Some(turnover_team) = outcome.turnover {
+                    PossessionRole::new(turnover_team, current.role().offense())
+                } else {
+                    current.role().swap()
+                }
+            } else {
+                let is_immediate = outcome
+                    .possession_control_seconds
+                    .map(is_immediate_loss)
+                    .unwrap_or(false);
+
+                if !is_immediate {
+                    updated_series.advance_down();
+                    updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
+                }
+                *current.role()
+            }
         } else if outcome.is_goal_point {
             updated_series.reset(next_scrimmage_x);
             new_origin.reset(next_scrimmage_x);
@@ -137,9 +158,24 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
         }
     } else {
         let (next_role, countdown) = if was_bonus_phase {
-            updated_series.reset(next_scrimmage_x);
-            new_origin.reset(next_scrimmage_x);
-            (current.role().swap(), true)
+            if outcome.score_occurred
+                || outcome.turnover.is_some()
+                || updated_series.should_turnover_on_downs()
+            {
+                updated_series.reset(next_scrimmage_x);
+                updated_series.set_bonus_phase(false);
+                new_origin.reset(next_scrimmage_x);
+                let role = if let Some(turnover_team) = outcome.turnover {
+                    PossessionRole::new(turnover_team, current.role().offense())
+                } else {
+                    current.role().swap()
+                };
+                (role, true)
+            } else {
+                updated_series.advance_down();
+                updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
+                (*current.role(), false)
+            }
         } else if outcome.is_goal_point {
             updated_series.reset(next_scrimmage_x);
             new_origin.reset(next_scrimmage_x);

@@ -8,15 +8,11 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatchdaySquad {
     bench: Vec<Arc<Player>>,
-    substituted_off: HashSet<Uuid>,
 }
 
 impl MatchdaySquad {
-    pub fn new(bench: Vec<Arc<Player>>, substituted_off: HashSet<Uuid>) -> Self {
-        Self {
-            bench,
-            substituted_off,
-        }
+    pub fn new(bench: Vec<Arc<Player>>) -> Self {
+        Self { bench }
     }
 
     pub fn from_roster_and_lineup(roster: &[Player], lineup: &Lineup) -> Self {
@@ -27,10 +23,7 @@ impl MatchdaySquad {
             .cloned()
             .map(Arc::new)
             .collect();
-        Self {
-            bench,
-            substituted_off: HashSet::new(),
-        }
+        Self { bench }
     }
 
     pub fn bench(&self) -> &[Arc<Player>] {
@@ -41,22 +34,8 @@ impl MatchdaySquad {
         &mut self.bench
     }
 
-    pub fn substituted_off(&self) -> &HashSet<Uuid> {
-        &self.substituted_off
-    }
-
     pub fn available_replacements(&self) -> impl Iterator<Item = &Arc<Player>> {
-        self.bench
-            .iter()
-            .filter(move |p| !self.substituted_off.contains(&p.id()))
-    }
-
-    pub fn mark_substituted(&mut self, player_id: Uuid) {
-        self.substituted_off.insert(player_id);
-    }
-
-    pub fn clear_substituted_off(&mut self) {
-        self.substituted_off.clear();
+        self.bench.iter()
     }
 
     pub fn swap_bench(&mut self, outgoing: Arc<Player>, incoming_id: Uuid) {

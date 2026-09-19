@@ -22,7 +22,11 @@ pub fn execute_forced_injury_substitutions(
     for (outgoing_id, position) in injured_players {
         let available_replacements: Vec<_> = {
             let squad = publisher.state().squad_for_team(team_id);
-            squad.available_replacements().cloned().collect()
+            squad
+                .available_replacements()
+                .filter(|p| publisher.state().is_player_available(&p.id()))
+                .cloned()
+                .collect()
         };
 
         if available_replacements.is_empty() {

@@ -94,6 +94,7 @@ impl SubstitutionDecisionEngine {
                 let available_candidates: Vec<_> = bench
                     .available_replacements()
                     .filter(|p| !used_candidates.contains(&p.id()))
+                    .filter(|p| availability_lookup(&p.id()).is_active())
                     .cloned()
                     .collect();
 

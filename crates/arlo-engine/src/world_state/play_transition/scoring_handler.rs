@@ -1,6 +1,7 @@
 use crate::match_decision::scoring::ScoringDecision;
-use crate::possession::{LiveSequenceTracker, PossessionSnapshot};
+use crate::possession::{bonus_phase_scrimmage_x, LiveSequenceTracker, PossessionSnapshot};
 use crate::world_state::match_state::MatchState;
+use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
 use uuid::Uuid;
 
 pub fn enrich_scoring_decision_assister(
@@ -49,11 +50,25 @@ pub fn post_transition_score_reset(
     }
 
     if scoring_decision.is_scored() {
-        let center_scrimmage_x_mirim = state.pitch().length_mirim() / 2.0;
-        next_snapshot.series_state_mut().reset(center_scrimmage_x_mirim);
-        next_snapshot.possession_origin_mut().reset(center_scrimmage_x_mirim);
         if matches!(scoring_decision, ScoringDecision::GoalPoint { .. }) {
+            let is_home = next_snapshot.role().offense() == state.home_team_id();
+            let bonus_spot_x = bonus_phase_scrimmage_x(
+                state.pitch().length_mirim(),
+                AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
+                is_home,
+            );
+            next_snapshot.series_state_mut().reset(bonus_spot_x);
+            next_snapshot.possession_origin_mut().reset(bonus_spot_x);
             next_snapshot.series_state_mut().set_bonus_phase(true);
+        } else {
+            let center_scrimmage_x_mirim = state.pitch().length_mirim() / 2.0;
+            next_snapshot
+                .series_state_mut()
+                .reset(center_scrimmage_x_mirim);
+            next_snapshot
+                .possession_origin_mut()
+                .reset(center_scrimmage_x_mirim);
+            next_snapshot.series_state_mut().set_bonus_phase(false);
         }
     }
 

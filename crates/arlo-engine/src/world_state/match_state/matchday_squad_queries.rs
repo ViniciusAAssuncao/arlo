@@ -64,7 +64,6 @@ impl MatchState {
         } else {
             &mut self.away_squad
         };
-        squad.mark_substituted(outgoing);
         if let Some(out_p) = outgoing_player {
             squad.swap_bench(out_p, incoming_id);
         }
