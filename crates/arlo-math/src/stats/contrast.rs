@@ -9,7 +9,14 @@ pub fn logistic_scaled(x: f64, steepness: f64) -> f64 {
 }
 
 pub fn softmax_weights(utilities: &[f64], steepness: f64) -> Vec<f64> {
-    utilities.iter().map(|&u| (steepness * u).exp()).collect()
+    if utilities.is_empty() {
+        return Vec::new();
+    }
+    let max_u = utilities.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    utilities
+        .iter()
+        .map(|&u| (steepness * (u - max_u)).exp())
+        .collect()
 }
 
 pub fn bradley_terry_probability(rating_a: f64, rating_b: f64, steepness: f64) -> Probability {
@@ -29,4 +36,17 @@ pub fn bradley_terry_with_offset(
 
 pub fn bradley_terry(rating_a: f64, rating_b: f64, steepness: f64) -> Probability {
     bradley_terry_probability(rating_a, rating_b, steepness)
+}
+
+pub fn calculate_duel_probability(
+    rating_a: f64,
+    rating_b: f64,
+    slope: f64,
+    logit_offset: f64,
+) -> Probability {
+    bradley_terry_with_offset(rating_a, rating_b, slope, logit_offset)
+}
+
+pub fn calculate_net_advantage(rating_a: f64, rating_b: f64) -> f64 {
+    rating_a - rating_b
 }

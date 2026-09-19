@@ -1,8 +1,9 @@
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::match_decision::scoring::{
-    duel_kind_for_opportunity, field_goal_points, field_point_points, goal_point_points,
-    ScoringOpportunity,
+    can_attempt_field_point, duel_kind_for_opportunity, evaluate_scoring_opportunity,
+    field_goal_points, field_point_points, goal_point_points, ScoringOpportunity,
 };
+use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::physical::PhysicalState;
 use crate::possession::PitchState;
 use crate::resolution::context::DuelContext;
@@ -10,7 +11,7 @@ use crate::resolution::finish_distance_multiplier;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::outcome::DuelOutcome;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
-use arlo_domain::sport_constants::GOAL_POINT_REQUIRED_DRIVES;
+use crate::resolution::DuelKind;
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_events::ScoringPost;
 use arlo_math::Probability;
@@ -51,16 +52,7 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
     request: &SelfFinishActionRequest<'_>,
     rng: &mut R,
 ) -> FinishActionResult {
-    let opportunity = if request.pitch_state.is_bonus_phase() {
-        ScoringOpportunity::FieldGoal(ScoringPost::Goalpost)
-    } else if request.pitch_state.drives_in_series() >= GOAL_POINT_REQUIRED_DRIVES {
-        ScoringOpportunity::GoalPoint
-    } else {
-        ScoringOpportunity::FieldPoint
-    };
-
-    let duel_kind = duel_kind_for_opportunity(opportunity);
-    let (att_prof, def_prof) = get_duel_profiles(duel_kind);
+    let (att_prof, def_prof) = get_duel_profiles(DuelKind::FinishingAttempt);
 
     let raw_fin_rating = calculate_player_duel_rating_from_table(
         request.finisher,
@@ -77,9 +69,74 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
         request.goalguard_fatigue,
     );
 
-    let distance_multiplier =
-        finish_distance_multiplier(request.pitch_state.normalized_proximity());
-    let effective_fin_rating = raw_fin_rating * distance_multiplier;
+    let territory_advance = (10.0 - request.pitch_state.remaining_advance_mirim()).max(0.0);
+    let norm_prox = request.pitch_state.normalized_proximity();
+    let mut opportunity = evaluate_scoring_opportunity(
+        request.pitch_state.is_bonus_phase(),
+        request.pitch_state.drives_in_series(),
+        territory_advance,
+        norm_prox,
+        raw_fin_rating,
+    );
+
+    if opportunity == ScoringOpportunity::GoalPoint {
+        let can_field = can_attempt_field_point(
+            request.pitch_state.drives_in_series(),
+            territory_advance,
+            norm_prox,
+        );
+        if can_field {
+            let ex = calculate_physical_exhaustion(request.finisher_fatigue);
+            let under_pressure = norm_prox < 0.88
+                || raw_fin_rating < 11.5
+                || request.pitch_state.down() >= 3
+                || ex > 0.40;
+            if under_pressure {
+                opportunity = ScoringOpportunity::FieldPoint;
+            }
+        }
+    }
+
+    if opportunity == ScoringOpportunity::None {
+        let duel_outcome = DuelOutcome::new(
+            DuelKind::FinishingAttempt,
+            false,
+            raw_fin_rating,
+            raw_gg_rating,
+            Probability::new_clamped(0.0),
+            -5.0,
+        );
+        return FinishActionResult {
+            scored: false,
+            opportunity: ScoringOpportunity::None,
+            post: ScoringPost::Fieldpost,
+            points_awarded: 0,
+            win_probability: Probability::new_clamped(0.0),
+            net_advantage: -5.0,
+            next_pitch_state: request.pitch_state.with_advance(0.0, request.pitch_length_mirim),
+            duel_outcome,
+        };
+    }
+
+    let duel_kind = duel_kind_for_opportunity(opportunity);
+    let distance_multiplier = finish_distance_multiplier(norm_prox);
+
+    let congestion_multiplier = match opportunity {
+        ScoringOpportunity::GoalPoint => {
+            if norm_prox >= 0.88 {
+                let depth = (norm_prox - 0.88) / 0.12;
+                (0.85 - 0.10 * depth).clamp(0.72, 0.85)
+            } else if norm_prox >= 0.72 {
+                (0.95 - 0.08 * ((norm_prox - 0.72) / 0.16)).clamp(0.85, 0.95)
+            } else {
+                1.0
+            }
+        }
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_) => 1.08,
+        ScoringOpportunity::None => 1.0,
+    };
+
+    let effective_fin_rating = raw_fin_rating * distance_multiplier * congestion_multiplier;
 
     let req = DuelResolutionRequest::with_states(
         duel_kind,
@@ -120,13 +177,11 @@ pub fn resolve_self_finish_action<R: Rng + ?Sized>(
 
     let next_pitch_state = if scored {
         request.pitch_state.reset_for_new_series(
-            0.50,
+            0.5,
             matches!(opportunity, ScoringOpportunity::GoalPoint),
         )
     } else {
-        request
-            .pitch_state
-            .with_advance(0.0, request.pitch_length_mirim)
+        request.pitch_state.with_advance(0.0, request.pitch_length_mirim)
     };
 
     FinishActionResult {

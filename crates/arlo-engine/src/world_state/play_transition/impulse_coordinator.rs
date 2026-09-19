@@ -157,7 +157,12 @@ pub fn coordinate_play_impulse(
     let previous_down = publisher.state().possession().down();
     let transition_result = resolve_possession_transition(publisher.state(), detailed_outcome);
 
+    let is_turnover_on_downs = detailed_outcome.turnover.is_none()
+        && !detailed_outcome.scoring_decision.is_scored()
+        && transition_result.snapshot.role().offense() != detailed_outcome.offense_team_id;
+
     if detailed_outcome.turnover.is_some() {
+        let is_defense_home = detailed_outcome.defense_team_id == publisher.state().home_team_id();
         for player in &offense_players {
             let pid = player.id();
             let involved = Some(pid) == detailed_outcome.lost_by_player_id;
@@ -169,14 +174,25 @@ pub fn coordinate_play_impulse(
         for player in &defense_players {
             let pid = player.id();
             let involved = Some(pid) == detailed_outcome.recovering_player_id;
-            let event = ImpulseEvent::new(ImpulseEventKind::TurnoverWon, 1.20, 2.5, involved);
+            let (surprisal, epv_delta) = if is_defense_home {
+                (2.40, 5.0)
+            } else {
+                (1.20, 2.5)
+            };
+            let event = ImpulseEvent::new(ImpulseEventKind::TurnoverWon, surprisal, epv_delta, involved);
             if let Some(shift) = publisher.state_mut().apply_impulse_event(pid, &event) {
                 publisher.emit_impulse_shift(pid, &shift, &event);
             }
         }
-    } else if publisher.state().possession().series_state().should_turnover_on_downs() {
-        let failure_event = ImpulseEvent::new(ImpulseEventKind::SeriesFailure, 0.90, 2.0, true);
-        let success_event = ImpulseEvent::new(ImpulseEventKind::SeriesSuccess, 0.90, 2.0, true);
+    } else if is_turnover_on_downs || publisher.state().possession().series_state().should_turnover_on_downs() {
+        let is_defense_home = detailed_outcome.defense_team_id == publisher.state().home_team_id();
+        let failure_event = ImpulseEvent::new(ImpulseEventKind::SeriesFailure, 1.00, 2.5, true);
+        let (surprisal, epv_delta) = if is_defense_home {
+            (2.80, 6.0)
+        } else {
+            (1.20, 2.5)
+        };
+        let success_event = ImpulseEvent::new(ImpulseEventKind::TurnoverWon, surprisal, epv_delta, true);
 
         for player in &offense_players {
             let pid = player.id();

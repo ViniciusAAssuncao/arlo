@@ -107,8 +107,14 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
                 &outfield_defenders,
                 state.defensive_position_index_for_team(ctx.defense_team_id),
             ) {
-                let rec_table = state.attribute_table_for(&receiver.id());
-                let def_table = state.attribute_table_for(&last_defender.id());
+                let rec_table = ctx
+                    .attribute_tables
+                    .get(&receiver.id())
+                    .unwrap_or_else(|| state.attribute_table_for(&receiver.id()));
+                let def_table = ctx
+                    .attribute_tables
+                    .get(&last_defender.id())
+                    .unwrap_or_else(|| state.attribute_table_for(&last_defender.id()));
 
                 let lf_ctx = LineFaultEvaluationContext::new(
                     receiver.id(),

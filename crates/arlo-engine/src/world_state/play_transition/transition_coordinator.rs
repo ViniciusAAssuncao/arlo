@@ -1,28 +1,29 @@
 use crate::artrine::ArtrineExecutionOutcome;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
-use crate::officiating::punishment::{apply_punishment, PlayReversalSnapshot};
+use crate::match_decision::scoring::ScoringDecision;
+use crate::officiating::punishment::PlayReversalSnapshot;
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationLedger;
 use crate::world_state::cta_pass::PassPhaseResult;
-use crate::world_state::match_state::foul_review::FoulReviewRecord;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::dead_ball_clock::handle_dead_ball_and_clock;
-use crate::world_state::play_transition::fatigue_applier::{
-    apply_duel_strain, apply_movement_strain,
-};
+use crate::world_state::play_transition::foul_processor::process_fouls_and_punishments;
 use crate::world_state::play_transition::impulse_coordinator::coordinate_play_impulse;
+use crate::world_state::play_transition::injury_processor::process_injuries;
 use crate::world_state::play_transition::possession_resolver::{
     build_detailed_play_outcome, classify_play_outcome,
 };
 use crate::world_state::play_transition::publisher::EventPublisher;
 use crate::world_state::play_transition::scoring_handler::{
-    apply_match_score, enrich_scoring_decision_assister,
+    apply_match_score, enrich_scoring_decision_assister, process_goal_point_bonus_phase,
+};
+use crate::world_state::play_transition::stamina_processor::{
+    process_play_stamina, StaminaProcessingRequest,
 };
 use crate::world_state::play_transition::turnover_and_down_events::resolve_turnover_and_down_events;
-use arlo_domain::{ArtrineDecisionKind, PunishmentKind};
-use arlo_events::{EventArtroPlacement, EventSink};
+use arlo_domain::ArtrineDecisionKind;
+use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
-use std::collections::HashSet;
 use uuid::Uuid;
 
 pub struct TransitionPipeline<'a, 'b, 'c, S: EventSink> {
@@ -73,79 +74,27 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
     }
 
     fn apply_strains(&mut self) {
-        self.publisher.emit_drives(
-            self.pass_phase.artrine.id(),
-            self.execution_outcome.drives_recorded,
-            EventArtroPlacement::Central,
-        );
-
-        if let Some(flight_info) = &self.execution_outcome.distribution_flight {
-            self.publisher.emit_distribution_flight(flight_info);
-        }
-
-        apply_duel_strain(&mut self.publisher, &self.play_duels);
-        self.publisher
-            .emit_duel_events(&self.execution_outcome.duels, self.pass_phase.artrine.id());
-
-        let mut participated_ids = HashSet::new();
-        participated_ids.insert(self.pass_phase.passer.id());
-        participated_ids.insert(self.pass_phase.artrine.id());
-        if let Some(rid) = self.execution_outcome.receiver_id {
-            participated_ids.insert(rid);
-        }
-        for d in &self.play_duels {
-            for id in d.attacker_ids() {
-                participated_ids.insert(*id);
-            }
-            for id in d.defender_ids() {
-                participated_ids.insert(*id);
-            }
-        }
         let live_seconds = self.play_ledger.total_live().value().max(1.0);
-        apply_movement_strain(&mut self.publisher, &participated_ids, live_seconds);
+        let stamina_req = StaminaProcessingRequest {
+            artrine_id: self.pass_phase.artrine.id(),
+            passer_id: self.pass_phase.passer.id(),
+            receiver_id: self.execution_outcome.receiver_id,
+            drives_recorded: self.execution_outcome.drives_recorded,
+            distribution_flight: self.execution_outcome.distribution_flight.as_ref(),
+            play_duels: &self.play_duels,
+            execution_duels: &self.execution_outcome.duels,
+            live_seconds,
+        };
+        process_play_stamina(&mut self.publisher, &stamina_req);
     }
 
-    fn emit_fouls(&mut self) {
-        for foul in &self.execution_outcome.fouls {
-            self.publisher.emit_foul_raised(foul);
-        }
-    }
-
-    fn emit_injuries(&mut self) {
-        for injury in &self.execution_outcome.injuries {
-            self.publisher.emit_injury_incident(injury);
-        }
-    }
-
-    fn apply_fault_punishments(&mut self) {
-        for foul in &self.execution_outcome.fouls {
-            if let Some(kind) = foul.punishment_kind {
-                let entry = apply_punishment(
-                    self.publisher.state_mut(),
-                    foul.offending_player_id,
-                    foul.offending_team_id,
-                    kind,
-                    foul.punishment_magnitude,
-                    &self.pre_play_snapshot,
-                );
-                if kind == PunishmentKind::KickFoulAwarded {
-                    if let Some(pending) = self.publisher.state().kick_foul_pending().copied() {
-                        self.publisher
-                            .emit_kick_foul_awarded(&pending, foul.offending_team_id);
-                    }
-                }
-                if !foul.peace_referee_intervened {
-                    let record = FoulReviewRecord::new(
-                        foul.offending_player_id,
-                        entry,
-                        foul.original_call_correct,
-                    );
-                    self.publisher
-                        .state_mut()
-                        .set_last_reviewable_foul(foul.offending_team_id, record);
-                }
-            }
-        }
+    fn apply_fouls_and_injuries(&mut self) {
+        process_fouls_and_punishments(
+            &mut self.publisher,
+            &self.execution_outcome.fouls,
+            &self.pre_play_snapshot,
+        );
+        process_injuries(&mut self.publisher, &self.execution_outcome.injuries);
     }
 
     fn process_scoring(&mut self) {
@@ -160,6 +109,17 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
         );
         self.publisher
             .emit_scoring_event(&self.execution_outcome.scoring_decision);
+
+        if matches!(
+            self.execution_outcome.scoring_decision,
+            ScoringDecision::GoalPoint { .. }
+        ) {
+            process_goal_point_bonus_phase(
+                &mut self.publisher,
+                self.offense_team_id,
+                self.pass_phase.scrimmage_x_mirim,
+            );
+        }
     }
 
     fn build_outcome(&self) -> DetailedPlayOutcome {
@@ -188,9 +148,7 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
 
     pub fn run(mut self) -> DetailedPlayOutcome {
         self.apply_strains();
-        self.emit_fouls();
-        self.emit_injuries();
-        self.apply_fault_punishments();
+        self.apply_fouls_and_injuries();
         self.process_scoring();
 
         let live_seconds = self.play_ledger.total_live().value();

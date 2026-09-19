@@ -32,7 +32,7 @@ pub fn handle_turnover_without_out(
 ) -> TransitionResult {
     let new_role = PossessionRole::new(new_offense, current.role().offense());
     let mut new_series = current.series_state.clone();
-    new_series.is_bonus_phase = false;
+    new_series.exit_bonus_phase();
     let new_snapshot = PossessionSnapshot::with_live_sequence(
         current.ball_state,
         current.clock_state,
@@ -50,7 +50,7 @@ pub fn handle_turnover_without_out(
 
 pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> TransitionResult {
     let next_scrimmage_x = outcome.last_valid_x_mirim;
-    let was_bonus_phase = current.series_state.is_bonus_phase;
+    let was_bonus_phase = current.series_state.is_bonus_phase();
 
     if let Some(new_offense) = outcome.turnover {
         if !outcome.out_of_bounds && !outcome.arbitral_stoppage {
@@ -76,15 +76,9 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             ClockStopReason::ArbitralStoppage
         };
 
-        let next_role = if was_bonus_phase {
+        let next_role = if was_bonus_phase || outcome.score_occurred {
             updated_series.reset(next_scrimmage_x);
-            current.role().swap()
-        } else if outcome.is_goal_point {
-            updated_series.reset(next_scrimmage_x);
-            updated_series.is_bonus_phase = true;
-            *current.role()
-        } else if outcome.score_occurred {
-            updated_series.reset(next_scrimmage_x);
+            updated_series.exit_bonus_phase();
             current.role().swap()
         } else if let Some(turnover_team) = outcome.turnover {
             updated_series.reset(next_scrimmage_x);
@@ -122,15 +116,9 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             next_scrimmage_x_mirim: Some(next_scrimmage_x),
         }
     } else {
-        let (next_role, countdown) = if was_bonus_phase {
+        let (next_role, countdown) = if was_bonus_phase || outcome.score_occurred {
             updated_series.reset(next_scrimmage_x);
-            (current.role().swap(), true)
-        } else if outcome.is_goal_point {
-            updated_series.reset(next_scrimmage_x);
-            updated_series.is_bonus_phase = true;
-            (*current.role(), true)
-        } else if outcome.score_occurred {
-            updated_series.reset(next_scrimmage_x);
+            updated_series.exit_bonus_phase();
             (current.role().swap(), true)
         } else if updated_series.has_achieved_target() {
             updated_series.reset(next_scrimmage_x);

@@ -77,7 +77,7 @@ impl<'a> DecisionEvaluationContext<'a> {
         .clamp(0.15, 0.85);
 
         let expected_free_path =
-            (pitch_control * (1.0 - normalized_proximity) * 35.0).clamp(1.5, 25.0);
+            (pitch_control * (1.0 - normalized_proximity) * 18.0).clamp(1.0, 16.0);
 
         let target_quality = (best_available_target_weight - 8.0) / 10.0;
         let long_launch_target_quality = (long_launch_target_weight - 8.0) / 10.0;

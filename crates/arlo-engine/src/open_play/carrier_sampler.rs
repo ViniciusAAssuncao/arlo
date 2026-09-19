@@ -1,10 +1,11 @@
 use crate::attributes::PlayerAttributeTable;
+use crate::current_ability::calculate_player_ca;
 use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use arlo_domain::sport_constants::decision_steepness_for;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
+use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position};
 use arlo_math::stats::categorical::sample_categorical;
 use arlo_math::stats::contrast::softmax_weights;
 use arlo_math::Probability;
@@ -37,14 +38,22 @@ impl CarrierDecisionResult {
     }
 }
 
-pub fn carrier_decision_steepness(decisions_val: f64) -> f64 {
+pub fn carrier_decision_steepness_with_ca(decisions_val: f64, ca: Option<i32>) -> f64 {
     let norm = (decisions_val.clamp(0.0, 20.0)) / 20.0;
+    let ca_norm = ca
+        .map(|c| (c.clamp(1, 200) as f64) / 200.0)
+        .unwrap_or(norm);
+    let combined_norm = norm * 0.60 + ca_norm * 0.40;
     let base_steepness = decision_steepness_for(decisions_val);
-    base_steepness * (1.0 + norm.powf(1.6) * 3.5)
+    base_steepness * (1.0 + combined_norm.powf(1.6) * 4.0)
+}
+
+pub fn carrier_decision_steepness(decisions_val: f64) -> f64 {
+    carrier_decision_steepness_with_ca(decisions_val, None)
 }
 
 pub fn sample_carrier_decision_from_table<R: Rng + ?Sized>(
-    _carrier: &Player,
+    carrier: &Player,
     table: &PlayerAttributeTable,
     utilities: &[(ArtrineDecisionKind, f64)],
     carrier_physical_state: &PhysicalState,
@@ -61,17 +70,24 @@ pub fn sample_carrier_decision_from_table<R: Rng + ?Sized>(
     let raw_utilities: SmallVec<[f64; 5]> = utilities.iter().map(|(_, u)| *u).collect();
     let profile = crate::caching::impulse_baseline_profile();
     let baseline = calculate_player_impulse_baseline(table, profile);
+    let is_cerebral = carrier
+        .positions()
+        .iter()
+        .any(|p| matches!(p.position(), Position::Artrine | Position::Passer));
     let deg_ctx = DegradationContext::with_impulse(
         carrier_physical_state,
         carrier_impulse_state,
         baseline,
-    );
+    )
+    .with_cerebral_role(is_cerebral);
+
     let decisions_val = extract_effective_attribute_value(
         table,
         AttributeKey::Decisions,
         &deg_ctx,
     );
-    let steepness = carrier_decision_steepness(decisions_val);
+    let ca = calculate_player_ca(carrier, table);
+    let steepness = carrier_decision_steepness_with_ca(decisions_val, ca);
     let weights = softmax_weights(&raw_utilities, steepness);
     let total_weight: f64 = weights.iter().sum();
 

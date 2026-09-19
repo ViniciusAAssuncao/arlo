@@ -1,8 +1,8 @@
 use crate::psychology::state::ImpulseState;
-use arlo_domain::sport_constants::{ impulse_floor_for_baseline, IMPULSE_SCALE_MAX };
+use arlo_domain::sport_constants::{impulse_floor_for_baseline, IMPULSE_SCALE_MAX};
 
 pub fn fatigue_depression(exhaustion: f64) -> f64 {
-    (1.0 - 0.4 * exhaustion.clamp(0.0, 1.0)).clamp(0.4, 1.0)
+    (1.0 - 0.20 * exhaustion.clamp(0.0, 1.0)).clamp(0.70, 1.0)
 }
 
 pub fn calculate_impulse_recovery_tau(stamina: f64, natural_fitness: f64) -> f64 {
@@ -18,7 +18,7 @@ pub fn update_impulse(state: &mut ImpulseState, exhaustion: f64, dt_seconds: f64
     }
     let baseline = state.baseline();
     let floor = impulse_floor_for_baseline(baseline) * fatigue_depression(exhaustion);
-    let target = floor + (baseline - floor) * (1.0 - exhaustion.clamp(0.0, 1.0));
+    let target = baseline * (1.0 - 0.15 * exhaustion.clamp(0.0, 1.0)).max(floor);
     let decay_factor = (-dt_seconds / tau.max(1.0)).exp();
     let current_acc = state.accumulator();
     let new_acc = (target + (current_acc - target) * decay_factor)

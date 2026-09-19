@@ -1,4 +1,5 @@
 use crate::resolution::duel_kind::DuelKind;
+use crate::world_state::context_analyzer::GameStatePressure;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
@@ -8,6 +9,7 @@ pub struct DuelContext {
     aggression_logit_offset: f64,
     misdirection_logit_offset: f64,
     physicality_logit_offset: f64,
+    pressure: Option<GameStatePressure>,
 }
 
 impl DuelContext {
@@ -18,6 +20,7 @@ impl DuelContext {
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
             physicality_logit_offset: 0.0,
+            pressure: None,
         }
     }
 
@@ -32,6 +35,7 @@ impl DuelContext {
             aggression_logit_offset,
             misdirection_logit_offset: 0.0,
             physicality_logit_offset: 0.0,
+            pressure: None,
         }
     }
 
@@ -48,7 +52,13 @@ impl DuelContext {
             aggression_logit_offset,
             misdirection_logit_offset,
             physicality_logit_offset,
+            pressure: None,
         }
+    }
+
+    pub fn with_pressure(mut self, pressure: GameStatePressure) -> Self {
+        self.pressure = Some(pressure);
+        self
     }
 
     pub fn neutral() -> Self {
@@ -58,6 +68,7 @@ impl DuelContext {
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
             physicality_logit_offset: 0.0,
+            pressure: None,
         }
     }
 
@@ -68,6 +79,7 @@ impl DuelContext {
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
             physicality_logit_offset: 0.0,
+            pressure: None,
         }
     }
 
@@ -78,6 +90,7 @@ impl DuelContext {
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
             physicality_logit_offset: 0.0,
+            pressure: None,
         }
     }
 
@@ -101,17 +114,22 @@ impl DuelContext {
         self.physicality_logit_offset
     }
 
+    pub fn pressure(&self) -> Option<&GameStatePressure> {
+        self.pressure.as_ref()
+    }
+
     pub fn for_duel_kind(&self, kind: DuelKind) -> Self {
         if kind.is_contact_duel() {
             *self
         } else {
-            Self::with_offsets(
-                self.attacker_is_home,
-                self.defender_is_home,
-                0.0,
-                self.misdirection_logit_offset,
-                0.0,
-            )
+            Self {
+                attacker_is_home: self.attacker_is_home,
+                defender_is_home: self.defender_is_home,
+                aggression_logit_offset: 0.0,
+                misdirection_logit_offset: self.misdirection_logit_offset,
+                physicality_logit_offset: 0.0,
+                pressure: self.pressure,
+            }
         }
     }
 }

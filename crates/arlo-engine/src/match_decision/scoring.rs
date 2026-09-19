@@ -1,3 +1,9 @@
+pub use crate::match_decision::rules::{
+    can_attempt_field_goal, can_attempt_field_point, can_attempt_goal_point,
+    evaluate_scoring_opportunity, validate_bonus_phase_field_goal, validate_field_point,
+    validate_goal_point, validate_scoring_opportunity, ScoringValidationError,
+};
+
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::PhysicalState;
@@ -8,10 +14,7 @@ use crate::resolution::outcome_distribution::scoring_distance_adjustment;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use arlo_domain::sport_constants::{
-    FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE,
-    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
-    FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST, FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM,
-    FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+    FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
 };
 use arlo_domain::{AttributeKey, Player, Position};
 use arlo_events::ScoringPost;
@@ -159,69 +162,11 @@ impl<'a> ScoringAttemptRequest<'a> {
     }
 }
 
-pub fn can_attempt_goal_point(drives_in_series: u32) -> bool {
-    drives_in_series >= GOAL_POINT_REQUIRED_DRIVES
-}
-
-pub fn can_attempt_field_point(drives_in_series: u32, territory_advance_mirim: f64) -> bool {
-    territory_advance_mirim >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
-        || drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
-}
-
-pub fn can_attempt_field_goal(
-    drives_in_series: u32,
-    territory_advance_mirim: f64,
-    post: ScoringPost,
-) -> bool {
-    let min_advance = match post {
-        ScoringPost::Goalpost => FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_GOALPOST,
-        ScoringPost::Fieldpost => FIELD_GOAL_MIN_TERRITORY_ADVANCE_MIRIM_FIELDPOST,
-    };
-    drives_in_series >= FIELD_POINT_REQUIRED_DRIVES || territory_advance_mirim >= min_advance
-}
-
 pub fn determine_field_goal_post(
     finisher_rating: f64,
     territory_advance_mirim: f64,
 ) -> ScoringPost {
     crate::set_piece::select_kick_post(finisher_rating, territory_advance_mirim)
-}
-
-pub fn evaluate_scoring_opportunity(
-    is_bonus_phase: bool,
-    drives_in_series: u32,
-    territory_advance_mirim: f64,
-    finisher_rating: f64,
-) -> ScoringOpportunity {
-    if is_bonus_phase {
-        if !can_attempt_field_goal(
-            drives_in_series,
-            territory_advance_mirim,
-            ScoringPost::Fieldpost,
-        ) {
-            ScoringOpportunity::None
-        } else {
-            let candidate_post =
-                crate::set_piece::select_kick_post(finisher_rating, territory_advance_mirim);
-            let post = if candidate_post == ScoringPost::Goalpost
-                && !can_attempt_field_goal(
-                    drives_in_series,
-                    territory_advance_mirim,
-                    ScoringPost::Goalpost,
-                ) {
-                ScoringPost::Fieldpost
-            } else {
-                candidate_post
-            };
-            ScoringOpportunity::FieldGoal(post)
-        }
-    } else if can_attempt_goal_point(drives_in_series) {
-        ScoringOpportunity::GoalPoint
-    } else if can_attempt_field_point(drives_in_series, territory_advance_mirim) {
-        ScoringOpportunity::FieldPoint
-    } else {
-        ScoringOpportunity::None
-    }
 }
 
 pub fn goal_point_points() -> u32 {
@@ -306,6 +251,16 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         scoring_distance_adjustment(request.territory_advance_mirim, is_valid);
 
     attacker_rating += distance_adjustment;
+
+    match request.opportunity {
+        ScoringOpportunity::GoalPoint => {
+            attacker_rating -= 1.6;
+        }
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_) => {
+            attacker_rating += 1.2;
+        }
+        ScoringOpportunity::None => {}
+    }
 
     let req = DuelResolutionRequest::with_states(
         duel_kind,

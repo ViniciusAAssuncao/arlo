@@ -94,7 +94,8 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         aggression_offset,
         0.0,
         physicality_offset,
-    );
+    )
+    .with_pressure(pressure);
 
     match decision {
         KickFoulDecisionKind::Shoot => {

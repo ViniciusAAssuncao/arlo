@@ -47,13 +47,13 @@ impl GameStatePressure {
         (1.0 + risk_coeff * self.offensive_risk_bias).clamp(MIN_DECISION_BIAS, MAX_DECISION_BIAS)
     }
 
-    pub fn goal_point_bias(&self) -> f64 { self.action_risk_multiplier(0.80) }
-    pub fn field_point_bias(&self) -> f64 { self.action_risk_multiplier(0.20) }
+    pub fn goal_point_bias(&self) -> f64 { self.action_risk_multiplier(0.60) }
+    pub fn field_point_bias(&self) -> f64 { self.action_risk_multiplier(0.35) }
     pub fn long_launch_bias(&self) -> f64 { self.action_risk_multiplier(0.70) }
     pub fn short_pass_bias(&self) -> f64 { self.action_risk_multiplier(-0.40) }
     pub fn carry_bias(&self) -> f64 { self.action_risk_multiplier(-0.35) }
     pub fn cross_bias(&self) -> f64 { self.action_risk_multiplier(0.65) }
-    pub fn self_finish_bias(&self) -> f64 { self.action_risk_multiplier(0.60) }
+    pub fn self_finish_bias(&self) -> f64 { self.action_risk_multiplier(0.55) }
 
     pub fn bias_for_decision(&self, kind: ArtrineDecisionKind, drives_in_series: u32) -> f64 {
         let raw = match kind {

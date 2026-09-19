@@ -1,18 +1,26 @@
 pub mod added_time_handler;
 pub mod dead_ball_clock;
 pub mod fatigue_applier;
+pub mod foul_processor;
 pub mod impulse_coordinator;
+pub mod injury_processor;
 pub mod kick_foul_handler;
+pub mod possession_flipper;
 pub mod possession_resolver;
 pub mod publisher;
 pub mod scoring_handler;
+pub mod stamina_processor;
 pub mod transition_coordinator;
 pub mod turnover_and_down_events;
 
 pub use added_time_handler::evaluate_and_apply_added_time;
 pub use dead_ball_clock::handle_dead_ball_and_clock;
+pub use foul_processor::process_fouls_and_punishments;
 pub use impulse_coordinator::coordinate_play_impulse;
+pub use injury_processor::process_injuries;
 pub use kick_foul_handler::*;
+pub use possession_flipper::finalize_possession_flip;
 pub use publisher::EventPublisher;
+pub use stamina_processor::{process_play_stamina, StaminaProcessingRequest};
 pub use transition_coordinator::{apply_play_transition, TransitionPipeline};
 pub use turnover_and_down_events::resolve_turnover_and_down_events;

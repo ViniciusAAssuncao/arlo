@@ -1,11 +1,18 @@
 use crate::ai::evaluators::action_configs::{ActionEvaluationConfig, ActionKindConfig};
 use crate::ai::evaluators::context::DecisionEvaluationContext;
-use arlo_domain::sport_constants::{FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE};
+use arlo_domain::sport_constants::{
+    FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM, FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE,
+    GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+};
 
 pub fn evaluate_action_utility(
     ctx: &DecisionEvaluationContext<'_>,
     config: &ActionEvaluationConfig,
 ) -> f64 {
+    if !(config.rule_validator_fn)(ctx) {
+        return 0.0;
+    }
+
     let profile = (config.profile_fn)();
     let intrinsic_rating = ctx.carrier_rating(&profile);
     let skill_mult = ctx.skill_multiplier(intrinsic_rating);
@@ -23,8 +30,9 @@ pub fn evaluate_action_utility(
                         (ctx.remaining_advance_mirim - adv_mirim).max(0.0),
                     )
                 };
-                let new_norm_x =
-                    (ctx.normalized_proximity + adv_mirim / ctx.pitch_length_mirim().max(1.0)).min(1.0);
+                let new_norm_x = (ctx.normalized_proximity
+                    + adv_mirim / ctx.pitch_length_mirim().max(1.0))
+                .min(1.0);
                 let epv_success =
                     ctx.epv_model.calculate_epa(new_norm_x, new_down, new_rem, new_drives);
                 let epv_fail = if ctx.down >= 4 && ctx.remaining_advance_mirim > 0.0 {
@@ -61,19 +69,42 @@ pub fn evaluate_action_utility(
                 )
             }
             ActionKindConfig::TerminalScore(term) => {
-                let value = if ctx.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
-                    GOAL_POINT_VALUE as f64
-                } else if ctx.drives_in_series >= 1 {
-                    FIELD_POINT_VALUE as f64
-                } else {
-                    2.0
-                };
-                let v_opp = ctx.opponent_epa();
+                let advance_in_series = (10.0 - ctx.remaining_advance_mirim).max(0.0);
+                let can_goal = ctx.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES;
+                let can_field = ctx.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
+                    && (advance_in_series >= FIELD_POINT_MIN_TERRITORY_ADVANCE_MIRIM
+                        || ctx.normalized_proximity >= 0.70);
+
                 let raw_p = (term.success_prob_fn)(ctx, skill_mult);
                 let p_succ = ctx.bound_probability(raw_p);
                 let p_to = 1.0 - p_succ;
                 let p_fail = 0.0;
                 let geom = (term.geometry_factor_fn)(ctx);
+                let v_opp = ctx.opponent_epa();
+                let ex = ctx.risk_profile.physical_exhaustion();
+
+                let value = if can_goal {
+                    let goal_exhaustion_factor = (1.0 - 0.40 * ex).clamp(0.40, 1.0);
+                    let p_goal_success = (p_succ * geom * (0.55 + 0.45 * ctx.pitch_control()) * goal_exhaustion_factor).clamp(0.0, 1.0);
+                    let ev_goal = p_goal_success * (GOAL_POINT_VALUE as f64);
+
+                    if can_field {
+                        let field_exhaustion_factor = (1.0 - 0.15 * ex).clamp(0.70, 1.0);
+                        let p_field_success = (p_succ * 1.25 * field_exhaustion_factor).clamp(0.0, 1.0);
+                        let ev_field = p_field_success * (FIELD_POINT_VALUE as f64);
+                        if ev_field > ev_goal {
+                            FIELD_POINT_VALUE as f64
+                        } else {
+                            GOAL_POINT_VALUE as f64
+                        }
+                    } else {
+                        GOAL_POINT_VALUE as f64
+                    }
+                } else if can_field {
+                    FIELD_POINT_VALUE as f64
+                } else {
+                    0.0
+                };
 
                 (
                     p_succ,
