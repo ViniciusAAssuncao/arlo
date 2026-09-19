@@ -2,7 +2,10 @@ use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::ai::evaluators::generic_evaluator::evaluate_action_utility;
 use crate::attributes::profiles::AttributeProfile;
-use crate::scoring_model::{calculate_scoring_probability, ScoringKind, ScoringOrigin, ScoringSituation};
+use crate::scoring_model::{
+    calculate_scoring_probability, ScoringDifficultyProfile, ScoringKind, ScoringOrigin,
+    ScoringSituation,
+};
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Clone, Copy)]
@@ -151,7 +154,13 @@ pub fn cross_config() -> ActionEvaluationConfig {
                     ScoringOrigin::OpenPlay,
                 );
 
-                let raw_prob = calculate_scoring_probability(scoring_kind, &situation).value();
+                let difficulty_profile = ScoringDifficultyProfile::default();
+                let raw_prob = calculate_scoring_probability(
+                    scoring_kind,
+                    &situation,
+                    &difficulty_profile,
+                )
+                .value();
 
                 (raw_prob + 0.10 * ctx.target_quality())
                     * (0.60 + 0.40 * ctx.offensive_gravity.min(2.0))
@@ -188,7 +197,8 @@ pub fn finish_config() -> ActionEvaluationConfig {
                     ScoringOrigin::OpenPlay,
                 );
 
-                calculate_scoring_probability(scoring_kind, &situation).value()
+                let difficulty_profile = ScoringDifficultyProfile::default();
+                calculate_scoring_probability(scoring_kind, &situation, &difficulty_profile).value()
                     * ctx.shooting_angle_factor()
             },
             geometry_factor_fn: |ctx| {

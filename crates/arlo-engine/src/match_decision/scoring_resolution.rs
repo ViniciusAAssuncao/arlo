@@ -7,7 +7,8 @@ use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::{AttributedDuelOutcome, DuelKind, DuelOutcome};
 use crate::scoring_model::{
     calculate_scoring_probability, can_attempt_field_goal, can_attempt_field_point,
-    can_attempt_goal_point, select_post_for_field_goal, ScoringKind, ScoringSituation,
+    can_attempt_goal_point, select_post_for_field_goal, ScoringDifficultyProfile, ScoringKind,
+    ScoringSituation,
 };
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
@@ -138,7 +139,8 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         ScoringOpportunity::None => ScoringKind::FieldPoint,
     };
 
-    let win_prob = calculate_scoring_probability(scoring_kind, &situation);
+    let difficulty_profile = ScoringDifficultyProfile::default();
+    let win_prob = calculate_scoring_probability(scoring_kind, &situation, &difficulty_profile);
     let attacker_won = win_prob.sample(rng);
 
     let raw_outcome = DuelOutcome::new(

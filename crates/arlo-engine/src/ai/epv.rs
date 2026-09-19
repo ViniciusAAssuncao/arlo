@@ -1,4 +1,7 @@
-use crate::scoring_model::{calculate_scoring_probability, ScoringKind, ScoringOrigin, ScoringSituation};
+use crate::scoring_model::{
+    calculate_scoring_probability, ScoringDifficultyProfile, ScoringKind, ScoringOrigin,
+    ScoringSituation,
+};
 use arlo_domain::sport_constants::{
     FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
@@ -42,7 +45,8 @@ impl DynamicEpvModel {
             true,
             ScoringOrigin::OpenPlay,
         );
-        calculate_scoring_probability(ScoringKind::GoalPoint, &situation).value()
+        let difficulty_profile = ScoringDifficultyProfile::default();
+        calculate_scoring_probability(ScoringKind::GoalPoint, &situation, &difficulty_profile).value()
     }
 
     pub fn field_point_probability(
@@ -66,7 +70,8 @@ impl DynamicEpvModel {
             false,
             ScoringOrigin::OpenPlay,
         );
-        calculate_scoring_probability(ScoringKind::FieldPoint, &situation).value()
+        let difficulty_profile = ScoringDifficultyProfile::default();
+        calculate_scoring_probability(ScoringKind::FieldPoint, &situation, &difficulty_profile).value()
     }
 
     pub fn turnover_probability(
