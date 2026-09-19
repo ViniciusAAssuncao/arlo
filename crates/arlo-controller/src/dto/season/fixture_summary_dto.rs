@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{ Deserialize, Serialize };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,6 +10,12 @@ pub struct FixtureSummaryDto {
     pub status: String,
     pub home_score: Option<i32>,
     pub away_score: Option<i32>,
+    pub home_goal_points: Option<i32>,
+    pub away_goal_points: Option<i32>,
+    pub home_field_goals: Option<i32>,
+    pub away_field_goals: Option<i32>,
+    pub home_field_points: Option<i32>,
+    pub away_field_points: Option<i32>,
     pub scheduled_year: i64,
     pub scheduled_day_of_year: u32,
     pub scheduled_month_name: String,

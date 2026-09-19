@@ -11,6 +11,12 @@ pub struct StandingsEntryDto {
     pub lost: u32,
     pub goal_points_for: u32,
     pub goal_points_against: u32,
+    pub field_goals_for: u32,
+    pub field_goals_against: u32,
+    pub field_points_for: u32,
+    pub field_points_against: u32,
+    pub total_points_for: u32,
+    pub total_points_against: u32,
     pub ispa: f64,
     pub qta: f64,
 }

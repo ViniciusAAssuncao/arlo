@@ -35,6 +35,10 @@ pub async fn complete_and_persist_match(
         away_score: Some(state.away_score().total_points as i32),
         home_goal_points: Some(state.home_score().goal_points as i32),
         away_goal_points: Some(state.away_score().goal_points as i32),
+        home_field_goals: Some(state.home_score().field_goals as i32),
+        away_field_goals: Some(state.away_score().field_goals as i32),
+        home_field_points: Some(state.home_score().field_points as i32),
+        away_field_points: Some(state.away_score().field_points as i32),
     };
 
     let context = context.with_completed_fixture(updated_fixture_row);

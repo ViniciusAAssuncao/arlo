@@ -10,6 +10,12 @@ struct TeamRecord {
     lost: u32,
     goal_points_for: u32,
     goal_points_against: u32,
+    field_goals_for: u32,
+    field_goals_against: u32,
+    field_points_for: u32,
+    field_points_against: u32,
+    total_points_for: u32,
+    total_points_against: u32,
     home_won: u32,
     home_drawn: u32,
     home_lost: u32,
@@ -55,6 +61,13 @@ pub fn calculate_standings(
                 home_rec.played += 1;
                 home_rec.goal_points_for += home_gp;
                 home_rec.goal_points_against += away_gp;
+                home_rec.field_goals_for += result.home_field_goals();
+                home_rec.field_goals_against += result.away_field_goals();
+                home_rec.field_points_for += result.home_field_points();
+                home_rec.field_points_against += result.away_field_points();
+                home_rec.total_points_for += result.home_score();
+                home_rec.total_points_against += result.away_score();
+
                 match is_home_win {
                     Some(true) => {
                         home_rec.won += 1;
@@ -74,6 +87,13 @@ pub fn calculate_standings(
                 away_rec.played += 1;
                 away_rec.goal_points_for += away_gp;
                 away_rec.goal_points_against += home_gp;
+                away_rec.field_goals_for += result.away_field_goals();
+                away_rec.field_goals_against += result.home_field_goals();
+                away_rec.field_points_for += result.away_field_points();
+                away_rec.field_points_against += result.home_field_points();
+                away_rec.total_points_for += result.away_score();
+                away_rec.total_points_against += result.home_score();
+
                 match is_home_win {
                     Some(true) => {
                         away_rec.lost += 1;
@@ -112,6 +132,12 @@ pub fn calculate_standings(
                 record.lost,
                 record.goal_points_for,
                 record.goal_points_against,
+                record.field_goals_for,
+                record.field_goals_against,
+                record.field_points_for,
+                record.field_points_against,
+                record.total_points_for,
+                record.total_points_against,
                 home_away,
                 SpaMetrics::default(),
                 0.0,
