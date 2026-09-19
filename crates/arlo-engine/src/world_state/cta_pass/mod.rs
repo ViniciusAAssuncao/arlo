@@ -8,11 +8,12 @@ pub use kinematics::{calculate_pass_kinematics, PassKinematicsResult};
 pub use participants::{extract_participants, PhaseParticipants};
 
 use crate::error::EngineResult;
-use crate::possession::TouchActionType;
+use crate::possession::{locate_zone, TouchActionType};
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationLedger;
 use crate::world_state::match_state::MatchState;
-use arlo_domain::{PitchZone, Player, Position as DomainPosition, SlotRole};
+use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
+use arlo_domain::{Player, Position as DomainPosition, SlotRole};
 use arlo_events::EventSink;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -61,13 +62,11 @@ pub fn resolve_pass_phase<'a>(
     } else {
         ((pitch_length_mirim - scrimmage_x_mirim) / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
     };
-    let passer_zone = if norm_prox >= 0.88 {
-        PitchZone::FirstZone
-    } else if norm_prox >= 0.72 {
-        PitchZone::SecondZone
-    } else {
-        PitchZone::OpenField
-    };
+    let passer_zone = locate_zone(
+        norm_prox,
+        pitch_length_mirim,
+        AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
+    );
 
     let current_time = state.clock().seconds_in_period();
     state.possession_mut().live_sequence_mut().record_touch(

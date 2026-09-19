@@ -1,4 +1,7 @@
-use arlo_domain::sport_constants::{FIELD_POINT_REQUIRED_DRIVES, GOAL_POINT_REQUIRED_DRIVES};
+use crate::possession::zone_locator::locate_zone;
+use arlo_domain::sport_constants::{
+    AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM, FIELD_POINT_REQUIRED_DRIVES, GOAL_POINT_REQUIRED_DRIVES,
+};
 use arlo_domain::{ArtroPlacement, PitchZone};
 use serde::{Deserialize, Serialize};
 
@@ -94,20 +97,21 @@ impl PitchState {
     }
 
     pub fn determine_zone_from_proximity(normalized_proximity: f64) -> PitchZone {
-        let p = normalized_proximity.clamp(0.0, 1.0);
-        if p >= 0.88 {
-            PitchZone::FirstZone
-        } else if p >= 0.72 {
-            PitchZone::SecondZone
-        } else {
-            PitchZone::OpenField
-        }
+        locate_zone(
+            normalized_proximity,
+            145.0,
+            AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
+        )
     }
 
     pub fn with_advance(&self, mirins: f64, pitch_length_mirim: f64) -> Self {
         let new_norm_prox =
             (self.normalized_proximity + mirins / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0);
-        let new_zone = Self::determine_zone_from_proximity(new_norm_prox);
+        let new_zone = locate_zone(
+            new_norm_prox,
+            pitch_length_mirim,
+            AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
+        );
         let (new_down, new_rem) = if mirins >= self.remaining_advance_mirim {
             (1, 10.0)
         } else {

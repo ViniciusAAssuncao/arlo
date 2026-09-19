@@ -1,9 +1,11 @@
 use crate::artrine::award_drives;
+use crate::possession::locate_zone;
 use crate::resolution::outcome_distribution::{sample_action_progression, ActionProgressionKind};
 use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
+use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
 use arlo_domain::{ArtrineDecisionKind, PitchZone};
 use arlo_math::units::Duration;
 use rand::Rng;
@@ -59,13 +61,11 @@ pub fn resolve_progression<R: Rng + ?Sized>(
     let delta_norm = mirins_advanced / ctx.pitch_length_mirim.max(1.0);
     let new_normalized_proximity = (ctx.normalized_proximity + delta_norm).clamp(0.0, 1.0);
 
-    let new_zone = if new_normalized_proximity >= 0.88 {
-        PitchZone::FirstZone
-    } else if new_normalized_proximity >= 0.72 {
-        PitchZone::SecondZone
-    } else {
-        PitchZone::OpenField
-    };
+    let new_zone = locate_zone(
+        new_normalized_proximity,
+        ctx.pitch_length_mirim,
+        AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
+    );
 
     let base_seconds =
         14.0 + (mirins_advanced * 0.6).clamp(0.0, 20.0) + contest.net_advantage * 0.2;

@@ -4,12 +4,14 @@ use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::physical::PhysicalState;
 use crate::playmaking::resolve_misdirection_logit_offset;
+use crate::possession::locate_zone;
 use crate::psychology::state::ImpulseState;
 use crate::resolution::DuelContext;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
+use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
 use arlo_domain::{ArtroPlacement, PitchZone, Player, Position, SlotRole};
 use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
 use std::collections::HashMap;
@@ -75,13 +77,11 @@ impl<'a> DownResolutionContext<'a> {
             ((pitch_length_mirim - cur_x_mirim) / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
         };
 
-        let zone = if normalized_proximity >= 0.88 {
-            PitchZone::FirstZone
-        } else if normalized_proximity >= 0.72 {
-            PitchZone::SecondZone
-        } else {
-            PitchZone::OpenField
-        };
+        let zone = locate_zone(
+            normalized_proximity,
+            pitch_length_mirim,
+            AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
+        );
 
         let channel = ArtroPlacement::Central;
 
