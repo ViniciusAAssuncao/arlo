@@ -1,6 +1,6 @@
 use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::lineup_runtime::find_goalguard;
-use crate::match_decision::scoring::{
+use crate::match_decision::{
     duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
     ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
 };
@@ -47,8 +47,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
     );
 
     let is_scoring_action = decision == ArtrineDecisionKind::SelfFinish
-        || decision == ArtrineDecisionKind::Cross
-        || progression.new_normalized_proximity >= 0.70;
+        || decision == ArtrineDecisionKind::Cross;
 
     if !is_scoring_action {
         return ScoringDecision::NoOpportunity;
@@ -112,6 +111,14 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         .primary_assister(effective_kicker.id())
         .or_else(|| Some(ctx.carrier.id()));
 
+    let defense_closed = progression.new_normalized_proximity >= 0.75
+        && state
+            .instructions_for_team(ctx.defense_team_id)
+            .out_of_possession()
+            .defensive_line_height()
+            .value()
+            < 0.5;
+
     let req = ScoringAttemptRequest::new(
         effective_kicker,
         goalguard,
@@ -122,10 +129,12 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         opportunity,
         total_drives,
         total_adv,
+        progression.new_normalized_proximity,
         &finish_ctx,
     )
     .with_fatigue(fin_fatigue, gg_fatigue)
-    .with_tables(fin_table, gg_table);
+    .with_tables(fin_table, gg_table)
+    .with_defense_closed(defense_closed);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
     duels.push(fin_duel);

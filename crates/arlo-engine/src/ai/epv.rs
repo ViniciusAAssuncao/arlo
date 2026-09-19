@@ -1,6 +1,8 @@
+use crate::scoring_model::{calculate_scoring_probability, ScoringKind, ScoringSituation};
 use arlo_domain::sport_constants::{
-    FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+    FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
 };
+use arlo_domain::PitchZone;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -23,32 +25,46 @@ impl DynamicEpvModel {
         &self,
         normalized_x: f64,
         drives_in_series: u32,
-        down: u8,
-        remaining_advance_mirim: f64,
+        _down: u8,
+        _remaining_advance_mirim: f64,
     ) -> f64 {
         if drives_in_series < GOAL_POINT_REQUIRED_DRIVES {
             return (normalized_x * 0.05).clamp(0.0, 0.05);
         }
-        let x = normalized_x.clamp(0.0, 1.0);
-        let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.10;
-        let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.30);
-        (x * 0.80 - down_penalty - dist_penalty).clamp(0.05, 0.95)
+
+        let situation = ScoringSituation::new(
+            PitchZone::FirstZone,
+            normalized_x,
+            drives_in_series,
+            20.0,
+            12.0 + self.offensive_gravity,
+            10.0,
+            true,
+        );
+        calculate_scoring_probability(ScoringKind::GoalPoint, &situation).value()
     }
 
     pub fn field_point_probability(
         &self,
         normalized_x: f64,
         drives_in_series: u32,
-        down: u8,
-        remaining_advance_mirim: f64,
+        _down: u8,
+        _remaining_advance_mirim: f64,
     ) -> f64 {
-        if drives_in_series < FIELD_POINT_REQUIRED_DRIVES && normalized_x < 0.40 {
+        if drives_in_series < 1 && normalized_x < 0.40 {
             return 0.0;
         }
-        let x = normalized_x.clamp(0.0, 1.0);
-        let down_penalty = ((down.clamp(1, 4) - 1) as f64) * 0.08;
-        let dist_penalty = (remaining_advance_mirim.max(0.0) / 20.0).clamp(0.0, 0.25);
-        (x * 0.65 - down_penalty - dist_penalty).clamp(0.05, 0.90)
+
+        let situation = ScoringSituation::new(
+            PitchZone::SecondZone,
+            normalized_x,
+            drives_in_series,
+            20.0,
+            10.0 + self.offensive_gravity,
+            10.0,
+            false,
+        );
+        calculate_scoring_probability(ScoringKind::FieldPoint, &situation).value()
     }
 
     pub fn turnover_probability(
@@ -77,14 +93,14 @@ impl DynamicEpvModel {
         remaining_advance_mirim: f64,
         drives_in_series: u32,
     ) -> f64 {
-        let p_goal = self.goal_probability(normalized_x, drives_in_series, down, remaining_advance_mirim);
+        let p_goal =
+            self.goal_probability(normalized_x, drives_in_series, down, remaining_advance_mirim);
         let p_field =
             self.field_point_probability(normalized_x, drives_in_series, down, remaining_advance_mirim);
         let p_to = self.turnover_probability(normalized_x, down, remaining_advance_mirim);
         let opp_val = self.opponent_epa(normalized_x);
 
-        p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
-            - p_to * opp_val
+        p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64) - p_to * opp_val
     }
 
     pub fn calculate_epv(

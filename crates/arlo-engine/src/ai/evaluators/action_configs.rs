@@ -2,6 +2,7 @@ use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::ai::evaluators::generic_evaluator::evaluate_action_utility;
 use crate::attributes::profiles::AttributeProfile;
+use crate::scoring_model::{calculate_scoring_probability, ScoringKind, ScoringSituation};
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Clone, Copy)]
@@ -131,9 +132,27 @@ pub fn cross_config() -> ActionEvaluationConfig {
         rating_additive_weight: 0.20,
         kind_config: ActionKindConfig::TerminalScore(TerminalScoreConfig {
             success_prob_fn: |ctx, skill_mult| {
-                (0.35 + 0.35 * ctx.normalized_proximity
-                    + 0.20 * ctx.target_quality()
-                    + 0.10 * skill_mult)
+                let scoring_kind = if ctx.drives_in_series
+                    >= arlo_domain::sport_constants::GOAL_POINT_REQUIRED_DRIVES
+                {
+                    ScoringKind::GoalPoint
+                } else {
+                    ScoringKind::FieldPoint
+                };
+                let zone = crate::possession::locate_zone_default(ctx.normalized_proximity, 145.0);
+                let situation = ScoringSituation::new(
+                    zone,
+                    ctx.normalized_proximity,
+                    ctx.drives_in_series,
+                    10.0,
+                    10.0 + skill_mult * 10.0,
+                    10.0,
+                    false,
+                );
+
+                let raw_prob = calculate_scoring_probability(scoring_kind, &situation).value();
+
+                (raw_prob + 0.10 * ctx.target_quality())
                     * (0.60 + 0.40 * ctx.offensive_gravity.min(2.0))
                     * (0.80 + 0.25 * ctx.lateral_ratio())
             },
@@ -149,11 +168,25 @@ pub fn finish_config() -> ActionEvaluationConfig {
         rating_additive_weight: 0.25,
         kind_config: ActionKindConfig::TerminalScore(TerminalScoreConfig {
             success_prob_fn: |ctx, skill_mult| {
-                let distance_to_goal_mirim =
-                    ((1.0 - ctx.normalized_proximity) * ctx.pitch_length_mirim()).max(0.0);
-                let distance_p_factor =
-                    (1.0 / (1.0 + distance_to_goal_mirim * 0.05)).clamp(0.20, 1.0);
-                (0.20 + 0.40 * distance_p_factor + 0.20 * skill_mult + 0.20 * ctx.pitch_control())
+                let scoring_kind = if ctx.drives_in_series
+                    >= arlo_domain::sport_constants::GOAL_POINT_REQUIRED_DRIVES
+                {
+                    ScoringKind::GoalPoint
+                } else {
+                    ScoringKind::FieldPoint
+                };
+                let zone = crate::possession::locate_zone_default(ctx.normalized_proximity, 145.0);
+                let situation = ScoringSituation::new(
+                    zone,
+                    ctx.normalized_proximity,
+                    ctx.drives_in_series,
+                    10.0,
+                    10.0 + skill_mult * 10.0,
+                    10.0,
+                    ctx.normalized_proximity >= 0.75,
+                );
+
+                calculate_scoring_probability(scoring_kind, &situation).value()
                     * ctx.shooting_angle_factor()
             },
             geometry_factor_fn: |ctx| {

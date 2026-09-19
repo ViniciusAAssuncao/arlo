@@ -37,6 +37,11 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
 
     let finish_context = duel_context.for_duel_kind(duel_kind_for_opportunity(opportunity));
 
+    let normalized_proximity = match tier {
+        KickFoulScoringTier::FirstZone => 0.95,
+        KickFoulScoringTier::Standard => 0.85,
+    };
+
     let req = ScoringAttemptRequest::new(
         kicker,
         goalguard,
@@ -47,6 +52,7 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
         opportunity,
         0,
         0.0,
+        normalized_proximity,
         &finish_context,
     )
     .with_tables(Some(kicker_table), Some(gg_table));
