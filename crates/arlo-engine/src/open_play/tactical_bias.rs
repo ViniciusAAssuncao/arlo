@@ -100,7 +100,7 @@ impl CarrierTacticalBias {
                 Position::Corridor => 2.50,
                 Position::RunningEnd => 1.85,
                 Position::CenterTight => 1.30,
-                Position::Artrine => 1.25,
+                Position::Artrine => 1.70,
                 Position::TightWing => 1.20,
                 Position::WingOffense => 1.10,
                 Position::CenterOffense => 1.00,
@@ -173,6 +173,6 @@ impl CarrierTacticalBias {
             ArtrineDecisionKind::SelfCarry => 1.0 + positioning_bias * 0.15 + involvement * 0.20,
         };
 
-        (base_position_bias * role_multiplier * instruction_modifier).clamp(0.20, 5.00)
+        (base_position_bias * role_multiplier * instruction_modifier).clamp(0.50, 2.50)
     }
 }

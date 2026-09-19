@@ -69,7 +69,9 @@ fn assign_best_candidate_for_role(
                         .get(*idx)
                         .map(|s| s.position())
                         .unwrap_or(Position::Midcenter);
-                    if role == SlotRole::FalseArtrine && pos == Position::Artrine {
+                    if (role == SlotRole::FalseArtrine || role == SlotRole::Launcher)
+                        && pos == Position::Artrine
+                    {
                         return false;
                     }
                     roles.get(&p.id()) == Some(&SlotRole::Standard)
