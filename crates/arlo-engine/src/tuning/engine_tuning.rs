@@ -1,3 +1,4 @@
+use crate::artrine::execution::drive_profile::DriveAwardProfile;
 use crate::home_advantage::HomeAdvantageProfile;
 use crate::injury::tuning::InjuryTuningProfile;
 use crate::physical::tuning::EnergyTuningProfile;
@@ -13,6 +14,7 @@ pub struct EngineTuning {
     pub league_strength_scale: LeagueStrengthScale,
     pub team_strength_profile: TeamStrengthProfile,
     pub home_advantage_profile: HomeAdvantageProfile,
+    pub drive_award: DriveAwardProfile,
 }
 
 impl EngineTuning {
@@ -28,6 +30,7 @@ impl EngineTuning {
             league_strength_scale: LeagueStrengthScale::default(),
             team_strength_profile: TeamStrengthProfile::default(),
             home_advantage_profile: HomeAdvantageProfile::default(),
+            drive_award: DriveAwardProfile::default(),
         }
     }
 
@@ -43,6 +46,11 @@ impl EngineTuning {
 
     pub fn with_home_advantage_profile(mut self, home_advantage_profile: HomeAdvantageProfile) -> Self {
         self.home_advantage_profile = home_advantage_profile;
+        self
+    }
+
+    pub fn with_drive_award(mut self, drive_award: DriveAwardProfile) -> Self {
+        self.drive_award = drive_award;
         self
     }
 
@@ -69,6 +77,10 @@ impl EngineTuning {
     pub fn home_advantage_profile(&self) -> &HomeAdvantageProfile {
         &self.home_advantage_profile
     }
+
+    pub fn drive_award(&self) -> &DriveAwardProfile {
+        &self.drive_award
+    }
 }
 
 impl Default for EngineTuning {
@@ -80,6 +92,7 @@ impl Default for EngineTuning {
             league_strength_scale: LeagueStrengthScale::default(),
             team_strength_profile: TeamStrengthProfile::default(),
             home_advantage_profile: HomeAdvantageProfile::default(),
+            drive_award: DriveAwardProfile::default(),
         }
     }
 }

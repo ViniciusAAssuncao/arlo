@@ -1,11 +1,10 @@
+use crate::scoring_regime::ScoringRegimePolicy;
+use crate::world_state::analysis::decision_bias::{calculate_decision_bias, calculate_kick_foul_bias};
+use crate::world_state::analysis::deficit_urgency::calculate_urgency_index;
+use crate::world_state::analysis::lead_pressure::{calculate_lead_pressure, LeadPressureProfile};
+use crate::world_state::analysis::time_urgency::{calculate_time_urgency, calculate_total_remaining_seconds};
 use crate::world_state::core::constants::*;
 use crate::world_state::match_state::MatchState;
-use crate::scoring_regime::ScoringRegimePolicy;
-use arlo_domain::sport_constants::{
-    KICK_FOUL_CROSS_LATERAL_BIAS_BASE, KICK_FOUL_CROSS_LATERAL_BIAS_SCALE,
-    KICK_FOUL_SHOOT_GOAL_POINT_BIAS_WEIGHT_FIRST_ZONE,
-    KICK_FOUL_SHOOT_GOAL_POINT_BIAS_WEIGHT_STANDARD,
-};
 use arlo_domain::{ArtrineDecisionKind, KickFoulDecisionKind, KickFoulScoringTier};
 use serde::{Deserialize, Serialize};
 
@@ -38,87 +37,74 @@ impl GameStatePressure {
     pub fn score_deficit(&self) -> i32 {
         self.score_deficit
     }
+
     pub fn total_remaining_seconds(&self) -> f64 {
         self.total_remaining_seconds
     }
+
     pub fn urgency_index(&self) -> f64 {
         self.urgency_index
     }
+
     pub fn offensive_risk_bias(&self) -> f64 {
         self.offensive_risk_bias
     }
+
     pub fn turnover_aversion_scale(&self) -> f64 {
         self.turnover_aversion_scale
     }
+
     pub fn is_trailing(&self) -> bool {
         self.score_deficit > 0
     }
+
     pub fn is_leading(&self) -> bool {
         self.score_deficit < 0
     }
+
     pub fn is_tied(&self) -> bool {
         self.score_deficit == 0
     }
 
-    fn action_risk_multiplier(&self, risk_coeff: f64) -> f64 {
+    pub fn action_risk_multiplier(&self, risk_coeff: f64) -> f64 {
         (1.0 + risk_coeff * self.offensive_risk_bias).clamp(MIN_DECISION_BIAS, MAX_DECISION_BIAS)
     }
 
     pub fn goal_point_bias(&self) -> f64 {
         self.action_risk_multiplier(0.80)
     }
+
     pub fn field_point_bias(&self) -> f64 {
         self.action_risk_multiplier(0.20)
     }
+
     pub fn long_launch_bias(&self) -> f64 {
         self.action_risk_multiplier(0.70)
     }
+
     pub fn short_pass_bias(&self) -> f64 {
         self.action_risk_multiplier(-0.40)
     }
+
     pub fn carry_bias(&self) -> f64 {
         self.action_risk_multiplier(-0.35)
     }
+
     pub fn cross_bias(&self) -> f64 {
         self.action_risk_multiplier(0.65)
     }
+
     pub fn self_finish_bias(&self) -> f64 {
         self.action_risk_multiplier(0.60)
     }
 
-    pub fn bias_for_decision(&self, kind: ArtrineDecisionKind, drives_in_series: u32, regime: &ScoringRegimePolicy) -> f64 {
-        let raw = match kind {
-            ArtrineDecisionKind::SelfCarry => {
-                let base = self.carry_bias();
-                if drives_in_series < regime.goal_point_required_drives {
-                    base * (1.0
-                        + CARRY_EARLY_DRIVE_BONUS_MULTIPLIER
-                            * ((regime.goal_point_required_drives - drives_in_series)
-                                as f64))
-                } else {
-                    base
-                }
-            }
-            ArtrineDecisionKind::ShortPass => self.short_pass_bias(),
-            ArtrineDecisionKind::LongLaunch => self.long_launch_bias(),
-            ArtrineDecisionKind::Cross => {
-                let scoring = if drives_in_series >= regime.goal_point_required_drives {
-                    self.goal_point_bias()
-                } else {
-                    self.field_point_bias()
-                };
-                self.cross_bias() * scoring
-            }
-            ArtrineDecisionKind::SelfFinish => {
-                let scoring = if drives_in_series >= regime.goal_point_required_drives {
-                    self.goal_point_bias()
-                } else {
-                    self.field_point_bias()
-                };
-                self.self_finish_bias() * scoring
-            }
-        };
-        raw.clamp(MIN_DECISION_BIAS, MAX_DECISION_BIAS)
+    pub fn bias_for_decision(
+        &self,
+        kind: ArtrineDecisionKind,
+        drives_in_series: u32,
+        regime: &ScoringRegimePolicy,
+    ) -> f64 {
+        calculate_decision_bias(kind, drives_in_series, regime, self.offensive_risk_bias)
     }
 
     pub fn bias_for_kick_foul_decision(
@@ -127,26 +113,7 @@ impl GameStatePressure {
         tier: KickFoulScoringTier,
         lateral_ratio: f64,
     ) -> f64 {
-        let raw = match kind {
-            KickFoulDecisionKind::Shoot => match tier {
-                KickFoulScoringTier::FirstZone => {
-                    let weight = KICK_FOUL_SHOOT_GOAL_POINT_BIAS_WEIGHT_FIRST_ZONE;
-                    self.self_finish_bias() * (1.0 - weight) + self.goal_point_bias() * weight
-                }
-                KickFoulScoringTier::Standard => {
-                    let weight = KICK_FOUL_SHOOT_GOAL_POINT_BIAS_WEIGHT_STANDARD;
-                    self.self_finish_bias() * (1.0 - weight) + self.field_point_bias() * weight
-                }
-            },
-            KickFoulDecisionKind::Cross => {
-                let lateral_factor = KICK_FOUL_CROSS_LATERAL_BIAS_BASE
-                    + KICK_FOUL_CROSS_LATERAL_BIAS_SCALE * lateral_ratio.clamp(0.0, 1.0);
-                self.cross_bias() * lateral_factor
-            }
-            KickFoulDecisionKind::ShortPass => self.short_pass_bias(),
-            KickFoulDecisionKind::LongLaunch => self.long_launch_bias(),
-        };
-        raw.clamp(MIN_DECISION_BIAS, MAX_DECISION_BIAS)
+        calculate_kick_foul_bias(kind, tier, lateral_ratio, self.offensive_risk_bias)
     }
 }
 
@@ -162,39 +129,29 @@ impl Default for GameStatePressure {
     }
 }
 
-pub fn analyze_game_state(
+pub fn analyze_game_state_with_lead_pressure(
     score_offense: u32,
     score_defense: u32,
     period: u32,
     regulation_periods: u32,
     seconds_in_period: f64,
     period_duration_seconds: f64,
+    lead_profile: &LeadPressureProfile,
 ) -> GameStatePressure {
     let score_deficit = (score_defense as i32) - (score_offense as i32);
-    let rem_in_period = (period_duration_seconds - seconds_in_period).max(0.0);
-    let total_remaining_seconds = if period <= regulation_periods {
-        ((regulation_periods - period) as f64) * period_duration_seconds + rem_in_period
-    } else {
-        rem_in_period
-    };
+    let total_remaining_seconds = calculate_total_remaining_seconds(
+        period,
+        regulation_periods,
+        seconds_in_period,
+        period_duration_seconds,
+    );
 
-    let time_urgency = 1.0
-        / (1.0
-            + (total_remaining_seconds / URGENCY_TIME_HALF_LIFE_SECONDS).powf(URGENCY_POWER_CURVE));
-    let urgency_index = if score_deficit > 0 {
-        ((score_deficit as f64)
-            * TRAILING_URGENCY_DEFICIT_FACTOR
-            * (TRAILING_URGENCY_BASE_WEIGHT + TRAILING_URGENCY_TIME_WEIGHT * time_urgency))
-            .clamp(0.0, MAX_TRAILING_URGENCY_INDEX)
-    } else if score_deficit < 0 {
-        ((-score_deficit as f64) * LEADING_URGENCY_DEFICIT_FACTOR * time_urgency)
-            .clamp(0.0, MAX_LEADING_URGENCY_INDEX)
-    } else {
-        (TIED_URGENCY_BASE_FACTOR * time_urgency).clamp(0.0, MAX_TIED_URGENCY_INDEX)
-    };
+    let time_urgency = calculate_time_urgency(total_remaining_seconds);
+    let urgency_index = calculate_urgency_index(score_deficit, time_urgency);
 
     let normalized_deficit = (score_deficit as f64) / 4.0;
-    let offensive_risk_bias = (normalized_deficit * time_urgency).clamp(-1.0, 1.5);
+    let lead_pressure = calculate_lead_pressure(score_deficit, time_urgency, lead_profile);
+    let offensive_risk_bias = (normalized_deficit * time_urgency - lead_pressure).clamp(-1.0, 1.5);
     let turnover_aversion_scale = (1.0 - 0.50 * offensive_risk_bias).clamp(0.35, 2.50);
 
     GameStatePressure::new(
@@ -203,6 +160,25 @@ pub fn analyze_game_state(
         urgency_index,
         offensive_risk_bias,
         turnover_aversion_scale,
+    )
+}
+
+pub fn analyze_game_state(
+    score_offense: u32,
+    score_defense: u32,
+    period: u32,
+    regulation_periods: u32,
+    seconds_in_period: f64,
+    period_duration_seconds: f64,
+) -> GameStatePressure {
+    analyze_game_state_with_lead_pressure(
+        score_offense,
+        score_defense,
+        period,
+        regulation_periods,
+        seconds_in_period,
+        period_duration_seconds,
+        &LeadPressureProfile::default(),
     )
 }
 

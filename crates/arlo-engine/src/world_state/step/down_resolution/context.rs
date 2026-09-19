@@ -1,5 +1,6 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::evaluators::{ContextCarrier, ContextSituation};
+use crate::artrine::DriveAwardProfile;
 use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::physical::PhysicalState;
@@ -62,6 +63,7 @@ pub struct DownResolutionContext<'a> {
     pub possession_advanced_mirins: f64,
     pub scoring_regime: ScoringRegimePolicy,
     pub scoring_difficulty: ScoringDifficultyProfile,
+    pub drive_award_profile: DriveAwardProfile,
 }
 
 impl<'a> DownResolutionContext<'a> {
@@ -199,6 +201,7 @@ impl<'a> DownResolutionContext<'a> {
         let is_true_artrine = carrier.id() == pass_phase.artrine.id();
         let scoring_regime = ScoringRegimePolicy::default();
         let scoring_difficulty = *state.tuning().scoring_difficulty();
+        let drive_award_profile = *state.tuning().drive_award();
 
         Self {
             offense_team_id: context.offense_team_id,
@@ -246,6 +249,7 @@ impl<'a> DownResolutionContext<'a> {
             possession_advanced_mirins: state.possession().possession_origin().total_advanced_mirins(),
             scoring_regime,
             scoring_difficulty,
+            drive_award_profile,
         }
     }
 

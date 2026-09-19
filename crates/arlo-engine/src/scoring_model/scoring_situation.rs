@@ -1,3 +1,5 @@
+use crate::resolution::DuelContext;
+use crate::scoring_model::margin::MarginContext;
 use crate::scoring_model::scoring_origin::ScoringOrigin;
 use arlo_domain::PitchZone;
 use serde::{Deserialize, Serialize};
@@ -12,6 +14,8 @@ pub struct ScoringSituation {
     pub goalguard_rating: f64,
     pub defense_closed: bool,
     pub origin: ScoringOrigin,
+    pub margin_context: Option<MarginContext>,
+    pub duel_context: Option<DuelContext>,
 }
 
 impl ScoringSituation {
@@ -34,6 +38,26 @@ impl ScoringSituation {
             goalguard_rating,
             defense_closed,
             origin,
+            margin_context: None,
+            duel_context: None,
         }
+    }
+
+    pub fn with_margin(mut self, margin_context: MarginContext) -> Self {
+        self.margin_context = Some(margin_context);
+        self
+    }
+
+    pub fn with_duel_context(mut self, duel_context: DuelContext) -> Self {
+        self.duel_context = Some(duel_context);
+        self
+    }
+
+    pub fn margin_context(&self) -> Option<MarginContext> {
+        self.margin_context
+    }
+
+    pub fn duel_context(&self) -> Option<DuelContext> {
+        self.duel_context
     }
 }

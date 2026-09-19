@@ -1,3 +1,4 @@
+use crate::scoring_model::margin::MarginPenaltyProfile;
 use crate::scoring_model::scoring_kind::ScoringKind;
 use arlo_events::ScoringPost;
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,7 @@ pub struct ScoringDifficultyProfile {
     pub field_goal_rating_shift_weight: f64,
     pub rating_gap_saturation_point: f64,
     pub rating_gap_slope: f64,
+    pub margin_penalty: MarginPenaltyProfile,
 }
 
 impl ScoringDifficultyProfile {
@@ -52,7 +54,13 @@ impl ScoringDifficultyProfile {
             field_goal_rating_shift_weight,
             rating_gap_saturation_point,
             rating_gap_slope,
+            margin_penalty: MarginPenaltyProfile::default(),
         }
+    }
+
+    pub fn with_margin_penalty(mut self, margin_penalty: MarginPenaltyProfile) -> Self {
+        self.margin_penalty = margin_penalty;
+        self
     }
 
     pub fn calibrate_field_goal_intercepts(
@@ -124,5 +132,9 @@ impl ScoringDifficultyProfile {
             ScoringPost::Goalpost => self.field_goal_goalpost_intercept,
             ScoringPost::Fieldpost => self.field_goal_fieldpost_intercept,
         }
+    }
+
+    pub fn margin_penalty(&self) -> &MarginPenaltyProfile {
+        &self.margin_penalty
     }
 }

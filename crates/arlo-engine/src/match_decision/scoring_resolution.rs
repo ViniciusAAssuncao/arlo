@@ -6,7 +6,7 @@ use crate::resolution::calculate_player_duel_rating_with_state;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::{AttributedDuelOutcome, DuelKind, DuelOutcome};
 use crate::scoring_model::{
-    calculate_scoring_probability, ScoringKind, ScoringSituation, select_post_for_field_goal
+    calculate_scoring_probability, select_post_for_field_goal, ScoringKind, ScoringSituation,
 };
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
@@ -98,7 +98,7 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
 
     let zone = locate_zone_default(request.normalized_proximity, 145.0);
 
-    let situation = ScoringSituation::new(
+    let mut situation = ScoringSituation::new(
         zone,
         request.normalized_proximity,
         request.drives_completed,
@@ -107,7 +107,12 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         defender_rating,
         request.defense_closed,
         request.origin,
-    );
+    )
+    .with_duel_context(request.context);
+
+    if let Some(margin) = request.margin_context {
+        situation = situation.with_margin(margin);
+    }
 
     let difficulty_profile = request.difficulty_profile.unwrap_or_default();
 
@@ -115,11 +120,17 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         ScoringOpportunity::GoalPoint => ScoringKind::GoalPoint,
         ScoringOpportunity::FieldPoint => ScoringKind::FieldPoint,
         ScoringOpportunity::FieldGoal => {
-            let decisions_val = request.finisher_table
+            let decisions_val = request
+                .finisher_table
                 .map(|t| t.get(AttributeKey::Decisions))
                 .unwrap_or(10.0);
-            ScoringKind::FieldGoal(select_post_for_field_goal(&situation, &difficulty_profile, decisions_val, rng))
-        },
+            ScoringKind::FieldGoal(select_post_for_field_goal(
+                &situation,
+                &difficulty_profile,
+                decisions_val,
+                rng,
+            ))
+        }
         ScoringOpportunity::None => ScoringKind::FieldPoint,
     };
 

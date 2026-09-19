@@ -4,6 +4,7 @@ use crate::match_decision::{
     ScoringOpportunity,
 };
 use crate::resolution::AttributedDuelOutcome;
+use crate::scoring_model::margin::MarginContext;
 use crate::scoring_regime::evaluate_scoring_opportunity;
 use crate::set_piece::select_kicker;
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -111,6 +112,41 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
 
     let difficulty_profile = state.tuning().scoring_difficulty;
 
+    let is_home = ctx.offense_team_id == state.home_team_id();
+    let (offense_score, defense_score) = if is_home {
+        (
+            state.home_score().total_points,
+            state.away_score().total_points,
+        )
+    } else {
+        (
+            state.away_score().total_points,
+            state.home_score().total_points,
+        )
+    };
+    let diff_pts = (offense_score as f64) - (defense_score as f64);
+    let advantage_gp = diff_pts / (arlo_domain::sport_constants::GOAL_POINT_VALUE as f64);
+
+    let offense_power = state.power_for_team(ctx.offense_team_id);
+    let defense_power = state.power_for_team(ctx.defense_team_id);
+    let league_scale = &state.tuning().league_strength_scale;
+    let mut z_gap = crate::team_strength::calculate_strength_z_gap(
+        offense_power.offensive_power(),
+        defense_power.defensive_power(),
+        league_scale.offense_mean,
+        league_scale.offense_stddev,
+        league_scale.defense_mean,
+        league_scale.defense_stddev,
+    );
+    if ctx.duel_context.attacker_is_home() {
+        z_gap += state.tuning().home_advantage_profile.power_z_boost();
+    }
+    if ctx.duel_context.defender_is_home() {
+        z_gap -= state.tuning().home_advantage_profile.power_z_boost();
+    }
+
+    let margin_ctx = MarginContext::new(advantage_gp, z_gap);
+
     let req = ScoringAttemptRequest::new(
         effective_kicker,
         goalguard,
@@ -127,7 +163,8 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
     .with_fatigue(fin_fatigue, gg_fatigue)
     .with_tables(fin_table, gg_table)
     .with_defense_closed(defense_closed)
-    .with_difficulty_profile(difficulty_profile);
+    .with_difficulty_profile(difficulty_profile)
+    .with_margin(margin_ctx);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
     duels.push(fin_duel);

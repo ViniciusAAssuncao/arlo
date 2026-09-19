@@ -1,4 +1,4 @@
-use crate::artrine::award_drives;
+use crate::artrine::execution::drive_award::award_drives_with_profile;
 use crate::possession::locate_zone;
 use crate::resolution::outcome_distribution::{sample_action_progression, ActionProgressionKind};
 use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
@@ -48,13 +48,14 @@ pub fn resolve_progression<R: Rng + ?Sized>(
     let mirins_advanced =
         sample_action_progression(prog_kind, contest.net_advantage, effective_mult, rng);
 
-    let drives_recorded = award_drives(
+    let drives_recorded = award_drives_with_profile(
         ctx.is_true_artrine,
         decision,
         contest.attacker_won,
         contest.net_advantage,
         &ctx.carrier_table,
         mirins_advanced,
+        &ctx.drive_award_profile,
         rng,
     );
 

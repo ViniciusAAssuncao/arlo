@@ -1,4 +1,5 @@
 pub mod difficulty_curves;
+pub mod margin;
 pub mod post_choice;
 pub mod rating_gap_scaling;
 pub mod scoring_kind;
@@ -8,6 +9,7 @@ pub mod success_model;
 pub mod tuning;
 
 pub use difficulty_curves::*;
+pub use margin::*;
 pub use post_choice::*;
 pub use rating_gap_scaling::*;
 pub use scoring_kind::*;

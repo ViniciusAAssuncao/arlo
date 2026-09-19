@@ -1,3 +1,4 @@
+use crate::scoring_model::margin::MarginPenaltyProfile;
 use crate::scoring_model::tuning::scoring_difficulty_profile::ScoringDifficultyProfile;
 
 impl Default for ScoringDifficultyProfile {
@@ -17,6 +18,7 @@ impl Default for ScoringDifficultyProfile {
             field_goal_rating_shift_weight: 0.25,
             rating_gap_saturation_point: 8.0,
             rating_gap_slope: 1.0,
+            margin_penalty: MarginPenaltyProfile::default(),
         }
     }
 }

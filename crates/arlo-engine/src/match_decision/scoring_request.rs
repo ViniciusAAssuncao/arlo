@@ -2,6 +2,7 @@ use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::scoring_types::ScoringOpportunity;
 use crate::physical::PhysicalState;
 use crate::resolution::DuelContext;
+use crate::scoring_model::margin::MarginContext;
 use crate::scoring_model::{ScoringDifficultyProfile, ScoringOrigin};
 use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
@@ -26,6 +27,7 @@ pub struct ScoringAttemptRequest<'a> {
     pub defense_closed: bool,
     pub origin: ScoringOrigin,
     pub difficulty_profile: Option<ScoringDifficultyProfile>,
+    pub margin_context: Option<MarginContext>,
 }
 
 impl<'a> ScoringAttemptRequest<'a> {
@@ -61,6 +63,7 @@ impl<'a> ScoringAttemptRequest<'a> {
             defense_closed: false,
             origin: ScoringOrigin::OpenPlay,
             difficulty_profile: None,
+            margin_context: None,
         }
     }
 
@@ -99,6 +102,16 @@ impl<'a> ScoringAttemptRequest<'a> {
         difficulty_profile: ScoringDifficultyProfile,
     ) -> Self {
         self.difficulty_profile = Some(difficulty_profile);
+        self
+    }
+
+    pub fn with_margin(mut self, margin_context: MarginContext) -> Self {
+        self.margin_context = Some(margin_context);
+        self
+    }
+
+    pub fn with_optional_margin(mut self, margin_context: Option<MarginContext>) -> Self {
+        self.margin_context = margin_context;
         self
     }
 }

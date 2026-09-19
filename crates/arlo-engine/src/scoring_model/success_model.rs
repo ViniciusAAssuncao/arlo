@@ -1,4 +1,5 @@
 use crate::scoring_model::difficulty_curves::calculate_base_difficulty_logit;
+use crate::scoring_model::margin::calculate_margin_penalty_logit;
 use crate::scoring_model::rating_gap_scaling::scale_rating_gap;
 use crate::scoring_model::scoring_kind::ScoringKind;
 use crate::scoring_model::scoring_situation::ScoringSituation;
@@ -20,6 +21,25 @@ pub fn calculate_scoring_probability(
     );
     let rating_shift = scaled_diff * profile.rating_shift_weight(kind);
 
-    let total_logit = base_logit + rating_shift;
+    let mut context_offset = 0.0;
+    if let Some(dc) = situation.duel_context {
+        if dc.attacker_is_home() {
+            context_offset += dc.home_advantage_duel_logit();
+        }
+        if dc.defender_is_home() {
+            context_offset -= dc.home_advantage_duel_logit();
+        }
+        context_offset += dc.aggression_logit_offset();
+        context_offset += dc.physicality_logit_offset();
+        context_offset += dc.misdirection_logit_offset();
+    }
+
+    let margin_penalty = if let Some(mc) = &situation.margin_context {
+        calculate_margin_penalty_logit(kind, mc, &profile.margin_penalty)
+    } else {
+        0.0
+    };
+
+    let total_logit = base_logit + rating_shift + context_offset - margin_penalty;
     Probability::new_clamped(logistic(total_logit).clamp(0.01, 0.95))
 }
