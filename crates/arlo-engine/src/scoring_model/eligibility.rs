@@ -12,6 +12,6 @@ pub fn can_attempt_field_point(drives_in_series: u32, territory_advance_mirim: f
         || drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
 }
 
-pub fn can_attempt_field_goal(drives_in_series: u32, _territory_advance_mirim: f64) -> bool {
-    drives_in_series >= GOAL_POINT_REQUIRED_DRIVES
+pub fn can_attempt_field_goal(_drives_in_series: u32, _territory_advance_mirim: f64) -> bool {
+    true
 }

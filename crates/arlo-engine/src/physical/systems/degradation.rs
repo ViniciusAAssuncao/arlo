@@ -138,3 +138,27 @@ pub fn extract_effective_attribute_value(
     let modifier = attribute_degradation_modifier(key, context, concentration);
     (base_val * modifier).clamp(0.0, 20.0)
 }
+
+pub fn extract_effective_attributes_batch<const N: usize>(
+    table: &PlayerAttributeTable,
+    keys: [AttributeKey; N],
+    context: &DegradationContext<'_>,
+) -> [f64; N] {
+    let concentration = table.get(AttributeKey::Concentration);
+    let cog_mod = cognitive_technical_modifier(context, concentration);
+    let phys_mod = physical_attribute_modifier(context.physical_state);
+    let mut out = [0.0; N];
+    let mut i = 0;
+    while i < N {
+        let key = keys[i];
+        let base_val = table.get(key);
+        let modifier = if is_physical_attribute(key) {
+            phys_mod
+        } else {
+            cog_mod
+        };
+        out[i] = (base_val * modifier).clamp(0.0, 20.0);
+        i += 1;
+    }
+    out
+}

@@ -14,6 +14,7 @@ use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::forced_substitution_tracker::ForcedSubstitutionTracker;
 use crate::world_state::match_state::foul_review::FoulReviewTracker;
+use crate::world_state::match_state::gravity_cache::MatchGravityCache;
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
@@ -111,6 +112,7 @@ impl MatchState {
         let added_time = AddedTimeTracker::new();
         let forced_substitution_tracker = ForcedSubstitutionTracker::new();
         let power_cache = MatchPowerCache::new();
+        let gravity_cache = MatchGravityCache::new();
 
         let mut state = Self {
             teams,
@@ -142,6 +144,7 @@ impl MatchState {
             added_time,
             forced_substitution_tracker,
             power_cache,
+            gravity_cache,
         };
 
         state.refresh_team_powers();

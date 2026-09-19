@@ -2,6 +2,7 @@ use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::ai::evaluators::generic_evaluator::evaluate_action_utility;
 use crate::attributes::profiles::AttributeProfile;
+use crate::caching::get_cached_decision_profile;
 use crate::scoring_model::{
     calculate_scoring_probability, ScoringDifficultyProfile, ScoringKind, ScoringOrigin,
     ScoringSituation,
@@ -31,15 +32,35 @@ pub enum ActionKindConfig {
 #[derive(Clone, Copy)]
 pub struct ActionEvaluationConfig {
     pub decision_kind: ArtrineDecisionKind,
-    pub profile_fn: fn() -> AttributeProfile,
+    pub profile_fn: fn() -> &'static AttributeProfile,
     pub rating_additive_weight: f64,
     pub kind_config: ActionKindConfig,
+}
+
+fn carry_profile_ref() -> &'static AttributeProfile {
+    get_cached_decision_profile(ArtrineDecisionKind::SelfCarry)
+}
+
+fn short_pass_profile_ref() -> &'static AttributeProfile {
+    get_cached_decision_profile(ArtrineDecisionKind::ShortPass)
+}
+
+fn long_launch_profile_ref() -> &'static AttributeProfile {
+    get_cached_decision_profile(ArtrineDecisionKind::LongLaunch)
+}
+
+fn cross_profile_ref() -> &'static AttributeProfile {
+    get_cached_decision_profile(ArtrineDecisionKind::Cross)
+}
+
+fn finish_profile_ref() -> &'static AttributeProfile {
+    get_cached_decision_profile(ArtrineDecisionKind::SelfFinish)
 }
 
 pub fn carry_config() -> ActionEvaluationConfig {
     ActionEvaluationConfig {
         decision_kind: ArtrineDecisionKind::SelfCarry,
-        profile_fn: crate::artrine::decision_profiles::self_carry_profile,
+        profile_fn: carry_profile_ref,
         rating_additive_weight: 0.20,
         kind_config: ActionKindConfig::Progression(ProgressionConfig {
             advance_fn: |ctx, skill_mult| {
@@ -81,7 +102,7 @@ pub fn carry_config() -> ActionEvaluationConfig {
 pub fn short_pass_config() -> ActionEvaluationConfig {
     ActionEvaluationConfig {
         decision_kind: ArtrineDecisionKind::ShortPass,
-        profile_fn: crate::artrine::decision_profiles::short_pass_profile,
+        profile_fn: short_pass_profile_ref,
         rating_additive_weight: 0.20,
         kind_config: ActionKindConfig::Progression(ProgressionConfig {
             advance_fn: |ctx, skill_mult| {
@@ -106,7 +127,7 @@ pub fn short_pass_config() -> ActionEvaluationConfig {
 pub fn long_launch_config() -> ActionEvaluationConfig {
     ActionEvaluationConfig {
         decision_kind: ArtrineDecisionKind::LongLaunch,
-        profile_fn: crate::artrine::decision_profiles::long_launch_profile,
+        profile_fn: long_launch_profile_ref,
         rating_additive_weight: 0.20,
         kind_config: ActionKindConfig::Progression(ProgressionConfig {
             advance_fn: |ctx, skill_mult| {
@@ -131,7 +152,7 @@ pub fn long_launch_config() -> ActionEvaluationConfig {
 pub fn cross_config() -> ActionEvaluationConfig {
     ActionEvaluationConfig {
         decision_kind: ArtrineDecisionKind::Cross,
-        profile_fn: crate::artrine::decision_profiles::cross_profile,
+        profile_fn: cross_profile_ref,
         rating_additive_weight: 0.20,
         kind_config: ActionKindConfig::TerminalScore(TerminalScoreConfig {
             success_prob_fn: |ctx, skill_mult| {
@@ -174,7 +195,7 @@ pub fn cross_config() -> ActionEvaluationConfig {
 pub fn finish_config() -> ActionEvaluationConfig {
     ActionEvaluationConfig {
         decision_kind: ArtrineDecisionKind::SelfFinish,
-        profile_fn: crate::artrine::decision_profiles::self_finish_profile,
+        profile_fn: finish_profile_ref,
         rating_additive_weight: 0.25,
         kind_config: ActionKindConfig::TerminalScore(TerminalScoreConfig {
             success_prob_fn: |ctx, skill_mult| {

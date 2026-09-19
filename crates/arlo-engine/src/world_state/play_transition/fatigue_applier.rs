@@ -78,7 +78,6 @@ pub fn apply_movement_strain(
             Some(p) => p.clone(),
             None => continue,
         };
-        let table = *publisher.state().attribute_table_for(&pid);
 
         let (energy, w_bal) = publisher
             .state_mut()
@@ -95,11 +94,12 @@ pub fn apply_movement_strain(
         let injury_profile = publisher.state().player_injury_profile(&pid);
         let player_fatigue = publisher.state().fatigue_for(&pid);
         let intensity_strain = 1.0 - w_bal;
+        let table = publisher.state().attribute_table_for(&pid);
 
         let exertion_ctx = ExertionInjuryContext::new(
             pid,
             team_id,
-            &table,
+            table,
             player_fatigue,
             injury_profile,
             intensity_strain,
@@ -114,9 +114,9 @@ pub fn apply_movement_strain(
             .indexed_rng_for(RngStream::DuelResolution, seq);
 
         let catalog = publisher.state().injury_catalog().clone();
-        if let Some(injury_resolution) =
-            evaluate_and_resolve_exertion_injury(&exertion_ctx, &catalog, &mut exertion_rng)
-        {
+        let maybe_injury =
+            evaluate_and_resolve_exertion_injury(&exertion_ctx, &catalog, &mut exertion_rng);
+        if let Some(injury_resolution) = maybe_injury {
             publisher.emit_injury_incident(&injury_resolution);
         }
     }

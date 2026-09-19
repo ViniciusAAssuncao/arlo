@@ -7,7 +7,7 @@ pub fn evaluate_action_utility(
     config: &ActionEvaluationConfig,
 ) -> f64 {
     let profile = (config.profile_fn)();
-    let intrinsic_rating = ctx.carrier_rating(&profile);
+    let intrinsic_rating = ctx.carrier_rating(profile);
     let skill_mult = ctx.skill_multiplier(intrinsic_rating);
 
     let (p_succ, p_to, p_fail, delta_succ, delta_fail, delta_to, geometry_factor, urgency_bonus) =

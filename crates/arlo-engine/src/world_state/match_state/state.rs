@@ -1,3 +1,4 @@
+use crate::ai::gravity::OffensiveGravity;
 use crate::attributes::{
     ManagerAttributeTable, PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE,
 };
@@ -12,6 +13,9 @@ use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::forced_substitution_tracker::ForcedSubstitutionTracker;
 use crate::world_state::match_state::foul_review::FoulReviewTracker;
+use crate::world_state::match_state::gravity_cache::{
+    calculate_team_offensive_gravity, MatchGravityCache,
+};
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
@@ -63,6 +67,7 @@ pub struct MatchState {
     pub(crate) added_time: AddedTimeTracker,
     pub(crate) forced_substitution_tracker: ForcedSubstitutionTracker,
     pub(crate) power_cache: MatchPowerCache,
+    pub(crate) gravity_cache: MatchGravityCache,
 }
 
 impl MatchState {
@@ -199,8 +204,30 @@ impl MatchState {
             .power_for_team(team_id, self.teams.home_team_id())
     }
 
+    pub fn gravity_cache(&self) -> &MatchGravityCache {
+        &self.gravity_cache
+    }
+
+    pub fn gravity_cache_mut(&mut self) -> &mut MatchGravityCache {
+        &mut self.gravity_cache
+    }
+
+    pub fn home_offensive_gravity(&self) -> OffensiveGravity {
+        self.gravity_cache.home_gravity()
+    }
+
+    pub fn away_offensive_gravity(&self) -> OffensiveGravity {
+        self.gravity_cache.away_gravity()
+    }
+
+    pub fn offensive_gravity_for_team(&self, team_id: Uuid) -> OffensiveGravity {
+        self.gravity_cache
+            .gravity_for_team(team_id, self.teams.home_team_id())
+    }
+
     pub fn invalidate_team_power(&mut self) {
         self.power_cache.mark_dirty();
+        self.gravity_cache.mark_dirty();
     }
 
     pub fn refresh_team_powers(&mut self) {
@@ -208,16 +235,22 @@ impl MatchState {
         let away_id = self.teams.away_team_id();
         let home_power = calculate_team_match_power(self, home_id);
         let away_power = calculate_team_match_power(self, away_id);
+        let home_gravity = calculate_team_offensive_gravity(self, home_id);
+        let away_gravity = calculate_team_offensive_gravity(self, away_id);
         let period = self.clock.period();
         let seconds = self.clock.seconds_in_period();
         self.power_cache
             .update(home_power, away_power, period, seconds);
+        self.gravity_cache
+            .update(home_gravity, away_gravity, period, seconds);
     }
 
     pub fn refresh_team_powers_if_needed(&mut self) {
         let period = self.clock.period();
         let seconds = self.clock.seconds_in_period();
-        if self.power_cache.should_refresh(period, seconds, 180.0) {
+        if self.power_cache.should_refresh(period, seconds, 180.0)
+            || self.gravity_cache.should_refresh(period, seconds, 180.0)
+        {
             self.refresh_team_powers();
         }
     }

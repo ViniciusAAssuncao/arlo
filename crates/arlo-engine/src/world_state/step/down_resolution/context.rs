@@ -1,5 +1,4 @@
 use crate::ai::cognitive::RiskProfile;
-use crate::ai::gravity::calculate_team_max_finishing_gravity_with_fatigue_from_tables;
 use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::physical::PhysicalState;
@@ -63,8 +62,8 @@ pub struct DownResolutionContext<'a> {
 impl<'a> DownResolutionContext<'a> {
     pub fn build(
         state: &MatchState,
-        context: &'a CallToActionContext,
-        pass_phase: &'a PassPhaseResult<'a>,
+        context: &CallToActionContext,
+        pass_phase: &PassPhaseResult<'a>,
         carrier: &'a Player,
         offense_players: &[&'a Player],
         defense_players: &[&'a Player],
@@ -115,14 +114,7 @@ impl<'a> DownResolutionContext<'a> {
 
         let long_launch_target_weight = best_target_weight;
 
-        let offensive_gravity = calculate_team_max_finishing_gravity_with_fatigue_from_tables(
-            &target_candidates,
-            state.teams.player_attribute_tables(),
-            &context.offense_pos_index,
-            state.pitch(),
-            context.is_home_offense,
-            &|id| state.fatigue_lookup().get(id),
-        );
+        let offensive_gravity = state.offensive_gravity_for_team(context.offense_team_id);
 
         let carrier_table = *state.attribute_table_for(&carrier.id());
         let carrier_fatigue = state.fatigue_lookup().get(&carrier.id());

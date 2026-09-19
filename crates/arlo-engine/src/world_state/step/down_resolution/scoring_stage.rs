@@ -23,7 +23,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
     decision: ArtrineDecisionKind,
     contest: &ActionContestOutcome<'_>,
     progression: &ActionProgressionOutcome,
-    state: &mut MatchState,
+    state: &MatchState,
     call_context: &CallToActionContext,
     pass_phase: &PassPhaseResult<'_>,
     duels: &mut Vec<AttributedDuelOutcome>,

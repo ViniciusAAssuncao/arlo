@@ -1,3 +1,4 @@
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_captaincy_influence;
 use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
@@ -38,12 +39,15 @@ impl MatchState {
             .map(calculate_captaincy_influence)
             .unwrap_or(0.0);
         let is_captain = Some(incoming) == captain_id;
-        let table = *self.attribute_table_for(&incoming);
+        let table = self
+            .teams
+            .player_attribute_table(&incoming)
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         self.impulse.substitute_player(
             outgoing,
             incoming,
             is_home,
-            &table,
+            table,
             captain_influence,
             is_captain,
         );

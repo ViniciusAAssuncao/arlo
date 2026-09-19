@@ -1,3 +1,4 @@
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::physical::FatigueState;
 use crate::world_state::match_state::fatigue::FatigueLookup;
 use crate::world_state::match_state::state::MatchState;
@@ -37,12 +38,15 @@ impl MatchState {
             .find_player(&player_id)
             .map(|p| crate::physical::models::aerobic::calculate_player_age(p, 0))
             .unwrap_or(25.0);
-        let table = *self.attribute_table_for(&player_id);
+        let table = self
+            .teams
+            .player_attribute_table(&player_id)
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
         self.fatigue.apply_event_energy_decay(
             player_id,
             live_duration_seconds,
             is_home,
-            &table,
+            table,
             age_years,
         )
     }
@@ -53,8 +57,11 @@ impl MatchState {
         intensity: f64,
     ) -> (f64, f64) {
         let is_home = self.teams.is_home_player(&player_id);
-        let table = *self.attribute_table_for(&player_id);
-        self.fatigue.apply_contest_strain(player_id, intensity, is_home, &table)
+        let table = self
+            .teams
+            .player_attribute_table(&player_id)
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        self.fatigue.apply_contest_strain(player_id, intensity, is_home, table)
     }
 
     pub fn apply_dead_ball_recovery(&mut self, dead_ball_seconds: f64) -> Vec<(Uuid, f64, f64)> {

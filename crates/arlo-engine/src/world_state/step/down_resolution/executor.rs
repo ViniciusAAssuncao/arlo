@@ -15,15 +15,19 @@ use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
 use rand::Rng;
 
-pub fn resolve_down<R: Rng + ?Sized>(
+pub fn resolve_down<'a, R: Rng + ?Sized>(
     state: &mut MatchState,
     call_context: &CallToActionContext,
-    pass_phase: &PassPhaseResult<'_>,
-    offense_players: &[&Player],
-    defense_players: &[&Player],
+    pass_phase: &PassPhaseResult<'a>,
+    offense_players: &[&'a Player],
+    defense_players: &[&'a Player],
     rng: &mut R,
     sink: &mut impl EventSink,
 ) -> EngineResult<(ArtrineDecisionKind, ArtrineExecutionOutcome)> {
+    let seq = state.next_sequence();
+    let clock_inst = state.clock.to_instant();
+    let current_time_seconds = state.clock.seconds_in_period();
+
     let ctx = DownResolutionContext::build(
         state,
         call_context,
@@ -33,15 +37,12 @@ pub fn resolve_down<R: Rng + ?Sized>(
         defense_players,
     );
 
-    let decision = resolve_decision(&ctx, state, rng, sink);
+    let is_home_offense = ctx.is_home_offense;
+    let pitch_length_mirim = ctx.pitch_length_mirim;
+    let carrier_id = ctx.carrier.id();
+    let zone = ctx.zone;
 
-    let current_time_seconds = state.clock().seconds_in_period();
-    state.possession_mut().live_sequence_mut().record_touch(
-        ctx.carrier.id(),
-        TouchActionType::from(decision),
-        ctx.zone,
-        current_time_seconds,
-    );
+    let decision = resolve_decision(&ctx, &state.attribute_keys, seq, clock_inst, rng, sink);
 
     let contest = resolve_contest(&ctx, decision, state, rng);
     let progression = resolve_progression(&ctx, decision, &contest, state, rng);
@@ -60,10 +61,17 @@ pub fn resolve_down<R: Rng + ?Sized>(
         rng,
     );
 
+    state.possession.live_sequence_mut().record_touch(
+        carrier_id,
+        TouchActionType::from(decision),
+        zone,
+        current_time_seconds,
+    );
+
     if let Some(receiver) = contest.receiver {
-        if receiver.id() != ctx.carrier.id() && contest.attacker_won {
+        if receiver.id() != carrier_id && contest.attacker_won {
             let reception_time = current_time_seconds + progression.live_duration.value() * 0.5;
-            state.possession_mut().live_sequence_mut().record_touch(
+            state.possession.live_sequence_mut().record_touch(
                 receiver.id(),
                 TouchActionType::Reception,
                 progression.new_zone,
@@ -85,10 +93,10 @@ pub fn resolve_down<R: Rng + ?Sized>(
         progression.live_duration,
     );
 
-    let end_x_mirim = if ctx.is_home_offense {
-        progression.new_normalized_proximity * ctx.pitch_length_mirim
+    let end_x_mirim = if is_home_offense {
+        progression.new_normalized_proximity * pitch_length_mirim
     } else {
-        (1.0 - progression.new_normalized_proximity) * ctx.pitch_length_mirim
+        (1.0 - progression.new_normalized_proximity) * pitch_length_mirim
     };
     let end_y_mirim = 42.5;
 
@@ -100,7 +108,7 @@ pub fn resolve_down<R: Rng + ?Sized>(
     let receiver_id = contest
         .receiver
         .map(|p| p.id())
-        .or_else(|| Some(ctx.carrier.id()));
+        .or(Some(carrier_id));
 
     let outcome = ArtrineExecutionOutcome {
         mirins_advanced: progression.mirins_advanced,

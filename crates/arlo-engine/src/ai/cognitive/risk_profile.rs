@@ -1,6 +1,6 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::{
-    calculate_physical_exhaustion, extract_effective_attribute_value, DegradationContext,
+    calculate_physical_exhaustion, extract_effective_attributes_batch, DegradationContext,
 };
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
@@ -67,15 +67,21 @@ impl RiskProfile {
 
         let deg_ctx = DegradationContext::with_impulse(physical_state, impulse_state, baseline);
 
-        let flair = extract_effective_attribute_value(table, AttributeKey::Flair, &deg_ctx);
-        let bravery = extract_effective_attribute_value(table, AttributeKey::Bravery, &deg_ctx);
-        let vision = extract_effective_attribute_value(table, AttributeKey::Vision, &deg_ctx);
-        let decisions = extract_effective_attribute_value(table, AttributeKey::Decisions, &deg_ctx);
+        let [flair, bravery, vision, decisions] = extract_effective_attributes_batch(
+            table,
+            [
+                AttributeKey::Flair,
+                AttributeKey::Bravery,
+                AttributeKey::Vision,
+                AttributeKey::Decisions,
+            ],
+            &deg_ctx,
+        );
 
-        let norm_flair = (flair.clamp(0.0, 20.0)) / 10.0;
-        let norm_bravery = (bravery.clamp(0.0, 20.0)) / 10.0;
-        let norm_vision = (vision.clamp(0.0, 20.0)) / 10.0;
-        let norm_decisions = (decisions.clamp(0.0, 20.0)) / 10.0;
+        let norm_flair = flair / 10.0;
+        let norm_bravery = bravery / 10.0;
+        let norm_vision = vision / 10.0;
+        let norm_decisions = decisions / 10.0;
 
         let physical_exhaustion = calculate_physical_exhaustion(physical_state);
 

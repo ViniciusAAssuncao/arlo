@@ -43,7 +43,7 @@ impl<'a> ActionContestOutcome<'a> {
 }
 
 pub fn resolve_contest<'a, R: Rng + ?Sized>(
-    ctx: &'a DownResolutionContext<'a>,
+    ctx: &DownResolutionContext<'a>,
     decision: ArtrineDecisionKind,
     state: &MatchState,
     rng: &mut R,

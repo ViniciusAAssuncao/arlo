@@ -18,7 +18,7 @@ pub fn derive_and_apply_reorganization(
 ) -> (Duration, Duration) {
     let home_lineup = publisher.state().home_lineup_arc();
     let away_lineup = publisher.state().away_lineup_arc();
-    let player_attribute_tables = publisher.state().teams.player_attribute_tables().clone();
+    let player_attribute_tables = publisher.state().teams.player_attribute_tables();
 
     let is_home_offense = publisher
         .state()

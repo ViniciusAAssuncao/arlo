@@ -6,15 +6,18 @@ use crate::match_decision::event_translation::create_envelope;
 pub use crate::open_play::carrier_sampler::carrier_decision_steepness;
 use crate::open_play::carrier_sampler::sample_carrier_decision_from_table;
 use crate::open_play::CarrierDecisionEvaluator;
-use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
-use arlo_domain::ArtrineDecisionKind;
-use arlo_events::EventSink;
+use arlo_domain::{ArtrineDecisionKind, AttributeKey};
+use arlo_events::{EventSink, MatchClockInstant};
 use rand::Rng;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 pub fn resolve_decision<R: Rng + ?Sized>(
     ctx: &DownResolutionContext<'_>,
-    state: &mut MatchState,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    seq: u64,
+    clock_inst: MatchClockInstant,
     rng: &mut R,
     sink: &mut impl EventSink,
 ) -> ArtrineDecisionKind {
@@ -40,7 +43,7 @@ pub fn resolve_decision<R: Rng + ?Sized>(
         ctx.carrier_role,
         ctx.carrier_instructions,
         ctx.carrier_fatigue,
-        state.attribute_keys(),
+        attribute_keys,
         epv_model,
         current_epv,
         ctx.normalized_proximity,
@@ -73,14 +76,12 @@ pub fn resolve_decision<R: Rng + ?Sized>(
     );
 
     if ctx.is_true_artrine {
-        let seq = state.next_sequence();
         let decision_event = translate_artrine_decision_made(
             ctx.carrier.id(),
             result.chosen(),
             ctx.down as u32,
             result.chosen_probability(),
         );
-        let clock_inst = state.clock().to_instant();
         sink.record(create_envelope(seq, clock_inst, decision_event));
     }
 
