@@ -24,6 +24,7 @@ pub mod scoring_model;
 pub mod set_piece;
 pub mod team_identity;
 pub mod time;
+pub mod tuning;
 pub mod weighting;
 pub mod world_state;
 
@@ -41,4 +42,5 @@ pub use rng::{derive_sub_seed, derive_sub_seed_indexed, MatchSeed, RngProvider, 
 pub use scoring_model::*;
 pub use set_piece::*;
 pub use time::*;
+pub use tuning::*;
 pub use world_state::*;

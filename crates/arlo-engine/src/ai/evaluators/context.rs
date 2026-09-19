@@ -8,6 +8,7 @@ use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use crate::resolution::duel_noise::player_consistency_noise_scale;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
+use crate::scoring_model::ScoringDifficultyProfile;
 use crate::world_state::GameStatePressure;
 use arlo_domain::{ArtrineDecisionKind, ArtroPlacement, AttributeKey, Player, Position, SlotRole};
 use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
@@ -43,6 +44,7 @@ pub struct DecisionEvaluationContext<'a> {
     pub play_call_emphasis: DecisionEmphasis,
     pub is_true_artrine: bool,
     pub probability_bounds: (f64, f64),
+    pub scoring_difficulty: ScoringDifficultyProfile,
 }
 
 impl<'a> DecisionEvaluationContext<'a> {
@@ -88,6 +90,8 @@ impl<'a> DecisionEvaluationContext<'a> {
             &carrier_physical_state,
         );
 
+        let scoring_difficulty = epv_model.difficulty_profile();
+
         Self {
             carrier,
             carrier_table,
@@ -116,7 +120,16 @@ impl<'a> DecisionEvaluationContext<'a> {
             play_call_emphasis,
             is_true_artrine,
             probability_bounds,
+            scoring_difficulty,
         }
+    }
+
+    pub fn with_scoring_difficulty(
+        mut self,
+        scoring_difficulty: ScoringDifficultyProfile,
+    ) -> Self {
+        self.scoring_difficulty = scoring_difficulty;
+        self
     }
 
     pub fn calculate_probability_bounds(
@@ -254,5 +267,13 @@ impl<'a> DecisionEvaluationContext<'a> {
             self.normalized_proximity,
             self.is_lateral(),
         )
+    }
+
+    pub fn scoring_difficulty(&self) -> ScoringDifficultyProfile {
+        self.scoring_difficulty
+    }
+
+    pub fn scoring_difficulty_profile(&self) -> ScoringDifficultyProfile {
+        self.scoring_difficulty
     }
 }

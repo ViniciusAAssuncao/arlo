@@ -119,6 +119,8 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
             .value()
             < 0.5;
 
+    let difficulty_profile = state.tuning().scoring_difficulty;
+
     let req = ScoringAttemptRequest::new(
         effective_kicker,
         goalguard,
@@ -134,7 +136,8 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
     )
     .with_fatigue(fin_fatigue, gg_fatigue)
     .with_tables(fin_table, gg_table)
-    .with_defense_closed(defense_closed);
+    .with_defense_closed(defense_closed)
+    .with_difficulty_profile(difficulty_profile);
 
     let (score_dec, fin_duel) = resolve_scoring_attempt(req, rng);
     duels.push(fin_duel);

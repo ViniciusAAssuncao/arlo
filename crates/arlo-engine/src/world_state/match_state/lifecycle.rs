@@ -145,6 +145,7 @@ impl MatchState {
             forced_substitution_tracker,
             power_cache,
             gravity_cache,
+            tuning: params.tuning,
         };
 
         state.refresh_team_powers();

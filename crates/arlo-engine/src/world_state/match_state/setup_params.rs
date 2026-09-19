@@ -1,4 +1,5 @@
 use crate::rng::MatchSeed;
+use crate::tuning::EngineTuning;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{
     AttributeKey, FaultCatalog, Formation, InjuryCatalog, Manager, MatchFormatRules, Player,
@@ -58,6 +59,7 @@ pub struct MatchSetupParams {
     pub fault_catalog: Arc<FaultCatalog>,
     pub injury_catalog: Arc<InjuryCatalog>,
     pub player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
+    pub tuning: Arc<EngineTuning>,
     pub seed: MatchSeed,
 }
 
@@ -85,6 +87,7 @@ impl MatchSetupParams {
             fault_catalog,
             injury_catalog,
             player_injury_profiles: HashMap::new(),
+            tuning: Arc::new(EngineTuning::default()),
             seed,
         }
     }
@@ -94,6 +97,11 @@ impl MatchSetupParams {
         player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
     ) -> Self {
         self.player_injury_profiles = player_injury_profiles;
+        self
+    }
+
+    pub fn with_tuning(mut self, tuning: Arc<EngineTuning>) -> Self {
+        self.tuning = tuning;
         self
     }
 }

@@ -117,6 +117,7 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                     taker_id,
                 ))
             } else {
+                let difficulty_profile = state.tuning().scoring_difficulty;
                 let (scoring_decision, shot_duel) = resolve_kick_foul_shot(
                     participants.kicker,
                     participants.goalguard,
@@ -125,6 +126,7 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                     attribute_keys,
                     tables,
                     &duel_context,
+                    difficulty_profile,
                     rng,
                 );
                 duels.push(shot_duel);

@@ -6,6 +6,7 @@ use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::possession::locate_zone;
 use crate::psychology::state::ImpulseState;
 use crate::resolution::DuelContext;
+use crate::scoring_model::ScoringDifficultyProfile;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -57,6 +58,7 @@ pub struct DownResolutionContext<'a> {
     pub offense_tempo_value: f64,
     pub state_advanced_mirins: f64,
     pub possession_advanced_mirins: f64,
+    pub scoring_difficulty: ScoringDifficultyProfile,
 }
 
 impl<'a> DownResolutionContext<'a> {
@@ -190,6 +192,7 @@ impl<'a> DownResolutionContext<'a> {
 
         let passing_range = offense_instructions.in_possession().passing_range();
         let is_true_artrine = carrier.id() == pass_phase.artrine.id();
+        let scoring_difficulty = state.tuning().scoring_difficulty;
 
         Self {
             offense_team_id: context.offense_team_id,
@@ -235,6 +238,7 @@ impl<'a> DownResolutionContext<'a> {
             offense_tempo_value,
             state_advanced_mirins: state.possession().series_state().advanced_mirins(),
             possession_advanced_mirins: state.possession().possession_origin().total_advanced_mirins(),
+            scoring_difficulty,
         }
     }
 }

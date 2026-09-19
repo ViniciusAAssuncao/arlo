@@ -5,7 +5,7 @@ use crate::match_decision::scoring::{
     duel_kind_for_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
 };
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::scoring_model::ScoringOrigin;
+use crate::scoring_model::{ScoringDifficultyProfile, ScoringOrigin};
 use arlo_domain::{AttributeKey, KickFoulScoringTier, Player};
 use rand::Rng;
 use std::collections::HashMap;
@@ -19,6 +19,7 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     tables: &HashMap<Uuid, PlayerAttributeTable>,
     duel_context: &DuelContext,
+    difficulty_profile: ScoringDifficultyProfile,
     rng: &mut R,
 ) -> (ScoringDecision, AttributedDuelOutcome) {
     let kicker_table = tables
@@ -57,7 +58,8 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
         &finish_context,
     )
     .with_tables(Some(kicker_table), Some(gg_table))
-    .with_origin(ScoringOrigin::KickFoul);
+    .with_origin(ScoringOrigin::KickFoul)
+    .with_difficulty_profile(difficulty_profile);
 
     resolve_scoring_attempt(req, rng)
 }

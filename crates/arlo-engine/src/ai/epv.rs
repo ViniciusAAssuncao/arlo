@@ -11,17 +11,33 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DynamicEpvModel {
     offensive_gravity: f64,
+    difficulty_profile: ScoringDifficultyProfile,
 }
 
 impl DynamicEpvModel {
     pub fn new(offensive_gravity: f64) -> Self {
         Self {
             offensive_gravity: offensive_gravity.max(0.1),
+            difficulty_profile: ScoringDifficultyProfile::default(),
+        }
+    }
+
+    pub fn with_difficulty(
+        offensive_gravity: f64,
+        difficulty_profile: ScoringDifficultyProfile,
+    ) -> Self {
+        Self {
+            offensive_gravity: offensive_gravity.max(0.1),
+            difficulty_profile,
         }
     }
 
     pub fn offensive_gravity(&self) -> f64 {
         self.offensive_gravity
+    }
+
+    pub fn difficulty_profile(&self) -> ScoringDifficultyProfile {
+        self.difficulty_profile
     }
 
     pub fn goal_probability(
@@ -45,8 +61,7 @@ impl DynamicEpvModel {
             true,
             ScoringOrigin::OpenPlay,
         );
-        let difficulty_profile = ScoringDifficultyProfile::default();
-        calculate_scoring_probability(ScoringKind::GoalPoint, &situation, &difficulty_profile).value()
+        calculate_scoring_probability(ScoringKind::GoalPoint, &situation, &self.difficulty_profile).value()
     }
 
     pub fn field_point_probability(
@@ -70,8 +85,7 @@ impl DynamicEpvModel {
             false,
             ScoringOrigin::OpenPlay,
         );
-        let difficulty_profile = ScoringDifficultyProfile::default();
-        calculate_scoring_probability(ScoringKind::FieldPoint, &situation, &difficulty_profile).value()
+        calculate_scoring_probability(ScoringKind::FieldPoint, &situation, &self.difficulty_profile).value()
     }
 
     pub fn turnover_probability(

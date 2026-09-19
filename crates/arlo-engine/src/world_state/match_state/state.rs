@@ -7,6 +7,7 @@ use crate::officiating::AddedTimeTracker;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
 use crate::time::RealTimeAccumulator;
+use crate::tuning::EngineTuning;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
 use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
@@ -68,6 +69,7 @@ pub struct MatchState {
     pub(crate) forced_substitution_tracker: ForcedSubstitutionTracker,
     pub(crate) power_cache: MatchPowerCache,
     pub(crate) gravity_cache: MatchGravityCache,
+    pub(crate) tuning: Arc<EngineTuning>,
 }
 
 impl MatchState {
@@ -223,6 +225,14 @@ impl MatchState {
     pub fn offensive_gravity_for_team(&self, team_id: Uuid) -> OffensiveGravity {
         self.gravity_cache
             .gravity_for_team(team_id, self.teams.home_team_id())
+    }
+
+    pub fn tuning(&self) -> &EngineTuning {
+        &self.tuning
+    }
+
+    pub fn tuning_arc(&self) -> Arc<EngineTuning> {
+        Arc::clone(&self.tuning)
     }
 
     pub fn invalidate_team_power(&mut self) {

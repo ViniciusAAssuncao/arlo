@@ -4,8 +4,7 @@ use crate::ai::evaluators::generic_evaluator::evaluate_action_utility;
 use crate::attributes::profiles::AttributeProfile;
 use crate::caching::get_cached_decision_profile;
 use crate::scoring_model::{
-    calculate_scoring_probability, ScoringDifficultyProfile, ScoringKind, ScoringOrigin,
-    ScoringSituation,
+    calculate_scoring_probability, ScoringKind, ScoringOrigin, ScoringSituation,
 };
 use arlo_domain::ArtrineDecisionKind;
 
@@ -175,7 +174,7 @@ pub fn cross_config() -> ActionEvaluationConfig {
                     ScoringOrigin::OpenPlay,
                 );
 
-                let difficulty_profile = ScoringDifficultyProfile::default();
+                let difficulty_profile = ctx.scoring_difficulty();
                 let raw_prob = calculate_scoring_probability(
                     scoring_kind,
                     &situation,
@@ -218,7 +217,7 @@ pub fn finish_config() -> ActionEvaluationConfig {
                     ScoringOrigin::OpenPlay,
                 );
 
-                let difficulty_profile = ScoringDifficultyProfile::default();
+                let difficulty_profile = ctx.scoring_difficulty();
                 calculate_scoring_probability(scoring_kind, &situation, &difficulty_profile).value()
                     * ctx.shooting_angle_factor()
             },

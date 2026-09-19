@@ -28,7 +28,7 @@ pub fn resolve_decision<R: Rng + ?Sized>(
         ctx.is_bonus_phase,
     );
 
-    let epv_model = DynamicEpvModel::new(ctx.offensive_gravity);
+    let epv_model = DynamicEpvModel::with_difficulty(ctx.offensive_gravity, ctx.scoring_difficulty);
     let current_epv = epv_model.calculate_epa(
         ctx.normalized_proximity,
         ctx.down,
@@ -61,7 +61,8 @@ pub fn resolve_decision<R: Rng + ?Sized>(
         ctx.game_state_pressure,
         ctx.decision_emphasis,
         ctx.is_true_artrine,
-    );
+    )
+    .with_scoring_difficulty(ctx.scoring_difficulty);
 
     let utilities =
         CarrierDecisionEvaluator::evaluate_action_utilities(&eval_ctx, &available_kinds);
