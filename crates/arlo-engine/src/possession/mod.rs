@@ -1,4 +1,5 @@
 pub mod ball_state;
+pub mod bonus_phase;
 pub mod clock_state;
 pub mod immediate_loss;
 pub mod live_sequence;
@@ -12,6 +13,7 @@ pub mod turnover_fsm;
 pub mod zone_locator;
 
 pub use ball_state::*;
+pub use bonus_phase::*;
 pub use clock_state::*;
 pub use immediate_loss::*;
 pub use live_sequence::*;

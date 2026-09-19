@@ -6,7 +6,7 @@ use uuid::Uuid;
 pub enum ScoringOpportunity {
     GoalPoint,
     FieldPoint,
-    FieldGoal(ScoringPost),
+    FieldGoal,
     None,
 }
 

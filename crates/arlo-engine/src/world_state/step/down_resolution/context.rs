@@ -1,12 +1,14 @@
 use crate::ai::cognitive::RiskProfile;
+use crate::ai::evaluators::{ContextCarrier, ContextSituation};
 use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::target_selection::{calculate_player_target_weight, ReceptionRole};
 use crate::physical::PhysicalState;
 use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::possession::locate_zone;
 use crate::psychology::state::ImpulseState;
-use crate::resolution::{DuelContext, ContestOrientation};
+use crate::resolution::{ContestOrientation, DuelContext};
 use crate::scoring_model::ScoringDifficultyProfile;
+use crate::scoring_regime::ScoringRegimePolicy;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -58,6 +60,7 @@ pub struct DownResolutionContext<'a> {
     pub offense_tempo_value: f64,
     pub state_advanced_mirins: f64,
     pub possession_advanced_mirins: f64,
+    pub scoring_regime: ScoringRegimePolicy,
     pub scoring_difficulty: ScoringDifficultyProfile,
 }
 
@@ -194,7 +197,8 @@ impl<'a> DownResolutionContext<'a> {
 
         let passing_range = offense_instructions.in_possession().passing_range();
         let is_true_artrine = carrier.id() == pass_phase.artrine.id();
-        let scoring_difficulty = state.tuning().scoring_difficulty;
+        let scoring_regime = ScoringRegimePolicy::default();
+        let scoring_difficulty = *state.tuning().scoring_difficulty();
 
         Self {
             offense_team_id: context.offense_team_id,
@@ -240,7 +244,53 @@ impl<'a> DownResolutionContext<'a> {
             offense_tempo_value,
             state_advanced_mirins: state.possession().series_state().advanced_mirins(),
             possession_advanced_mirins: state.possession().possession_origin().total_advanced_mirins(),
+            scoring_regime,
             scoring_difficulty,
+        }
+    }
+
+    pub fn build_carrier_context(&self) -> ContextCarrier<'_> {
+        let prob_bounds = crate::ai::evaluators::DecisionEvaluationContext::calculate_probability_bounds(
+            &self.carrier_table,
+            &self.carrier_fatigue,
+        );
+        ContextCarrier {
+            player: self.carrier,
+            table: &self.carrier_table,
+            position: self.carrier_pos_domain,
+            role: self.carrier_role,
+            instructions: self.carrier_instructions,
+            physical_state: self.carrier_fatigue,
+            probability_bounds: prob_bounds,
+        }
+    }
+
+    pub fn build_situation_context(&self) -> ContextSituation {
+        let pitch_control = (0.50 + 0.04 * self.team_advantage - 0.08 * self.normalized_proximity
+            + 0.04 * self.game_state_pressure.urgency_index())
+        .clamp(0.15, 0.85);
+
+        let expected_free_path =
+            (pitch_control * (1.0 - self.normalized_proximity) * 35.0).clamp(1.5, 25.0);
+
+        ContextSituation {
+            drives_in_series: self.drives_in_series,
+            down: self.down,
+            remaining_advance_mirim: self.remaining_advance_mirim,
+            pass_protection_net_advantage: self.pass_protection_advantage,
+            target_quality: (self.best_target_weight - 8.0) / 10.0,
+            long_launch_target_quality: (self.long_launch_target_weight - 8.0) / 10.0,
+            team_advantage: self.team_advantage,
+            channel: self.channel,
+            pitch_control,
+            expected_free_path,
+            offensive_gravity: self.offensive_gravity,
+            passing_range: self.passing_range,
+            game_state_pressure: self.game_state_pressure,
+            play_call_emphasis: self.decision_emphasis,
+            is_true_artrine: self.is_true_artrine,
+            is_bonus_phase: self.is_bonus_phase,
+            normalized_proximity: self.normalized_proximity,
         }
     }
 }

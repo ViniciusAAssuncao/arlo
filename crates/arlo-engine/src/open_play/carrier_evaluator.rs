@@ -1,4 +1,4 @@
-use crate::ai::evaluators::action_configs::get_action_config;
+use crate::ai::evaluators::action_evalutors::get_action_config;
 use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::generic_evaluator::evaluate_action_utility;
 use arlo_domain::ArtrineDecisionKind;

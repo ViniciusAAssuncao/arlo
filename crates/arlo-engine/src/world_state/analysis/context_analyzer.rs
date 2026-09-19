@@ -1,5 +1,6 @@
-use crate::world_state::constants::*;
-use crate::world_state::MatchState;
+use crate::world_state::core::constants::*;
+use crate::world_state::match_state::MatchState;
+use crate::scoring_regime::ScoringRegimePolicy;
 use arlo_domain::sport_constants::{
     KICK_FOUL_CROSS_LATERAL_BIAS_BASE, KICK_FOUL_CROSS_LATERAL_BIAS_SCALE,
     KICK_FOUL_SHOOT_GOAL_POINT_BIAS_WEIGHT_FIRST_ZONE,
@@ -85,14 +86,14 @@ impl GameStatePressure {
         self.action_risk_multiplier(0.60)
     }
 
-    pub fn bias_for_decision(&self, kind: ArtrineDecisionKind, drives_in_series: u32) -> f64 {
+    pub fn bias_for_decision(&self, kind: ArtrineDecisionKind, drives_in_series: u32, regime: &ScoringRegimePolicy) -> f64 {
         let raw = match kind {
             ArtrineDecisionKind::SelfCarry => {
                 let base = self.carry_bias();
-                if drives_in_series < DRIVES_THRESHOLD_FOR_SCORING_OPPORTUNITY {
+                if drives_in_series < regime.goal_point_required_drives {
                     base * (1.0
                         + CARRY_EARLY_DRIVE_BONUS_MULTIPLIER
-                            * ((DRIVES_THRESHOLD_FOR_SCORING_OPPORTUNITY - drives_in_series)
+                            * ((regime.goal_point_required_drives - drives_in_series)
                                 as f64))
                 } else {
                     base
@@ -101,7 +102,7 @@ impl GameStatePressure {
             ArtrineDecisionKind::ShortPass => self.short_pass_bias(),
             ArtrineDecisionKind::LongLaunch => self.long_launch_bias(),
             ArtrineDecisionKind::Cross => {
-                let scoring = if drives_in_series >= DRIVES_THRESHOLD_FOR_SCORING_OPPORTUNITY {
+                let scoring = if drives_in_series >= regime.goal_point_required_drives {
                     self.goal_point_bias()
                 } else {
                     self.field_point_bias()
@@ -109,7 +110,7 @@ impl GameStatePressure {
                 self.cross_bias() * scoring
             }
             ArtrineDecisionKind::SelfFinish => {
-                let scoring = if drives_in_series >= DRIVES_THRESHOLD_FOR_SCORING_OPPORTUNITY {
+                let scoring = if drives_in_series >= regime.goal_point_required_drives {
                     self.goal_point_bias()
                 } else {
                     self.field_point_bias()

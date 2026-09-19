@@ -1,6 +1,6 @@
+use crate::possession::bonus_phase::{BonusPhasePolicy, BonusPhaseState};
 use arlo_domain::sport_constants::{
-    DEFAULT_BONUS_PHASE_MAX_PLAYS, MAX_CALL_TO_ACTIONS_PER_SERIES,
-    MINIMUM_ADVANCE_MIRINS_PER_SERIES,
+    MAX_CALL_TO_ACTIONS_PER_SERIES, MINIMUM_ADVANCE_MIRINS_PER_SERIES,
 };
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +9,7 @@ pub struct SeriesState {
     down: u8,
     advanced_mirins: f64,
     scrimmage_x_mirim: f64,
-    pub is_bonus_phase: bool,
+    pub bonus_phase: BonusPhaseState,
 }
 
 impl SeriesState {
@@ -18,7 +18,7 @@ impl SeriesState {
             down,
             advanced_mirins,
             scrimmage_x_mirim,
-            is_bonus_phase: false,
+            bonus_phase: BonusPhaseState::Inactive,
         }
     }
 
@@ -26,13 +26,13 @@ impl SeriesState {
         down: u8,
         advanced_mirins: f64,
         scrimmage_x_mirim: f64,
-        is_bonus_phase: bool,
+        bonus_phase: BonusPhaseState,
     ) -> Self {
         Self {
             down,
             advanced_mirins,
             scrimmage_x_mirim,
-            is_bonus_phase,
+            bonus_phase,
         }
     }
 
@@ -41,7 +41,7 @@ impl SeriesState {
             down: 1,
             advanced_mirins: 0.0,
             scrimmage_x_mirim,
-            is_bonus_phase: false,
+            bonus_phase: BonusPhaseState::Inactive,
         }
     }
 
@@ -58,11 +58,15 @@ impl SeriesState {
     }
 
     pub fn is_bonus_phase(&self) -> bool {
-        self.is_bonus_phase
+        self.bonus_phase.is_active()
     }
 
-    pub fn set_bonus_phase(&mut self, is_bonus_phase: bool) {
-        self.is_bonus_phase = is_bonus_phase;
+    pub fn set_bonus_phase(&mut self, bonus_phase: bool) {
+        self.bonus_phase = if bonus_phase {
+            BonusPhaseState::Active
+        } else {
+            BonusPhaseState::Inactive
+        };
     }
 
     pub fn set_scrimmage_x_mirim(&mut self, new_scrimmage_x_mirim: f64) {
@@ -74,8 +78,8 @@ impl SeriesState {
     }
 
     pub fn max_downs(&self) -> u8 {
-        if self.is_bonus_phase {
-            DEFAULT_BONUS_PHASE_MAX_PLAYS as u8
+        if self.is_bonus_phase() {
+            BonusPhasePolicy::default().max_plays
         } else {
             MAX_CALL_TO_ACTIONS_PER_SERIES as u8
         }
@@ -99,7 +103,7 @@ impl SeriesState {
     }
 
     pub fn should_turnover_on_downs(&self) -> bool {
-        if self.is_bonus_phase {
+        if self.is_bonus_phase() {
             self.is_last_down()
         } else {
             self.is_last_down() && !self.has_achieved_target()
@@ -110,7 +114,7 @@ impl SeriesState {
         self.down = 1;
         self.advanced_mirins = 0.0;
         self.scrimmage_x_mirim = new_scrimmage_x_mirim;
-        self.is_bonus_phase = false;
+        self.bonus_phase = BonusPhaseState::Inactive;
     }
 
     pub fn remaining_mirins_to_target(&self) -> f64 {

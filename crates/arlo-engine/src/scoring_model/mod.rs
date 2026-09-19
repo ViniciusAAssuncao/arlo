@@ -1,6 +1,5 @@
 pub mod difficulty_curves;
-pub mod eligibility;
-pub mod post_selection;
+pub mod post_choice;
 pub mod rating_gap_scaling;
 pub mod scoring_kind;
 pub mod scoring_origin;
@@ -9,8 +8,7 @@ pub mod success_model;
 pub mod tuning;
 
 pub use difficulty_curves::*;
-pub use eligibility::*;
-pub use post_selection::*;
+pub use post_choice::*;
 pub use rating_gap_scaling::*;
 pub use scoring_kind::*;
 pub use scoring_origin::*;

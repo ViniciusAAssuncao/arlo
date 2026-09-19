@@ -22,6 +22,7 @@ pub mod psychology;
 pub mod resolution;
 pub mod rng;
 pub mod scoring_model;
+pub mod scoring_regime;
 pub mod set_piece;
 pub mod team_identity;
 pub mod team_strength;

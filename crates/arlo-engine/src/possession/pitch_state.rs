@@ -1,7 +1,6 @@
 use crate::possession::zone_locator::locate_zone;
-use arlo_domain::sport_constants::{
-    AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM, FIELD_POINT_REQUIRED_DRIVES, GOAL_POINT_REQUIRED_DRIVES,
-};
+use crate::scoring_regime::ScoringRegimePolicy;
+use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
 use arlo_domain::{ArtroPlacement, PitchZone};
 use serde::{Deserialize, Serialize};
 
@@ -85,12 +84,12 @@ impl PitchState {
         self.is_last_down() && self.remaining_advance_mirim > 0.0
     }
 
-    pub fn can_attempt_goal_point(&self) -> bool {
-        self.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES && !self.is_bonus_phase
+    pub fn can_attempt_goal_point(&self, regime: &ScoringRegimePolicy) -> bool {
+        self.drives_in_series >= regime.goal_point_required_drives && !self.is_bonus_phase
     }
 
-    pub fn can_attempt_field_point(&self) -> bool {
-        self.drives_in_series >= FIELD_POINT_REQUIRED_DRIVES
+    pub fn can_attempt_field_point(&self, regime: &ScoringRegimePolicy) -> bool {
+        self.drives_in_series >= regime.field_point_required_drives
             && (self.normalized_proximity >= 0.6
                 || self.zone == PitchZone::SecondZone
                 || self.zone == PitchZone::FirstZone)

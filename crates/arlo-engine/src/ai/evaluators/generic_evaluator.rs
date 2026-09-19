@@ -1,49 +1,52 @@
-use crate::ai::evaluators::action_configs::{ActionEvaluationConfig, ActionKindConfig};
+use crate::ai::evaluators::action_evalutors::{ActionEvaluationConfig, ActionKindConfig};
 use crate::ai::evaluators::context::DecisionEvaluationContext;
-use arlo_domain::sport_constants::{FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE};
+use arlo_domain::sport_constants::{
+    FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
+};
 
 pub fn evaluate_action_utility(
     ctx: &DecisionEvaluationContext<'_>,
     config: &ActionEvaluationConfig,
 ) -> f64 {
-    let profile = (config.profile_fn)();
+    let profile = (config.profile_fn)(config.decision_kind);
     let intrinsic_rating = ctx.carrier_rating(profile);
-    let skill_mult = ctx.skill_multiplier(intrinsic_rating);
+    let skill_mult = intrinsic_rating / 10.0;
 
     let (p_succ, p_to, p_fail, delta_succ, delta_fail, delta_to, geometry_factor, urgency_bonus) =
         match &config.kind_config {
             ActionKindConfig::Progression(prog) => {
                 let (adv_mirim, est_drives) = (prog.advance_fn)(ctx, skill_mult);
-                let new_drives = ctx.drives_in_series + est_drives;
-                let (new_down, new_rem) = if adv_mirim >= ctx.remaining_advance_mirim {
+                let new_drives = ctx.situation.drives_in_series + est_drives;
+                let (new_down, new_rem) = if adv_mirim >= ctx.situation.remaining_advance_mirim {
                     (1, 10.0)
                 } else {
                     (
-                        ctx.down.saturating_add(1).min(4),
-                        (ctx.remaining_advance_mirim - adv_mirim).max(0.0),
+                        ctx.situation.down.saturating_add(1).min(4),
+                        (ctx.situation.remaining_advance_mirim - adv_mirim).max(0.0),
                     )
                 };
-                let new_norm_x =
-                    (ctx.normalized_proximity + adv_mirim / ctx.pitch_length_mirim().max(1.0)).min(1.0);
+                let new_norm_x = (ctx.situation.normalized_proximity + adv_mirim / 145.0).min(1.0);
                 let epv_success =
-                    ctx.epv_model.calculate_epa(new_norm_x, new_down, new_rem, new_drives);
-                let epv_fail = if ctx.down >= 4 && ctx.remaining_advance_mirim > 0.0 {
+                    ctx.epv_model
+                        .calculate_epa(new_norm_x, new_down, new_rem, new_drives, &ctx.scoring_regime);
+                let epv_fail = if ctx.situation.down >= 4 && ctx.situation.remaining_advance_mirim > 0.0 {
                     -ctx.opponent_epa()
                 } else {
                     ctx.epv_model.calculate_epa(
-                        ctx.normalized_proximity,
-                        ctx.down.saturating_add(1).min(4),
-                        ctx.remaining_advance_mirim,
-                        ctx.drives_in_series,
+                        ctx.situation.normalized_proximity,
+                        ctx.situation.down.saturating_add(1).min(4),
+                        ctx.situation.remaining_advance_mirim,
+                        ctx.situation.drives_in_series,
+                        &ctx.scoring_regime,
                     )
                 };
                 let epv_to = -ctx.opponent_epa();
 
                 let raw_p = (prog.success_prob_fn)(ctx, skill_mult);
                 let p_succ = ctx.bound_probability(raw_p);
-                let (min_p, _) = ctx.probability_bounds();
+                let (min_p, _) = ctx.carrier.probability_bounds;
                 let p_to = (((1.0 - p_succ) * prog.turnover_scale)
-                    / ctx.game_state_pressure.turnover_aversion_scale())
+                    / ctx.situation.game_state_pressure.turnover_aversion_scale())
                 .clamp(min_p, (1.0 - p_succ).max(min_p));
                 let p_fail = (1.0 - p_succ - p_to).max(0.0);
 
@@ -61,9 +64,15 @@ pub fn evaluate_action_utility(
                 )
             }
             ActionKindConfig::TerminalScore(term) => {
-                let value = if ctx.drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
+                let value = if ctx.situation.is_bonus_phase {
+                    FIELD_GOAL_GOALPOST_VALUE as f64
+                } else if ctx.situation.drives_in_series
+                    >= ctx.scoring_regime.goal_point_required_drives
+                {
                     GOAL_POINT_VALUE as f64
-                } else if ctx.drives_in_series >= 1 {
+                } else if ctx.situation.drives_in_series
+                    >= ctx.scoring_regime.field_point_required_drives
+                {
                     FIELD_POINT_VALUE as f64
                 } else {
                     2.0
@@ -104,11 +113,13 @@ pub fn evaluate_action_utility(
 
     let expected_future_value = nw_succ * v_succ + nw_fail * v_fail + nw_to * v_to;
 
-    let gravity_factor = 0.70 + 0.30 * ctx.offensive_gravity.min(2.0);
+    let gravity_factor = 0.70 + 0.30 * ctx.situation.offensive_gravity.min(2.0);
     let risk_multiplier = ctx.risk_profile.risk_multiplier_for_action(config.decision_kind);
-    let game_state_bias = ctx
-        .game_state_pressure
-        .bias_for_decision(config.decision_kind, ctx.drives_in_series);
+    let game_state_bias = ctx.situation.game_state_pressure.bias_for_decision(
+        config.decision_kind,
+        ctx.situation.drives_in_series,
+        &ctx.scoring_regime,
+    );
     let emphasis_multiplier = 1.0 + ctx.emphasis_for(config.decision_kind);
     let tactical_bias = ctx.carrier_tactical_bias(config.decision_kind);
 

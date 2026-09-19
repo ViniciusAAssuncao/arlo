@@ -1,12 +1,10 @@
-use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::lineup_runtime::find_goalguard;
 use crate::match_decision::{
-    duel_kind_for_opportunity, evaluate_scoring_opportunity, resolve_scoring_attempt,
-    ScoringAttemptRequest, ScoringDecision, ScoringOpportunity,
+    duel_kind_for_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
+    ScoringOpportunity,
 };
-use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::AttributedDuelOutcome;
-use crate::resolution::DuelKind;
+use crate::scoring_regime::evaluate_scoring_opportunity;
 use crate::set_piece::select_kicker;
 use crate::world_state::cta_pass::PassPhaseResult;
 use crate::world_state::match_state::MatchState;
@@ -14,7 +12,7 @@ use crate::world_state::step::down_resolution::contest_stage::ActionContestOutco
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
 use crate::world_state::step::down_resolution::progression_stage::ActionProgressionOutcome;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::{ArtrineDecisionKind, Position};
+use arlo_domain::ArtrineDecisionKind;
 use rand::Rng;
 use uuid::Uuid;
 
@@ -33,19 +31,6 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         return ScoringDecision::NoOpportunity;
     }
 
-    let total_drives = ctx.drives_in_series + progression.drives_recorded;
-    let total_adv = ctx.possession_advanced_mirins + progression.mirins_advanced;
-
-    let finisher = contest.receiver.unwrap_or(ctx.carrier);
-    let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);
-    let fin_rating = calculate_player_duel_rating_from_table(
-        finisher,
-        Position::CenterOffense,
-        state.attribute_table_for(&finisher.id()),
-        &att_prof,
-        &state.fatigue_lookup().get(&finisher.id()),
-    );
-
     let is_scoring_action = decision == ArtrineDecisionKind::SelfFinish
         || decision == ArtrineDecisionKind::Cross;
 
@@ -53,11 +38,14 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         return ScoringDecision::NoOpportunity;
     }
 
+    let total_drives = ctx.drives_in_series + progression.drives_recorded;
+    let total_adv = ctx.possession_advanced_mirins + progression.mirins_advanced;
+
     let opportunity = evaluate_scoring_opportunity(
+        &ctx.scoring_regime,
         ctx.is_bonus_phase,
         total_drives,
         total_adv,
-        fin_rating,
     );
 
     if opportunity == ScoringOpportunity::None {
@@ -73,9 +61,11 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         .duel_context
         .for_duel_kind(duel_kind_for_opportunity(opportunity));
 
+    let finisher = contest.receiver.unwrap_or(ctx.carrier);
+
     let effective_kicker = if matches!(
         opportunity,
-        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_)
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal
     ) {
         let mut candidates = ctx.target_candidates.clone();
         if !candidates.iter().any(|p| p.id() == finisher.id()) {

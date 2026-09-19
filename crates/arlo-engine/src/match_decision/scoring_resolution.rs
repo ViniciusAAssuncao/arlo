@@ -6,38 +6,16 @@ use crate::resolution::calculate_player_duel_rating_with_state;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
 use crate::resolution::{AttributedDuelOutcome, DuelKind, DuelOutcome};
 use crate::scoring_model::{
-    calculate_scoring_probability, can_attempt_field_goal, can_attempt_field_point,
-    can_attempt_goal_point, select_post_for_field_goal, ScoringKind, ScoringSituation,
+    calculate_scoring_probability, ScoringKind, ScoringSituation, select_post_for_field_goal
 };
 use arlo_domain::sport_constants::{
     FIELD_GOAL_FIELDPOST_VALUE, FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
 };
-use arlo_domain::Position;
+use arlo_domain::{AttributeKey, Position};
 use arlo_events::ScoringPost;
 use rand::Rng;
 use smallvec::smallvec;
 use uuid::Uuid;
-
-pub fn evaluate_scoring_opportunity(
-    is_bonus_phase: bool,
-    drives_in_series: u32,
-    territory_advance_mirim: f64,
-    _finisher_rating: f64,
-) -> ScoringOpportunity {
-    if is_bonus_phase {
-        if !can_attempt_field_goal(drives_in_series, territory_advance_mirim) {
-            ScoringOpportunity::None
-        } else {
-            ScoringOpportunity::FieldGoal(ScoringPost::Fieldpost)
-        }
-    } else if can_attempt_goal_point(drives_in_series) {
-        ScoringOpportunity::GoalPoint
-    } else if can_attempt_field_point(drives_in_series, territory_advance_mirim) {
-        ScoringOpportunity::FieldPoint
-    } else {
-        ScoringOpportunity::None
-    }
-}
 
 pub fn goal_point_points() -> u32 {
     GOAL_POINT_VALUE as u32
@@ -56,7 +34,7 @@ pub fn field_goal_points(post: ScoringPost) -> u32 {
 
 pub fn duel_kind_for_opportunity(opportunity: ScoringOpportunity) -> DuelKind {
     match opportunity {
-        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal(_) => {
+        ScoringOpportunity::FieldPoint | ScoringOpportunity::FieldGoal => {
             DuelKind::FieldGoalAttempt
         }
         ScoringOpportunity::GoalPoint | ScoringOpportunity::None => DuelKind::FinishingAttempt,
@@ -131,14 +109,20 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         request.origin,
     );
 
+    let difficulty_profile = request.difficulty_profile.unwrap_or_default();
+
     let scoring_kind = match request.opportunity {
         ScoringOpportunity::GoalPoint => ScoringKind::GoalPoint,
         ScoringOpportunity::FieldPoint => ScoringKind::FieldPoint,
-        ScoringOpportunity::FieldGoal(_) => ScoringKind::FieldGoal(select_post_for_field_goal(&situation)),
+        ScoringOpportunity::FieldGoal => {
+            let decisions_val = request.finisher_table
+                .map(|t| t.get(AttributeKey::Decisions))
+                .unwrap_or(10.0);
+            ScoringKind::FieldGoal(select_post_for_field_goal(&situation, &difficulty_profile, decisions_val, rng))
+        },
         ScoringOpportunity::None => ScoringKind::FieldPoint,
     };
 
-    let difficulty_profile = request.difficulty_profile.unwrap_or_default();
     let win_prob = calculate_scoring_probability(scoring_kind, &situation, &difficulty_profile);
     let attacker_won = win_prob.sample(rng);
 

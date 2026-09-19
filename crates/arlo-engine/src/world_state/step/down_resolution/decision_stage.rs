@@ -5,11 +5,11 @@ use crate::artrine::event_translation::translate_artrine_decision_made;
 use crate::match_decision::event_translation::create_envelope;
 pub use crate::open_play::carrier_sampler::carrier_decision_steepness;
 use crate::open_play::carrier_sampler::sample_carrier_decision_from_table;
-use crate::open_play::CarrierDecisionEvaluator;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey};
 use arlo_events::{EventSink, MatchClockInstant};
 use rand::Rng;
+use smallvec::SmallVec;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -28,44 +28,37 @@ pub fn resolve_decision<R: Rng + ?Sized>(
         ctx.is_bonus_phase,
     );
 
-    let epv_model = DynamicEpvModel::with_difficulty(ctx.offensive_gravity, ctx.scoring_difficulty);
+    let epv_model = DynamicEpvModel::with_difficulty(
+        ctx.offensive_gravity,
+        ctx.scoring_difficulty,
+    );
     let current_epv = epv_model.calculate_epa(
         ctx.normalized_proximity,
         ctx.down,
         ctx.remaining_advance_mirim,
         ctx.drives_in_series,
+        &ctx.scoring_regime,
     );
 
+    let carrier_ctx = ctx.build_carrier_context();
+    let sit_ctx = ctx.build_situation_context();
+
     let eval_ctx = DecisionEvaluationContext::new(
-        ctx.carrier,
-        &ctx.carrier_table,
-        ctx.carrier_pos_domain,
-        ctx.carrier_role,
-        ctx.carrier_instructions,
-        ctx.carrier_fatigue,
+        carrier_ctx,
+        sit_ctx,
         attribute_keys,
         epv_model,
         current_epv,
-        ctx.normalized_proximity,
-        ctx.drives_in_series,
-        ctx.down,
-        ctx.remaining_advance_mirim,
-        ctx.pass_protection_advantage,
-        ctx.best_target_weight,
-        ctx.long_launch_target_weight,
-        ctx.team_advantage,
-        ctx.channel,
-        ctx.offensive_gravity,
-        ctx.passing_range,
         ctx.risk_profile,
-        ctx.game_state_pressure,
-        ctx.decision_emphasis,
-        ctx.is_true_artrine,
-    )
-    .with_scoring_difficulty(ctx.scoring_difficulty);
+        ctx.scoring_regime,
+    );
 
-    let utilities =
-        CarrierDecisionEvaluator::evaluate_action_utilities(&eval_ctx, &available_kinds);
+    let mut utilities: SmallVec<[(ArtrineDecisionKind, f64); 5]> =
+        SmallVec::with_capacity(available_kinds.len());
+    for kind in available_kinds {
+        let config = crate::ai::evaluators::get_action_config(kind);
+        utilities.push((kind, crate::ai::evaluators::evaluate_action_utility(&eval_ctx, &config)));
+    }
 
     let result = sample_carrier_decision_from_table(
         ctx.carrier,
