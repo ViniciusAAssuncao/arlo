@@ -13,7 +13,6 @@ pub struct RatingParticipants<'a> {
     pub position_index: Option<&'a HashMap<Uuid, Position>>,
     pub fatigue_lookup: Option<&'a dyn Fn(&Uuid) -> PhysicalState>,
     pub attribute_tables: Option<&'a HashMap<Uuid, PlayerAttributeTable>>,
-    pub team_power: Option<f64>,
 }
 
 impl<'a> RatingParticipants<'a> {
@@ -23,7 +22,6 @@ impl<'a> RatingParticipants<'a> {
             position_index: None,
             fatigue_lookup: None,
             attribute_tables: None,
-            team_power: None,
         }
     }
 
@@ -36,7 +34,6 @@ impl<'a> RatingParticipants<'a> {
             position_index: Some(position_index),
             fatigue_lookup: None,
             attribute_tables: None,
-            team_power: None,
         }
     }
 
@@ -58,16 +55,6 @@ impl<'a> RatingParticipants<'a> {
         tables: &'a HashMap<Uuid, PlayerAttributeTable>,
     ) -> Self {
         self.attribute_tables = Some(tables);
-        self
-    }
-
-    pub fn with_team_power(mut self, power: f64) -> Self {
-        self.team_power = Some(power);
-        self
-    }
-
-    pub fn with_optional_team_power(mut self, power: Option<f64>) -> Self {
-        self.team_power = power;
         self
     }
 }
@@ -170,9 +157,6 @@ pub fn calculate_side_rating(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     profile: &DuelProfile,
 ) -> f64 {
-    if let Some(power) = participants.team_power {
-        return power;
-    }
     if participants.players.is_empty() {
         return 0.0;
     }
@@ -202,9 +186,6 @@ pub fn calculate_anchored_side_rating(
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     profile: &DuelProfile,
 ) -> f64 {
-    if let Some(power) = helpers.team_power {
-        return power;
-    }
     let default_state = PhysicalState::initial();
     let anchor_state = match helpers.fatigue_lookup {
         Some(lookup) => lookup(&anchor.id()),

@@ -7,7 +7,6 @@ use crate::resolution::duel_kind::{logistic_slope_for, DuelKind};
 use crate::resolution::duel_noise::sample_player_noise;
 use crate::resolution::group_rating::{calculate_side_rating, RatingParticipants};
 use crate::resolution::outcome::DuelOutcome;
-use arlo_domain::sport_constants::HOME_FIELD_ADVANTAGE_LOGIT;
 use arlo_domain::{AttributeKey, Player};
 use arlo_math::stats::contrast::bradley_terry_with_offset;
 use rand::Rng;
@@ -23,11 +22,10 @@ pub struct DuelResolutionRequest<'a> {
     pub attacker_state: PhysicalState,
     pub defender_state: PhysicalState,
     pub attribute_keys: Option<&'a HashMap<Uuid, AttributeKey>>,
-    pub context: &'a DuelContext,
+    pub context: DuelContext,
     pub attacker_table: Option<&'a PlayerAttributeTable>,
     pub defender_table: Option<&'a PlayerAttributeTable>,
-    pub attacker_team_power: Option<f64>,
-    pub defender_team_power: Option<f64>,
+    pub power_pair: Option<crate::world_state::step::down_resolution::power_pair::DuelPowerPair>,
     pub slope_override: Option<f64>,
 }
 
@@ -41,7 +39,7 @@ impl<'a> DuelResolutionRequest<'a> {
         attacker_primary: &'a Player,
         defender_primary: &'a Player,
         attribute_keys: &'a HashMap<Uuid, AttributeKey>,
-        context: &'a DuelContext,
+        context: &DuelContext,
     ) -> Self {
         Self {
             kind,
@@ -52,11 +50,10 @@ impl<'a> DuelResolutionRequest<'a> {
             attacker_state: PhysicalState::initial(),
             defender_state: PhysicalState::initial(),
             attribute_keys: Some(attribute_keys),
-            context,
+            context: *context,
             attacker_table: None,
             defender_table: None,
-            attacker_team_power: None,
-            defender_team_power: None,
+            power_pair: None,
             slope_override: None,
         }
     }
@@ -70,7 +67,7 @@ impl<'a> DuelResolutionRequest<'a> {
         attacker_state: PhysicalState,
         defender_state: PhysicalState,
         attribute_keys: &'a HashMap<Uuid, AttributeKey>,
-        context: &'a DuelContext,
+        context: &DuelContext,
     ) -> Self {
         Self {
             kind,
@@ -81,11 +78,10 @@ impl<'a> DuelResolutionRequest<'a> {
             attacker_state,
             defender_state,
             attribute_keys: Some(attribute_keys),
-            context,
+            context: *context,
             attacker_table: None,
             defender_table: None,
-            attacker_team_power: None,
-            defender_team_power: None,
+            power_pair: None,
             slope_override: None,
         }
     }
@@ -97,7 +93,7 @@ impl<'a> DuelResolutionRequest<'a> {
         defender_primary: &'a Player,
         defenders: RatingParticipants<'a>,
         attribute_keys: &'a HashMap<Uuid, AttributeKey>,
-        context: &'a DuelContext,
+        context: &DuelContext,
     ) -> Self {
         let (attacker_profile, defender_profile) = get_duel_profiles(kind);
         let attacker_rating = calculate_side_rating(attackers, attribute_keys, &attacker_profile);
@@ -128,11 +124,10 @@ impl<'a> DuelResolutionRequest<'a> {
             attacker_state,
             defender_state,
             attribute_keys: Some(attribute_keys),
-            context,
+            context: *context,
             attacker_table,
             defender_table,
-            attacker_team_power: attackers.team_power,
-            defender_team_power: defenders.team_power,
+            power_pair: None,
             slope_override: None,
         }
     }
@@ -141,7 +136,7 @@ impl<'a> DuelResolutionRequest<'a> {
         kind: DuelKind,
         attacker_rating: f64,
         defender_rating: f64,
-        context: &'a DuelContext,
+        context: &DuelContext,
     ) -> Self {
         Self {
             kind,
@@ -152,11 +147,10 @@ impl<'a> DuelResolutionRequest<'a> {
             attacker_state: PhysicalState::initial(),
             defender_state: PhysicalState::initial(),
             attribute_keys: None,
-            context,
+            context: *context,
             attacker_table: None,
             defender_table: None,
-            attacker_team_power: None,
-            defender_team_power: None,
+            power_pair: None,
             slope_override: None,
         }
     }
@@ -171,13 +165,11 @@ impl<'a> DuelResolutionRequest<'a> {
         self
     }
 
-    pub fn with_team_powers(
+    pub fn with_power_pair(
         mut self,
-        attacker_team_power: Option<f64>,
-        defender_team_power: Option<f64>,
+        power_pair: Option<crate::world_state::step::down_resolution::power_pair::DuelPowerPair>,
     ) -> Self {
-        self.attacker_team_power = attacker_team_power;
-        self.defender_team_power = defender_team_power;
+        self.power_pair = power_pair;
         self
     }
 
@@ -234,8 +226,13 @@ pub fn resolve_duel<R: Rng + ?Sized>(
     request: DuelResolutionRequest<'_>,
     rng: &mut R,
 ) -> DuelOutcome {
-    let effective_attacker = request.attacker_team_power.unwrap_or(request.attacker_rating);
-    let effective_defender = request.defender_team_power.unwrap_or(request.defender_rating);
+    let (effective_attacker, effective_defender) = if let Some(pp) = request.power_pair {
+        let att = crate::team_strength::blend_duel_rating(request.attacker_rating, pp.team_attacker_rating, pp.attacker_individual_weight);
+        let def = crate::team_strength::blend_duel_rating(request.defender_rating, pp.team_defender_rating, pp.defender_individual_weight);
+        (att, def)
+    } else {
+        (request.attacker_rating, request.defender_rating)
+    };
 
     let deg_ctx_a = DegradationContext::new(&request.attacker_state);
     let table_a;
@@ -273,10 +270,10 @@ pub fn resolve_duel<R: Rng + ?Sized>(
 
     let mut hfa_logit = 0.0;
     if request.context.attacker_is_home() {
-        hfa_logit += HOME_FIELD_ADVANTAGE_LOGIT;
+        hfa_logit += request.context.home_advantage_duel_logit();
     }
     if request.context.defender_is_home() {
-        hfa_logit -= HOME_FIELD_ADVANTAGE_LOGIT;
+        hfa_logit -= request.context.home_advantage_duel_logit();
     }
     hfa_logit += request.context.aggression_logit_offset();
     hfa_logit += request.context.physicality_logit_offset();

@@ -2,9 +2,8 @@ pub use crate::attributes::profiles::default_impulse_baseline_profile;
 use crate::attributes::profiles::AttributeProfile;
 use crate::attributes::PlayerAttributeTable;
 use crate::caching::impulse_baseline_profile;
-use arlo_domain::sport_constants::{
-    HOME_IMPULSE_BASELINE_BOOST, MAX_CAPTAINCY_BASELINE_BOOST,
-};
+use crate::home_advantage::HomeAdvantageProfile;
+use arlo_domain::sport_constants::MAX_CAPTAINCY_BASELINE_BOOST;
 use arlo_domain::{AttributeKey, CaptaincyRole, Player};
 
 pub type ImpulseBaselineProfile = AttributeProfile;
@@ -37,6 +36,7 @@ pub fn calculate_player_contextual_baseline(
     captain_influence: f64,
     is_captain: bool,
     is_home: bool,
+    ha_profile: &HomeAdvantageProfile,
 ) -> f64 {
     let profile = impulse_baseline_profile();
     let base = calculate_player_impulse_baseline(table, profile);
@@ -48,7 +48,7 @@ pub fn calculate_player_contextual_baseline(
     };
 
     let home_boost = if is_home {
-        HOME_IMPULSE_BASELINE_BOOST
+        ha_profile.impulse_baseline_boost()
     } else {
         0.0
     };

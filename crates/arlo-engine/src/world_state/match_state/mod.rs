@@ -53,5 +53,5 @@ pub use review_slot::ReviewSlot;
 pub use score::{MatchScoreboard, TeamScore};
 pub use setup_params::{MatchSetupParams, TeamSetupParams};
 pub use state::MatchState;
-pub use team_power::{calculate_team_match_power, MatchPowerCache, TeamMatchPower};
+pub use team_power::{MatchPowerCache};
 pub use teams::TeamRegistry;

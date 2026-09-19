@@ -24,9 +24,8 @@ use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker
 use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
-use crate::world_state::match_state::team_power::{
-    calculate_team_match_power, MatchPowerCache, TeamMatchPower,
-};
+use crate::team_strength::{calculate_team_match_power, TeamMatchPower};
+use crate::world_state::match_state::team_power::MatchPowerCache;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{

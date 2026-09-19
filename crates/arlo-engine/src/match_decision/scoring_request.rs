@@ -20,7 +20,7 @@ pub struct ScoringAttemptRequest<'a> {
     pub normalized_proximity: f64,
     pub finisher_state: PhysicalState,
     pub goalguard_state: PhysicalState,
-    pub context: &'a DuelContext,
+    pub context: DuelContext,
     pub finisher_table: Option<&'a PlayerAttributeTable>,
     pub goalguard_table: Option<&'a PlayerAttributeTable>,
     pub defense_closed: bool,
@@ -40,7 +40,7 @@ impl<'a> ScoringAttemptRequest<'a> {
         drives_completed: u32,
         territory_advance_mirim: f64,
         normalized_proximity: f64,
-        context: &'a DuelContext,
+        context: &DuelContext,
     ) -> Self {
         Self {
             finisher,
@@ -55,7 +55,7 @@ impl<'a> ScoringAttemptRequest<'a> {
             normalized_proximity,
             finisher_state: PhysicalState::initial(),
             goalguard_state: PhysicalState::initial(),
-            context,
+            context: *context,
             finisher_table: None,
             goalguard_table: None,
             defense_closed: false,

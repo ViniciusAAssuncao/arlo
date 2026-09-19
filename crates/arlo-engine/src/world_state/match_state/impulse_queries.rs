@@ -43,6 +43,7 @@ impl MatchState {
             .teams
             .player_attribute_table(&incoming)
             .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let tuning = self.tuning_arc();
         self.impulse.substitute_player(
             outgoing,
             incoming,
@@ -50,6 +51,7 @@ impl MatchState {
             table,
             captain_influence,
             is_captain,
+            &tuning,
         );
     }
 
@@ -58,7 +60,8 @@ impl MatchState {
     }
 
     pub fn reset_all_impulse_to_baseline(&mut self) {
-        self.impulse.reset_all_to_baseline(&self.teams);
+        let tuning = self.tuning_arc();
+        self.impulse.reset_all_to_baseline(&self.teams, &tuning);
     }
 
     pub fn advance_impulse_dynamics(&mut self, dt_seconds: f64) {
@@ -78,11 +81,13 @@ impl MatchState {
         player_id: Uuid,
         event: &ImpulseEvent,
     ) -> Option<ImpulseShift> {
+        let tuning = self.tuning_arc();
         self.impulse.apply_impulse_event(
             player_id,
             event,
             &self.teams,
             &self.fatigue,
+            &tuning.home_advantage_profile,
         )
     }
 }

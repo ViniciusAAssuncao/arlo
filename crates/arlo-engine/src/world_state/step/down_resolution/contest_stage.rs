@@ -9,6 +9,7 @@ use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
+use crate::world_state::step::down_resolution::power_pair::derive_power_pair;
 use arlo_domain::{ArtrineDecisionKind, Player, Position};
 use arlo_math::stats::contrast::logistic;
 use arlo_math::Probability;
@@ -75,6 +76,19 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             let offense_power = state.power_for_team(ctx.offense_team_id);
             let defense_power = state.power_for_team(ctx.defense_team_id);
 
+            let power_pair = derive_power_pair(
+                offense_power,
+                defense_power,
+                duel_kind,
+                &state.tuning().league_strength_scale,
+                &state.tuning().team_strength_profile,
+                &state.tuning().home_advantage_profile,
+                Some(ctx.carrier_pos_domain),
+                Some(ctx.primary_defender_pos_domain),
+                ctx.duel_context.attacker_is_home(),
+                ctx.duel_context.defender_is_home(),
+            );
+
             let req = DuelResolutionRequest::with_states(
                 duel_kind,
                 att_rating,
@@ -87,10 +101,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 &ctx.duel_context,
             )
             .with_tables(Some(&ctx.carrier_table), Some(&ctx.primary_defender_table))
-            .with_team_powers(
-                Some(offense_power.offensive_power()),
-                Some(defense_power.defensive_power()),
-            );
+            .with_power_pair(Some(power_pair));
 
             let raw_duel = resolve_duel(req, rng);
             let attacker_won = raw_duel.attacker_won();
@@ -140,6 +151,19 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             let offense_power = state.power_for_team(ctx.offense_team_id);
             let defense_power = state.power_for_team(ctx.defense_team_id);
 
+            let throw_power_pair = derive_power_pair(
+                offense_power,
+                defense_power,
+                throw_kind,
+                &state.tuning().league_strength_scale,
+                &state.tuning().team_strength_profile,
+                &state.tuning().home_advantage_profile,
+                Some(ctx.carrier_pos_domain),
+                Some(ctx.primary_defender_pos_domain),
+                ctx.duel_context.attacker_is_home(),
+                ctx.duel_context.defender_is_home(),
+            );
+
             let att_rating = calculate_anchored_side_rating(
                 ctx.carrier,
                 ctx.carrier_pos_domain,
@@ -148,8 +172,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                     state.offensive_position_index_for_team(ctx.offense_team_id),
                 )
                 .with_fatigue(&|id| state.fatigue_lookup().get(id))
-                .with_attribute_tables(tables)
-                .with_team_power(offense_power.control_power()),
+                .with_attribute_tables(tables),
                 state.attribute_keys(),
                 &att_prof,
             );
@@ -159,8 +182,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                     state.defensive_position_index_for_team(ctx.defense_team_id),
                 )
                 .with_fatigue(&|id| state.fatigue_lookup().get(id))
-                .with_attribute_tables(tables)
-                .with_team_power(defense_power.defensive_power()),
+                .with_attribute_tables(tables),
                 state.attribute_keys(),
                 &def_prof,
             );
@@ -180,10 +202,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 Some(&ctx.carrier_table),
                 Some(&ctx.primary_defender_table),
             )
-            .with_team_powers(
-                Some(offense_power.control_power()),
-                Some(defense_power.defensive_power()),
-            );
+            .with_power_pair(Some(throw_power_pair));
 
             let raw_throw_duel = resolve_duel(req, rng);
             let throw_won = raw_throw_duel.attacker_won();
@@ -221,6 +240,20 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .get(&receiver_id)
                 .copied()
                 .unwrap_or(Position::CenterOffense);
+
+            let rec_power_pair = derive_power_pair(
+                offense_power,
+                defense_power,
+                rec_duel_kind,
+                &state.tuning().league_strength_scale,
+                &state.tuning().team_strength_profile,
+                &state.tuning().home_advantage_profile,
+                Some(rec_pos),
+                Some(ctx.primary_defender_pos_domain),
+                ctx.duel_context.attacker_is_home(),
+                ctx.duel_context.defender_is_home(),
+            );
+
             let rec_att_rating = calculate_player_duel_rating_from_table(
                 receiver,
                 rec_pos,
@@ -234,8 +267,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                     state.defensive_position_index_for_team(ctx.defense_team_id),
                 )
                 .with_fatigue(&|id| state.fatigue_lookup().get(id))
-                .with_attribute_tables(tables)
-                .with_team_power(defense_power.defensive_power()),
+                .with_attribute_tables(tables),
                 state.attribute_keys(),
                 &rec_def_prof,
             );
@@ -254,10 +286,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 &ctx.duel_context,
             )
             .with_tables(Some(rec_table), Some(&ctx.primary_defender_table))
-            .with_team_powers(
-                Some(offense_power.offensive_power()),
-                Some(defense_power.defensive_power()),
-            );
+            .with_power_pair(Some(rec_power_pair));
 
             let raw_rec_duel = resolve_duel(rec_req, rng);
             let catch_won = raw_rec_duel.attacker_won();
@@ -345,6 +374,19 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             let offense_power = state.power_for_team(ctx.offense_team_id);
             let defense_power = state.power_for_team(ctx.defense_team_id);
 
+            let power_pair = crate::world_state::step::down_resolution::power_pair::derive_power_pair(
+                offense_power,
+                defense_power,
+                DuelKind::CrossDistribution,
+                &state.tuning().league_strength_scale,
+                &state.tuning().team_strength_profile,
+                &state.tuning().home_advantage_profile,
+                Some(ctx.carrier_pos_domain),
+                Some(ctx.primary_defender_pos_domain),
+                ctx.duel_context.attacker_is_home(),
+                ctx.duel_context.defender_is_home(),
+            );
+
             let req = DuelResolutionRequest::with_states(
                 DuelKind::CrossDistribution,
                 att_rating,
@@ -360,10 +402,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 Some(&ctx.carrier_table),
                 Some(&ctx.primary_defender_table),
             )
-            .with_team_powers(
-                Some(offense_power.control_power()),
-                Some(defense_power.defensive_power()),
-            );
+            .with_power_pair(Some(power_pair));
 
             let raw_duel = resolve_duel(req, rng);
             let attacker_won = raw_duel.attacker_won();

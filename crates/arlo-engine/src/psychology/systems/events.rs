@@ -1,8 +1,8 @@
 use crate::psychology::state::ImpulseState;
 use crate::psychology::systems::dynamics::fatigue_depression;
+use crate::home_advantage::HomeAdvantageProfile;
 use arlo_domain::sport_constants::{
-    impulse_floor_for_baseline, CAPTAINCY_LOSS_AVERSION_BUFFER,
-    HOME_MOMENTUM_RESILIENCE_BOOST, IMPULSE_SCALE_MAX,
+    impulse_floor_for_baseline, CAPTAINCY_LOSS_AVERSION_BUFFER, IMPULSE_SCALE_MAX,
 };
 use serde::{Deserialize, Serialize};
 
@@ -231,6 +231,7 @@ pub fn apply_impulse_event(
     state: &mut ImpulseState,
     context: &PlayerImpulseContext,
     event: &ImpulseEvent,
+    ha_profile: &HomeAdvantageProfile,
 ) -> ImpulseShift {
     let is_positive = event.kind().is_positive();
     let sign = if is_positive { 1.0 } else { -1.0 };
@@ -268,9 +269,9 @@ pub fn apply_impulse_event(
 
     let raw_momentum_multiplier = state.momentum_multiplier_for(is_positive);
     let momentum_multiplier = if !is_positive && context.is_home {
-        (raw_momentum_multiplier * (1.0 - HOME_MOMENTUM_RESILIENCE_BOOST)).max(0.4)
+        (raw_momentum_multiplier * (1.0 - ha_profile.momentum_resilience())).max(0.4)
     } else if is_positive && context.is_home {
-        raw_momentum_multiplier * 1.05
+        raw_momentum_multiplier * (1.0 + ha_profile.momentum_resilience() * 0.5)
     } else {
         raw_momentum_multiplier
     };

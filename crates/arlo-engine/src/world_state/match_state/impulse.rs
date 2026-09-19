@@ -13,6 +13,8 @@ use crate::psychology::systems::events::{
 };
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::teams::TeamRegistry;
+use crate::tuning::EngineTuning;
+use crate::home_advantage::HomeAdvantageProfile;
 use arlo_domain::{AttributeKey, Player};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -58,7 +60,8 @@ impl ImpulseTracker {
         for p in &home_players {
             let is_cap = home_captain.map(|c| c.id() == p.id()).unwrap_or(false);
             let table = tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-            let base = calculate_player_contextual_baseline(table, home_captain_influence, is_cap, true);
+            let ha_profile = HomeAdvantageProfile::default();
+            let base = calculate_player_contextual_baseline(table, home_captain_influence, is_cap, true, &ha_profile);
             home_impulse.insert(p.id(), ImpulseState::from_baseline(base));
         }
 
@@ -66,7 +69,8 @@ impl ImpulseTracker {
         for p in &away_players {
             let is_cap = away_captain.map(|c| c.id() == p.id()).unwrap_or(false);
             let table = tables.get(&p.id()).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-            let base = calculate_player_contextual_baseline(table, away_captain_influence, is_cap, false);
+            let ha_profile = HomeAdvantageProfile::default();
+            let base = calculate_player_contextual_baseline(table, away_captain_influence, is_cap, false, &ha_profile);
             away_impulse.insert(p.id(), ImpulseState::from_baseline(base));
         }
 
@@ -116,6 +120,7 @@ impl ImpulseTracker {
         table: &PlayerAttributeTable,
         captain_influence: f64,
         is_captain: bool,
+        tuning: &EngineTuning,
     ) {
         let map = if is_home {
             &mut self.home_impulse
@@ -124,7 +129,7 @@ impl ImpulseTracker {
         };
 
         if !map.contains_key(&incoming) {
-            let base = calculate_player_contextual_baseline(table, captain_influence, is_captain, is_home);
+            let base = calculate_player_contextual_baseline(table, captain_influence, is_captain, is_home, tuning.home_advantage_profile());
             map.insert(incoming, ImpulseState::from_baseline(base));
         }
     }
@@ -138,7 +143,7 @@ impl ImpulseTracker {
         }
     }
 
-    pub fn reset_all_to_baseline(&mut self, teams: &TeamRegistry) {
+    pub fn reset_all_to_baseline(&mut self, teams: &TeamRegistry, tuning: &EngineTuning) {
         let home_captain_id = teams.home_captain_id();
         let home_captain_influence = home_captain_id
             .and_then(|id| teams.player_attribute_table(&id))
@@ -155,7 +160,7 @@ impl ImpulseTracker {
             let pid = a.player().id();
             let table = teams.player_attribute_table(&pid).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let is_cap = Some(pid) == home_captain_id;
-            let base = calculate_player_contextual_baseline(table, home_captain_influence, is_cap, true);
+            let base = calculate_player_contextual_baseline(table, home_captain_influence, is_cap, true, tuning.home_advantage_profile());
             self.home_impulse.insert(pid, ImpulseState::from_baseline(base));
         }
 
@@ -163,7 +168,7 @@ impl ImpulseTracker {
             let pid = a.player().id();
             let table = teams.player_attribute_table(&pid).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
             let is_cap = Some(pid) == away_captain_id;
-            let base = calculate_player_contextual_baseline(table, away_captain_influence, is_cap, false);
+            let base = calculate_player_contextual_baseline(table, away_captain_influence, is_cap, false, tuning.home_advantage_profile());
             self.away_impulse.insert(pid, ImpulseState::from_baseline(base));
         }
     }
@@ -211,6 +216,7 @@ impl ImpulseTracker {
         event: &ImpulseEvent,
         teams: &TeamRegistry,
         fatigue: &FatigueTracker,
+        ha_profile: &HomeAdvantageProfile,
     ) -> Option<ImpulseShift> {
         let is_home = teams.is_home_player(&player_id);
         let table = teams.player_attribute_table(&player_id).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
@@ -250,6 +256,6 @@ impl ImpulseTracker {
             self.away_impulse.entry(player_id).or_insert_with(|| ImpulseState::from_baseline(50.0))
         };
 
-        Some(apply_impulse_event(state, &context, event))
+        Some(apply_impulse_event(state, &context, event, ha_profile))
     }
 }

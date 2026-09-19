@@ -1,5 +1,5 @@
 use crate::officiating::line_fault::context::LineFaultEvaluationContext;
-use crate::resolution::{resolve_contest, ContestRequest, DuelKind};
+use crate::resolution::{resolve_contest, ContestRequest, DuelKind, ContestOrientation};
 use arlo_domain::{AttributeKey, PitchZone, Player, Position as DomainPosition};
 use rand::Rng;
 use std::collections::HashMap;
@@ -50,7 +50,7 @@ pub fn is_line_fault<R: Rng + ?Sized>(
         DuelKind::RouteContest,
         defense_effective,
         receiver_effective,
-        ctx.duel_context,
+        &ctx.duel_context.with_orientation(ContestOrientation::AttackerIsDefense),
     )
     .with_slope(0.35);
 

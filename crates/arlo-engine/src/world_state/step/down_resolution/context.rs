@@ -5,7 +5,7 @@ use crate::physical::PhysicalState;
 use crate::playmaking::resolve_misdirection_logit_offset;
 use crate::possession::locate_zone;
 use crate::psychology::state::ImpulseState;
-use crate::resolution::DuelContext;
+use crate::resolution::{DuelContext, ContestOrientation};
 use crate::scoring_model::ScoringDifficultyProfile;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
 use crate::world_state::cta_pass::PassPhaseResult;
@@ -181,10 +181,12 @@ impl<'a> DownResolutionContext<'a> {
             context.active_play_call.as_ref(),
             &context.offense_route_index,
             &context.offense_lineup,
+            state.tuning().home_advantage_profile.duel_logit(),
         );
         let duel_context = DuelContext::with_offsets(
+            ContestOrientation::AttackerIsOffense,
             context.is_home_offense,
-            !context.is_home_offense,
+            state.tuning().home_advantage_profile.duel_logit(),
             aggression_offset,
             misdirection_offset,
             physicality_offset,
