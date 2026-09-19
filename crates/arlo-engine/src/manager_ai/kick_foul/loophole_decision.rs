@@ -1,4 +1,4 @@
-use crate::ai::cognitive::ManagerDecisionFactory;
+use crate::ai::cognitive::evaluate_decision_gate;
 use crate::ai::epv::DynamicEpvModel;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::scoring_regime::ScoringRegimePolicy;
@@ -61,10 +61,10 @@ pub fn evaluate_kick_foul_realignment<R: Rng + ?Sized>(
     let regime = ScoringRegimePolicy::default();
     let stimulus = calculate_kick_foul_realignment_stimulus(normalized_x, tier, &regime);
 
-    ManagerDecisionFactory::decide(
+    evaluate_decision_gate(
         stimulus,
         context.manager_snapshot.in_game_adjustments,
         context.manager_snapshot.discipline,
-        rng,
     )
+    .sample(rng)
 }

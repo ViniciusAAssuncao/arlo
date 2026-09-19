@@ -10,17 +10,17 @@ use crate::kick_foul::resolution::participants::select_kick_foul_participants;
 use crate::kick_foul::resolution::restart_phase::resolve_kick_foul_restart;
 use crate::kick_foul::resolution::shoot_phase::resolve_kick_foul_shot;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::resolution::{ AttributedDuelOutcome, ContestOrientation, DuelContext };
+use crate::resolution::{AttributedDuelOutcome, ContestOrientation, DuelContext};
 use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::match_state::MatchState;
-use arlo_domain::{ KickFoulDecisionKind, Player };
+use arlo_domain::{KickFoulDecisionKind, Player};
 use rand::Rng;
-use smallvec::{ smallvec, SmallVec };
+use smallvec::{smallvec, SmallVec};
 
 pub fn resolve_kick_foul<R: Rng + ?Sized>(
     state: &MatchState,
     pending: &KickFoulPending,
-    rng: &mut R
+    rng: &mut R,
 ) -> EngineResult<KickFoulResolutionOutcome> {
     let offense_team_id = pending.awarded_team_id();
     let defense_team_id = if offense_team_id == state.home_team_id() {
@@ -65,7 +65,7 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         tables,
         is_home_offense,
         Some(&fatigue_for),
-        rng
+        rng,
     )?;
 
     let taker_id = participants.kicker.id();
@@ -75,23 +75,23 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
     let center_y = state.pitch().width_mirim() * 0.5;
     let lateral_ratio = ((pending.spot_y_mirim() - center_y).abs() / center_y.max(1.0)).clamp(
         0.0,
-        1.0
+        1.0,
     );
     let utilities = evaluate_kick_foul_decision_utilities(
         kicker_table,
         pending.scoring_tier(),
         &pressure,
-        lateral_ratio
+        lateral_ratio,
     );
     let decision = sample_kick_foul_decision(kicker_table, &utilities, rng);
 
     let offense_instructions = state.instructions_for_team(offense_team_id);
     let defense_instructions = state.instructions_for_team(defense_team_id);
     let physicality_offset = crate::team_identity::physicality::offensive_contact_logit_offset(
-        offense_instructions.in_possession().physicality()
+        offense_instructions.in_possession().physicality(),
     );
     let aggression_offset = crate::team_identity::aggression::duel_logit_offset(
-        defense_instructions.out_of_possession().aggression()
+        defense_instructions.out_of_possession().aggression(),
     );
     let duel_context = DuelContext::with_offsets(
         ContestOrientation::AttackerIsOffense,
@@ -99,7 +99,7 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         state.tuning().home_advantage_profile.duel_logit(),
         aggression_offset,
         0.0,
-        physicality_offset
+        physicality_offset,
     );
 
     match decision {
@@ -109,21 +109,19 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                 tables,
                 attribute_keys,
                 &duel_context,
-                rng
+                rng,
             );
             let mut duels: SmallVec<[AttributedDuelOutcome; 2]> = smallvec![block_duel.clone()];
 
             if !block_duel.outcome().attacker_won() {
-                Ok(
-                    KickFoulResolutionOutcome::new(
-                        ScoringDecision::NoOpportunity,
-                        None,
-                        duels.into_vec(),
-                        true,
-                        decision,
-                        taker_id
-                    )
-                )
+                Ok(KickFoulResolutionOutcome::new(
+                    ScoringDecision::NoOpportunity,
+                    None,
+                    duels.into_vec(),
+                    true,
+                    decision,
+                    taker_id,
+                ))
             } else {
                 let difficulty_profile = state.tuning().scoring_difficulty;
                 let (scoring_decision, shot_duel) = resolve_kick_foul_shot(
@@ -135,23 +133,22 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                     tables,
                     &duel_context,
                     difficulty_profile,
-                    rng
+                    state.pitch().length_mirim(),
+                    rng,
                 );
                 duels.push(shot_duel);
 
-                Ok(
-                    KickFoulResolutionOutcome::new(
-                        scoring_decision,
-                        None,
-                        duels.into_vec(),
-                        false,
-                        decision,
-                        taker_id
-                    )
-                )
+                Ok(KickFoulResolutionOutcome::new(
+                    scoring_decision,
+                    None,
+                    duels.into_vec(),
+                    false,
+                    decision,
+                    taker_id,
+                ))
             }
         }
-        | KickFoulDecisionKind::Cross
+        KickFoulDecisionKind::Cross
         | KickFoulDecisionKind::ShortPass
         | KickFoulDecisionKind::LongLaunch => {
             let restart = resolve_kick_foul_restart(
@@ -164,23 +161,21 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                 tables,
                 attribute_keys,
                 &duel_context,
-                rng
+                rng,
             );
             let duels: SmallVec<[AttributedDuelOutcome; 2]> = restart.duels
                 .iter()
                 .cloned()
                 .collect();
 
-            Ok(
-                KickFoulResolutionOutcome::new(
-                    ScoringDecision::NoOpportunity,
-                    Some(restart),
-                    duels.into_vec(),
-                    false,
-                    decision,
-                    taker_id
-                )
-            )
+            Ok(KickFoulResolutionOutcome::new(
+                ScoringDecision::NoOpportunity,
+                Some(restart),
+                duels.into_vec(),
+                false,
+                decision,
+                taker_id,
+            ))
         }
     }
 }

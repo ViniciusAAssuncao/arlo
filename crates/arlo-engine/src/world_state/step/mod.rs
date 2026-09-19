@@ -28,6 +28,7 @@ use uuid::Uuid;
 
 fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
     let scrimmage_x = state.possession().scrimmage_x_mirim();
+    let center_y = state.pitch().width_mirim() * 0.5;
     DetailedPlayOutcome {
         offense_team_id: state.possession().offense(),
         defense_team_id: state.possession().defense(),
@@ -38,7 +39,7 @@ fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
         pass_completed: false,
         pass_is_aerial: false,
         reception_x_mirim: scrimmage_x,
-        reception_y_mirim: 42.5,
+        reception_y_mirim: center_y,
         drives_recorded: 0,
         mirins_advanced: 0.0,
         duels: Vec::new(),
@@ -48,7 +49,7 @@ fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
         out_of_bounds: false,
         arbitral_stoppage: true,
         last_valid_x_mirim: scrimmage_x,
-        last_valid_y_mirim: 42.5,
+        last_valid_y_mirim: center_y,
         possession_control_seconds: None,
         scoring_decision: ScoringDecision::NoOpportunity,
     }
@@ -113,6 +114,7 @@ pub fn step_call_to_action(
     )?;
 
     let (chosen_decision, execution_outcome) = if !pass_phase.pass_completed {
+        let center_y = state.pitch().width_mirim() * 0.5;
         let mut ledger = DurationLedger::new();
         ledger.record_live(
             DurationComponentKind::PassProtectionEngagement,
@@ -128,7 +130,7 @@ pub fn step_call_to_action(
                 scoring_decision: ScoringDecision::NoOpportunity,
                 duration_ledger: ledger,
                 end_x_mirim: pass_phase.scrimmage_x_mirim,
-                end_y_mirim: 42.5,
+                end_y_mirim: center_y,
                 duels: Vec::new(),
                 fouls: Vec::new(),
                 injuries: Vec::new(),

@@ -16,7 +16,7 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
 use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
 use arlo_domain::{ArtroPlacement, PitchZone, Player, Position, SlotRole};
-use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
+use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions, Tempo};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -57,8 +57,7 @@ pub struct DownResolutionContext<'a> {
     pub duel_context: DuelContext,
     pub passing_range: PassingRange,
     pub decision_emphasis: DecisionEmphasis,
-    pub defense_pressing_multiplier: f64,
-    pub offense_tempo_value: f64,
+    pub offense_tempo: Tempo,
     pub state_advanced_mirins: f64,
     pub possession_advanced_mirins: f64,
     pub scoring_regime: ScoringRegimePolicy,
@@ -170,15 +169,10 @@ impl<'a> DownResolutionContext<'a> {
         let offense_instructions = *state.instructions_for_team(context.offense_team_id);
         let defense_instructions = *state.instructions_for_team(context.defense_team_id);
 
-        let offense_tempo_value = offense_instructions.in_possession().tempo().value();
+        let offense_tempo = offense_instructions.in_possession().tempo();
         let offense_physicality = offense_instructions.in_possession().physicality();
         let physicality_offset =
             crate::team_identity::physicality::offensive_contact_logit_offset(offense_physicality);
-        let defense_pressing_multiplier = crate::team_identity::pressing::contest_radius_multiplier(
-            defense_instructions
-                .out_of_possession()
-                .pressing_intensity(),
-        );
         let defense_aggression = defense_instructions.out_of_possession().aggression();
         let aggression_offset =
             crate::team_identity::aggression::duel_logit_offset(defense_aggression);
@@ -243,8 +237,7 @@ impl<'a> DownResolutionContext<'a> {
             duel_context,
             passing_range,
             decision_emphasis: context.decision_emphasis,
-            defense_pressing_multiplier,
-            offense_tempo_value,
+            offense_tempo,
             state_advanced_mirins: state.possession().series_state().advanced_mirins(),
             possession_advanced_mirins: state.possession().possession_origin().total_advanced_mirins(),
             scoring_regime,
@@ -295,6 +288,7 @@ impl<'a> DownResolutionContext<'a> {
             is_true_artrine: self.is_true_artrine,
             is_bonus_phase: self.is_bonus_phase,
             normalized_proximity: self.normalized_proximity,
+            pitch_length_mirim: self.pitch_length_mirim,
         }
     }
 }

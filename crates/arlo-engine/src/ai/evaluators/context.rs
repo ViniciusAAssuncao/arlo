@@ -35,6 +35,7 @@ pub struct ContextSituation {
     pub is_true_artrine: bool,
     pub is_bonus_phase: bool,
     pub normalized_proximity: f64,
+    pub pitch_length_mirim: f64,
 }
 
 #[derive(Debug, Clone)]

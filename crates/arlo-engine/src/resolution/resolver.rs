@@ -1,5 +1,5 @@
-use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
 use crate::attributes::PlayerAttributeTable;
+use crate::caching::get_cached_duel_profiles;
 use crate::physical::systems::degradation::DegradationContext;
 use crate::physical::PhysicalState;
 use crate::resolution::context::DuelContext;
@@ -95,9 +95,9 @@ impl<'a> DuelResolutionRequest<'a> {
         attribute_keys: &'a HashMap<Uuid, AttributeKey>,
         context: &DuelContext,
     ) -> Self {
-        let (attacker_profile, defender_profile) = get_duel_profiles(kind);
-        let attacker_rating = calculate_side_rating(attackers, attribute_keys, &attacker_profile);
-        let defender_rating = calculate_side_rating(defenders, attribute_keys, &defender_profile);
+        let (attacker_profile, defender_profile) = get_cached_duel_profiles(kind);
+        let attacker_rating = calculate_side_rating(attackers, attribute_keys, attacker_profile);
+        let defender_rating = calculate_side_rating(defenders, attribute_keys, defender_profile);
         let default_state = PhysicalState::initial();
         let attacker_state = attackers
             .fatigue_lookup

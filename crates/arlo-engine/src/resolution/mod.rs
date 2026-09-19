@@ -25,6 +25,4 @@ pub use resolver::{
     DuelResolutionRequest,
 };
 
-pub use crate::attributes::profiles::{
-    get_duel_attribute_profiles as get_duel_profiles, AttributeProfile as DuelProfile,
-};
+pub use crate::caching::get_cached_duel_profiles;

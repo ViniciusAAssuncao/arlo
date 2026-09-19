@@ -1,4 +1,4 @@
-use crate::ai::cognitive::ManagerDecisionFactory;
+use crate::ai::cognitive::evaluate_decision_gate;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::time_calls::urgency::compute_urgency;
 use rand::Rng;
@@ -20,11 +20,11 @@ impl TimeCallDecisionEngine {
         }
 
         let stimulus = calculate_time_call_stimulus(context, just_conceded);
-        ManagerDecisionFactory::decide(
+        evaluate_decision_gate(
             stimulus,
             context.manager_snapshot.time_call_management,
             context.manager_snapshot.discipline,
-            rng,
         )
+        .sample(rng)
     }
 }

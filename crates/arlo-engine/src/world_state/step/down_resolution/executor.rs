@@ -98,7 +98,7 @@ pub fn resolve_down<'a, R: Rng + ?Sized>(
     } else {
         (1.0 - progression.new_normalized_proximity) * pitch_length_mirim
     };
-    let end_y_mirim = 42.5;
+    let end_y_mirim = state.pitch.width_mirim() * 0.5;
 
     let distribution_flight = contest.distribution_flight.map(|f| DistributionFlightInfo {
         distance_mirim: progression.mirins_advanced,

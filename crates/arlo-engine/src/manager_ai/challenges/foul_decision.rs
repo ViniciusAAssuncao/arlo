@@ -1,4 +1,4 @@
-use crate::ai::cognitive::ManagerDecisionFactory;
+use crate::ai::cognitive::evaluate_decision_gate;
 use crate::manager_ai::challenges::decision::calculate_challenge_stimulus;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::world_state::match_state::foul_review::FoulReviewRecord;
@@ -26,10 +26,10 @@ pub fn evaluate_foul_challenge<R: Rng + ?Sized>(
     }
 
     let stimulus = calculate_foul_challenge_stimulus(context, record);
-    ManagerDecisionFactory::decide(
+    evaluate_decision_gate(
         stimulus,
         context.manager_snapshot.challenge_judgment,
         context.manager_snapshot.discipline,
-        rng,
     )
+    .sample(rng)
 }

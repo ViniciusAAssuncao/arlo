@@ -1,4 +1,4 @@
-use crate::ai::cognitive::ManagerDecisionFactory;
+use crate::ai::cognitive::evaluate_decision_gate;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::manager_ai::tactical_adjustment::fit_scoring::score_candidate;
 use arlo_domain::sport_constants::{
@@ -71,12 +71,13 @@ impl TacticalAdjustmentDecisionEngine {
             context,
         )?;
 
-        if ManagerDecisionFactory::decide(
+        if evaluate_decision_gate(
             stimulus,
             context.manager_snapshot.adaptability,
             context.manager_snapshot.discipline,
-            rng,
-        ) {
+        )
+        .sample(rng)
+        {
             Some(candidate_id)
         } else {
             None

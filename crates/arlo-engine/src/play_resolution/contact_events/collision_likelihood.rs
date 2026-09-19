@@ -68,8 +68,8 @@ pub fn evaluate_contact_likelihood(
         .value();
     let def_pressing = defense_instructions
         .out_of_possession()
-        .pressing_intensity()
-        .value();
+        .pressing_intensity();
+    let pressing_mult = crate::team_identity::pressing::contest_radius_multiplier(def_pressing);
 
     let carrier_bravery = carrier_table.get(AttributeKey::Bravery) / ATTRIBUTE_MAX;
     let def_controlled_agg =
@@ -91,7 +91,7 @@ pub fn evaluate_contact_likelihood(
     let base_contact_logit = -0.40
         + 1.30 * off_physicality
         + 1.50 * def_aggression
-        + 0.90 * def_pressing
+        + 0.90 * (pressing_mult - 1.0)
         + 0.40 * carrier_bravery
         + 0.50 * def_recklessness
         + zone_bonus;

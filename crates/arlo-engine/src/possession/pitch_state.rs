@@ -95,10 +95,10 @@ impl PitchState {
                 || self.zone == PitchZone::FirstZone)
     }
 
-    pub fn determine_zone_from_proximity(normalized_proximity: f64) -> PitchZone {
+    pub fn determine_zone_from_proximity(normalized_proximity: f64, pitch_length_mirim: f64) -> PitchZone {
         locate_zone(
             normalized_proximity,
-            145.0,
+            pitch_length_mirim,
             AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
         )
     }
@@ -148,8 +148,8 @@ impl PitchState {
         }
     }
 
-    pub fn reset_for_new_series(&self, normalized_proximity: f64, is_bonus_phase: bool) -> Self {
-        let zone = Self::determine_zone_from_proximity(normalized_proximity);
+    pub fn reset_for_new_series(&self, normalized_proximity: f64, is_bonus_phase: bool, pitch_length_mirim: f64) -> Self {
+        let zone = Self::determine_zone_from_proximity(normalized_proximity, pitch_length_mirim);
         Self {
             down: 1,
             remaining_advance_mirim: 10.0,

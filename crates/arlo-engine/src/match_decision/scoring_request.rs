@@ -19,6 +19,7 @@ pub struct ScoringAttemptRequest<'a> {
     pub drives_completed: u32,
     pub territory_advance_mirim: f64,
     pub normalized_proximity: f64,
+    pub pitch_length_mirim: f64,
     pub finisher_state: PhysicalState,
     pub goalguard_state: PhysicalState,
     pub context: DuelContext,
@@ -42,6 +43,7 @@ impl<'a> ScoringAttemptRequest<'a> {
         drives_completed: u32,
         territory_advance_mirim: f64,
         normalized_proximity: f64,
+        pitch_length_mirim: f64,
         context: &DuelContext,
     ) -> Self {
         Self {
@@ -55,6 +57,7 @@ impl<'a> ScoringAttemptRequest<'a> {
             drives_completed,
             territory_advance_mirim,
             normalized_proximity,
+            pitch_length_mirim,
             finisher_state: PhysicalState::initial(),
             goalguard_state: PhysicalState::initial(),
             context: *context,

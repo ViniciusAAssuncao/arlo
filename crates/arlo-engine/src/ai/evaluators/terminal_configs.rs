@@ -23,7 +23,10 @@ pub fn cross_config() -> ActionEvaluationConfig {
                 } else {
                     ScoringKind::FieldPoint
                 };
-                let zone = crate::possession::locate_zone_default(ctx.situation.normalized_proximity, 145.0);
+                let zone = crate::possession::locate_zone_default(
+                    ctx.situation.normalized_proximity,
+                    ctx.situation.pitch_length_mirim,
+                );
                 let situation = ScoringSituation::new(
                     zone,
                     ctx.situation.normalized_proximity,
@@ -65,7 +68,10 @@ pub fn finish_config() -> ActionEvaluationConfig {
                 } else {
                     ScoringKind::FieldPoint
                 };
-                let zone = crate::possession::locate_zone_default(ctx.situation.normalized_proximity, 145.0);
+                let zone = crate::possession::locate_zone_default(
+                    ctx.situation.normalized_proximity,
+                    ctx.situation.pitch_length_mirim,
+                );
                 let situation = ScoringSituation::new(
                     zone,
                     ctx.situation.normalized_proximity,

@@ -1,6 +1,5 @@
 pub mod age;
 pub mod anaerobic;
-pub mod aerobic;
 pub mod energy_decay;
 pub mod energy_model;
 pub mod metabolic_power;

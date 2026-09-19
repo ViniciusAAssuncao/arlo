@@ -1,4 +1,4 @@
-use crate::ai::cognitive::manager_action_probability;
+use crate::ai::cognitive::evaluate_decision_gate;
 use crate::attributes::PlayerAttributeTable;
 use crate::manager_ai::context::ManagerSnapshot;
 use arlo_domain::sport_constants::{
@@ -143,9 +143,10 @@ pub fn assign_roles(
 
     let false_artrine_stimulus =
         ((planning_norm * 0.5 + strategy_norm * 0.5) * dep_modifier_false_artrine).clamp(0.0, 1.0);
-    let false_artrine_prob = manager_action_probability(
+    let false_artrine_prob = evaluate_decision_gate(
         false_artrine_stimulus,
         manager_snapshot.artro_strategy,
+        manager_snapshot.discipline,
     );
 
     if false_artrine_prob.value() >= 0.5 {
@@ -165,9 +166,10 @@ pub fn assign_roles(
         + (pass_pref_norm * LAUNCHER_PASSING_RANGE_PREFERENCE_WEIGHT))
         * dep_modifier_launcher)
         .clamp(0.0, 1.0);
-    let launcher_prob = manager_action_probability(
+    let launcher_prob = evaluate_decision_gate(
         launcher_stimulus,
         manager_snapshot.offense_planning,
+        manager_snapshot.discipline,
     );
 
     if launcher_prob.value() >= 0.5 {
@@ -181,9 +183,10 @@ pub fn assign_roles(
         );
     }
 
-    let safeguard_prob = manager_action_probability(
+    let safeguard_prob = evaluate_decision_gate(
         def_org_norm,
         manager_snapshot.defense_organization,
+        manager_snapshot.discipline,
     );
 
     if safeguard_prob.value() >= 0.5 {

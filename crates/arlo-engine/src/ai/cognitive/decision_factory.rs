@@ -1,10 +1,9 @@
-use crate::ai::cognitive::decision_threshold::action_probability;
+use crate::ai::cognitive::decision_gate::evaluate_decision_gate;
 use arlo_domain::sport_constants::{
-    ATTRIBUTE_SATURATION_THRESHOLD, DECISION_THRESHOLD_LOGIT_STEEPNESS,
-    MANAGER_NOISE_DISCIPLINE_SCALE, SIGNAL_DETECTION_BASE_SENSITIVITY,
-    SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
+    ATTRIBUTE_SATURATION_THRESHOLD, MANAGER_NOISE_DISCIPLINE_SCALE,
 };
-use arlo_math::stats::{Probability, SkewNormalParams};
+use arlo_math::stats::SkewNormalParams;
+use arlo_math::Probability;
 use rand::Rng;
 
 pub fn derive_manager_decision_noise(discipline: f64) -> SkewNormalParams {
@@ -20,22 +19,21 @@ pub fn sample_manager_decision_noise<R: Rng + ?Sized>(discipline: f64, rng: &mut
     derive_manager_decision_noise(discipline).sample(rng)
 }
 
-pub fn manager_action_probability(stimulus: f64, manager_attribute: f64) -> Probability {
-    action_probability(
-        stimulus,
-        manager_attribute,
-        SIGNAL_DETECTION_BASE_SENSITIVITY,
-        SIGNAL_DETECTION_JUDGMENT_ATTRIBUTE_SCALE,
-        DECISION_THRESHOLD_LOGIT_STEEPNESS,
-    )
+pub fn manager_action_probability(
+    stimulus: f64,
+    manager_attribute: f64,
+    discipline: f64,
+) -> Probability {
+    evaluate_decision_gate(stimulus, manager_attribute, discipline)
 }
 
 pub fn sample_manager_action<R: Rng + ?Sized>(
     stimulus: f64,
     manager_attribute: f64,
+    discipline: f64,
     rng: &mut R,
 ) -> bool {
-    manager_action_probability(stimulus, manager_attribute).sample(rng)
+    manager_action_probability(stimulus, manager_attribute, discipline).sample(rng)
 }
 
 pub fn sample_manager_decision<R: Rng + ?Sized>(
@@ -46,22 +44,27 @@ pub fn sample_manager_decision<R: Rng + ?Sized>(
 ) -> bool {
     let noise = sample_manager_decision_noise(discipline, rng);
     let noisy_stimulus = (stimulus + noise).clamp(0.0, 1.0);
-    sample_manager_action(noisy_stimulus, manager_attribute, rng)
+    sample_manager_action(noisy_stimulus, manager_attribute, discipline, rng)
 }
 
 pub struct ManagerDecisionFactory;
 
 impl ManagerDecisionFactory {
-    pub fn action_probability(stimulus: f64, manager_attribute: f64) -> Probability {
-        manager_action_probability(stimulus, manager_attribute)
+    pub fn action_probability(
+        stimulus: f64,
+        manager_attribute: f64,
+        discipline: f64,
+    ) -> Probability {
+        manager_action_probability(stimulus, manager_attribute, discipline)
     }
 
     pub fn sample_action<R: Rng + ?Sized>(
         stimulus: f64,
         manager_attribute: f64,
+        discipline: f64,
         rng: &mut R,
     ) -> bool {
-        sample_manager_action(stimulus, manager_attribute, rng)
+        sample_manager_action(stimulus, manager_attribute, discipline, rng)
     }
 
     pub fn decide<R: Rng + ?Sized>(

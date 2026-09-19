@@ -22,7 +22,7 @@ pub fn calculate_pass_kinematics(
     let pass_completed = pass_won;
     let is_aerial = false;
     let reception_x_mirim = state.possession().scrimmage_x_mirim();
-    let reception_y_mirim = 42.5;
+    let reception_y_mirim = state.pitch().width_mirim() * 0.5;
     let pass_distance_mirim = 2.5;
 
     let mut duration_ledger = DurationLedger::new();

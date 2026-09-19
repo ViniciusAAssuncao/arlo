@@ -158,6 +158,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         total_drives,
         total_adv,
         progression.new_normalized_proximity,
+        ctx.pitch_length_mirim,
         &finish_ctx,
     )
     .with_fatigue(fin_fatigue, gg_fatigue)

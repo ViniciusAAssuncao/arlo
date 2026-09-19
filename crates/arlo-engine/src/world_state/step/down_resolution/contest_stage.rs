@@ -1,5 +1,5 @@
 use crate::artrine::DistributionFlightInfo;
-use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
+use crate::caching::get_cached_duel_profiles;
 use crate::match_decision::target_selection::{select_finisher, select_target, ReceptionRole};
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
@@ -57,19 +57,19 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 DuelKind::RunBreakthrough
             };
 
-            let (att_prof, def_prof) = get_duel_profiles(duel_kind);
+            let (att_prof, def_prof) = get_cached_duel_profiles(duel_kind);
             let att_rating = calculate_player_duel_rating_from_table(
                 ctx.carrier,
                 ctx.carrier_pos_domain,
                 &ctx.carrier_table,
-                &att_prof,
+                att_prof,
                 &ctx.carrier_fatigue,
             );
             let def_rating = calculate_player_duel_rating_from_table(
                 ctx.primary_defender,
                 ctx.primary_defender_pos_domain,
                 &ctx.primary_defender_table,
-                &def_prof,
+                def_prof,
                 &ctx.primary_defender_fatigue,
             );
 
@@ -146,7 +146,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 DuelKind::ShortDistribution
             };
 
-            let (att_prof, def_prof) = get_duel_profiles(throw_kind);
+            let (att_prof, def_prof) = get_cached_duel_profiles(throw_kind);
             let tables = state.teams.player_attribute_tables();
             let offense_power = state.power_for_team(ctx.offense_team_id);
             let defense_power = state.power_for_team(ctx.defense_team_id);
@@ -174,7 +174,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .with_fatigue(&|id| state.fatigue_lookup().get(id))
                 .with_attribute_tables(tables),
                 state.attribute_keys(),
-                &att_prof,
+                att_prof,
             );
             let def_rating = calculate_side_rating(
                 RatingParticipants::from_slice_with_index(
@@ -184,7 +184,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .with_fatigue(&|id| state.fatigue_lookup().get(id))
                 .with_attribute_tables(tables),
                 state.attribute_keys(),
-                &def_prof,
+                def_prof,
             );
 
             let req = DuelResolutionRequest::with_states(
@@ -234,7 +234,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             } else {
                 DuelKind::RouteContest
             };
-            let (rec_att_prof, rec_def_prof) = get_duel_profiles(rec_duel_kind);
+            let (rec_att_prof, rec_def_prof) = get_cached_duel_profiles(rec_duel_kind);
             let rec_pos = state
                 .offensive_position_index_for_team(ctx.offense_team_id)
                 .get(&receiver_id)
@@ -258,7 +258,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 receiver,
                 rec_pos,
                 state.attribute_table_for(&receiver_id),
-                &rec_att_prof,
+                rec_att_prof,
                 &state.fatigue_lookup().get(&receiver_id),
             );
             let rec_def_rating = calculate_side_rating(
@@ -269,7 +269,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .with_fatigue(&|id| state.fatigue_lookup().get(id))
                 .with_attribute_tables(tables),
                 state.attribute_keys(),
-                &rec_def_prof,
+                rec_def_prof,
             );
 
             let rec_fatigue = state.fatigue_lookup().get(&receiver_id);
@@ -355,26 +355,26 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 .find(|p| p.id() == finisher_id)
                 .unwrap_or(ctx.carrier);
 
-            let (att_prof, def_prof) = get_duel_profiles(DuelKind::CrossDistribution);
+            let (att_prof, def_prof) = get_cached_duel_profiles(DuelKind::CrossDistribution);
             let att_rating = calculate_player_duel_rating_from_table(
                 ctx.carrier,
                 ctx.carrier_pos_domain,
                 &ctx.carrier_table,
-                &att_prof,
+                att_prof,
                 &ctx.carrier_fatigue,
             );
             let def_rating = calculate_player_duel_rating_from_table(
                 ctx.primary_defender,
                 ctx.primary_defender_pos_domain,
                 &ctx.primary_defender_table,
-                &def_prof,
+                def_prof,
                 &ctx.primary_defender_fatigue,
             );
 
             let offense_power = state.power_for_team(ctx.offense_team_id);
             let defense_power = state.power_for_team(ctx.defense_team_id);
 
-            let power_pair = crate::world_state::step::down_resolution::power_pair::derive_power_pair(
+            let power_pair = derive_power_pair(
                 offense_power,
                 defense_power,
                 DuelKind::CrossDistribution,

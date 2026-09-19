@@ -19,6 +19,7 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
     tables: &HashMap<Uuid, PlayerAttributeTable>,
     duel_context: &DuelContext,
     difficulty_profile: ScoringDifficultyProfile,
+    pitch_length_mirim: f64,
     rng: &mut R,
 ) -> (ScoringDecision, AttributedDuelOutcome) {
     let kicker_table = tables
@@ -47,6 +48,7 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
         0,
         0.0,
         normalized_proximity,
+        pitch_length_mirim,
         &finish_context,
     )
     .with_tables(Some(kicker_table), Some(gg_table))

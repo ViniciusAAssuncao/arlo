@@ -24,7 +24,9 @@ fn build_team_squad_selections(
     team_id: Uuid,
     is_home: bool,
     state: &MatchState,
-    subs_in: &HashSet<Uuid>,
+    starters_from_subs: &HashSet<Uuid>,
+    ever_subbed_in: &HashSet<Uuid>,
+    ever_subbed_out: &HashSet<Uuid>,
 ) -> Vec<MatchSquadSelectionRow> {
     let mut rows = Vec::new();
     let role_index = state.role_index_for_team(team_id);
@@ -41,7 +43,7 @@ fn build_team_squad_selections(
 
     for (idx, assignment) in lineup.assignments().iter().enumerate() {
         let pid = assignment.player().id();
-        let was_starter = !subs_in.contains(&pid);
+        let was_starter = !ever_subbed_in.contains(&pid) || starters_from_subs.contains(&pid);
         let slot_role = role_index.get(&pid).map(|r| format!("{:?}", r));
         let (status_str, rem_sec) = map_availability_status(state, &pid);
         rows.push(MatchSquadSelectionRow::new(
@@ -60,9 +62,8 @@ fn build_team_squad_selections(
 
     for bench_p in squad.bench() {
         let pid = bench_p.id();
-        let was_subbed_off = squad.substituted_off().contains(&pid);
-        let was_used = was_subbed_off;
-        let was_starter = was_subbed_off && !subs_in.contains(&pid);
+        let was_used = ever_subbed_in.contains(&pid) || ever_subbed_out.contains(&pid);
+        let was_starter = starters_from_subs.contains(&pid);
         let (status_str, rem_sec) = map_availability_status(state, &pid);
         rows.push(MatchSquadSelectionRow::new(
             Uuid::new_v4(),
@@ -87,10 +88,17 @@ pub async fn persist_squad_selections(
     state: &MatchState,
     run_result: &MatchRunResult,
 ) -> PersistenceResult<()> {
-    let mut subs_in = HashSet::new();
+    let mut starters_from_subs = HashSet::new();
+    let mut ever_subbed_in = HashSet::new();
+    let mut ever_subbed_out = HashSet::new();
+
     for env in run_result.raw_sink.events() {
         if let MatchEvent::SubstitutionMade(e) = env.event() {
-            subs_in.insert(e.player_in());
+            if !ever_subbed_in.contains(&e.player_out()) {
+                starters_from_subs.insert(e.player_out());
+            }
+            ever_subbed_out.insert(e.player_out());
+            ever_subbed_in.insert(e.player_in());
         }
     }
 
@@ -99,7 +107,9 @@ pub async fn persist_squad_selections(
         state.home_team_id(),
         true,
         state,
-        &subs_in,
+        &starters_from_subs,
+        &ever_subbed_in,
+        &ever_subbed_out,
     );
 
     let away_rows = build_team_squad_selections(
@@ -107,7 +117,9 @@ pub async fn persist_squad_selections(
         state.away_team_id(),
         false,
         state,
-        &subs_in,
+        &starters_from_subs,
+        &ever_subbed_in,
+        &ever_subbed_out,
     );
 
     rows.extend(away_rows);

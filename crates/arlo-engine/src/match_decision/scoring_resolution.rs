@@ -1,4 +1,4 @@
-use crate::attributes::profiles::get_duel_attribute_profiles as get_duel_profiles;
+use crate::caching::get_cached_duel_profiles;
 use crate::match_decision::scoring_request::ScoringAttemptRequest;
 use crate::match_decision::scoring_types::{ScoringDecision, ScoringOpportunity};
 use crate::possession::{locate_zone_default, LiveSequenceTracker};
@@ -60,21 +60,21 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> (ScoringDecision, AttributedDuelOutcome) {
     let duel_kind = duel_kind_for_opportunity(request.opportunity);
-    let (attacker_profile, defender_profile) = get_duel_profiles(duel_kind);
+    let (attacker_profile, defender_profile) = get_cached_duel_profiles(duel_kind);
 
     let attacker_rating = match request.finisher_table {
         Some(table) => calculate_player_duel_rating_from_table(
             request.finisher,
             Position::CenterOffense,
             table,
-            &attacker_profile,
+            attacker_profile,
             &request.finisher_state,
         ),
         None => calculate_player_duel_rating_with_state(
             request.finisher,
             Position::CenterOffense,
             request.attribute_keys,
-            &attacker_profile,
+            attacker_profile,
             &request.finisher_state,
         ),
     };
@@ -84,19 +84,19 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
             request.goalguard,
             Position::Goalguard,
             table,
-            &defender_profile,
+            defender_profile,
             &request.goalguard_state,
         ),
         None => calculate_player_duel_rating_with_state(
             request.goalguard,
             Position::Goalguard,
             request.attribute_keys,
-            &defender_profile,
+            defender_profile,
             &request.goalguard_state,
         ),
     };
 
-    let zone = locate_zone_default(request.normalized_proximity, 145.0);
+    let zone = locate_zone_default(request.normalized_proximity, request.pitch_length_mirim);
 
     let mut situation = ScoringSituation::new(
         zone,

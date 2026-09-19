@@ -1,7 +1,9 @@
 use crate::artrine::execution::drive_award::award_drives_with_profile;
 use crate::possession::locate_zone;
 use crate::resolution::outcome_distribution::{sample_action_progression, ActionProgressionKind};
-use crate::team_identity::{long_launch_advance_multiplier, short_pass_advance_multiplier};
+use crate::team_identity::{
+    effort_multiplier, long_launch_advance_multiplier, short_pass_advance_multiplier,
+};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
@@ -68,8 +70,9 @@ pub fn resolve_progression<R: Rng + ?Sized>(
         AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
     );
 
+    let tempo_mult = effort_multiplier(ctx.offense_tempo);
     let base_seconds =
-        14.0 + (mirins_advanced * 0.6).clamp(0.0, 20.0) + contest.net_advantage * 0.2;
+        (14.0 + (mirins_advanced * 0.6).clamp(0.0, 20.0) + contest.net_advantage * 0.2) / tempo_mult;
     let live_duration = Duration::new(base_seconds.clamp(8.0, 42.0));
 
     ActionProgressionOutcome {

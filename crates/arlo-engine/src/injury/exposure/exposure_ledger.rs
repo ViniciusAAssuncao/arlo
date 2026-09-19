@@ -1,4 +1,4 @@
-use crate::injury::exposure::positional_workload::position_workload_multiplier;
+use crate::injury::exposure::position_workload_multiplier;
 use arlo_domain::Position;
 use serde::{Deserialize, Serialize};
 

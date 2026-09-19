@@ -25,7 +25,9 @@ pub fn evaluate_action_utility(
                         (ctx.situation.remaining_advance_mirim - adv_mirim).max(0.0),
                     )
                 };
-                let new_norm_x = (ctx.situation.normalized_proximity + adv_mirim / 145.0).min(1.0);
+                let new_norm_x = (ctx.situation.normalized_proximity
+                    + adv_mirim / ctx.situation.pitch_length_mirim.max(1.0))
+                .min(1.0);
                 let epv_success =
                     ctx.epv_model
                         .calculate_epa(new_norm_x, new_down, new_rem, new_drives, &ctx.scoring_regime);

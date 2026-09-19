@@ -1,4 +1,4 @@
-use crate::ai::cognitive::ManagerDecisionFactory;
+use crate::ai::cognitive::evaluate_decision_gate;
 use crate::manager_ai::context::ManagerDecisionContext;
 use crate::officiating::ReviewableCall;
 use arlo_domain::sport_constants::{CHALLENGE_CALLS_PER_MATCH, CHALLENGE_LEVERAGE_WEIGHT};
@@ -30,11 +30,11 @@ impl ChallengeDecisionEngine {
         }
 
         let stimulus = calculate_challenge_stimulus(context);
-        ManagerDecisionFactory::decide(
+        evaluate_decision_gate(
             stimulus,
             context.manager_snapshot.challenge_judgment,
             context.manager_snapshot.discipline,
-            rng,
         )
+        .sample(rng)
     }
 }
