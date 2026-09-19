@@ -1,8 +1,5 @@
-use crate::injury::exertion::{evaluate_and_resolve_exertion_injury, ExertionInjuryContext};
-use crate::physical::models::aerobic::calculate_player_age;
 use crate::physical::models::anaerobic::calculate_duel_intensity_multiplier;
 use crate::resolution::AttributedDuelOutcome;
-use crate::rng::RngStream;
 use crate::team_identity::intensity_multiplier_scale;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_events::EventSink;
@@ -67,57 +64,28 @@ pub fn apply_movement_strain(
     participated_ids: &HashSet<Uuid>,
     live_seconds: f64,
 ) {
-    for &pid in participated_ids {
-        let is_home = publisher.state().teams.is_home_player(&pid);
-        let team_id = if is_home {
-            publisher.state().home_team_id()
-        } else {
-            publisher.state().away_team_id()
-        };
-        let player = match publisher.state().teams.find_player(&pid) {
-            Some(p) => p.clone(),
-            None => continue,
-        };
+    let all_on_field_ids: Vec<Uuid> = publisher
+        .state()
+        .home_lineup()
+        .assignments()
+        .iter()
+        .chain(publisher.state().away_lineup().assignments().iter())
+        .map(|a| a.player().id())
+        .collect();
 
+    for pid in all_on_field_ids {
+        let participated = participated_ids.contains(&pid);
         let (energy, w_bal) = publisher
             .state_mut()
-            .apply_event_energy_decay(pid, live_seconds);
+            .apply_event_energy_decay(pid, live_seconds, participated);
 
-        publisher.emit_physical_strain(
-            pid,
-            energy,
-            w_bal,
-            0.0,
-        );
-
-        let age_years = calculate_player_age(&player, 0);
-        let injury_profile = publisher.state().player_injury_profile(&pid);
-        let player_fatigue = publisher.state().fatigue_for(&pid);
-        let intensity_strain = 1.0 - w_bal;
-        let table = publisher.state().attribute_table_for(&pid);
-
-        let exertion_ctx = ExertionInjuryContext::new(
-            pid,
-            team_id,
-            table,
-            player_fatigue,
-            injury_profile,
-            intensity_strain,
-            live_seconds,
-            age_years,
-        );
-
-        let seq = publisher.state().event_sequence();
-        let mut exertion_rng = publisher
-            .state()
-            .rng_provider()
-            .indexed_rng_for(RngStream::DuelResolution, seq);
-
-        let catalog = publisher.state().injury_catalog().clone();
-        let maybe_injury =
-            evaluate_and_resolve_exertion_injury(&exertion_ctx, &catalog, &mut exertion_rng);
-        if let Some(injury_resolution) = maybe_injury {
-            publisher.emit_injury_incident(&injury_resolution);
+        if participated {
+            publisher.emit_physical_strain(
+                pid,
+                energy,
+                w_bal,
+                0.0,
+            );
         }
     }
 }
@@ -125,13 +93,14 @@ pub fn apply_movement_strain(
 pub fn apply_dead_ball_recovery(
     publisher: &mut EventPublisher<'_, impl EventSink>,
     dead_ball_seconds: f64,
+    is_time_call: bool,
 ) {
     if dead_ball_seconds <= 0.0 {
         return;
     }
     let recoveries = publisher
         .state_mut()
-        .apply_dead_ball_recovery(dead_ball_seconds);
+        .apply_dead_ball_recovery(dead_ball_seconds, is_time_call);
     for (pid, recovery_amount, new_w_bal) in recoveries {
         if recovery_amount > 0.0 {
             publisher.emit_recovery_processed(pid, recovery_amount, dead_ball_seconds, new_w_bal);

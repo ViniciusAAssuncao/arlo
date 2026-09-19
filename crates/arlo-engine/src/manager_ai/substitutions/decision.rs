@@ -1,23 +1,15 @@
-use crate::ai::cognitive::ManagerDecisionFactory;
 use crate::attributes::PlayerAttributeTable;
 use crate::lineup_runtime::Lineup;
 use crate::manager_ai::context::squad_fatigue_summary::SquadFatigueSummary;
 use crate::manager_ai::context::ManagerDecisionContext;
-use crate::manager_ai::substitutions::disciplinary_trigger::disciplinary_urgency;
-use crate::manager_ai::substitutions::fatigue_trigger::urgency_for_player_with_load_management;
-use crate::manager_ai::substitutions::replacement_selection::best_replacement;
-use crate::manager_ai::substitutions::tactical_trigger::tactical_urgency;
+use crate::manager_ai::substitutions::budget_policy::SubstitutionBudgetPolicy;
+use crate::manager_ai::substitutions::plan_builder::build_substitution_plans;
 use crate::physical::FatigueState;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::AvailabilityState;
-use arlo_domain::sport_constants::{
-    SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT, SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT,
-    SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT,
-};
-use arlo_domain::{Position, RotationPolicy};
 use arlo_events::SubstitutionReason;
 use rand::Rng;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,17 +17,6 @@ pub struct SubstitutionPlan {
     pub outgoing_id: Uuid,
     pub incoming_id: Uuid,
     pub reason: SubstitutionReason,
-}
-
-pub fn calculate_substitution_stimulus(
-    fatigue_urgency: f64,
-    tactical_urgency: f64,
-    disciplinary_urgency: f64,
-) -> f64 {
-    (fatigue_urgency * SUBSTITUTION_FATIGUE_URGENCY_ROTATION_WEIGHT
-        + tactical_urgency * SUBSTITUTION_TACTICAL_URGENCY_DEFICIT_WEIGHT
-        + disciplinary_urgency * SUBSTITUTION_DISCIPLINARY_URGENCY_WEIGHT)
-        .clamp(0.0, 1.0)
 }
 
 pub struct SubstitutionDecisionEngine;
@@ -55,83 +36,17 @@ impl SubstitutionDecisionEngine {
         F: Fn(&Uuid) -> FatigueState,
         R: Rng + ?Sized,
     {
-        let rotation_policy = context
-            .manager_snapshot
-            .tactical_profile
-            .as_ref()
-            .map(|p| p.rotation_policy())
-            .unwrap_or(RotationPolicy::Situational);
-        let load_management = context.manager_snapshot.load_management;
-        let tac_urg = tactical_urgency(context);
-        let discipline = context.manager_snapshot.discipline;
-
-        let mut used_candidates = HashSet::new();
-        let mut plans = Vec::new();
-
-        for assignment in lineup.assignments() {
-            let pid = assignment.player().id();
-            let p_avail = availability_lookup(&pid);
-            if p_avail.is_expelled() {
-                continue;
-            }
-
-            let p_fatigue = fatigue_lookup(&pid);
-            let fat_urg = urgency_for_player_with_load_management(
-                &p_fatigue,
-                rotation_policy,
-                load_management,
-            );
-            let disc_urg = disciplinary_urgency(p_avail);
-
-            let stimulus = calculate_substitution_stimulus(fat_urg, tac_urg, disc_urg);
-
-            if ManagerDecisionFactory::decide(
-                stimulus,
-                context.manager_snapshot.man_management,
-                discipline,
-                rng,
-            ) {
-                let available_candidates: Vec<_> = bench
-                    .available_replacements()
-                    .filter(|p| !used_candidates.contains(&p.id()))
-                    .filter(|p| availability_lookup(&p.id()).is_active())
-                    .cloned()
-                    .collect();
-
-                if !available_candidates.is_empty() {
-                    let slot = assignment.slot();
-                    let target_pos = if slot.defensive_position() == Position::Goalguard
-                        || slot.position() == Position::Goalguard
-                        || slot.offensive_position() == Position::Goalguard
-                    {
-                        Position::Goalguard
-                    } else {
-                        slot.position()
-                    };
-                    if let Some(replacement) = best_replacement(
-                        target_pos,
-                        &available_candidates,
-                        attribute_tables,
-                    ) {
-                        used_candidates.insert(replacement.id());
-                        let reason = if disc_urg > 0.0 {
-                            SubstitutionReason::Disciplinary
-                        } else if fat_urg >= tac_urg && fat_urg > 0.0 {
-                            SubstitutionReason::Fatigue
-                        } else {
-                            SubstitutionReason::Tactical
-                        };
-                        plans.push(SubstitutionPlan {
-                            outgoing_id: pid,
-                            incoming_id: replacement.id(),
-                            reason,
-                        });
-                    }
-                }
-            }
-        }
-
-        plans
+        let budget_policy = SubstitutionBudgetPolicy::default();
+        build_substitution_plans(
+            context,
+            lineup,
+            bench,
+            attribute_tables,
+            fatigue_lookup,
+            availability_lookup,
+            &budget_policy,
+            rng,
+        )
     }
 
     pub fn evaluate<F, R>(

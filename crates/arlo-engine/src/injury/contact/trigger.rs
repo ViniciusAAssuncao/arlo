@@ -1,11 +1,11 @@
 use crate::injury::age_risk::calculate_age_risk_multiplier;
 use crate::injury::contact::context::ContactInjuryContext;
 use crate::injury::susceptibility::derive_effective_susceptibility;
+use crate::injury::tuning::InjuryTuningProfile;
 use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::weighting::calculate_weighted_average;
 use arlo_domain::sport_constants::{
-    BASE_CONTACT_INJURY_PROBABILITY, CONTACT_COLLISION_INTENSITY_WEIGHT, CONTACT_FATIGUE_WEIGHT,
-    CONTACT_VULNERABILITY_WEIGHT,
+    CONTACT_COLLISION_INTENSITY_WEIGHT, CONTACT_FATIGUE_WEIGHT, CONTACT_VULNERABILITY_WEIGHT,
 };
 use arlo_math::stats::contrast::logistic;
 use arlo_math::Probability;
@@ -14,6 +14,7 @@ use rand::Rng;
 pub fn evaluate_contact_injury_probability(
     is_carrier: bool,
     ctx: &ContactInjuryContext<'_>,
+    tuning: &InjuryTuningProfile,
 ) -> f64 {
     let (table, physical_state, profile, age_years) = if is_carrier {
         (
@@ -44,7 +45,7 @@ pub fn evaluate_contact_injury_probability(
     .unwrap_or(0.1);
 
     let age_mult = calculate_age_risk_multiplier(age_years);
-    let p0 = BASE_CONTACT_INJURY_PROBABILITY;
+    let p0 = tuning.base_contact_hazard_per_collision();
     let base_logit = (p0 / (1.0 - p0)).ln();
     let modulated_logit = base_logit + (risk_stimulus * 2.5) + (age_mult - 1.0) * 0.8;
 
@@ -54,9 +55,10 @@ pub fn evaluate_contact_injury_probability(
 pub fn sample_contact_injury_trigger<R: Rng + ?Sized>(
     is_carrier: bool,
     ctx: &ContactInjuryContext<'_>,
+    tuning: &InjuryTuningProfile,
     rng: &mut R,
 ) -> (bool, f64) {
-    let prob = evaluate_contact_injury_probability(is_carrier, ctx);
+    let prob = evaluate_contact_injury_probability(is_carrier, ctx, tuning);
     let triggered = Probability::new_clamped(prob).sample(rng);
     (triggered, prob)
 }

@@ -4,18 +4,21 @@ use crate::injury::exertion::trigger::sample_exertion_injury_trigger;
 use crate::injury::outcome::InjuryIncidentResolution;
 use crate::injury::severity_estimation::estimate_injury_severity;
 use crate::injury::susceptibility::derive_effective_susceptibility;
+use crate::injury::tuning::InjuryTuningProfile;
 use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::weighting::calculate_weighted_average;
 use arlo_domain::sport_constants::{NON_CONTACT_FATIGUE_WEIGHT, NON_CONTACT_VELOCITY_WEIGHT};
-use arlo_domain::{BodyRegion, InjuryCatalog, InjuryMechanism};
+use arlo_domain::{BodyRegion, InjuryCatalog, InjuryMechanism, Position};
 use rand::Rng;
 
 pub fn evaluate_and_resolve_exertion_injury<R: Rng + ?Sized>(
     ctx: &ExertionInjuryContext<'_>,
+    position: Position,
     catalog: &InjuryCatalog,
+    tuning: &InjuryTuningProfile,
     rng: &mut R,
 ) -> Option<InjuryIncidentResolution> {
-    let (triggered, trigger_prob) = sample_exertion_injury_trigger(ctx, rng);
+    let (triggered, trigger_prob) = sample_exertion_injury_trigger(ctx, position, tuning, rng);
     if !triggered {
         return None;
     }

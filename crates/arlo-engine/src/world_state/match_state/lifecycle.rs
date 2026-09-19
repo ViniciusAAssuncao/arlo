@@ -146,6 +146,7 @@ impl MatchState {
             power_cache,
             gravity_cache,
             tuning: params.tuning,
+            match_date_unix_seconds: params.match_date_unix_seconds,
         };
 
         state.refresh_team_powers();

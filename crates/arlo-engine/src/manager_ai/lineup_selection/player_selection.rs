@@ -1,7 +1,6 @@
 use crate::attributes::PlayerAttributeTable;
-use crate::current_ability::calculate_player_ca;
-use crate::lineup_runtime::fit_calculator::calculate_fit;
-use arlo_domain::sport_constants::MIN_CURRENT_ABILITY;
+use crate::lineup_runtime::calculate_player_contribution;
+use crate::physical::PhysicalState;
 use arlo_domain::{AttributeKey, Formation, FormationSlot, Player, Position};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
@@ -33,24 +32,20 @@ pub fn assign_players(
 
     let mut allocated_ids = HashSet::with_capacity(slots.len());
     let mut assignments = Vec::with_capacity(slots.len());
+    let initial_state = PhysicalState::initial();
 
     for slot_idx in slot_indices {
         let slot = &slots[slot_idx];
+        let target_pos = slot.position();
 
         let best_player = roster
             .iter()
             .filter(|p| !allocated_ids.contains(&p.id()))
             .max_by(|a, b| {
-                let fit_a = calculate_fit(a, slot);
-                let fit_b = calculate_fit(b, slot);
-
                 let table_a = PlayerAttributeTable::from_player(a, attribute_keys);
                 let table_b = PlayerAttributeTable::from_player(b, attribute_keys);
-                let ca_a = calculate_player_ca(a, &table_a).unwrap_or(MIN_CURRENT_ABILITY) as f64;
-                let ca_b = calculate_player_ca(b, &table_b).unwrap_or(MIN_CURRENT_ABILITY) as f64;
-
-                let score_a = ca_a * (0.30 + 0.70 * fit_a.efficiency_multiplier());
-                let score_b = ca_b * (0.30 + 0.70 * fit_b.efficiency_multiplier());
+                let score_a = calculate_player_contribution(a, &table_a, target_pos, &initial_state).value();
+                let score_b = calculate_player_contribution(b, &table_b, target_pos, &initial_state).value();
 
                 score_a
                     .partial_cmp(&score_b)

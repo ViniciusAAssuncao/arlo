@@ -4,6 +4,7 @@ use crate::officiating::foul::{evaluate_and_resolve_foul, FoulEvaluationContext,
 use crate::officiating::line_fault::{
     evaluate_and_resolve_line_fault, identify_last_defender, LineFaultEvaluationContext,
 };
+use crate::physical::models::age::calculate_player_age;
 use crate::play_resolution::contact_events::{evaluate_contact_likelihood, sample_contact_event};
 use crate::possession::PitchState;
 use crate::world_state::match_state::MatchState;
@@ -129,33 +130,36 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
         }
     }
 
-    let injury_catalog = state.injury_catalog_arc();
-    let contact_injury_ctx = ContactInjuryContext::new(
-        contact_sampling.contact_severity,
-        ctx.carrier.id(),
-        ctx.offense_team_id,
-        &ctx.carrier_table,
-        ctx.carrier_fatigue,
-        state.player_injury_profile(&ctx.carrier.id()),
-        25.0,
-        ctx.primary_defender.id(),
-        ctx.defense_team_id,
-        &ctx.primary_defender_table,
-        ctx.primary_defender_fatigue,
-        state.player_injury_profile(&ctx.primary_defender.id()),
-        25.0,
-    );
+    if contact_sampling.contact_occurred {
+        let match_date = state.match_date_unix_seconds();
+        let carrier_age = calculate_player_age(ctx.carrier, match_date);
+        let defender_age = calculate_player_age(ctx.primary_defender, match_date);
+        let injury_tuning = *state.tuning().injury_tuning();
+        let injury_catalog = state.injury_catalog_arc();
 
-    if contact_sampling.carrier_injured {
+        let contact_injury_ctx = ContactInjuryContext::new(
+            contact_sampling.contact_severity,
+            ctx.carrier.id(),
+            ctx.offense_team_id,
+            &ctx.carrier_table,
+            ctx.carrier_fatigue,
+            state.player_injury_profile(&ctx.carrier.id()),
+            carrier_age,
+            ctx.primary_defender.id(),
+            ctx.defense_team_id,
+            &ctx.primary_defender_table,
+            ctx.primary_defender_fatigue,
+            state.player_injury_profile(&ctx.primary_defender.id()),
+            defender_age,
+        );
+
         if let Some(inj) =
-            evaluate_and_resolve_contact_injury(true, &contact_injury_ctx, &injury_catalog, rng)
+            evaluate_and_resolve_contact_injury(true, &contact_injury_ctx, &injury_catalog, &injury_tuning, rng)
         {
             injuries.push(inj);
         }
-    }
-    if contact_sampling.defender_injured {
         if let Some(inj) =
-            evaluate_and_resolve_contact_injury(false, &contact_injury_ctx, &injury_catalog, rng)
+            evaluate_and_resolve_contact_injury(false, &contact_injury_ctx, &injury_catalog, &injury_tuning, rng)
         {
             injuries.push(inj);
         }

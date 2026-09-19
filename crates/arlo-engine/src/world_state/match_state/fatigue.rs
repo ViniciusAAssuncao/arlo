@@ -1,6 +1,8 @@
 use crate::attributes::PlayerAttributeTable;
+use crate::physical::models::energy_decay::calculate_event_energy_decay;
+use crate::physical::tuning::EnergyTuningProfile;
 use crate::physical::{fatigue_multiplier, FatigueState};
-use arlo_domain::{AttributeKey, Player};
+use arlo_domain::{AttributeKey, Player, Position};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -28,7 +30,7 @@ impl<'a> FatigueLookup<'a> {
             .or_else(|| self.away_fatigue.get(player_id))
             .copied()
             .unwrap_or_default()
-        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -80,21 +82,34 @@ impl FatigueTracker {
         is_home: bool,
         table: &PlayerAttributeTable,
         age_years: f64,
+        position: Position,
+        tempo_mult: f64,
+        pressing_mult: f64,
+        participated: bool,
+        profile: &EnergyTuningProfile,
     ) -> (f64, f64) {
         let stamina = table.get(AttributeKey::Stamina);
         let natural_fitness = table.get(AttributeKey::NaturalFitness);
+        let workload = crate::injury::exposure::position_workload_multiplier(position);
         let fatigue = if is_home {
             self.home_fatigue.entry(player_id).or_default()
         } else {
             self.away_fatigue.entry(player_id).or_default()
         };
-        crate::physical::models::aerobic::apply_event_energy_decay(
-            fatigue,
+
+        let decay = calculate_event_energy_decay(
             live_duration_seconds,
             stamina,
             natural_fitness,
             age_years,
+            workload,
+            tempo_mult,
+            pressing_mult,
+            participated,
+            profile,
         );
+
+        crate::physical::models::energy_decay::apply_event_energy_decay(fatigue, decay);
         (fatigue.energy(), fatigue.w_prime_balance())
     }
 
@@ -127,6 +142,8 @@ impl FatigueTracker {
         home_players: &[&Player],
         away_players: &[&Player],
         attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
+        is_time_call: bool,
+        profile: &EnergyTuningProfile,
     ) -> Vec<(Uuid, f64, f64)> {
         let mut previous_balances = HashMap::new();
         for p in home_players.iter().chain(away_players.iter()) {
@@ -140,6 +157,8 @@ impl FatigueTracker {
             away_players,
             attribute_tables,
             dead_ball_seconds,
+            is_time_call,
+            profile,
         );
 
         let mut results = Vec::new();

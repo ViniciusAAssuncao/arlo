@@ -11,6 +11,7 @@ use crate::world_state::play_transition::fatigue_applier::{
     apply_duel_strain, apply_movement_strain,
 };
 use crate::world_state::play_transition::impulse_coordinator::coordinate_play_impulse;
+use crate::world_state::play_transition::injury_stage::evaluate_and_apply_exertion_injuries;
 use crate::world_state::play_transition::possession_resolver::{
     build_detailed_play_outcome, classify_play_outcome,
 };
@@ -103,6 +104,7 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
         }
         let live_seconds = self.play_ledger.total_live().value().max(1.0);
         apply_movement_strain(&mut self.publisher, &participated_ids, live_seconds);
+        evaluate_and_apply_exertion_injuries(&mut self.publisher, &participated_ids, live_seconds);
     }
 
     fn emit_fouls(&mut self) {

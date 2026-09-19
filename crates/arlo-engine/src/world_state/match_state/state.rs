@@ -70,9 +70,14 @@ pub struct MatchState {
     pub(crate) power_cache: MatchPowerCache,
     pub(crate) gravity_cache: MatchGravityCache,
     pub(crate) tuning: Arc<EngineTuning>,
+    pub(crate) match_date_unix_seconds: i64,
 }
 
 impl MatchState {
+    pub fn match_date_unix_seconds(&self) -> i64 {
+        self.match_date_unix_seconds
+    }
+
     pub fn attribute_table_for(&self, player_id: &Uuid) -> &PlayerAttributeTable {
         self.teams
             .player_attribute_table(player_id)

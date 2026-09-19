@@ -1,8 +1,6 @@
 use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
-use crate::current_ability::calculate_player_ca;
-use crate::lineup_runtime::calculate_fit_for_position;
+use crate::lineup_runtime::calculate_player_contribution;
 use crate::world_state::match_state::state::MatchState;
-use arlo_domain::sport_constants::MIN_CURRENT_ABILITY;
 use arlo_domain::{AttributeKey, Position, PositionLine};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -138,7 +136,7 @@ pub fn calculate_team_match_power(state: &MatchState, team_id: Uuid) -> TeamMatc
         }
 
         let table = tables.get(&pid).unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-        let ca = calculate_player_ca(player, table).unwrap_or(MIN_CURRENT_ABILITY) as f64;
+        let fatigue = fatigue_lookup.get(&pid);
 
         let off_pos = offense_pos_index
             .get(&pid)
@@ -149,12 +147,8 @@ pub fn calculate_team_match_power(state: &MatchState, team_id: Uuid) -> TeamMatc
             .copied()
             .unwrap_or(Position::Centerback);
 
-        let off_fit = calculate_fit_for_position(player, off_pos).efficiency_multiplier();
-        let def_fit = calculate_fit_for_position(player, def_pos).efficiency_multiplier();
-
-        let fatigue = fatigue_lookup.get(&pid);
-        let fatigue_factor =
-            (0.70 + 0.20 * fatigue.energy() + 0.10 * fatigue.w_prime_balance()).clamp(0.40, 1.00);
+        let off_contrib = calculate_player_contribution(player, table, off_pos, &fatigue).value();
+        let def_contrib = calculate_player_contribution(player, table, def_pos, &fatigue).value();
 
         let (off_weight, ctrl_weight) = match off_pos {
             Position::Artrine => (1.1, 1.4),
@@ -177,9 +171,9 @@ pub fn calculate_team_match_power(state: &MatchState, team_id: Uuid) -> TeamMatc
             },
         };
 
-        total_off_ca += ca * off_fit * fatigue_factor * off_weight;
-        total_def_ca += ca * def_fit * fatigue_factor * def_weight;
-        total_ctrl_ca += ca * off_fit * fatigue_factor * ctrl_weight;
+        total_off_ca += off_contrib * off_weight;
+        total_def_ca += def_contrib * def_weight;
+        total_ctrl_ca += off_contrib * ctrl_weight;
     }
 
     let off_tactical_bonus = (manager_table.get(AttributeKey::OffensePlanning) * 0.06)

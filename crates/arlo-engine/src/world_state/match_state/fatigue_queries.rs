@@ -2,7 +2,7 @@ use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::physical::FatigueState;
 use crate::world_state::match_state::fatigue::FatigueLookup;
 use crate::world_state::match_state::state::MatchState;
-use arlo_domain::Player;
+use arlo_domain::{Player, Position};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -31,23 +31,51 @@ impl MatchState {
         &mut self,
         player_id: Uuid,
         live_duration_seconds: f64,
+        participated: bool,
     ) -> (f64, f64) {
         let is_home = self.teams.is_home_player(&player_id);
+        let team_id = if is_home {
+            self.home_team_id()
+        } else {
+            self.away_team_id()
+        };
         let age_years = self
             .teams
             .find_player(&player_id)
-            .map(|p| crate::physical::models::aerobic::calculate_player_age(p, 0))
+            .map(|p| crate::physical::models::age::calculate_player_age(p, self.match_date_unix_seconds))
             .unwrap_or(25.0);
+
+        let position = self
+            .offensive_position_index_for_team(team_id)
+            .get(&player_id)
+            .copied()
+            .unwrap_or(Position::CenterOffense);
+
+        let tempo_mult = crate::team_identity::tempo::effort_multiplier(
+            self.instructions_for_team(team_id).in_possession().tempo(),
+        );
+        let pressing_mult = crate::team_identity::pressing::contest_radius_multiplier(
+            self.instructions_for_team(team_id).out_of_possession().pressing_intensity(),
+        );
+
         let table = self
             .teams
             .player_attribute_table(&player_id)
             .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+
+        let energy_tuning = *self.tuning.energy_tuning();
+
         self.fatigue.apply_event_energy_decay(
             player_id,
             live_duration_seconds,
             is_home,
             table,
             age_years,
+            position,
+            tempo_mult,
+            pressing_mult,
+            participated,
+            &energy_tuning,
         )
     }
 
@@ -64,7 +92,11 @@ impl MatchState {
         self.fatigue.apply_contest_strain(player_id, intensity, is_home, table)
     }
 
-    pub fn apply_dead_ball_recovery(&mut self, dead_ball_seconds: f64) -> Vec<(Uuid, f64, f64)> {
+    pub fn apply_dead_ball_recovery(
+        &mut self,
+        dead_ball_seconds: f64,
+        is_time_call: bool,
+    ) -> Vec<(Uuid, f64, f64)> {
         let home_players: Vec<&Player> = self
             .teams
             .home_lineup()
@@ -79,11 +111,14 @@ impl MatchState {
             .iter()
             .map(|a| a.player())
             .collect();
+        let energy_tuning = *self.tuning.energy_tuning();
         self.fatigue.apply_dead_ball_recovery(
             dead_ball_seconds,
             &home_players,
             &away_players,
             self.teams.player_attribute_tables(),
+            is_time_call,
+            &energy_tuning,
         )
     }
 

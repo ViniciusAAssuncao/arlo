@@ -60,6 +60,7 @@ pub struct MatchSetupParams {
     pub injury_catalog: Arc<InjuryCatalog>,
     pub player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
     pub tuning: Arc<EngineTuning>,
+    pub match_date_unix_seconds: i64,
     pub seed: MatchSeed,
 }
 
@@ -88,8 +89,14 @@ impl MatchSetupParams {
             injury_catalog,
             player_injury_profiles: HashMap::new(),
             tuning: Arc::new(EngineTuning::default()),
+            match_date_unix_seconds: 0,
             seed,
         }
+    }
+
+    pub fn with_match_date(mut self, match_date_unix_seconds: i64) -> Self {
+        self.match_date_unix_seconds = match_date_unix_seconds;
+        self
     }
 
     pub fn with_player_injury_profiles(

@@ -14,8 +14,6 @@ pub struct ContactLikelihoodProfile {
     contact_probability: f64,
     expected_contact_severity: f64,
     foul_probability: f64,
-    carrier_injury_probability: f64,
-    defender_injury_probability: f64,
 }
 
 impl ContactLikelihoodProfile {
@@ -23,15 +21,11 @@ impl ContactLikelihoodProfile {
         contact_probability: f64,
         expected_contact_severity: f64,
         foul_probability: f64,
-        carrier_injury_probability: f64,
-        defender_injury_probability: f64,
     ) -> Self {
         Self {
             contact_probability: contact_probability.clamp(0.0, 1.0),
             expected_contact_severity: expected_contact_severity.clamp(0.0, 1.0),
             foul_probability: foul_probability.clamp(0.0, 1.0),
-            carrier_injury_probability: carrier_injury_probability.clamp(0.0, 1.0),
-            defender_injury_probability: defender_injury_probability.clamp(0.0, 1.0),
         }
     }
 
@@ -46,32 +40,22 @@ impl ContactLikelihoodProfile {
     pub fn foul_probability(&self) -> f64 {
         self.foul_probability
     }
-
-    pub fn carrier_injury_probability(&self) -> f64 {
-        self.carrier_injury_probability
-    }
-
-    pub fn defender_injury_probability(&self) -> f64 {
-        self.defender_injury_probability
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ContactEventSamplingResult {
     pub contact_occurred: bool,
     pub foul_occurred: bool,
-    pub carrier_injured: bool,
-    pub defender_injured: bool,
     pub contact_severity: f64,
 }
 
 pub fn evaluate_contact_likelihood(
     carrier_table: &PlayerAttributeTable,
     carrier_fatigue: &PhysicalState,
-    carrier_susceptibility: f64,
+    _carrier_susceptibility: f64,
     defender_table: &PlayerAttributeTable,
     defender_fatigue: &PhysicalState,
-    defender_susceptibility: f64,
+    _defender_susceptibility: f64,
     offense_instructions: &TeamInstructions,
     defense_instructions: &TeamInstructions,
     referee_table: &RefereeAttributeTable,
@@ -128,22 +112,10 @@ pub fn evaluate_contact_likelihood(
         + 0.30 * mean_exhaustion;
     let foul_probability = (contact_probability * logistic(foul_logit)).clamp(0.01, 0.80);
 
-    let carrier_injury_probability = (0.005
-        + 0.035 * expected_contact_severity * carrier_susceptibility * (1.0 + carrier_exhaustion))
-        .clamp(0.001, 0.25);
-    let defender_injury_probability = (0.005
-        + 0.035
-            * expected_contact_severity
-            * defender_susceptibility
-            * (1.0 + defender_exhaustion))
-        .clamp(0.001, 0.25);
-
     ContactLikelihoodProfile::new(
         contact_probability,
         expected_contact_severity,
         foul_probability,
-        carrier_injury_probability,
-        defender_injury_probability,
     )
 }
 
@@ -156,23 +128,15 @@ pub fn sample_contact_event<R: Rng + ?Sized>(
         return ContactEventSamplingResult {
             contact_occurred: false,
             foul_occurred: false,
-            carrier_injured: false,
-            defender_injured: false,
             contact_severity: 0.0,
         };
     }
 
     let foul_occurred = Probability::new_clamped(profile.foul_probability()).sample(rng);
-    let carrier_injured =
-        Probability::new_clamped(profile.carrier_injury_probability()).sample(rng);
-    let defender_injured =
-        Probability::new_clamped(profile.defender_injury_probability()).sample(rng);
 
     ContactEventSamplingResult {
         contact_occurred: true,
         foul_occurred,
-        carrier_injured,
-        defender_injured,
         contact_severity: profile.expected_contact_severity(),
     }
 }

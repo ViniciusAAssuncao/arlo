@@ -34,6 +34,7 @@ pub fn handle_dead_ball_and_clock(
     *publisher.state_mut().possession_mut() = next_snapshot;
 
     let is_post_turnover = detailed_outcome.turnover.is_some();
+    let mut had_time_call = false;
 
     if transition_result.countdown_to_size_triggered {
         let seq = publisher.state_mut().next_sequence();
@@ -41,7 +42,7 @@ pub fn handle_dead_ball_and_clock(
             .state()
             .rng_provider()
             .team_indexed_rng_for(
-                RngStream::PlayCallSelection,
+                RngStream::ManagerStoppage,
                 detailed_outcome.offense_team_id,
                 seq,
             );
@@ -49,7 +50,7 @@ pub fn handle_dead_ball_and_clock(
             .state()
             .rng_provider()
             .team_indexed_rng_for(
-                RngStream::PlayCallSelection,
+                RngStream::ManagerStoppage,
                 detailed_outcome.defense_team_id,
                 seq,
             );
@@ -68,6 +69,7 @@ pub fn handle_dead_ball_and_clock(
         );
         let extra_total = extra_offense + extra_defense;
         if extra_total.value() > 0.0 {
+            had_time_call = true;
             play_ledger.record_dead_ball(DurationComponentKind::Huddle, extra_total);
         }
 
@@ -117,7 +119,7 @@ pub fn handle_dead_ball_and_clock(
     publisher
         .state_mut()
         .record_period_dead_ball_seconds(dead_ball_seconds);
-    apply_dead_ball_recovery(publisher, dead_ball_seconds);
+    apply_dead_ball_recovery(publisher, dead_ball_seconds, had_time_call);
 
     if live_seconds > 0.0 {
         publisher.state_mut().advance_impulse_dynamics(live_seconds);

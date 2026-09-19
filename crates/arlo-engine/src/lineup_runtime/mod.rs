@@ -1,9 +1,11 @@
+pub mod contribution;
 pub mod fit_calculator;
 pub mod from_tactical_lineup;
 pub mod lineup;
 pub mod position_finder;
 pub mod position_similarity;
 
+pub use contribution::{calculate_player_contribution, PlayerContribution};
 pub use fit_calculator::{
     calculate_average_fit, calculate_fit, calculate_fit_for_position, calculate_lineup_fit,
     PositionalFit, SlotFitCalculator,

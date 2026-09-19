@@ -1,5 +1,7 @@
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::physical::state::PhysicalState;
+use crate::physical::systems::energy_recovery::recover_player_energy;
+use crate::physical::tuning::EnergyTuningProfile;
 use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -30,6 +32,8 @@ pub fn recover_player_physical_state(
     state: &mut PhysicalState,
     table: &PlayerAttributeTable,
     dead_ball_seconds: f64,
+    is_time_call: bool,
+    profile: &EnergyTuningProfile,
 ) {
     let stamina = table.get(AttributeKey::Stamina);
     let natural_fitness = table.get(AttributeKey::NaturalFitness);
@@ -40,6 +44,7 @@ pub fn recover_player_physical_state(
         natural_fitness,
     );
     state.set_w_prime_balance(new_w_prime);
+    recover_player_energy(state, dead_ball_seconds, natural_fitness, is_time_call, profile);
 }
 
 pub fn recover_team_physical_states(
@@ -47,6 +52,8 @@ pub fn recover_team_physical_states(
     players: &[&Player],
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     dead_ball_seconds: f64,
+    is_time_call: bool,
+    profile: &EnergyTuningProfile,
 ) {
     if dead_ball_seconds <= 0.0 {
         return;
@@ -56,7 +63,7 @@ pub fn recover_team_physical_states(
         let table = attribute_tables
             .get(&player.id())
             .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-        recover_player_physical_state(state, table, dead_ball_seconds);
+        recover_player_physical_state(state, table, dead_ball_seconds, is_time_call, profile);
     }
 }
 
@@ -67,17 +74,23 @@ pub fn apply_intra_match_recovery(
     away_players: &[&Player],
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     dead_ball_seconds: f64,
+    is_time_call: bool,
+    profile: &EnergyTuningProfile,
 ) {
     recover_team_physical_states(
         home_fatigue,
         home_players,
         attribute_tables,
         dead_ball_seconds,
+        is_time_call,
+        profile,
     );
     recover_team_physical_states(
         away_fatigue,
         away_players,
         attribute_tables,
         dead_ball_seconds,
+        is_time_call,
+        profile,
     );
 }
