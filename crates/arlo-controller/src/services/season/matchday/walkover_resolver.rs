@@ -8,14 +8,14 @@ pub fn apply_walkover(fixture: &FixtureRow, fault_team_id: Option<Uuid>) -> Fixt
     let home_team_id = Uuid::parse_str(&fixture.home_team_id).ok();
     let away_team_id = Uuid::parse_str(&fixture.away_team_id).ok();
 
-    let (home_score, away_score, home_gp, away_gp) = match fault_team_id {
+    let (home_score, away_score, home_gp, away_gp, home_fg, away_fg, home_fp, away_fp) = match fault_team_id {
         Some(fault_id) if Some(fault_id) == home_team_id && Some(fault_id) != away_team_id => {
-            (0, 3, 0, 3)
+            (0, 15, 0, 3, 0, 0, 0, 0)
         }
         Some(fault_id) if Some(fault_id) == away_team_id && Some(fault_id) != home_team_id => {
-            (3, 0, 3, 0)
+            (15, 0, 3, 0, 0, 0, 0, 0)
         }
-        _ => (0, 0, 0, 0),
+        _ => (0, 0, 0, 0, 0, 0, 0, 0),
     };
 
     FixtureRow {
@@ -33,6 +33,10 @@ pub fn apply_walkover(fixture: &FixtureRow, fault_team_id: Option<Uuid>) -> Fixt
         away_score: Some(away_score),
         home_goal_points: Some(home_gp),
         away_goal_points: Some(away_gp),
+        home_field_goals: Some(home_fg),
+        away_field_goals: Some(away_fg),
+        home_field_points: Some(home_fp),
+        away_field_points: Some(away_fp),
     }
 }
 
@@ -68,13 +72,17 @@ pub async fn persist_walkover_fixture(
     fixture_row: &FixtureRow,
 ) -> ControllerResult<()> {
     sqlx::query(
-        "UPDATE fixtures SET status = ?, home_score = ?, away_score = ?, home_goal_points = ?, away_goal_points = ? WHERE id = ?",
+        "UPDATE fixtures SET status = ?, home_score = ?, away_score = ?, home_goal_points = ?, away_goal_points = ?, home_field_goals = ?, away_field_goals = ?, home_field_points = ?, away_field_points = ? WHERE id = ?",
     )
     .bind(&fixture_row.status)
     .bind(fixture_row.home_score)
     .bind(fixture_row.away_score)
     .bind(fixture_row.home_goal_points)
     .bind(fixture_row.away_goal_points)
+    .bind(fixture_row.home_field_goals)
+    .bind(fixture_row.away_field_goals)
+    .bind(fixture_row.home_field_points)
+    .bind(fixture_row.away_field_points)
     .bind(&fixture_row.id)
     .execute(pool)
     .await?;
