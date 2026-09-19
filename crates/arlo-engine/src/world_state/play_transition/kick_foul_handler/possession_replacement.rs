@@ -1,10 +1,11 @@
-use crate::possession::{PossessionRole, PossessionSnapshot, SeriesState};
+use crate::possession::{PossessionOrigin, PossessionRole, PossessionSnapshot, SeriesState};
 use crate::world_state::match_state::MatchState;
 
 pub fn replace_possession_preserving_ball_and_clock(
     state: &mut MatchState,
     role: PossessionRole,
     series: SeriesState,
+    origin: PossessionOrigin,
 ) {
     let ball_state = state.possession().ball_state();
     let clock_state = state.possession().clock_state();
@@ -16,6 +17,7 @@ pub fn replace_possession_preserving_ball_and_clock(
         role,
         series,
         live_sequence,
+        origin,
     );
 
     state.reset_drives();

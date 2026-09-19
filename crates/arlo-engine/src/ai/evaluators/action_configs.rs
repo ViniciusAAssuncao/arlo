@@ -2,7 +2,7 @@ use crate::ai::evaluators::context::DecisionEvaluationContext;
 use crate::ai::evaluators::evaluator_trait::ActionUtilityEvaluator;
 use crate::ai::evaluators::generic_evaluator::evaluate_action_utility;
 use crate::attributes::profiles::AttributeProfile;
-use crate::scoring_model::{calculate_scoring_probability, ScoringKind, ScoringSituation};
+use crate::scoring_model::{calculate_scoring_probability, ScoringKind, ScoringOrigin, ScoringSituation};
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Clone, Copy)]
@@ -148,6 +148,7 @@ pub fn cross_config() -> ActionEvaluationConfig {
                     10.0 + skill_mult * 10.0,
                     10.0,
                     false,
+                    ScoringOrigin::OpenPlay,
                 );
 
                 let raw_prob = calculate_scoring_probability(scoring_kind, &situation).value();
@@ -184,6 +185,7 @@ pub fn finish_config() -> ActionEvaluationConfig {
                     10.0 + skill_mult * 10.0,
                     10.0,
                     ctx.normalized_proximity >= 0.75,
+                    ScoringOrigin::OpenPlay,
                 );
 
                 calculate_scoring_probability(scoring_kind, &situation).value()

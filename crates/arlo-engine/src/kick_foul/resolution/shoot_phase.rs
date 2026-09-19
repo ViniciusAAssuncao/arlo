@@ -5,6 +5,7 @@ use crate::match_decision::scoring::{
     duel_kind_for_opportunity, resolve_scoring_attempt, ScoringAttemptRequest, ScoringDecision,
 };
 use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
+use crate::scoring_model::ScoringOrigin;
 use arlo_domain::{AttributeKey, KickFoulScoringTier, Player};
 use rand::Rng;
 use std::collections::HashMap;
@@ -55,7 +56,8 @@ pub fn resolve_kick_foul_shot<R: Rng + ?Sized>(
         normalized_proximity,
         &finish_context,
     )
-    .with_tables(Some(kicker_table), Some(gg_table));
+    .with_tables(Some(kicker_table), Some(gg_table))
+    .with_origin(ScoringOrigin::KickFoul);
 
     resolve_scoring_attempt(req, rng)
 }

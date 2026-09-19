@@ -1,3 +1,4 @@
+use crate::scoring_model::scoring_origin::ScoringOrigin;
 use arlo_domain::PitchZone;
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +11,7 @@ pub struct ScoringSituation {
     pub finisher_rating: f64,
     pub goalguard_rating: f64,
     pub defense_closed: bool,
+    pub origin: ScoringOrigin,
 }
 
 impl ScoringSituation {
@@ -21,6 +23,7 @@ impl ScoringSituation {
         finisher_rating: f64,
         goalguard_rating: f64,
         defense_closed: bool,
+        origin: ScoringOrigin,
     ) -> Self {
         Self {
             zone,
@@ -30,6 +33,7 @@ impl ScoringSituation {
             finisher_rating,
             goalguard_rating,
             defense_closed,
+            origin,
         }
     }
 }

@@ -10,5 +10,7 @@ pub fn apply_restart_outcome(
     let mut new_series = publisher.state().possession().series_state().clone();
     new_series.reset(reception_x_mirim);
 
-    replace_possession_preserving_ball_and_clock(publisher.state_mut(), current_role, new_series);
+    let new_origin = publisher.state().possession().possession_origin().clone();
+
+    replace_possession_preserving_ball_and_clock(publisher.state_mut(), current_role, new_series, new_origin);
 }

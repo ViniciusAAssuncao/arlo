@@ -13,12 +13,15 @@ pub fn apply_loss_of_down(state: &mut MatchState, magnitude: Option<i32>) {
         let swapped_role = state.possession().role().swap();
         let mut new_series = state.possession().series_state().clone();
         new_series.reset(scrimmage_x);
+        let mut new_origin = state.possession().possession_origin().clone();
+        new_origin.reset(scrimmage_x);
         *state.possession_mut() = PossessionSnapshot::with_live_sequence(
             state.possession().ball_state(),
             state.possession().clock_state(),
             swapped_role,
             new_series,
             state.possession().live_sequence().clone(),
+            new_origin,
         );
     } else {
         for _ in 0..count {

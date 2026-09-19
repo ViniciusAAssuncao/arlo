@@ -34,7 +34,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
     }
 
     let total_drives = ctx.drives_in_series + progression.drives_recorded;
-    let total_adv = ctx.state_advanced_mirins + progression.mirins_advanced;
+    let total_adv = ctx.possession_advanced_mirins + progression.mirins_advanced;
 
     let finisher = contest.receiver.unwrap_or(ctx.carrier);
     let (att_prof, _) = get_duel_profiles(DuelKind::FinishingAttempt);

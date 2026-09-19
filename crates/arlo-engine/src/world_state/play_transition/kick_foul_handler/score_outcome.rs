@@ -20,8 +20,10 @@ pub fn apply_score_outcome(
     new_series.reset(center_scrimmage_x_mirim);
 
     if matches!(scoring_decision, ScoringDecision::GoalPoint { .. }) {
-        new_series.is_bonus_phase = true;
+        new_series.set_bonus_phase(true);
     }
 
-    replace_possession_preserving_ball_and_clock(publisher.state_mut(), swapped_role, new_series);
+    let new_origin = crate::possession::PossessionOrigin::new(center_scrimmage_x_mirim);
+
+    replace_possession_preserving_ball_and_clock(publisher.state_mut(), swapped_role, new_series, new_origin);
 }

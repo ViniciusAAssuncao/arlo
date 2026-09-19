@@ -128,6 +128,7 @@ pub fn resolve_scoring_attempt<R: Rng + ?Sized>(
         attacker_rating,
         defender_rating,
         request.defense_closed,
+        request.origin,
     );
 
     let scoring_kind = match request.opportunity {

@@ -2,6 +2,7 @@ use crate::attributes::PlayerAttributeTable;
 use crate::match_decision::scoring_types::ScoringOpportunity;
 use crate::physical::PhysicalState;
 use crate::resolution::DuelContext;
+use crate::scoring_model::ScoringOrigin;
 use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -23,6 +24,7 @@ pub struct ScoringAttemptRequest<'a> {
     pub finisher_table: Option<&'a PlayerAttributeTable>,
     pub goalguard_table: Option<&'a PlayerAttributeTable>,
     pub defense_closed: bool,
+    pub origin: ScoringOrigin,
 }
 
 impl<'a> ScoringAttemptRequest<'a> {
@@ -56,6 +58,7 @@ impl<'a> ScoringAttemptRequest<'a> {
             finisher_table: None,
             goalguard_table: None,
             defense_closed: false,
+            origin: ScoringOrigin::OpenPlay,
         }
     }
 
@@ -81,6 +84,11 @@ impl<'a> ScoringAttemptRequest<'a> {
 
     pub fn with_defense_closed(mut self, defense_closed: bool) -> Self {
         self.defense_closed = defense_closed;
+        self
+    }
+
+    pub fn with_origin(mut self, origin: ScoringOrigin) -> Self {
+        self.origin = origin;
         self
     }
 }

@@ -1,8 +1,8 @@
-use crate::scoring_model::{select_post_for_field_goal, ScoringSituation};
+use crate::scoring_model::{select_post_for_field_goal, ScoringOrigin, ScoringSituation};
 use arlo_domain::PitchZone;
 use arlo_events::ScoringPost;
 
-pub fn select_kick_post(finisher_rating: f64, territory_advance_mirim: f64) -> ScoringPost {
+pub fn select_kick_post(finisher_rating: f64, territory_advance_mirim: f64, origin: ScoringOrigin) -> ScoringPost {
     let dummy_situation = ScoringSituation::new(
         PitchZone::FirstZone,
         0.9,
@@ -11,6 +11,7 @@ pub fn select_kick_post(finisher_rating: f64, territory_advance_mirim: f64) -> S
         finisher_rating,
         10.0,
         false,
+        origin,
     );
     select_post_for_field_goal(&dummy_situation)
 }

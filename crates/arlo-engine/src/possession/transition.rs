@@ -31,14 +31,19 @@ pub fn handle_turnover_without_out(
     new_offense: Uuid,
 ) -> TransitionResult {
     let new_role = PossessionRole::new(new_offense, current.role().offense());
-    let mut new_series = current.series_state.clone();
+    let mut new_series = current.series_state().clone();
     new_series.is_bonus_phase = false;
+
+    let mut new_origin = current.possession_origin().clone();
+    new_origin.reset(current.scrimmage_x_mirim());
+
     let new_snapshot = PossessionSnapshot::with_live_sequence(
-        current.ball_state,
-        current.clock_state,
+        current.ball_state(),
+        current.clock_state(),
         new_role,
         new_series,
-        current.live_sequence.clone(),
+        current.live_sequence().clone(),
+        new_origin,
     );
 
     TransitionResult {
@@ -50,7 +55,7 @@ pub fn handle_turnover_without_out(
 
 pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> TransitionResult {
     let next_scrimmage_x = outcome.last_valid_x_mirim;
-    let was_bonus_phase = current.series_state.is_bonus_phase;
+    let was_bonus_phase = current.series_state().is_bonus_phase();
 
     if let Some(new_offense) = outcome.turnover {
         if !outcome.out_of_bounds && !outcome.arbitral_stoppage {
@@ -58,8 +63,11 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
         }
     }
 
-    let mut updated_series = current.series_state.clone();
+    let mut updated_series = current.series_state().clone();
     updated_series.record_advance(outcome.mirins_advanced);
+
+    let mut new_origin = current.possession_origin().clone();
+    new_origin.record_advance(outcome.mirins_advanced);
 
     if outcome.out_of_bounds || outcome.arbitral_stoppage {
         let ball_state = if outcome.out_of_bounds {
@@ -78,19 +86,24 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
 
         let next_role = if was_bonus_phase {
             updated_series.reset(next_scrimmage_x);
+            new_origin.reset(next_scrimmage_x);
             current.role().swap()
         } else if outcome.is_goal_point {
             updated_series.reset(next_scrimmage_x);
-            updated_series.is_bonus_phase = true;
+            new_origin.reset(next_scrimmage_x);
+            updated_series.set_bonus_phase(true);
             *current.role()
         } else if outcome.score_occurred {
             updated_series.reset(next_scrimmage_x);
+            new_origin.reset(next_scrimmage_x);
             current.role().swap()
         } else if let Some(turnover_team) = outcome.turnover {
             updated_series.reset(next_scrimmage_x);
+            new_origin.reset(next_scrimmage_x);
             PossessionRole::new(turnover_team, current.role().offense())
         } else if updated_series.should_turnover_on_downs() {
             updated_series.reset(next_scrimmage_x);
+            new_origin.reset(next_scrimmage_x);
             current.role().swap()
         } else if updated_series.has_achieved_target() {
             updated_series.reset(next_scrimmage_x);
@@ -113,7 +126,8 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             ClockState::Stopped(clock_stop_reason),
             next_role,
             updated_series,
-            current.live_sequence.clone(),
+            current.live_sequence().clone(),
+            new_origin,
         );
 
         TransitionResult {
@@ -124,19 +138,23 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
     } else {
         let (next_role, countdown) = if was_bonus_phase {
             updated_series.reset(next_scrimmage_x);
+            new_origin.reset(next_scrimmage_x);
             (current.role().swap(), true)
         } else if outcome.is_goal_point {
             updated_series.reset(next_scrimmage_x);
-            updated_series.is_bonus_phase = true;
+            new_origin.reset(next_scrimmage_x);
+            updated_series.set_bonus_phase(true);
             (*current.role(), true)
         } else if outcome.score_occurred {
             updated_series.reset(next_scrimmage_x);
+            new_origin.reset(next_scrimmage_x);
             (current.role().swap(), true)
         } else if updated_series.has_achieved_target() {
             updated_series.reset(next_scrimmage_x);
             (*current.role(), false)
         } else if updated_series.should_turnover_on_downs() {
             updated_series.reset(next_scrimmage_x);
+            new_origin.reset(next_scrimmage_x);
             (current.role().swap(), true)
         } else {
             updated_series.advance_down();
@@ -149,7 +167,8 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             ClockState::Running,
             next_role,
             updated_series,
-            current.live_sequence.clone(),
+            current.live_sequence().clone(),
+            new_origin,
         );
 
         TransitionResult {

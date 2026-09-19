@@ -51,11 +51,12 @@ pub fn post_transition_score_reset(
     if scoring_decision.is_scored() {
         let center_scrimmage_x_mirim = state.pitch().length_mirim() / 2.0;
         next_snapshot.series_state_mut().reset(center_scrimmage_x_mirim);
+        next_snapshot.possession_origin_mut().reset(center_scrimmage_x_mirim);
         if matches!(scoring_decision, ScoringDecision::GoalPoint { .. }) {
-            next_snapshot.series_state_mut().is_bonus_phase = true;
+            next_snapshot.series_state_mut().set_bonus_phase(true);
         }
     }
 
-    next_snapshot.live_sequence.clear();
+    next_snapshot.live_sequence_mut().clear();
     next_snapshot
 }

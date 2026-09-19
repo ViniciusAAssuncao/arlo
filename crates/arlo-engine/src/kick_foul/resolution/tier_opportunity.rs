@@ -1,4 +1,5 @@
 use crate::match_decision::scoring::ScoringOpportunity;
+use crate::scoring_model::ScoringOrigin;
 use crate::set_piece::select_kick_post;
 use arlo_domain::KickFoulScoringTier;
 
@@ -9,7 +10,7 @@ pub fn evaluate_kick_foul_scoring_opportunity(
     match tier {
         KickFoulScoringTier::FirstZone => ScoringOpportunity::GoalPoint,
         KickFoulScoringTier::Standard => {
-            let post = select_kick_post(finisher_rating, 0.0);
+            let post = select_kick_post(finisher_rating, 0.0, ScoringOrigin::KickFoul);
             ScoringOpportunity::FieldGoal(post)
         }
     }

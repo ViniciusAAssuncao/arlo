@@ -10,5 +10,7 @@ pub fn apply_turnover_outcome(
     let mut new_series = publisher.state().possession().series_state().clone();
     new_series.reset(turnover_spot_x_mirim);
 
-    replace_possession_preserving_ball_and_clock(publisher.state_mut(), swapped_role, new_series);
+    let new_origin = crate::possession::PossessionOrigin::new(turnover_spot_x_mirim);
+
+    replace_possession_preserving_ball_and_clock(publisher.state_mut(), swapped_role, new_series, new_origin);
 }

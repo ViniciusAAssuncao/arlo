@@ -57,6 +57,7 @@ pub struct DownResolutionContext<'a> {
     pub defense_pressing_multiplier: f64,
     pub offense_tempo_value: f64,
     pub state_advanced_mirins: f64,
+    pub possession_advanced_mirins: f64,
 }
 
 impl<'a> DownResolutionContext<'a> {
@@ -241,6 +242,7 @@ impl<'a> DownResolutionContext<'a> {
             defense_pressing_multiplier,
             offense_tempo_value,
             state_advanced_mirins: state.possession().series_state().advanced_mirins(),
+            possession_advanced_mirins: state.possession().possession_origin().total_advanced_mirins(),
         }
     }
 }
