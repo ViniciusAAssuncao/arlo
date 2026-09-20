@@ -1,7 +1,8 @@
 use arlo_stats::PlayerPhysicalStats;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchPlayerPhysicalRow {
     pub id: String,
     pub match_id: String,
@@ -20,7 +21,7 @@ impl MatchPlayerPhysicalRow {
         end_energy_level: f64,
         peak_anaerobic_depletion: f64,
         total_distance_covered: f64,
-        intra_match_recovery_amount: f64
+        intra_match_recovery_amount: f64,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -41,7 +42,7 @@ impl MatchPlayerPhysicalRow {
             stats.end_energy_level,
             stats.peak_anaerobic_depletion,
             stats.total_distance_covered,
-            stats.intra_match_recovery_amount
+            stats.intra_match_recovery_amount,
         )
     }
 }

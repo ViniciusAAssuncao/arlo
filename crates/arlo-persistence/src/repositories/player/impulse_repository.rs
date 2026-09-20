@@ -2,7 +2,8 @@ use crate::error::PersistenceResult;
 use crate::models::{
     MatchPlayerImpulseRow, MatchPlayerImpulseRunRow, MatchPlayerImpulseShiftByKindRow,
 };
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -146,4 +147,44 @@ pub async fn insert_runs_batch(
         insert_run(tx, row).await?;
     }
     Ok(())
+}
+
+pub async fn get_latest_by_player_id(
+    pool: &SqlitePool,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerImpulseRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerImpulseRow>(
+        r#"SELECT
+            p.id,
+            p.match_id,
+            p.player_id,
+            p.baseline,
+            p.current_value,
+            p.initial_value,
+            p.min_value,
+            p.max_value,
+            p.average_value,
+            p.shifts_count,
+            p.positive_shifts,
+            p.negative_shifts,
+            p.time_below_baseline_seconds,
+            p.critical_reached_count,
+            p.runs_count,
+            p.longest_run_duration_seconds,
+            p.peak_run_value,
+            p.total_integrated_run_intensity,
+            p.average_run_duration_seconds,
+            p.average_run_intensity
+        FROM match_player_impulse p
+        LEFT JOIN matches m ON p.match_id = m.id
+        LEFT JOIN fixtures f ON m.fixture_id = f.id
+        WHERE p.player_id = ?
+        ORDER BY COALESCE(f.scheduled_year, 0) DESC, COALESCE(f.scheduled_day_of_year, 0) DESC, COALESCE(m.completed_at_unix_seconds, 0) DESC, p.rowid DESC
+        LIMIT 1"#,
+    )
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
 }
