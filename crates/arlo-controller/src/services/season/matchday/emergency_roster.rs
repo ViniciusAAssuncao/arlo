@@ -1,11 +1,8 @@
 use crate::error::{ControllerError, ControllerResult};
 use arlo_domain::{Formation, Position};
-use arlo_persistence::models::condition::PlayerInjuryHistoryRow;
-use arlo_persistence::repositories::condition::player_injury_history;
-use arlo_recovery::injury_recovery::return_to_play_evaluator::is_available_for_selection;
-use arlo_recovery::InjuryStatusKind;
+use arlo_recovery::availability::resolve_batch_player_statuses;
 use sqlx::SqlitePool;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -19,31 +16,17 @@ pub async fn ensure_minimum_roster(
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let player_ids: Vec<Uuid> = existing_players.iter().map(|p| p.id()).collect();
-    let active_injuries = player_injury_history::list_active_by_player_ids(pool, &player_ids).await?;
-
-    let mut injuries_by_player: HashMap<Uuid, PlayerInjuryHistoryRow> =
-        HashMap::with_capacity(active_injuries.len());
-    for inj in active_injuries {
-        if let Ok(pid) = Uuid::parse_str(&inj.player_id) {
-            injuries_by_player.entry(pid).or_insert(inj);
-        }
-    }
+    let statuses = resolve_batch_player_statuses(pool, &player_ids)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let available_players: Vec<_> = existing_players
         .iter()
         .filter(|p| {
-            let status = if let Some(inj) = injuries_by_player.get(&p.id()) {
-                if inj.days_remaining > 0 || inj.status == "Injured" {
-                    InjuryStatusKind::Injured
-                } else if inj.observation_days_remaining > 0 || inj.status == "Observation" {
-                    InjuryStatusKind::Observation
-                } else {
-                    InjuryStatusKind::Healthy
-                }
-            } else {
-                InjuryStatusKind::Healthy
-            };
-            is_available_for_selection(status)
+            statuses
+                .get(&p.id())
+                .map(|s| s.is_available_for_selection())
+                .unwrap_or(true)
         })
         .collect();
 

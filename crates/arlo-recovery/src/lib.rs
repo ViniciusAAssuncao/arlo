@@ -1,5 +1,6 @@
 #![allow(ambiguous_glob_reexports)]
 
+pub mod availability;
 pub mod conditioning;
 pub mod domain;
 pub mod error;
@@ -9,6 +10,7 @@ pub mod injury_recovery;
 pub mod orchestration;
 pub mod tuning;
 
+pub use availability::*;
 pub use conditioning::*;
 pub use domain::*;
 pub use error::{RecoveryError, RecoveryResult};

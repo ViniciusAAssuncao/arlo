@@ -6,6 +6,8 @@ use crate::repositories::attribute::attribute_definition_cache::get_or_load_attr
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::services::player::player_ability_service::calculate_player_ability;
 use crate::services::season::conflict::team_fixture_window_loader::days_between;
+use arlo_recovery::availability::resolve_batch_player_statuses;
+use arlo_recovery::InjuryStatusKind;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -79,13 +81,9 @@ pub async fn build_team_roster(
         }
     }
 
-    let active_injuries = arlo_persistence::repositories::condition::player_injury_history::list_active_by_player_ids(pool, &player_ids).await?;
-    let mut injury_map = HashMap::with_capacity(active_injuries.len());
-    for inj in active_injuries {
-        if let Ok(pid) = Uuid::parse_str(&inj.player_id) {
-            injury_map.entry(pid).or_insert(inj);
-        }
-    }
+    let medical_statuses = resolve_batch_player_statuses(pool, &player_ids)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let injury_defs = arlo_db::repositories::injury_definition::list_all(pool).await.unwrap_or_default();
     let def_map: HashMap<Uuid, String> = injury_defs.into_iter().map(|d| (d.id(), d.description().to_string())).collect();
@@ -121,19 +119,16 @@ pub async fn build_team_roster(
             (c, m, 0.5)
         };
 
-        let (is_injured, injury_status, injury_name, injury_days_remaining) = if let Some(inj) = injury_map.get(&pid) {
-            let is_inj = inj.status == "Injured" || inj.days_remaining > 0;
-            let def_uuid = Uuid::parse_str(&inj.injury_definition_id).ok();
-            let desc = def_uuid.and_then(|id| def_map.get(&id).cloned());
-            let days = if is_inj {
-                Some(inj.days_remaining as u32)
-            } else {
-                Some(inj.observation_days_remaining as u32)
-            };
-            (is_inj, inj.status.clone(), desc, days)
-        } else {
-            (false, "Healthy".to_string(), None, None)
-        };
+        let med_status = medical_statuses.get(&pid);
+        let is_injured = med_status.map(|s| s.is_injured()).unwrap_or(false);
+        let injury_status = med_status
+            .map(|s| s.display_status().to_string())
+            .unwrap_or_else(|| "Healthy".to_string());
+        let injury_name = med_status
+            .filter(|s| s.status != InjuryStatusKind::Healthy)
+            .and_then(|s| s.injury_record.as_ref())
+            .and_then(|r| def_map.get(&r.injury_definition_id()).cloned());
+        let injury_days_remaining = med_status.and_then(|s| s.active_days_remaining());
 
         let latest_physical = arlo_persistence::repositories::player::physical_repository::get_latest_by_player_id(pool, pid).await?;
         let latest_impulse = arlo_persistence::repositories::player::impulse_repository::get_latest_by_player_id(pool, pid).await?;

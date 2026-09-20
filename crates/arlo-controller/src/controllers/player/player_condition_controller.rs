@@ -1,5 +1,7 @@
 use crate::dto::player::PlayerMedicalConditionDto;
 use crate::error::{ControllerError, ControllerResult};
+use arlo_recovery::availability::resolve_player_status;
+use arlo_recovery::InjuryStatusKind;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -19,11 +21,9 @@ pub async fn get_player_medical_condition(
     )
     .await?;
 
-    let active_injury = arlo_persistence::repositories::condition::player_injury_history::get_active_by_player_id(
-        pool,
-        player_id,
-    )
-    .await?;
+    let medical_status = resolve_player_status(pool, player_id)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let (energy_level, anaerobic_reserve, impulse_value, impulse_baseline, conditioning_score) =
         match condition_row {
@@ -55,25 +55,23 @@ pub async fn get_player_medical_condition(
         observation_days_remaining,
         expected_recovery_days,
         is_relapse,
-    ) = match active_injury {
-        Some(inj) => {
-            let is_inj = inj.status == "Injured" || inj.days_remaining > 0;
-            let def_uuid = Uuid::parse_str(&inj.injury_definition_id).ok();
-            let name = def_uuid.and_then(|id| def_map.get(&id).cloned());
+    ) = match (&medical_status.injury_record, medical_status.status) {
+        (Some(record), InjuryStatusKind::Injured | InjuryStatusKind::Observation) => {
+            let name = def_map.get(&record.injury_definition_id()).cloned();
             (
-                inj.status,
-                is_inj,
+                medical_status.display_status().to_string(),
+                medical_status.is_injured(),
                 name,
-                Some(inj.body_region),
-                Some(inj.severity_grade),
-                Some(inj.days_remaining as u32),
-                Some(inj.observation_days_remaining as u32),
-                Some(inj.expected_recovery_days as u32),
-                inj.is_relapse,
+                medical_status.body_region_code().map(str::to_string),
+                medical_status.severity_grade_code().map(str::to_string),
+                Some(record.days_remaining()),
+                Some(record.observation_days_remaining()),
+                medical_status.expected_recovery_days,
+                record.is_relapse(),
             )
         }
-        None => (
-            "Healthy".to_string(),
+        _ => (
+            medical_status.display_status().to_string(),
             false,
             None,
             None,
