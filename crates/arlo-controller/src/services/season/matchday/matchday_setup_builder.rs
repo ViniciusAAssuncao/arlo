@@ -5,10 +5,11 @@ use crate::services::season::matchday::team_lineup_resolver::resolve_team_lineup
 use crate::services::season::matchday::team_playbook_resolver::resolve_team_playbook;
 use crate::services::season::matchday::team_profile_resolver::resolve_team_instructions;
 use crate::services::season::standings::random_tiebreak_resolver::seed_from_uuid;
-use arlo_domain::{MatchFormatRules, Pitch};
+use arlo_domain::{MatchFormatRules, Pitch, Player};
 use arlo_engine::{MatchSetupParams, TeamSetupParams};
 use arlo_persistence::models::season::FixtureRow;
 use arlo_persistence::persister::MatchPersistenceContext;
+use arlo_recovery::availability::resolve_batch_player_statuses;
 use arlo_recovery::PlayerCondition;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
@@ -22,6 +23,32 @@ pub struct PreparedMatchdayFixture {
     pub seed: u64,
     pub stage_id: Uuid,
     pub initial_conditions: HashMap<Uuid, PlayerCondition>,
+}
+
+async fn filter_available_players(
+    pool: &SqlitePool,
+    players: Vec<Player>,
+) -> ControllerResult<Vec<Player>> {
+    if players.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let player_ids: Vec<Uuid> = players.iter().map(|p| p.id()).collect();
+    let statuses = resolve_batch_player_statuses(pool, &player_ids)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+
+    let available = players
+        .into_iter()
+        .filter(|p| {
+            statuses
+                .get(&p.id())
+                .map(|s| s.is_available_for_selection())
+                .unwrap_or(true)
+        })
+        .collect();
+
+    Ok(available)
 }
 
 pub async fn build_matchday_setup(
@@ -49,13 +76,16 @@ pub async fn build_matchday_setup(
     let (home_lineup, home_formation) = resolve_team_lineup(pool, home_team_id).await?;
     let (away_lineup, away_formation) = resolve_team_lineup(pool, away_team_id).await?;
 
-    let home_players = arlo_db::repositories::player::list_by_team_id(pool, home_team_id)
+    let raw_home_players = arlo_db::repositories::player::list_by_team_id(pool, home_team_id)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
-    let away_players = arlo_db::repositories::player::list_by_team_id(pool, away_team_id)
+    let raw_away_players = arlo_db::repositories::player::list_by_team_id(pool, away_team_id)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+
+    let home_players = filter_available_players(pool, raw_home_players).await?;
+    let away_players = filter_available_players(pool, raw_away_players).await?;
 
     let mut all_player_ids = Vec::with_capacity(home_players.len() + away_players.len());
     all_player_ids.extend(home_players.iter().map(|p| p.id()));
