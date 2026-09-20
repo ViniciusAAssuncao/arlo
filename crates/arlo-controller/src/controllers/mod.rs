@@ -6,6 +6,7 @@ pub mod match_completion_controller;
 pub mod promotion_relegation_controller;
 pub mod save_calendar_controller;
 pub mod season;
+pub mod team;
 
 pub use calendar_definition_controller::*;
 pub use config_reload_controller::*;
@@ -16,3 +17,4 @@ pub use promotion_relegation_controller::*;
 pub use save_calendar_controller::*;
 pub use season::*;
 pub use season as season_controller;
+pub use team::*;

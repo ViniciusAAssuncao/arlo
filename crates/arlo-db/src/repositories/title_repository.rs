@@ -68,9 +68,16 @@ pub async fn list_by_competition_id(
 }
 
 pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<Title>> {
+    list_by_winner_team_id(pool, team_id).await
+}
+
+pub async fn list_by_winner_team_id(
+    pool: &SqlitePool,
+    team_id: Uuid,
+) -> DbResult<Vec<Title>> {
     let rows = fetch_all_by_param::<TitleRow>(
         pool,
-        "SELECT id, competition_id, season_label, winner_team_id, winner_federation_id, created_at_unix_seconds FROM titles WHERE winner_team_id = ?",
+        "SELECT id, competition_id, season_label, winner_team_id, winner_federation_id, created_at_unix_seconds FROM titles WHERE winner_team_id = ? ORDER BY created_at_unix_seconds DESC, rowid DESC",
         &team_id.to_string(),
     )
     .await?;
@@ -84,7 +91,7 @@ pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<T
 pub async fn list_by_federation_id(pool: &SqlitePool, federation_id: Uuid) -> DbResult<Vec<Title>> {
     let rows = fetch_all_by_param::<TitleRow>(
         pool,
-        "SELECT id, competition_id, season_label, winner_team_id, winner_federation_id, created_at_unix_seconds FROM titles WHERE winner_federation_id = ?",
+        "SELECT id, competition_id, season_label, winner_team_id, winner_federation_id, created_at_unix_seconds FROM titles WHERE winner_federation_id = ? ORDER BY created_at_unix_seconds DESC, rowid DESC",
         &federation_id.to_string(),
     )
     .await?;
