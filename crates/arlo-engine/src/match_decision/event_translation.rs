@@ -6,11 +6,10 @@ use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
     DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, MatchEvent,
-    MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded, PitchZone,
+    MatchEventEnvelope, OutOfBounds, PassCompleted, PhysicalStrainRecorded,
     PossessionTimeRecorded, ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed,
     Turnover,
 };
-use arlo_math::units::{Position, MIRIM_TO_METERS};
 use uuid::Uuid;
 
 pub fn translate_duel_kind(kind: EngineDuelKind) -> PublicDuelKind {
@@ -81,29 +80,22 @@ pub fn translate_pass_completed(
     passer_id: Uuid,
     receiver_id: Uuid,
     is_aerial: bool,
-    reception_point: Position,
     distance_mirim: f64,
 ) -> PassCompleted {
     PassCompleted::new(
         passer_id,
         receiver_id,
         is_aerial,
-        reception_point.raw().0,
-        reception_point.raw().1,
         distance_mirim,
     )
 }
 
 pub fn translate_distribution_completed(info: &DistributionFlightInfo) -> DistributionCompleted {
-    let rx_mirim = info.reception_point.raw().0 / MIRIM_TO_METERS;
-    let ry_mirim = info.reception_point.raw().1 / MIRIM_TO_METERS;
     DistributionCompleted::new(
         info.receiver_id,
         info.passer_id,
         info.decision_kind,
         info.is_aerial,
-        rx_mirim,
-        ry_mirim,
         info.distance_mirim,
         info.caught,
     )
@@ -111,17 +103,13 @@ pub fn translate_distribution_completed(info: &DistributionFlightInfo) -> Distri
 
 pub fn translate_drive_recorded(
     artrine_id: Uuid,
-    artro_row_index: usize,
-    placement: EventArtroPlacement,
     drives_in_series: u32,
-    x_mirim: f64,
+    placement: EventArtroPlacement,
 ) -> DriveRecorded {
     DriveRecorded::new(
         artrine_id,
-        artro_row_index,
-        placement,
         drives_in_series,
-        x_mirim,
+        placement,
     )
 }
 
@@ -131,7 +119,6 @@ pub fn translate_turnover(
     recovering_player: Option<Uuid>,
     lost_by_player_id: Option<Uuid>,
     in_live_play: bool,
-    point: Position,
 ) -> Turnover {
     Turnover::new(
         previous_offense,
@@ -139,22 +126,17 @@ pub fn translate_turnover(
         recovering_player,
         lost_by_player_id,
         in_live_play,
-        point.raw().0,
-        point.raw().1,
     )
 }
 
 pub fn translate_out_of_bounds(
     last_possession_team: Uuid,
     last_player: Option<Uuid>,
-    out_point: Position,
     was_immediate_loss: bool,
 ) -> OutOfBounds {
     OutOfBounds::new(
         last_possession_team,
         last_player,
-        out_point.raw().0,
-        out_point.raw().1,
         was_immediate_loss,
     )
 }
@@ -270,22 +252,12 @@ pub fn translate_physical_strain_recorded(
     energy_remaining: f64,
     w_prime_balance: f64,
     distance_delta_mirim: f64,
-    high_intensity_distance_mirim: f64,
-    low_intensity_distance_mirim: f64,
-    metabolic_energy_joules: f64,
-    zone: PitchZone,
-    peak_speed_meters_per_sec: f64,
 ) -> PhysicalStrainRecorded {
     PhysicalStrainRecorded::new(
         player_id,
         energy_remaining,
         w_prime_balance,
         distance_delta_mirim,
-        high_intensity_distance_mirim,
-        low_intensity_distance_mirim,
-        metabolic_energy_joules,
-        zone,
-        peak_speed_meters_per_sec,
     )
 }
 

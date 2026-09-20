@@ -1,3 +1,4 @@
+use crate::attributes::profiles::AttributeProfile;
 pub use crate::weighting::AttributeWeight;
 use arlo_domain::{AttributeKey, Position};
 
@@ -23,7 +24,15 @@ impl PositionWeightProfile {
         }
     }
 
+    pub fn from_profile(position: Position, profile: &AttributeProfile) -> Self {
+        Self::new(position, profile.weights().to_vec())
+    }
+
     pub fn weight_for(&self, key: AttributeKey) -> Option<f64> {
         self.dense_weights[key.index()]
+    }
+
+    pub fn weights(&self) -> &[AttributeWeight] {
+        &self.weights
     }
 }

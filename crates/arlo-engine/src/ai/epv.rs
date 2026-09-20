@@ -1,17 +1,36 @@
-use arlo_domain::sport_constants::{
-    FIELD_POINT_REQUIRED_DRIVES, FIELD_POINT_VALUE, GOAL_POINT_REQUIRED_DRIVES, GOAL_POINT_VALUE,
+use crate::scoring_model::{
+    calculate_scoring_probability, ScoringDifficultyProfile, ScoringKind, ScoringOrigin,
+    ScoringSituation,
 };
+use crate::scoring_regime::ScoringRegimePolicy;
+use arlo_domain::sport_constants::{
+    FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
+};
+use arlo_domain::PitchZone;
+use arlo_events::ScoringPost;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DynamicEpvModel {
     offensive_gravity: f64,
+    difficulty_profile: ScoringDifficultyProfile,
 }
 
 impl DynamicEpvModel {
     pub fn new(offensive_gravity: f64) -> Self {
         Self {
             offensive_gravity: offensive_gravity.max(0.1),
+            difficulty_profile: ScoringDifficultyProfile::default(),
+        }
+    }
+
+    pub fn with_difficulty(
+        offensive_gravity: f64,
+        difficulty_profile: ScoringDifficultyProfile,
+    ) -> Self {
+        Self {
+            offensive_gravity: offensive_gravity.max(0.1),
+            difficulty_profile,
         }
     }
 
@@ -19,90 +38,110 @@ impl DynamicEpvModel {
         self.offensive_gravity
     }
 
+    pub fn difficulty_profile(&self) -> ScoringDifficultyProfile {
+        self.difficulty_profile
+    }
+
     pub fn goal_probability(
         &self,
         normalized_x: f64,
         drives_in_series: u32,
-        down: u8,
-        remaining_advance_mirim: f64,
+        _down: u8,
+        _remaining_advance_mirim: f64,
+        regime: &ScoringRegimePolicy,
     ) -> f64 {
-        let x = normalized_x.clamp(0.0, 1.0);
-        let base_field_factor = 1.0 / (1.0 + (-5.5 * (x - 0.50)).exp());
-        let d = (down.clamp(1, 4)) as f64;
-        let down_factor = ((5.0 - d) / 4.0).powf(0.5);
-        let distance_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
+        if drives_in_series < regime.goal_point_required_drives {
+            return (normalized_x * 0.05).clamp(0.0, 0.05);
+        }
 
-        let drive_qualification = if drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
-            1.0
-        } else if drives_in_series == 2 {
-            0.60 + 0.15 * down_factor
-        } else if drives_in_series == 1 {
-            0.28 + 0.12 * down_factor
-        } else {
-            0.10 + 0.08 * down_factor
-        };
-
-        let gravity_effect = 1.0 / (1.0 + (-2.4 * (self.offensive_gravity - 1.0)).exp());
-        let gravity_multiplier = 0.50 + 0.90 * gravity_effect;
-
-        let raw = base_field_factor
-            * down_factor
-            * distance_factor
-            * drive_qualification
-            * gravity_multiplier;
-
-        1.0 - (-raw.max(0.0)).exp()
+        let situation = ScoringSituation::new(
+            PitchZone::FirstZone,
+            normalized_x,
+            drives_in_series,
+            20.0,
+            12.0 + self.offensive_gravity,
+            10.0,
+            true,
+            ScoringOrigin::OpenPlay,
+        );
+        calculate_scoring_probability(
+            ScoringKind::GoalPoint,
+            &situation,
+            &self.difficulty_profile,
+        )
+        .value()
     }
 
     pub fn field_point_probability(
         &self,
         normalized_x: f64,
         drives_in_series: u32,
-        down: u8,
-        remaining_advance_mirim: f64,
+        _down: u8,
+        _remaining_advance_mirim: f64,
+        regime: &ScoringRegimePolicy,
     ) -> f64 {
-        let x = normalized_x.clamp(0.0, 1.0);
-        let base_field_factor = 1.0 / (1.0 + (-4.2 * (x - 0.38)).exp());
-        let d = (down.clamp(1, 4)) as f64;
-        let down_factor = ((5.0 - d) / 4.0).powf(0.6);
-        let distance_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
+        if drives_in_series < regime.field_point_required_drives && normalized_x < 0.40 {
+            return 0.0;
+        }
 
-        let drive_qualification = if drives_in_series >= FIELD_POINT_REQUIRED_DRIVES {
-            1.0
-        } else {
-            0.30 + 0.15 * down_factor
-        };
+        let situation = ScoringSituation::new(
+            PitchZone::SecondZone,
+            normalized_x,
+            drives_in_series,
+            20.0,
+            10.0 + self.offensive_gravity,
+            10.0,
+            false,
+            ScoringOrigin::OpenPlay,
+        );
+        calculate_scoring_probability(
+            ScoringKind::FieldPoint,
+            &situation,
+            &self.difficulty_profile,
+        )
+        .value()
+    }
 
-        let p_goal = self.goal_probability(x, drives_in_series, down, remaining_advance_mirim);
-        let raw_p_field = base_field_factor * down_factor * distance_factor * drive_qualification;
-        let raw = raw_p_field * (1.0 - p_goal * 0.70);
-
-        1.0 - (-raw.max(0.0)).exp()
+    pub fn field_goal_probability(
+        &self,
+        normalized_x: f64,
+        drives_in_series: u32,
+    ) -> f64 {
+        let situation = ScoringSituation::new(
+            PitchZone::FirstZone,
+            normalized_x,
+            drives_in_series,
+            20.0,
+            12.0 + self.offensive_gravity,
+            10.0,
+            true,
+            ScoringOrigin::OpenPlay,
+        );
+        calculate_scoring_probability(
+            ScoringKind::FieldGoal(ScoringPost::Goalpost),
+            &situation,
+            &self.difficulty_profile,
+        )
+        .value()
     }
 
     pub fn turnover_probability(
         &self,
         normalized_x: f64,
         down: u8,
-        remaining_advance_mirim: f64,
+        _remaining_advance_mirim: f64,
     ) -> f64 {
         let x = normalized_x.clamp(0.0, 1.0);
-        let p_scoring_territory = 1.0 / (1.0 + (-4.5 * (x - 0.45)).exp());
         if down >= 4 {
-            let dist_factor = 10.0 / (10.0 + remaining_advance_mirim.max(0.0));
-            ((1.0 - p_scoring_territory) * (1.0 - 0.35 * dist_factor)).clamp(0.0, 1.0)
+            (0.40 - x * 0.20).clamp(0.08, 0.60)
         } else {
-            let d_ratio = ((down.clamp(1, 4) - 1) as f64) / 3.0;
-            (0.04 + 0.12 * (1.0 - x) * d_ratio).clamp(0.0, 1.0)
+            (0.05 - x * 0.025 + (down as f64) * 0.015).clamp(0.01, 0.20)
         }
     }
 
     pub fn opponent_epa(&self, normalized_x: f64) -> f64 {
         let opp_x = (1.0 - normalized_x).clamp(0.0, 1.0);
-        let opp_model = DynamicEpvModel::new(1.0);
-        let p_goal = opp_model.goal_probability(opp_x, 3, 1, 10.0);
-        let p_field = opp_model.field_point_probability(opp_x, 1, 1, 10.0);
-        p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
+        opp_x * 3.5
     }
 
     pub fn calculate_epa(
@@ -111,77 +150,54 @@ impl DynamicEpvModel {
         down: u8,
         remaining_advance_mirim: f64,
         drives_in_series: u32,
+        is_bonus_phase: bool,
+        regime: &ScoringRegimePolicy,
     ) -> f64 {
-        let x = normalized_x.clamp(0.0, 1.0);
-        let p_goal = self.goal_probability(x, drives_in_series, down, remaining_advance_mirim);
-        let p_field =
-            self.field_point_probability(x, drives_in_series, down, remaining_advance_mirim);
-        let p_turnover = self.turnover_probability(x, down, remaining_advance_mirim);
-        let opp_epa = self.opponent_epa(x);
+        if is_bonus_phase {
+            let p_fg = self.field_goal_probability(normalized_x, drives_in_series);
+            let p_to = self.turnover_probability(normalized_x, down, remaining_advance_mirim);
+            let opp_val = self.opponent_epa(normalized_x);
 
-        p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
-            - p_turnover * opp_epa
+            p_fg * (FIELD_GOAL_GOALPOST_VALUE as f64) - p_to * opp_val
+        } else {
+            let p_goal = self.goal_probability(
+                normalized_x,
+                drives_in_series,
+                down,
+                remaining_advance_mirim,
+                regime,
+            );
+            let p_field = self.field_point_probability(
+                normalized_x,
+                drives_in_series,
+                down,
+                remaining_advance_mirim,
+                regime,
+            );
+            let p_to = self.turnover_probability(normalized_x, down, remaining_advance_mirim);
+            let opp_val = self.opponent_epa(normalized_x);
+
+            p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
+                - p_to * opp_val
+        }
     }
 
-    pub fn calculate_epv(
+    pub fn calculate_epa_bonus_phase(
         &self,
         normalized_x: f64,
         down: u8,
         remaining_advance_mirim: f64,
         drives_in_series: u32,
+        regime: &ScoringRegimePolicy,
     ) -> f64 {
         self.calculate_epa(
             normalized_x,
             down,
             remaining_advance_mirim,
             drives_in_series,
+            true,
+            regime,
         )
-    }
-
-    pub fn epv_for_pitch_position(
-        &self,
-        pitch_length_meters: f64,
-        x_meters: f64,
-        down: u8,
-        remaining_advance_mirim: f64,
-        drives_in_series: u32,
-        attacking_positive_x: bool,
-    ) -> f64 {
-        if pitch_length_meters <= 0.0 {
-            return 0.0;
-        }
-        let norm_x = if attacking_positive_x {
-            (x_meters / pitch_length_meters).clamp(0.0, 1.0)
-        } else {
-            ((pitch_length_meters - x_meters) / pitch_length_meters).clamp(0.0, 1.0)
-        };
-        self.calculate_epa(norm_x, down, remaining_advance_mirim, drives_in_series)
-    }
-
-    pub fn score_value(drives_in_series: u32) -> f64 {
-        if drives_in_series >= GOAL_POINT_REQUIRED_DRIVES {
-            GOAL_POINT_VALUE as f64
-        } else {
-            FIELD_POINT_VALUE as f64
-        }
-    }
-
-    pub fn static_calculate_epv(
-        normalized_x: f64,
-        down: u8,
-        remaining_advance_mirim: f64,
-        drives_in_series: u32,
-    ) -> f64 {
-        Self::default().calculate_epa(
-            normalized_x,
-            down,
-            remaining_advance_mirim,
-            drives_in_series,
-        )
-    }
-
-    pub fn opponent_score_value(normalized_x: f64) -> f64 {
-        Self::default().opponent_epa(normalized_x)
     }
 }
 

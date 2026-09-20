@@ -1,9 +1,9 @@
+use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::physical::FatigueState;
-use arlo_domain::sport_constants::managerial::{
+use arlo_domain::sport_constants::{
     ROTATION_POLICY_FATIGUE_THRESHOLD_HIGH, ROTATION_POLICY_FATIGUE_THRESHOLD_SITUATIONAL,
-    ROTATION_POLICY_FATIGUE_THRESHOLD_STRICT,
+    ROTATION_POLICY_FATIGUE_THRESHOLD_STRICT, SUBSTITUTION_LOAD_MANAGEMENT_PROACTIVITY_SCALE,
 };
-use arlo_domain::sport_constants::substitution::SUBSTITUTION_LOAD_MANAGEMENT_PROACTIVITY_SCALE;
 use arlo_domain::RotationPolicy;
 
 pub fn threshold_for_policy(policy: RotationPolicy, load_management: f64) -> f64 {
@@ -27,9 +27,9 @@ pub fn urgency_for_player_with_load_management(
     load_management: f64,
 ) -> f64 {
     let threshold = threshold_for_policy(rotation_policy, load_management);
-    let w_bal = state.w_prime_balance();
-    if w_bal < threshold {
-        ((threshold - w_bal) / threshold).clamp(0.0, 1.0)
+    let exhaustion = calculate_physical_exhaustion(state);
+    if exhaustion > (1.0 - threshold) {
+        ((exhaustion - (1.0 - threshold)) / threshold.max(1e-4)).clamp(0.0, 1.0)
     } else {
         0.0
     }

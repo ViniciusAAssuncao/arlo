@@ -3,6 +3,7 @@ use arlo_domain::sport_constants::decision_steepness_for;
 use arlo_domain::{AttributeKey, KickFoulDecisionKind};
 use arlo_math::stats::{sample_categorical, softmax_weights};
 use rand::Rng;
+use smallvec::SmallVec;
 
 pub fn sample_kick_foul_decision<R: Rng + ?Sized>(
     kicker_table: &PlayerAttributeTable,
@@ -17,7 +18,7 @@ pub fn sample_kick_foul_decision<R: Rng + ?Sized>(
     }
 
     let steepness = decision_steepness_for(kicker_table.get(AttributeKey::Decisions));
-    let values: Vec<f64> = utilities.iter().map(|(_, u)| *u).collect();
+    let values: SmallVec<[f64; 4]> = utilities.iter().map(|(_, u)| *u).collect();
     let weights = softmax_weights(&values, steepness);
     let chosen_index = sample_categorical(&weights, rng).unwrap_or(0);
     utilities[chosen_index].0

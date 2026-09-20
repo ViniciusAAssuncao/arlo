@@ -1,26 +1,22 @@
-use crate::current_ability::calculate_player_ca;
-use crate::lineup_runtime::fit_calculator::calculate_fit_for_position;
+use crate::attributes::PlayerAttributeTable;
+use crate::lineup_runtime::calculate_player_contribution;
+use crate::physical::PhysicalState;
 use arlo_domain::{AttributeKey, Formation, FormationSlot, Player, Position};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
-fn slot_target_position(slot: &FormationSlot) -> Position {
+fn slot_demand_priority(slot: &FormationSlot) -> u8 {
     if slot.defensive_position() == Position::Goalguard
         || slot.position() == Position::Goalguard
         || slot.offensive_position() == Position::Goalguard
     {
-        Position::Goalguard
+        0
+    } else if slot.position() == Position::Passer {
+        1
+    } else if slot.position() == Position::Artrine {
+        2
     } else {
-        slot.position()
-    }
-}
-
-fn position_demand_priority(pos: Position) -> u8 {
-    match pos {
-        Position::Goalguard => 0,
-        Position::Passer => 1,
-        Position::Artrine => 2,
-        _ => 3,
+        3
     }
 }
 
@@ -32,39 +28,28 @@ pub fn assign_players(
     let slots = formation.slots();
     let mut slot_indices: Vec<usize> = (0..slots.len()).collect();
 
-    slot_indices.sort_by_key(|&idx| {
-        (
-            position_demand_priority(slot_target_position(&slots[idx])),
-            idx,
-        )
-    });
+    slot_indices.sort_by_key(|&idx| (slot_demand_priority(&slots[idx]), idx));
 
     let mut allocated_ids = HashSet::with_capacity(slots.len());
     let mut assignments = Vec::with_capacity(slots.len());
+    let initial_state = PhysicalState::initial();
 
     for slot_idx in slot_indices {
         let slot = &slots[slot_idx];
-        let target_pos = slot_target_position(slot);
+        let target_pos = slot.position();
 
         let best_player = roster
             .iter()
             .filter(|p| !allocated_ids.contains(&p.id()))
             .max_by(|a, b| {
-                let fit_a = calculate_fit_for_position(a, target_pos);
-                let fit_b = calculate_fit_for_position(b, target_pos);
+                let table_a = PlayerAttributeTable::from_player(a, attribute_keys);
+                let table_b = PlayerAttributeTable::from_player(b, attribute_keys);
+                let score_a = calculate_player_contribution(a, &table_a, target_pos, &initial_state).value();
+                let score_b = calculate_player_contribution(b, &table_b, target_pos, &initial_state).value();
 
-                let prof_cmp = fit_a
-                    .effective_proficiency()
-                    .partial_cmp(&fit_b.effective_proficiency())
-                    .unwrap_or(std::cmp::Ordering::Equal);
-
-                if prof_cmp != std::cmp::Ordering::Equal {
-                    prof_cmp
-                } else {
-                    let ca_a = calculate_player_ca(a, attribute_keys);
-                    let ca_b = calculate_player_ca(b, attribute_keys);
-                    ca_a.partial_cmp(&ca_b).unwrap_or(std::cmp::Ordering::Equal)
-                }
+                score_a
+                    .partial_cmp(&score_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
 
         if let Some(player) = best_player {

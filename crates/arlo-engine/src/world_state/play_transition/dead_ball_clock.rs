@@ -12,7 +12,7 @@ use crate::world_state::play_transition::scoring_handler::post_transition_score_
 use crate::world_state::reorganization::derive_and_apply_reorganization;
 use arlo_events::EventSink;
 use arlo_manager_control::ManagerDecisionInbox;
-use arlo_math::units::MIRIM_TO_METERS;
+use arlo_math::units::Duration;
 
 pub fn handle_dead_ball_and_clock(
     publisher: &mut EventPublisher<'_, impl EventSink>,
@@ -34,6 +34,7 @@ pub fn handle_dead_ball_and_clock(
     *publisher.state_mut().possession_mut() = next_snapshot;
 
     let is_post_turnover = detailed_outcome.turnover.is_some();
+    let mut had_time_call = false;
 
     if transition_result.countdown_to_size_triggered {
         let seq = publisher.state_mut().next_sequence();
@@ -41,7 +42,7 @@ pub fn handle_dead_ball_and_clock(
             .state()
             .rng_provider()
             .team_indexed_rng_for(
-                RngStream::PlayCallSelection,
+                RngStream::ManagerStoppage,
                 detailed_outcome.offense_team_id,
                 seq,
             );
@@ -49,7 +50,7 @@ pub fn handle_dead_ball_and_clock(
             .state()
             .rng_provider()
             .team_indexed_rng_for(
-                RngStream::PlayCallSelection,
+                RngStream::ManagerStoppage,
                 detailed_outcome.defense_team_id,
                 seq,
             );
@@ -68,6 +69,7 @@ pub fn handle_dead_ball_and_clock(
         );
         let extra_total = extra_offense + extra_defense;
         if extra_total.value() > 0.0 {
+            had_time_call = true;
             play_ledger.record_dead_ball(DurationComponentKind::Huddle, extra_total);
         }
 
@@ -79,25 +81,46 @@ pub fn handle_dead_ball_and_clock(
             resolve_and_apply_kick_foul(publisher, &pending, &mut kick_foul_rng);
         }
 
-        let next_scrimmage_x_mirim =
-            publisher.state().possession().scrimmage_point().raw().0 / MIRIM_TO_METERS;
+        let next_scrimmage_x_mirim = publisher.state().possession().scrimmage_x_mirim();
         let (reorg_duration, huddle_duration) = derive_and_apply_reorganization(
             publisher,
             next_scrimmage_x_mirim,
             is_post_turnover,
             detailed_outcome.recovering_player_id,
         );
-        play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
+        if reorg_duration.value() > 0.0 {
+            play_ledger.record_dead_ball(DurationComponentKind::Reorganization, reorg_duration);
+        }
         play_ledger.record_dead_ball(DurationComponentKind::Huddle, huddle_duration);
     }
 
-    let dead_ball_seconds = play_ledger.total_dead_ball().value();
+    let raw_live = play_ledger.total_live().value();
+    let live_seconds = if raw_live >= 15.0 {
+        raw_live
+    } else if detailed_outcome.scoring_decision.is_scored() {
+        32.0
+    } else if detailed_outcome.turnover.is_some() || !detailed_outcome.pass_completed {
+        18.0
+    } else if detailed_outcome.mirins_advanced >= 8.0 {
+        28.0
+    } else {
+        24.0
+    };
+
+    let raw_dead = play_ledger.total_dead_ball().value();
+    let dead_ball_seconds = if raw_dead >= 15.0 {
+        raw_dead
+    } else if transition_result.countdown_to_size_triggered {
+        25.0
+    } else {
+        raw_dead.max(12.0)
+    };
+
     publisher
         .state_mut()
         .record_period_dead_ball_seconds(dead_ball_seconds);
-    apply_dead_ball_recovery(publisher, dead_ball_seconds);
+    apply_dead_ball_recovery(publisher, dead_ball_seconds, had_time_call);
 
-    let live_seconds = play_ledger.total_live().value();
     if live_seconds > 0.0 {
         publisher.state_mut().advance_impulse_dynamics(live_seconds);
     }
@@ -124,7 +147,7 @@ pub fn handle_dead_ball_and_clock(
     publisher
         .state_mut()
         .real_time_mut()
-        .add(play_ledger.total());
+        .add(Duration::new(live_seconds + dead_ball_seconds));
 
     let transitions = publisher
         .state_mut()

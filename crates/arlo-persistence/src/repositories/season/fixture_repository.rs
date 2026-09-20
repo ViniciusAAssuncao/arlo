@@ -19,8 +19,12 @@ pub async fn insert(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> Persi
             home_score,
             away_score,
             home_goal_points,
-            away_goal_points
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+            away_goal_points,
+            home_field_goals,
+            away_field_goals,
+            home_field_points,
+            away_field_points
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&row.id)
     .bind(&row.season_stage_id)
@@ -36,6 +40,10 @@ pub async fn insert(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> Persi
     .bind(row.away_score)
     .bind(row.home_goal_points)
     .bind(row.away_goal_points)
+    .bind(row.home_field_goals)
+    .bind(row.away_field_goals)
+    .bind(row.home_field_points)
+    .bind(row.away_field_points)
     .execute(&mut **tx)
     .await?;
 
@@ -63,7 +71,11 @@ pub async fn update(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> Persi
             home_score = ?,
             away_score = ?,
             home_goal_points = ?,
-            away_goal_points = ?
+            away_goal_points = ?,
+            home_field_goals = ?,
+            away_field_goals = ?,
+            home_field_points = ?,
+            away_field_points = ?
         WHERE id = ?"#,
     )
     .bind(row.round_index)
@@ -75,6 +87,10 @@ pub async fn update(tx: &mut Transaction<'_, Sqlite>, row: &FixtureRow) -> Persi
     .bind(row.away_score)
     .bind(row.home_goal_points)
     .bind(row.away_goal_points)
+    .bind(row.home_field_goals)
+    .bind(row.away_field_goals)
+    .bind(row.home_field_points)
+    .bind(row.away_field_points)
     .bind(&row.id)
     .execute(&mut **tx)
     .await?;
@@ -94,7 +110,7 @@ pub async fn update_batch(
 
 pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> PersistenceResult<Option<FixtureRow>> {
     let row = sqlx::query_as::<_, FixtureRow>(
-        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points FROM fixtures WHERE id = ?",
+        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points, home_field_goals, away_field_goals, home_field_points, away_field_points FROM fixtures WHERE id = ?",
     )
     .bind(id.to_string())
     .fetch_optional(pool)
@@ -108,7 +124,7 @@ pub async fn list_by_stage_id(
     stage_id: Uuid,
 ) -> PersistenceResult<Vec<FixtureRow>> {
     let rows = sqlx::query_as::<_, FixtureRow>(
-        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points FROM fixtures WHERE season_stage_id = ? ORDER BY round_index, scheduled_year, scheduled_day_of_year ASC",
+        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points, home_field_goals, away_field_goals, home_field_points, away_field_points FROM fixtures WHERE season_stage_id = ? ORDER BY round_index, scheduled_year, scheduled_day_of_year ASC",
     )
     .bind(stage_id.to_string())
     .fetch_all(pool)
@@ -123,7 +139,7 @@ pub async fn list_scheduled_on_date(
     scheduled_day_of_year: u32,
 ) -> PersistenceResult<Vec<FixtureRow>> {
     let rows = sqlx::query_as::<_, FixtureRow>(
-        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points FROM fixtures WHERE scheduled_year = ? AND scheduled_day_of_year = ? AND status = 'Scheduled' ORDER BY round_index ASC",
+        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points, home_field_goals, away_field_goals, home_field_points, away_field_points FROM fixtures WHERE scheduled_year = ? AND scheduled_day_of_year = ? AND (status = 'Scheduled' OR status = 'Postponed') ORDER BY round_index ASC",
     )
     .bind(scheduled_year)
     .bind(scheduled_day_of_year as i32)

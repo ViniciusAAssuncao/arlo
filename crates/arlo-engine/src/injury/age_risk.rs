@@ -1,4 +1,4 @@
-use crate::physical::models::aerobic::calculate_player_age;
+use crate::physical::models::age::calculate_player_age;
 use arlo_domain::sport_constants::{
     AGE_INFLECTION_POINT_YEARS, AGE_MAX_RISK_MULTIPLIER, AGE_RISK_LOGISTIC_SLOPE,
 };

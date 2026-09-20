@@ -4,6 +4,7 @@ use crate::injury::definition_selection::select_injury_definition;
 use crate::injury::outcome::InjuryIncidentResolution;
 use crate::injury::severity_estimation::estimate_injury_severity;
 use crate::injury::susceptibility::derive_effective_susceptibility;
+use crate::injury::tuning::InjuryTuningProfile;
 use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::weighting::calculate_weighted_average;
 use arlo_domain::sport_constants::{CONTACT_COLLISION_INTENSITY_WEIGHT, CONTACT_FATIGUE_WEIGHT};
@@ -14,9 +15,10 @@ pub fn evaluate_and_resolve_contact_injury<R: Rng + ?Sized>(
     is_carrier: bool,
     ctx: &ContactInjuryContext<'_>,
     catalog: &InjuryCatalog,
+    tuning: &InjuryTuningProfile,
     rng: &mut R,
 ) -> Option<InjuryIncidentResolution> {
-    let (triggered, trigger_prob) = sample_contact_injury_trigger(is_carrier, ctx, rng);
+    let (triggered, trigger_prob) = sample_contact_injury_trigger(is_carrier, ctx, tuning, rng);
     if !triggered {
         return None;
     }
@@ -39,7 +41,7 @@ pub fn evaluate_and_resolve_contact_injury<R: Rng + ?Sized>(
         )
     };
 
-    let collision_intensity = ctx.collision.contact_severity.clamp(0.0, 1.0);
+    let collision_intensity = ctx.contact_severity.clamp(0.0, 1.0);
     let fatigue = calculate_physical_exhaustion(physical_state).clamp(0.0, 1.0);
     let susceptibility = derive_effective_susceptibility(table, profile);
 

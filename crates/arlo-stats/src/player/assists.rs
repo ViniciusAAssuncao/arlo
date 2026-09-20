@@ -6,14 +6,12 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlayerAssistsStats {
+pub struct PlayerAssistStats {
     pub player_id: Uuid,
     pub goalpoint_assists: u32,
 }
 
-pub type PlayerAssistStats = PlayerAssistsStats;
-
-impl PlayerAssistsStats {
+impl PlayerAssistStats {
     pub fn new(player_id: Uuid) -> Self {
         Self {
             player_id,
@@ -30,7 +28,7 @@ impl PlayerAssistsStats {
     }
 }
 
-impl IntoSnapshot for PlayerAssistsStats {
+impl IntoSnapshot for PlayerAssistStats {
     type Snapshot = PlayerAssistSnapshot;
 
     fn into_snapshot(&self) -> Self::Snapshot {
@@ -42,38 +40,36 @@ impl IntoSnapshot for PlayerAssistsStats {
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-pub struct PlayerAssistsAggregator {
-    stats: HashMap<Uuid, PlayerAssistsStats>,
+pub struct PlayerAssistAggregator {
+    stats: HashMap<Uuid, PlayerAssistStats>,
 }
 
-pub type PlayerAssistAggregator = PlayerAssistsAggregator;
-
-impl PlayerAssistsAggregator {
+impl PlayerAssistAggregator {
     pub fn new() -> Self {
         Self {
             stats: HashMap::new(),
         }
     }
 
-    pub fn get(&self, player_id: &Uuid) -> Option<&PlayerAssistsStats> {
+    pub fn get(&self, player_id: &Uuid) -> Option<&PlayerAssistStats> {
         self.stats.get(player_id)
     }
 
-    pub fn get_or_default(&self, player_id: &Uuid) -> PlayerAssistsStats {
+    pub fn get_or_default(&self, player_id: &Uuid) -> PlayerAssistStats {
         self.stats
             .get(player_id)
             .copied()
-            .unwrap_or_else(|| PlayerAssistsStats::new(*player_id))
+            .unwrap_or_else(|| PlayerAssistStats::new(*player_id))
     }
 
-    pub fn all_stats(&self) -> &HashMap<Uuid, PlayerAssistsStats> {
+    pub fn all_stats(&self) -> &HashMap<Uuid, PlayerAssistStats> {
         &self.stats
     }
 
-    fn get_mut_or_create(&mut self, player_id: Uuid) -> &mut PlayerAssistsStats {
+    fn get_mut_or_create(&mut self, player_id: Uuid) -> &mut PlayerAssistStats {
         self.stats
             .entry(player_id)
-            .or_insert_with(|| PlayerAssistsStats::new(player_id))
+            .or_insert_with(|| PlayerAssistStats::new(player_id))
     }
 
     pub fn record_goalpoint_assist(&mut self, player_id: Uuid) {
@@ -82,7 +78,7 @@ impl PlayerAssistsAggregator {
     }
 }
 
-impl IntoSnapshot for PlayerAssistsAggregator {
+impl IntoSnapshot for PlayerAssistAggregator {
     type Snapshot = HashMap<Uuid, PlayerAssistSnapshot>;
 
     fn into_snapshot(&self) -> Self::Snapshot {
@@ -93,7 +89,7 @@ impl IntoSnapshot for PlayerAssistsAggregator {
     }
 }
 
-impl StatAggregator for PlayerAssistsAggregator {
+impl StatAggregator for PlayerAssistAggregator {
     fn handle_event(&mut self, event: &MatchEvent) {
         if let MatchEvent::GoalPoint(e) = event {
             if let Some(assister_id) = e.assister_id() {

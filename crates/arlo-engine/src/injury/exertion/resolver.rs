@@ -4,32 +4,32 @@ use crate::injury::exertion::trigger::sample_exertion_injury_trigger;
 use crate::injury::outcome::InjuryIncidentResolution;
 use crate::injury::severity_estimation::estimate_injury_severity;
 use crate::injury::susceptibility::derive_effective_susceptibility;
+use crate::injury::tuning::InjuryTuningProfile;
 use crate::physical::systems::degradation::calculate_physical_exhaustion;
 use crate::weighting::calculate_weighted_average;
 use arlo_domain::sport_constants::{NON_CONTACT_FATIGUE_WEIGHT, NON_CONTACT_VELOCITY_WEIGHT};
-use arlo_domain::{BodyRegion, InjuryCatalog, InjuryMechanism};
+use arlo_domain::{BodyRegion, InjuryCatalog, InjuryMechanism, Position};
 use rand::Rng;
 
 pub fn evaluate_and_resolve_exertion_injury<R: Rng + ?Sized>(
     ctx: &ExertionInjuryContext<'_>,
+    position: Position,
     catalog: &InjuryCatalog,
+    tuning: &InjuryTuningProfile,
     rng: &mut R,
 ) -> Option<InjuryIncidentResolution> {
-    let (triggered, trigger_prob) = sample_exertion_injury_trigger(ctx, rng);
+    let (triggered, trigger_prob) = sample_exertion_injury_trigger(ctx, position, tuning, rng);
     if !triggered {
         return None;
     }
 
     let fatigue = calculate_physical_exhaustion(&ctx.physical_state).clamp(0.0, 1.0);
-    let speed_ratio = (ctx.peak_speed_meters_per_sec
-        / ctx.critical_speed_meters_per_sec.max(1.0))
-    .clamp(0.0, 2.0)
-        / 2.0;
+    let intensity = ctx.intensity_strain.clamp(0.0, 1.0);
     let susceptibility = derive_effective_susceptibility(ctx.player_table, &ctx.injury_profile);
 
     let stimulus = calculate_weighted_average(&[
         (fatigue, NON_CONTACT_FATIGUE_WEIGHT),
-        (speed_ratio, NON_CONTACT_VELOCITY_WEIGHT),
+        (intensity, NON_CONTACT_VELOCITY_WEIGHT),
         ((susceptibility / 2.0).clamp(0.0, 1.0), 0.20),
     ])
     .unwrap_or(0.3);

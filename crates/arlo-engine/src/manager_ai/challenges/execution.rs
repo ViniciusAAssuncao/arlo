@@ -8,15 +8,14 @@ use crate::possession::transition::handle_turnover_without_out;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_events::EventSink;
-use arlo_math::units::Position as VectorPosition;
 use rand::Rng;
 use uuid::Uuid;
 
-pub fn reverse_out_of_bounds_ruling(state: &mut MatchState, previous_scrimmage: VectorPosition) {
+pub fn reverse_out_of_bounds_ruling(state: &mut MatchState, previous_scrimmage_mirim: f64) {
     state
         .possession_mut()
         .series_state_mut()
-        .reset(previous_scrimmage);
+        .reset(previous_scrimmage_mirim);
 }
 
 pub fn apply_challenge<R: Rng + ?Sized>(
@@ -52,7 +51,7 @@ pub fn apply_challenge<R: Rng + ?Sized>(
                 *publisher.state_mut().possession_mut() = transition_res.snapshot;
             }
             ReviewableCallKind::OutOfBoundsClassification => {
-                let prev_scrimmage = publisher.state().possession().scrimmage_point();
+                let prev_scrimmage = publisher.state().possession().scrimmage_x_mirim();
                 reverse_out_of_bounds_ruling(publisher.state_mut(), prev_scrimmage);
             }
             ReviewableCallKind::DriveValidity => {

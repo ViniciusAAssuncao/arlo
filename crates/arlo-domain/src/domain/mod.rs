@@ -39,6 +39,7 @@ pub mod rule;
 pub mod save_metadata;
 pub mod scope;
 pub mod sport_constants;
+pub mod standings_points_policy;
 pub mod tactics;
 pub mod team;
 pub mod title;
@@ -75,12 +76,7 @@ pub use manager_profile::{
 };
 pub use match_format_rules::MatchFormatRules;
 pub use person::Person;
-pub use pitch::{
-    artro_rows_for_pitch, channel_y_meters, project_formation, project_formation_mirrored,
-    project_formation_with_direction, project_ratio, project_ratio_mirrored, project_slot,
-    project_slot_mirrored, project_slot_with_direction, Artro, ArtroPlacement, ArtroRow, FirstZone,
-    Pitch, PitchCoordinates, PitchZone, ProjectionDirection, SecondZone,
-};
+pub use pitch::{ArtroPlacement, FirstZone, Pitch, PitchZone, SecondZone};
 pub use player::{Player, PlayerBuilder};
 pub use player_attribute_value::PlayerAttributeValue;
 pub use player_injury_profile::PlayerInjuryProfile;
@@ -93,6 +89,7 @@ pub use rule::{Rule, RuleCategory};
 pub use save_metadata::SaveMetadata;
 pub use scope::Scope;
 pub use sport_constants::*;
+pub use standings_points_policy::StandingsPointsPolicy;
 pub use tactics::{Formation, FormationBuilder, FormationSlot, SlotRole};
 pub use team::{Team, TeamBuilder};
 pub use title::{Title, TitleWinner};

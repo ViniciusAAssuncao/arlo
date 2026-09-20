@@ -1,7 +1,7 @@
 use crate::match_decision::event_translation::{
     create_envelope, translate_call_to_action_started, translate_duel_resolved,
 };
-use crate::resolution::context::DuelContext;
+use crate::resolution::{ContestOrientation, DuelContext};
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::group_rating::RatingParticipants;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
@@ -9,6 +9,7 @@ use crate::resolution::AttributedDuelOutcome;
 use crate::rng::RngStream;
 use crate::world_state::cta_pass::participants::PhaseParticipants;
 use crate::world_state::match_state::MatchState;
+use crate::world_state::step::down_resolution::power_pair::derive_power_pair;
 use arlo_domain::Position;
 use arlo_events::EventSink;
 use std::collections::HashMap;
@@ -42,11 +43,20 @@ pub fn resolve_pass_protection_duel(
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, cta_event));
 
-    let context = if is_home_offense {
-        DuelContext::attacker_home()
+    let bonus_offset = if state.possession().is_bonus_phase() {
+        2.50
     } else {
-        DuelContext::defender_home()
+        0.0
     };
+
+    let context = DuelContext::with_offsets(
+        ContestOrientation::AttackerIsOffense,
+        is_home_offense,
+        state.tuning().home_advantage_profile.duel_logit(),
+        0.0,
+        0.0,
+        1.80 + bonus_offset,
+    );
 
     let mut duel_rng = state
         .rng_provider()
@@ -70,6 +80,21 @@ pub fn resolve_pass_protection_duel(
         .collect();
 
     let tables = state.teams.player_attribute_tables();
+    let offense_power = state.power_for_team(offense_team_id);
+    let defense_power = state.power_for_team(defense_team_id);
+
+    let power_pair = derive_power_pair(
+        offense_power,
+        defense_power,
+        DuelKind::PassProtection,
+        &state.tuning().league_strength_scale,
+        &state.tuning().team_strength_profile,
+        &state.tuning().home_advantage_profile,
+        Some(Position::Passer),
+        Some(Position::PassRusher),
+        context.attacker_is_home(),
+        context.defender_is_home(),
+    );
 
     let req = DuelResolutionRequest::from_participants(
         DuelKind::PassProtection,
@@ -83,7 +108,7 @@ pub fn resolve_pass_protection_duel(
             .with_attribute_tables(tables),
         state.attribute_keys(),
         &context,
-    );
+    ).with_power_pair(Some(power_pair));
 
     let raw_pass_duel = resolve_duel(req, &mut duel_rng);
 

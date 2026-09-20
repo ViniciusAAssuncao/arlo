@@ -1,5 +1,5 @@
 use crate::manager_ai::context::ManagerDecisionContext;
-use arlo_domain::sport_constants::time_management::{
+use arlo_domain::sport_constants::{
     TIME_CALL_ENDGAME_RESERVE_BIAS, TIME_CALL_ENDGAME_THRESHOLD_SECONDS,
     TIME_CALL_FATIGUE_URGENCY_WEIGHT, TIME_CALL_JUST_CONCEDED_BONUS, TIME_CALL_LEVERAGE_WEIGHT,
     TIME_CALL_MOMENTUM_URGENCY_WEIGHT, TIME_CALL_PRESSURE_WEIGHT,

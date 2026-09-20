@@ -1,4 +1,4 @@
-use crate::domain::sport_constants::injury::DEFAULT_INJURY_SUSCEPTIBILITY_MULTIPLIER;
+use crate::domain::sport_constants::DEFAULT_INJURY_SUSCEPTIBILITY_MULTIPLIER;
 use crate::domain::validation::validate_positive_finite;
 use crate::error::DomainResult;
 use serde::{Deserialize, Serialize};

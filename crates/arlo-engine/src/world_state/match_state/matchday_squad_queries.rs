@@ -64,7 +64,6 @@ impl MatchState {
         } else {
             &mut self.away_squad
         };
-        squad.mark_substituted(outgoing);
         if let Some(out_p) = outgoing_player {
             squad.swap_bench(out_p, incoming_id);
         }
@@ -72,7 +71,7 @@ impl MatchState {
         self.substitute_fatigue_player(outgoing, incoming_id, is_home);
         self.substitute_impulse_player(outgoing, incoming_id, is_home);
         self.substitute_availability_player(outgoing, incoming_id, is_home);
-        self.spatial_map.substitute_player(outgoing, incoming_id);
+        self.invalidate_team_power();
 
         Ok(())
     }

@@ -148,8 +148,6 @@ pub struct PassCompleted {
     passer_id: Uuid,
     receiver_id: Uuid,
     is_aerial: bool,
-    reception_x_mirim: f64,
-    reception_y_mirim: f64,
     distance_mirim: f64,
 }
 
@@ -158,16 +156,12 @@ impl PassCompleted {
         passer_id: Uuid,
         receiver_id: Uuid,
         is_aerial: bool,
-        reception_x_mirim: f64,
-        reception_y_mirim: f64,
         distance_mirim: f64,
     ) -> Self {
         Self {
             passer_id,
             receiver_id,
             is_aerial,
-            reception_x_mirim,
-            reception_y_mirim,
             distance_mirim,
         }
     }
@@ -184,14 +178,6 @@ impl PassCompleted {
         self.is_aerial
     }
 
-    pub fn reception_x_mirim(&self) -> f64 {
-        self.reception_x_mirim
-    }
-
-    pub fn reception_y_mirim(&self) -> f64 {
-        self.reception_y_mirim
-    }
-
     pub fn distance_mirim(&self) -> f64 {
         self.distance_mirim
     }
@@ -203,8 +189,6 @@ pub struct DistributionCompleted {
     passer_id: Uuid,
     decision_kind: ArtrineDecisionKind,
     is_aerial: bool,
-    reception_x_mirim: f64,
-    reception_y_mirim: f64,
     distance_mirim: f64,
     caught: bool,
 }
@@ -215,8 +199,6 @@ impl DistributionCompleted {
         passer_id: Uuid,
         decision_kind: ArtrineDecisionKind,
         is_aerial: bool,
-        reception_x_mirim: f64,
-        reception_y_mirim: f64,
         distance_mirim: f64,
         caught: bool,
     ) -> Self {
@@ -225,8 +207,6 @@ impl DistributionCompleted {
             passer_id,
             decision_kind,
             is_aerial,
-            reception_x_mirim,
-            reception_y_mirim,
             distance_mirim,
             caught,
         }
@@ -246,14 +226,6 @@ impl DistributionCompleted {
 
     pub fn is_aerial(&self) -> bool {
         self.is_aerial
-    }
-
-    pub fn reception_x_mirim(&self) -> f64 {
-        self.reception_x_mirim
-    }
-
-    pub fn reception_y_mirim(&self) -> f64 {
-        self.reception_y_mirim
     }
 
     pub fn distance_mirim(&self) -> f64 {
@@ -308,26 +280,20 @@ impl ArtrineDecisionMade {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DriveRecorded {
     artrine_id: Uuid,
-    artro_row_index: usize,
-    placement: ArtroPlacement,
     drives_in_series: u32,
-    x_mirim: f64,
+    placement: ArtroPlacement,
 }
 
 impl DriveRecorded {
     pub fn new(
         artrine_id: Uuid,
-        artro_row_index: usize,
-        placement: ArtroPlacement,
         drives_in_series: u32,
-        x_mirim: f64,
+        placement: ArtroPlacement,
     ) -> Self {
         Self {
             artrine_id,
-            artro_row_index,
-            placement,
             drives_in_series,
-            x_mirim,
+            placement,
         }
     }
 
@@ -335,20 +301,12 @@ impl DriveRecorded {
         self.artrine_id
     }
 
-    pub fn artro_row_index(&self) -> usize {
-        self.artro_row_index
-    }
-
-    pub fn placement(&self) -> ArtroPlacement {
-        self.placement
-    }
-
     pub fn drives_in_series(&self) -> u32 {
         self.drives_in_series
     }
 
-    pub fn x_mirim(&self) -> f64 {
-        self.x_mirim
+    pub fn placement(&self) -> ArtroPlacement {
+        self.placement
     }
 }
 

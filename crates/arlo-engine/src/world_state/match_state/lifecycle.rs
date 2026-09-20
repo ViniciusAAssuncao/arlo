@@ -7,7 +7,6 @@ use crate::lineup_runtime::hydrate;
 use crate::officiating::AddedTimeTracker;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
-use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
@@ -15,6 +14,7 @@ use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::forced_substitution_tracker::ForcedSubstitutionTracker;
 use crate::world_state::match_state::foul_review::FoulReviewTracker;
+use crate::world_state::match_state::gravity_cache::MatchGravityCache;
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
@@ -24,8 +24,8 @@ use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
 use crate::world_state::match_state::setup_params::MatchSetupParams;
 use crate::world_state::match_state::state::MatchState;
+use crate::world_state::match_state::team_power::MatchPowerCache;
 use crate::world_state::match_state::teams::TeamRegistry;
-use arlo_math::units::Position;
 use std::collections::HashMap;
 
 impl MatchState {
@@ -41,16 +41,11 @@ impl MatchState {
             &params.away.roster,
         )?;
 
-        let spatial_map = DynamicSpatialMap::from_pitch(&params.pitch, &home_lineup, &away_lineup)?;
-        let initial_scrimmage = Position::from_components(
-            params.pitch.length().value() / 2.0,
-            params.pitch.width().value() / 2.0,
-            0.0,
-        );
+        let initial_scrimmage_x_mirim = params.pitch.length_mirim() / 2.0;
         let possession = PossessionSnapshot::opening(
             params.home.team_id,
             params.away.team_id,
-            initial_scrimmage,
+            initial_scrimmage_x_mirim,
         );
         let rng_provider = RngProvider::new(params.seed);
         let clock = MatchClock::new(&params.format_rules);
@@ -96,7 +91,7 @@ impl MatchState {
             params.away.available_profiles,
             params.home.playbook,
             params.away.playbook,
-            player_attribute_tables,
+            player_attribute_tables.clone(),
             home_manager_table,
             away_manager_table,
         );
@@ -104,7 +99,7 @@ impl MatchState {
         let home_squad = MatchdaySquad::from_roster_and_lineup(&params.home.roster, &home_lineup);
         let away_squad = MatchdaySquad::from_roster_and_lineup(&params.away.roster, &away_lineup);
 
-        let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &params.attribute_keys);
+        let impulse = ImpulseTracker::new(&home_lineup, &away_lineup, &player_attribute_tables);
         let fatigue = FatigueTracker::new();
         let availability = PlayerAvailabilityTracker::new();
         let scoreboard = MatchScoreboard::new();
@@ -116,8 +111,10 @@ impl MatchState {
         let kick_foul = KickFoulTracker::new();
         let added_time = AddedTimeTracker::new();
         let forced_substitution_tracker = ForcedSubstitutionTracker::new();
+        let power_cache = MatchPowerCache::new();
+        let gravity_cache = MatchGravityCache::new();
 
-        Ok(Self {
+        let mut state = Self {
             teams,
             referees,
             home_squad,
@@ -129,7 +126,6 @@ impl MatchState {
             injury_catalog: params.injury_catalog,
             player_injury_profiles: params.player_injury_profiles,
             possession,
-            spatial_map,
             clock,
             real_time,
             rng_provider,
@@ -147,6 +143,14 @@ impl MatchState {
             kick_foul,
             added_time,
             forced_substitution_tracker,
-        })
+            power_cache,
+            gravity_cache,
+            tuning: params.tuning,
+            match_date_unix_seconds: params.match_date_unix_seconds,
+        };
+
+        state.refresh_team_powers();
+
+        Ok(state)
     }
 }

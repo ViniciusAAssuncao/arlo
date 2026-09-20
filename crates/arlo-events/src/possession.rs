@@ -158,8 +158,6 @@ impl DownAdvanced {
 pub struct OutOfBounds {
     last_possession_team: Uuid,
     last_player: Option<Uuid>,
-    out_point_x: f64,
-    out_point_y: f64,
     was_immediate_loss: bool,
 }
 
@@ -167,15 +165,11 @@ impl OutOfBounds {
     pub fn new(
         last_possession_team: Uuid,
         last_player: Option<Uuid>,
-        out_point_x: f64,
-        out_point_y: f64,
         was_immediate_loss: bool,
     ) -> Self {
         Self {
             last_possession_team,
             last_player,
-            out_point_x,
-            out_point_y,
             was_immediate_loss,
         }
     }
@@ -186,14 +180,6 @@ impl OutOfBounds {
 
     pub fn last_player(&self) -> Option<Uuid> {
         self.last_player
-    }
-
-    pub fn out_point_x(&self) -> f64 {
-        self.out_point_x
-    }
-
-    pub fn out_point_y(&self) -> f64 {
-        self.out_point_y
     }
 
     pub fn was_immediate_loss(&self) -> bool {
@@ -208,8 +194,6 @@ pub struct Turnover {
     recovering_player: Option<Uuid>,
     lost_by_player_id: Option<Uuid>,
     in_live_play: bool,
-    point_x: f64,
-    point_y: f64,
 }
 
 impl Turnover {
@@ -219,8 +203,6 @@ impl Turnover {
         recovering_player: Option<Uuid>,
         lost_by_player_id: Option<Uuid>,
         in_live_play: bool,
-        point_x: f64,
-        point_y: f64,
     ) -> Self {
         Self {
             previous_offense,
@@ -228,8 +210,6 @@ impl Turnover {
             recovering_player,
             lost_by_player_id,
             in_live_play,
-            point_x,
-            point_y,
         }
     }
 
@@ -263,14 +243,6 @@ impl Turnover {
 
     pub fn in_live_play(&self) -> bool {
         self.in_live_play
-    }
-
-    pub fn point_x(&self) -> f64 {
-        self.point_x
-    }
-
-    pub fn point_y(&self) -> f64 {
-        self.point_y
     }
 }
 

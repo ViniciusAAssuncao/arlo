@@ -13,6 +13,8 @@ pub struct DuelOutcome {
     velocity_mitigation_factor: f64,
 }
 
+pub type ContestOutcome = DuelOutcome;
+
 impl DuelOutcome {
     pub fn new(
         kind: DuelKind,

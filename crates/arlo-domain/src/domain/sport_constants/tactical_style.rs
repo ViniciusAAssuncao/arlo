@@ -1,1 +1,0 @@
-pub const TACTICAL_STYLE_LOGIT_SCALE: f64 = 0.2;

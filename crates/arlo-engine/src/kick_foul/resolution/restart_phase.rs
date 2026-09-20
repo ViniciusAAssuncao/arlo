@@ -1,17 +1,16 @@
-use crate::artrine::resolve_primary_lead_defender_from_tables;
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
+use crate::caching::get_cached_duel_profiles;
 use crate::physical::FatigueState;
-use crate::resolution::duel_profiles::get_duel_profiles;
 use crate::resolution::group_rating::{
     calculate_anchored_side_rating, calculate_player_duel_rating_from_table, calculate_side_rating,
     RatingParticipants,
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
-use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
-use crate::spatial::DynamicSpatialMap;
-use arlo_domain::pitch::Pitch;
+use crate::resolution::{
+    sample_action_progression, ActionProgressionKind, AttributedDuelOutcome, DuelContext, DuelKind,
+};
+use crate::team_identity::resolve_lead_defender_with_marking;
 use arlo_domain::{AttributeKey, KickFoulDecisionKind, Player, Position as DomainPosition};
-use arlo_math::units::{Length, Position as VectorPosition, Velocity, MIRIM_TO_METERS};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use smallvec::smallvec;
@@ -21,7 +20,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct KickFoulRestartResult {
     pub caught: bool,
-    pub reception_point: VectorPosition,
+    pub reception_x_mirim: f64,
+    pub reception_y_mirim: f64,
     pub receiver_id: Option<Uuid>,
     pub turnover: Option<Uuid>,
     pub duels: Vec<AttributedDuelOutcome>,
@@ -30,14 +30,16 @@ pub struct KickFoulRestartResult {
 impl KickFoulRestartResult {
     pub fn new(
         caught: bool,
-        reception_point: VectorPosition,
+        reception_x_mirim: f64,
+        reception_y_mirim: f64,
         receiver_id: Option<Uuid>,
         turnover: Option<Uuid>,
         duels: Vec<AttributedDuelOutcome>,
     ) -> Self {
         Self {
             caught,
-            reception_point,
+            reception_x_mirim,
+            reception_y_mirim,
             receiver_id,
             turnover,
             duels,
@@ -47,13 +49,12 @@ impl KickFoulRestartResult {
 
 pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
     kicker: &Player,
-    kicker_pos: VectorPosition,
+    kicker_x_mirim: f64,
+    kicker_y_mirim: f64,
     target_candidates: &[&Player],
     defense_players: &[&Player],
     decision: KickFoulDecisionKind,
     tables: &HashMap<Uuid, PlayerAttributeTable>,
-    spatial_map: &DynamicSpatialMap,
-    _pitch: &Pitch,
     attribute_keys: &HashMap<Uuid, AttributeKey>,
     duel_context: &DuelContext,
     rng: &mut R,
@@ -64,7 +65,7 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         _ => DuelKind::ShortDistribution,
     };
 
-    let (off_prof, def_prof) = get_duel_profiles(duel_kind);
+    let (off_prof, def_prof) = get_cached_duel_profiles(duel_kind);
 
     let att_rating = calculate_anchored_side_rating(
         kicker,
@@ -79,21 +80,12 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         def_prof,
     );
 
-    let contest_radius = Length::new(2.0 * MIRIM_TO_METERS);
     let dummy_instructions = HashMap::new();
-    let lead_defender = resolve_primary_lead_defender_from_tables(
+    let lead_defender = resolve_lead_defender_with_marking(
         kicker.id(),
         &HashMap::new(),
-        kicker_pos,
-        Velocity::zero(),
         defense_players,
-        spatial_map,
         &dummy_instructions,
-        tables,
-        &|_| FatigueState::default(),
-        contest_radius,
-        None,
-        rng,
     );
 
     let dist_context = duel_context.for_duel_kind(duel_kind);
@@ -123,7 +115,8 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
     if !raw_throw_duel.attacker_won() {
         return KickFoulRestartResult::new(
             false,
-            kicker_pos,
+            kicker_x_mirim,
+            kicker_y_mirim,
             None,
             None,
             duels,
@@ -137,16 +130,13 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         kicker
     };
     let receiver_id = receiver.id();
-    let rec_pos = spatial_map
-        .get_position(&receiver_id)
-        .unwrap_or(kicker_pos);
 
     let rec_duel_kind = match decision {
         KickFoulDecisionKind::LongLaunch | KickFoulDecisionKind::Cross => DuelKind::AerialDuel,
         _ => DuelKind::RouteContest,
     };
 
-    let (rec_off, rec_def) = get_duel_profiles(rec_duel_kind);
+    let (rec_off, rec_def) = get_cached_duel_profiles(rec_duel_kind);
     let rec_att_rating = calculate_player_duel_rating_from_table(
         receiver,
         DomainPosition::CenterOffense,
@@ -193,9 +183,28 @@ pub fn resolve_kick_foul_restart<R: Rng + ?Sized>(
         None
     };
 
+    let prog_kind = match decision {
+        KickFoulDecisionKind::Cross => ActionProgressionKind::Cross,
+        KickFoulDecisionKind::LongLaunch => ActionProgressionKind::LongLaunch,
+        _ => ActionProgressionKind::ShortPass,
+    };
+    let advance_mirim = if caught {
+        sample_action_progression(prog_kind, raw_rec_duel.net_advantage(), 1.0, rng)
+    } else {
+        0.0
+    };
+
+    let is_home = duel_context.attacker_is_home();
+    let reception_x_mirim = if is_home {
+        kicker_x_mirim + advance_mirim
+    } else {
+        kicker_x_mirim - advance_mirim
+    };
+
     KickFoulRestartResult::new(
         caught,
-        rec_pos,
+        reception_x_mirim,
+        kicker_y_mirim,
         Some(receiver_id),
         turnover,
         duels,

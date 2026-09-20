@@ -1,5 +1,8 @@
 use crate::error::EngineResult;
-use crate::kick_foul::decision::{evaluate_kick_foul_decision_utilities, sample_kick_foul_decision};
+use crate::kick_foul::decision::{
+    evaluate_kick_foul_decision_utilities,
+    sample_kick_foul_decision,
+};
 use crate::kick_foul::pending::KickFoulPending;
 use crate::kick_foul::resolution::block_phase::resolve_kick_block_duel;
 use crate::kick_foul::resolution::outcome::KickFoulResolutionOutcome;
@@ -7,8 +10,7 @@ use crate::kick_foul::resolution::participants::select_kick_foul_participants;
 use crate::kick_foul::resolution::restart_phase::resolve_kick_foul_restart;
 use crate::kick_foul::resolution::shoot_phase::resolve_kick_foul_shot;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::resolution::{AttributedDuelOutcome, DuelContext};
-use crate::team_identity::geometry::lateral_ratio_from_center;
+use crate::resolution::{AttributedDuelOutcome, ContestOrientation, DuelContext};
 use crate::world_state::context_analyzer::analyze_match_state;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::{KickFoulDecisionKind, Player};
@@ -46,15 +48,23 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         .collect();
 
     let offense_role_index = state.role_index_for_team(offense_team_id);
+    let offense_pos_index = state.offensive_position_index_for_team(offense_team_id);
+    let offense_instructions_index = state.instructions_index_for_team(offense_team_id);
     let tables = state.teams.player_attribute_tables();
     let attribute_keys = state.attribute_keys();
-    let pitch = state.pitch();
+    let fatigue_lookup = state.fatigue_lookup();
+    let fatigue_for = |id: &uuid::Uuid| fatigue_lookup.get(id);
 
     let participants = select_kick_foul_participants(
         &offense_players,
         &defense_players,
         offense_role_index,
+        offense_pos_index,
+        offense_instructions_index,
+        state.pitch(),
         tables,
+        is_home_offense,
+        Some(&fatigue_for),
         rng,
     )?;
 
@@ -62,7 +72,11 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
     let kicker_table = state.attribute_table_for(&taker_id);
 
     let pressure = analyze_match_state(state);
-    let lateral_ratio = lateral_ratio_from_center(pending.spot().raw().1, pitch.width().value());
+    let center_y = state.pitch().width_mirim() * 0.5;
+    let lateral_ratio = ((pending.spot_y_mirim() - center_y).abs() / center_y.max(1.0)).clamp(
+        0.0,
+        1.0,
+    );
     let utilities = evaluate_kick_foul_decision_utilities(
         kicker_table,
         pending.scoring_tier(),
@@ -80,8 +94,9 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         defense_instructions.out_of_possession().aggression(),
     );
     let duel_context = DuelContext::with_offsets(
+        ContestOrientation::AttackerIsOffense,
         is_home_offense,
-        !is_home_offense,
+        state.tuning().home_advantage_profile.duel_logit(),
         aggression_offset,
         0.0,
         physicality_offset,
@@ -108,6 +123,7 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                     taker_id,
                 ))
             } else {
+                let difficulty_profile = state.tuning().scoring_difficulty;
                 let (scoring_decision, shot_duel) = resolve_kick_foul_shot(
                     participants.kicker,
                     participants.goalguard,
@@ -116,6 +132,8 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
                     attribute_keys,
                     tables,
                     &duel_context,
+                    difficulty_profile,
+                    state.pitch().length_mirim(),
                     rng,
                 );
                 duels.push(shot_duel);
@@ -133,22 +151,22 @@ pub fn resolve_kick_foul<R: Rng + ?Sized>(
         KickFoulDecisionKind::Cross
         | KickFoulDecisionKind::ShortPass
         | KickFoulDecisionKind::LongLaunch => {
-            let kicker_pos = pending.spot();
             let restart = resolve_kick_foul_restart(
                 participants.kicker,
-                kicker_pos,
+                pending.spot_x_mirim(),
+                pending.spot_y_mirim(),
                 &participants.target_candidates,
                 &defense_players,
                 decision,
                 tables,
-                state.spatial_map(),
-                pitch,
                 attribute_keys,
                 &duel_context,
                 rng,
             );
-            let duels: SmallVec<[AttributedDuelOutcome; 2]> =
-                restart.duels.iter().cloned().collect();
+            let duels: SmallVec<[AttributedDuelOutcome; 2]> = restart.duels
+                .iter()
+                .cloned()
+                .collect();
 
             Ok(KickFoulResolutionOutcome::new(
                 ScoringDecision::NoOpportunity,

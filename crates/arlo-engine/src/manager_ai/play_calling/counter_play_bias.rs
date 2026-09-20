@@ -1,4 +1,4 @@
-use arlo_domain::sport_constants::managerial::IN_GAME_ADJUSTMENT_MAX_IMPACT;
+use arlo_domain::sport_constants::IN_GAME_ADJUSTMENT_MAX_IMPACT;
 use arlo_tactics::PlayCall;
 use uuid::Uuid;
 

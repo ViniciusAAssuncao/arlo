@@ -18,6 +18,10 @@ pub struct FixtureRow {
     pub away_score: Option<i32>,
     pub home_goal_points: Option<i32>,
     pub away_goal_points: Option<i32>,
+    pub home_field_goals: Option<i32>,
+    pub away_field_goals: Option<i32>,
+    pub home_field_points: Option<i32>,
+    pub away_field_points: Option<i32>,
 }
 
 impl FixtureRow {
@@ -37,6 +41,10 @@ impl FixtureRow {
         away_score: Option<u32>,
         home_goal_points: Option<u32>,
         away_goal_points: Option<u32>,
+        home_field_goals: Option<u32>,
+        away_field_goals: Option<u32>,
+        home_field_points: Option<u32>,
+        away_field_points: Option<u32>,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -53,6 +61,10 @@ impl FixtureRow {
             away_score: away_score.map(|s| s as i32),
             home_goal_points: home_goal_points.map(|s| s as i32),
             away_goal_points: away_goal_points.map(|s| s as i32),
+            home_field_goals: home_field_goals.map(|s| s as i32),
+            away_field_goals: away_field_goals.map(|s| s as i32),
+            home_field_points: home_field_points.map(|s| s as i32),
+            away_field_points: away_field_points.map(|s| s as i32),
         }
     }
 }

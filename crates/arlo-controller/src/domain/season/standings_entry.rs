@@ -12,12 +12,19 @@ pub struct StandingsEntry {
     lost: u32,
     goal_points_for: u32,
     goal_points_against: u32,
+    field_goals_for: u32,
+    field_goals_against: u32,
+    field_points_for: u32,
+    field_points_against: u32,
+    total_points_for: u32,
+    total_points_against: u32,
     home_away: HomeAwayRecord,
     spa_metrics: SpaMetrics,
     qta: f64,
 }
 
 impl StandingsEntry {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         team_id: Uuid,
         played: u32,
@@ -26,6 +33,12 @@ impl StandingsEntry {
         lost: u32,
         goal_points_for: u32,
         goal_points_against: u32,
+        field_goals_for: u32,
+        field_goals_against: u32,
+        field_points_for: u32,
+        field_points_against: u32,
+        total_points_for: u32,
+        total_points_against: u32,
         home_away: HomeAwayRecord,
         spa_metrics: SpaMetrics,
         qta: f64,
@@ -38,6 +51,12 @@ impl StandingsEntry {
             lost,
             goal_points_for,
             goal_points_against,
+            field_goals_for,
+            field_goals_against,
+            field_points_for,
+            field_points_against,
+            total_points_for,
+            total_points_against,
             home_away,
             spa_metrics,
             qta,
@@ -70,6 +89,30 @@ impl StandingsEntry {
 
     pub fn goal_points_against(&self) -> u32 {
         self.goal_points_against
+    }
+
+    pub fn field_goals_for(&self) -> u32 {
+        self.field_goals_for
+    }
+
+    pub fn field_goals_against(&self) -> u32 {
+        self.field_goals_against
+    }
+
+    pub fn field_points_for(&self) -> u32 {
+        self.field_points_for
+    }
+
+    pub fn field_points_against(&self) -> u32 {
+        self.field_points_against
+    }
+
+    pub fn total_points_for(&self) -> u32 {
+        self.total_points_for
+    }
+
+    pub fn total_points_against(&self) -> u32 {
+        self.total_points_against
     }
 
     pub fn home_away(&self) -> HomeAwayRecord {

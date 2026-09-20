@@ -1,9 +1,9 @@
 use crate::possession::ball_state::BallState;
 use crate::possession::clock_state::{ClockState, ClockStopReason};
 use crate::possession::live_sequence::LiveSequenceTracker;
+use crate::possession::possession_origin::PossessionOrigin;
 use crate::possession::role::{opening_possession, PossessionRole};
 use crate::possession::series_state::SeriesState;
-use arlo_math::units::Position;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -14,6 +14,7 @@ pub struct PossessionSnapshot {
     pub role: PossessionRole,
     pub series_state: SeriesState,
     pub live_sequence: LiveSequenceTracker,
+    pub possession_origin: PossessionOrigin,
 }
 
 impl PossessionSnapshot {
@@ -22,6 +23,7 @@ impl PossessionSnapshot {
         clock_state: ClockState,
         role: PossessionRole,
         series_state: SeriesState,
+        possession_origin: PossessionOrigin,
     ) -> Self {
         Self {
             ball_state,
@@ -29,6 +31,7 @@ impl PossessionSnapshot {
             role,
             series_state,
             live_sequence: LiveSequenceTracker::new(),
+            possession_origin,
         }
     }
 
@@ -38,6 +41,7 @@ impl PossessionSnapshot {
         role: PossessionRole,
         series_state: SeriesState,
         live_sequence: LiveSequenceTracker,
+        possession_origin: PossessionOrigin,
     ) -> Self {
         Self {
             ball_state,
@@ -45,16 +49,18 @@ impl PossessionSnapshot {
             role,
             series_state,
             live_sequence,
+            possession_origin,
         }
     }
 
-    pub fn opening(home_team: Uuid, away_team: Uuid, initial_scrimmage: Position) -> Self {
+    pub fn opening(home_team: Uuid, away_team: Uuid, initial_scrimmage_x_mirim: f64) -> Self {
         Self {
             ball_state: BallState::Dead,
             clock_state: ClockState::Stopped(ClockStopReason::PeriodEnd),
             role: opening_possession(home_team, away_team),
-            series_state: SeriesState::initial(initial_scrimmage),
+            series_state: SeriesState::initial(initial_scrimmage_x_mirim),
             live_sequence: LiveSequenceTracker::new(),
+            possession_origin: PossessionOrigin::new(initial_scrimmage_x_mirim),
         }
     }
 
@@ -86,6 +92,14 @@ impl PossessionSnapshot {
         &mut self.live_sequence
     }
 
+    pub fn possession_origin(&self) -> &PossessionOrigin {
+        &self.possession_origin
+    }
+
+    pub fn possession_origin_mut(&mut self) -> &mut PossessionOrigin {
+        &mut self.possession_origin
+    }
+
     pub fn offense(&self) -> Uuid {
         self.role.offense()
     }
@@ -110,8 +124,8 @@ impl PossessionSnapshot {
         self.series_state.advanced_mirins()
     }
 
-    pub fn scrimmage_point(&self) -> Position {
-        self.series_state.scrimmage_point()
+    pub fn scrimmage_x_mirim(&self) -> f64 {
+        self.series_state.scrimmage_x_mirim()
     }
 
     pub fn is_bonus_phase(&self) -> bool {

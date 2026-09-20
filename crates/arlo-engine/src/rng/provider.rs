@@ -54,16 +54,4 @@ impl RngProvider {
     pub fn duel_resolution_rng(&self) -> ChaCha8Rng {
         self.rng_for(RngStream::DuelResolution)
     }
-
-    pub fn finisher_selection_rng(&self) -> ChaCha8Rng {
-        self.rng_for(RngStream::FinisherSelection)
-    }
-
-    pub fn progression_distribution_rng(&self) -> ChaCha8Rng {
-        self.rng_for(RngStream::ProgressionDistribution)
-    }
-
-    pub fn positional_drift_rng(&self) -> ChaCha8Rng {
-        self.rng_for(RngStream::PositionalDrift)
-    }
 }

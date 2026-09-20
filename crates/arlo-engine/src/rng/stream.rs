@@ -9,51 +9,42 @@ pub const SPLITMIX_MIX_2: u64 = 0x94d049bb133111eb;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RngStream {
     DuelResolution,
-    FinisherSelection,
-    ProgressionDistribution,
-    ArtrineDecision,
-    BallSecurity,
-    PositionalDrift,
     ChallengeResolution,
     PlayCallSelection,
     RefereeAssignment,
-    FaultResolution,
     KickFoulResolution,
     AddedTimeDecision,
+    InjuryResolution,
+    ManagerStoppage,
+    ScoringResolution,
 }
 
 impl RngStream {
     pub fn stream_id(self) -> u64 {
         match self {
             Self::DuelResolution => 1,
-            Self::FinisherSelection => 2,
-            Self::ProgressionDistribution => 3,
-            Self::ArtrineDecision => 4,
-            Self::BallSecurity => 5,
-            Self::PositionalDrift => 6,
-            Self::ChallengeResolution => 7,
-            Self::PlayCallSelection => 8,
-            Self::RefereeAssignment => 9,
-            Self::FaultResolution => 10,
-            Self::KickFoulResolution => 11,
-            Self::AddedTimeDecision => 12,
+            Self::ChallengeResolution => 2,
+            Self::PlayCallSelection => 3,
+            Self::RefereeAssignment => 4,
+            Self::KickFoulResolution => 5,
+            Self::AddedTimeDecision => 6,
+            Self::InjuryResolution => 7,
+            Self::ManagerStoppage => 8,
+            Self::ScoringResolution => 9,
         }
     }
 
-    pub fn all() -> [Self; 12] {
+    pub fn all() -> [Self; 9] {
         [
             Self::DuelResolution,
-            Self::FinisherSelection,
-            Self::ProgressionDistribution,
-            Self::ArtrineDecision,
-            Self::BallSecurity,
-            Self::PositionalDrift,
             Self::ChallengeResolution,
             Self::PlayCallSelection,
             Self::RefereeAssignment,
-            Self::FaultResolution,
             Self::KickFoulResolution,
             Self::AddedTimeDecision,
+            Self::InjuryResolution,
+            Self::ManagerStoppage,
+            Self::ScoringResolution,
         ]
     }
 }

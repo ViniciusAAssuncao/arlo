@@ -8,6 +8,6 @@ pub mod team_momentum;
 pub use cooldown_derivation::derive_cooldown_seconds;
 pub use decision_kind::ManagerDecisionKind;
 pub use leverage::compute_leverage;
-pub use manager_noise::derive_manager_decision_noise;
+pub use manager_noise::{derive_manager_decision_noise, sample_manager_decision_noise};
 pub use situational_awareness::SituationalAwareness;
 pub use team_momentum::aggregate_team_momentum;

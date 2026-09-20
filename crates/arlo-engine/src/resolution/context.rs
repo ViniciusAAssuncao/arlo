@@ -1,50 +1,41 @@
 use crate::resolution::duel_kind::DuelKind;
+use crate::resolution::orientation::ContestOrientation;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub struct DuelContext {
-    attacker_is_home: bool,
-    defender_is_home: bool,
+    orientation: ContestOrientation,
+    is_home_offense: bool,
+    home_advantage_duel_logit: f64,
     aggression_logit_offset: f64,
     misdirection_logit_offset: f64,
     physicality_logit_offset: f64,
 }
 
 impl DuelContext {
-    pub fn new(attacker_is_home: bool, defender_is_home: bool) -> Self {
+    pub fn new(orientation: ContestOrientation, is_home_offense: bool, home_advantage_duel_logit: f64) -> Self {
         Self {
-            attacker_is_home,
-            defender_is_home,
+            orientation,
+            is_home_offense,
+            home_advantage_duel_logit,
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
             physicality_logit_offset: 0.0,
         }
     }
 
-    pub fn with_aggression_offset(
-        attacker_is_home: bool,
-        defender_is_home: bool,
-        aggression_logit_offset: f64,
-    ) -> Self {
-        Self {
-            attacker_is_home,
-            defender_is_home,
-            aggression_logit_offset,
-            misdirection_logit_offset: 0.0,
-            physicality_logit_offset: 0.0,
-        }
-    }
-
     pub fn with_offsets(
-        attacker_is_home: bool,
-        defender_is_home: bool,
+        orientation: ContestOrientation,
+        is_home_offense: bool,
+        home_advantage_duel_logit: f64,
         aggression_logit_offset: f64,
         misdirection_logit_offset: f64,
         physicality_logit_offset: f64,
     ) -> Self {
         Self {
-            attacker_is_home,
-            defender_is_home,
+            orientation,
+            is_home_offense,
+            home_advantage_duel_logit,
             aggression_logit_offset,
             misdirection_logit_offset,
             physicality_logit_offset,
@@ -53,40 +44,57 @@ impl DuelContext {
 
     pub fn neutral() -> Self {
         Self {
-            attacker_is_home: false,
-            defender_is_home: false,
+            orientation: ContestOrientation::Neutral,
+            is_home_offense: false,
+            home_advantage_duel_logit: 0.0,
             aggression_logit_offset: 0.0,
             misdirection_logit_offset: 0.0,
             physicality_logit_offset: 0.0,
         }
     }
 
-    pub fn attacker_home() -> Self {
+    pub fn orientation(&self) -> ContestOrientation {
+        self.orientation
+    }
+
+    pub fn with_orientation(&self, orientation: ContestOrientation) -> Self {
+        if self.orientation == orientation {
+            return *self;
+        }
+        let flip = (self.orientation == ContestOrientation::AttackerIsOffense && orientation == ContestOrientation::AttackerIsDefense) ||
+                   (self.orientation == ContestOrientation::AttackerIsDefense && orientation == ContestOrientation::AttackerIsOffense);
+        
         Self {
-            attacker_is_home: true,
-            defender_is_home: false,
-            aggression_logit_offset: 0.0,
-            misdirection_logit_offset: 0.0,
-            physicality_logit_offset: 0.0,
+            orientation,
+            aggression_logit_offset: if flip { -self.aggression_logit_offset } else { self.aggression_logit_offset },
+            misdirection_logit_offset: if flip { -self.misdirection_logit_offset } else { self.misdirection_logit_offset },
+            physicality_logit_offset: if flip { -self.physicality_logit_offset } else { self.physicality_logit_offset },
+            ..*self
         }
     }
 
-    pub fn defender_home() -> Self {
-        Self {
-            attacker_is_home: false,
-            defender_is_home: true,
-            aggression_logit_offset: 0.0,
-            misdirection_logit_offset: 0.0,
-            physicality_logit_offset: 0.0,
-        }
+    pub fn is_home_offense(&self) -> bool {
+        self.is_home_offense
     }
 
     pub fn attacker_is_home(&self) -> bool {
-        self.attacker_is_home
+        match self.orientation {
+            ContestOrientation::AttackerIsOffense => self.is_home_offense,
+            ContestOrientation::AttackerIsDefense => !self.is_home_offense,
+            ContestOrientation::Neutral => false,
+        }
     }
 
     pub fn defender_is_home(&self) -> bool {
-        self.defender_is_home
+        match self.orientation {
+            ContestOrientation::AttackerIsOffense => !self.is_home_offense,
+            ContestOrientation::AttackerIsDefense => self.is_home_offense,
+            ContestOrientation::Neutral => false,
+        }
+    }
+
+    pub fn home_advantage_duel_logit(&self) -> f64 {
+        self.home_advantage_duel_logit
     }
 
     pub fn aggression_logit_offset(&self) -> f64 {
@@ -106,8 +114,9 @@ impl DuelContext {
             *self
         } else {
             Self::with_offsets(
-                self.attacker_is_home,
-                self.defender_is_home,
+                self.orientation,
+                self.is_home_offense,
+                self.home_advantage_duel_logit,
                 0.0,
                 self.misdirection_logit_offset,
                 0.0,

@@ -14,21 +14,21 @@ pub use artrine_decisions::{
     DecisionKindStats, PlayerArtrineDecisionAggregator, PlayerArtrineDecisionStats,
 };
 pub use assists::{
-    PlayerAssistAggregator, PlayerAssistStats, PlayerAssistsAggregator, PlayerAssistsStats,
+    PlayerAssistAggregator, PlayerAssistStats,
 };
 pub use availability::{PlayerAvailabilityAggregator, PlayerAvailabilityStats};
 pub use drives::{PlayerDriveStats, PlayerDrivesAggregator};
 pub use duel_record::{DuelKindStats, PlayerDuelAggregator, PlayerDuelStats};
 pub use impulse::{
-    ImpulseAggregator, ImpulseRun, PlayerImpulseAggregator, PlayerImpulseStats, TeamImpulseRun,
+    ImpulseRun, PlayerImpulseAggregator, PlayerImpulseStats, TeamImpulseRun,
     TeamImpulseStats,
 };
 pub use injury_record::{PlayerInjuryAggregator, PlayerInjuryStats};
 pub use physical_exertion::{
-    PlayerPhysicalAggregator, PlayerPhysicalExertionAggregator, PlayerPhysicalStats,
+    PlayerPhysicalAggregator, PlayerPhysicalStats,
 };
 pub use receiving::{PlayerReceivingAggregator, PlayerReceivingStats};
 pub use scoring_attempts::{
-    PlayerScoringAttemptAggregator, PlayerScoringAttemptStats, PlayerScoringAttemptsAggregator,
+    PlayerScoringAttemptAggregator, PlayerScoringAttemptStats,
 };
 pub use touches::{PlayerTouchStats, PlayerTouchesAggregator};

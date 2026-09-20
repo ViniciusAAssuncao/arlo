@@ -1,11 +1,14 @@
 use crate::manager_ai::context::ManagerDecisionContext;
-use crate::manager_ai::orchestrator::foul_challenge_stage::evaluate_foul_challenge_stage;
-use crate::manager_ai::orchestrator::injury_substitution_stage::evaluate_injury_substitution_stage;
-use crate::manager_ai::orchestrator::kick_foul_realignment_stage::evaluate_kick_foul_realignment_stage;
-use crate::manager_ai::orchestrator::reviewable_call_stage::evaluate_reviewable_call_challenge_stage;
-use crate::manager_ai::orchestrator::substitution_stage::evaluate_substitution_stage;
-use crate::manager_ai::orchestrator::tactical_adjustment_stage::evaluate_tactical_adjustment_stage;
-use crate::manager_ai::orchestrator::time_call_stage::evaluate_time_call_stage;
+use crate::manager_ai::orchestrator::officiating_stages::{
+    evaluate_foul_challenge_stage, evaluate_reviewable_call_challenge_stage,
+};
+use crate::manager_ai::orchestrator::squad_stages::{
+    evaluate_injury_substitution_stage, evaluate_substitution_stage,
+};
+use crate::manager_ai::orchestrator::tactical_stages::{
+    evaluate_kick_foul_realignment_stage, evaluate_tactical_adjustment_stage,
+    evaluate_time_call_stage,
+};
 use crate::manager_ai::play_calling::{
     execute_play_call_selection, rank_playbook, PlayCallDecisionEngine,
 };
@@ -116,12 +119,12 @@ impl ManagerAiEngine {
         }
 
         let is_home = offense_team_id == publisher.state().home_team_id();
-        let pitch_length_m = publisher.state().pitch().length().value();
-        let scrimmage_x_m = publisher.state().possession().scrimmage_point().raw().0;
+        let pitch_length_mirim = publisher.state().pitch().length_mirim();
+        let scrimmage_x_mirim = publisher.state().possession().scrimmage_x_mirim();
         let normalized_x_to_goal = if is_home {
-            (scrimmage_x_m / pitch_length_m).clamp(0.0, 1.0)
+            (scrimmage_x_mirim / pitch_length_mirim).clamp(0.0, 1.0)
         } else {
-            ((pitch_length_m - scrimmage_x_m) / pitch_length_m).clamp(0.0, 1.0)
+            ((pitch_length_mirim - scrimmage_x_mirim) / pitch_length_mirim).clamp(0.0, 1.0)
         };
         let situational_ctx = build_situational_context(publisher.state(), normalized_x_to_goal);
         let expected_category = if publisher.state().possession().is_bonus_phase() {

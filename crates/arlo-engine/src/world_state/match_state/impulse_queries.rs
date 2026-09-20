@@ -1,5 +1,6 @@
+use crate::attributes::DEFAULT_PLAYER_ATTRIBUTE_TABLE;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::event_bus::ImpulseEventBus;
+use crate::psychology::systems::baseline::calculate_captaincy_influence;
 use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
 use crate::world_state::match_state::state::MatchState;
 use std::collections::HashMap;
@@ -28,12 +29,29 @@ impl MatchState {
     }
 
     pub fn substitute_impulse_player(&mut self, outgoing: Uuid, incoming: Uuid, is_home: bool) {
+        let captain_id = if is_home {
+            self.teams.home_captain_id()
+        } else {
+            self.teams.away_captain_id()
+        };
+        let captain_influence = captain_id
+            .and_then(|id| self.teams.player_attribute_table(&id))
+            .map(calculate_captaincy_influence)
+            .unwrap_or(0.0);
+        let is_captain = Some(incoming) == captain_id;
+        let table = self
+            .teams
+            .player_attribute_table(&incoming)
+            .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
+        let tuning = self.tuning_arc();
         self.impulse.substitute_player(
             outgoing,
             incoming,
             is_home,
-            &self.teams,
-            &self.attribute_keys,
+            table,
+            captain_influence,
+            is_captain,
+            &tuning,
         );
     }
 
@@ -42,8 +60,8 @@ impl MatchState {
     }
 
     pub fn reset_all_impulse_to_baseline(&mut self) {
-        self.impulse
-            .reset_all_to_baseline(&self.teams, &self.attribute_keys);
+        let tuning = self.tuning_arc();
+        self.impulse.reset_all_to_baseline(&self.teams, &tuning);
     }
 
     pub fn advance_impulse_dynamics(&mut self, dt_seconds: f64) {
@@ -51,16 +69,7 @@ impl MatchState {
             dt_seconds,
             &self.teams,
             &self.fatigue,
-            &self.attribute_keys,
         );
-    }
-
-    pub fn impulse_bus(&self) -> &ImpulseEventBus {
-        self.impulse.impulse_bus()
-    }
-
-    pub fn impulse_bus_mut(&mut self) -> &mut ImpulseEventBus {
-        self.impulse.impulse_bus_mut()
     }
 
     pub fn impulse_for(&self, player_id: &Uuid) -> ImpulseState {
@@ -71,27 +80,14 @@ impl MatchState {
         &mut self,
         player_id: Uuid,
         event: &ImpulseEvent,
-        timestamp_seconds: f64,
     ) -> Option<ImpulseShift> {
+        let tuning = self.tuning_arc();
         self.impulse.apply_impulse_event(
             player_id,
             event,
-            timestamp_seconds,
             &self.teams,
             &self.fatigue,
-            &self.attribute_keys,
-        )
-    }
-
-    pub fn process_impulse_bus(
-        &mut self,
-        timestamp_seconds: f64,
-    ) -> Vec<(Uuid, ImpulseShift, ImpulseEvent)> {
-        self.impulse.process_impulse_bus(
-            timestamp_seconds,
-            &self.teams,
-            &self.fatigue,
-            &self.attribute_keys,
+            &tuning.home_advantage_profile,
         )
     }
 }

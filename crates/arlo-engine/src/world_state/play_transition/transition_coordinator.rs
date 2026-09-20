@@ -8,9 +8,10 @@ use crate::world_state::match_state::foul_review::FoulReviewRecord;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::play_transition::dead_ball_clock::handle_dead_ball_and_clock;
 use crate::world_state::play_transition::fatigue_applier::{
-    apply_duel_strain, apply_kinematic_movement_strain,
+    apply_duel_strain, apply_movement_strain,
 };
 use crate::world_state::play_transition::impulse_coordinator::coordinate_play_impulse;
+use crate::world_state::play_transition::injury_stage::evaluate_and_apply_exertion_injuries;
 use crate::world_state::play_transition::possession_resolver::{
     build_detailed_play_outcome, classify_play_outcome,
 };
@@ -20,8 +21,9 @@ use crate::world_state::play_transition::scoring_handler::{
 };
 use crate::world_state::play_transition::turnover_and_down_events::resolve_turnover_and_down_events;
 use arlo_domain::{ArtrineDecisionKind, PunishmentKind};
-use arlo_events::EventSink;
+use arlo_events::{EventArtroPlacement, EventSink};
 use arlo_manager_control::ManagerDecisionInbox;
+use std::collections::HashSet;
 use uuid::Uuid;
 
 pub struct TransitionPipeline<'a, 'b, 'c, S: EventSink> {
@@ -74,7 +76,8 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
     fn apply_strains(&mut self) {
         self.publisher.emit_drives(
             self.pass_phase.artrine.id(),
-            &self.execution_outcome.drive_row_indices,
+            self.execution_outcome.drives_recorded,
+            EventArtroPlacement::Central,
         );
 
         if let Some(flight_info) = &self.execution_outcome.distribution_flight {
@@ -85,10 +88,23 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
         self.publisher
             .emit_duel_events(&self.execution_outcome.duels, self.pass_phase.artrine.id());
 
-        apply_kinematic_movement_strain(
-            &mut self.publisher,
-            &self.execution_outcome.kinematic_trajectories,
-        );
+        let mut participated_ids = HashSet::new();
+        participated_ids.insert(self.pass_phase.passer.id());
+        participated_ids.insert(self.pass_phase.artrine.id());
+        if let Some(rid) = self.execution_outcome.receiver_id {
+            participated_ids.insert(rid);
+        }
+        for d in &self.play_duels {
+            for id in d.attacker_ids() {
+                participated_ids.insert(*id);
+            }
+            for id in d.defender_ids() {
+                participated_ids.insert(*id);
+            }
+        }
+        let live_seconds = self.play_ledger.total_live().value().max(1.0);
+        apply_movement_strain(&mut self.publisher, &participated_ids, live_seconds);
+        evaluate_and_apply_exertion_injuries(&mut self.publisher, &participated_ids, live_seconds);
     }
 
     fn emit_fouls(&mut self) {
