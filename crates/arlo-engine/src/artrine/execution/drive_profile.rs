@@ -141,24 +141,24 @@ impl DriveAwardProfile {
 impl Default for DriveAwardProfile {
     fn default() -> Self {
         Self {
-            min_advance_p1: 0.5,
-            p1_base_logit: 1.80,
+            min_advance_p1: 0.35,
+            p1_base_logit: 2.40,
             p1_advantage_scale: 0.25,
             p1_skill_scale: 0.35,
-            p1_min_prob: 0.20,
-            p1_max_prob: 0.98,
-            min_advance_p2: 2.5,
-            p2_base_logit: 0.50,
+            p1_min_prob: 0.35,
+            p1_max_prob: 0.99,
+            min_advance_p2: 2.0,
+            p2_base_logit: 1.20,
             p2_advantage_scale: 0.20,
             p2_skill_scale: 0.45,
-            p2_min_prob: 0.10,
-            p2_max_prob: 0.92,
-            min_advance_p3: 5.5,
-            p3_base_logit: -0.20,
+            p2_min_prob: 0.20,
+            p2_max_prob: 0.96,
+            min_advance_p3: 4.2,
+            p3_base_logit: 0.50,
             p3_advantage_scale: 0.20,
             p3_skill_scale: 0.55,
-            p3_min_prob: 0.05,
-            p3_max_prob: 0.85,
+            p3_min_prob: 0.15,
+            p3_max_prob: 0.90,
         }
     }
 }
