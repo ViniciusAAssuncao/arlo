@@ -44,6 +44,7 @@ pub struct DownResolutionContext<'a> {
     pub remaining_advance_mirim: f64,
     pub down: u8,
     pub is_bonus_phase: bool,
+    pub is_last_down: bool,
     pub is_true_artrine: bool,
     pub is_home_offense: bool,
     pub pitch_length_mirim: f64,
@@ -193,6 +194,7 @@ impl<'a> DownResolutionContext<'a> {
 
         let passing_range = offense_instructions.in_possession().passing_range();
         let is_true_artrine = carrier.id() == pass_phase.artrine.id();
+        let is_last_down = state.possession().series_state().is_last_down();
         let scoring_regime = ScoringRegimePolicy::default();
         let scoring_difficulty = *state.tuning().scoring_difficulty();
         let drive_award_profile = *state.tuning().drive_award();
@@ -224,6 +226,7 @@ impl<'a> DownResolutionContext<'a> {
                 .remaining_mirins_to_target(),
             down: state.possession().down(),
             is_bonus_phase: state.possession().is_bonus_phase(),
+            is_last_down,
             is_true_artrine,
             is_home_offense: context.is_home_offense,
             pitch_length_mirim,

@@ -122,7 +122,7 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             let is_immediate = outcome
                 .possession_control_seconds
                 .map(is_immediate_loss)
-                .unwrap_or(false);
+                .unwrap_or(true);
 
             if !is_immediate {
                 updated_series.advance_down();
