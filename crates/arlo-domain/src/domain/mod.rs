@@ -45,6 +45,7 @@ pub mod team;
 pub mod title;
 pub mod validation;
 pub mod venue;
+pub mod scoreboard;
 
 pub use artrine_decision::ArtrineDecisionKind;
 pub use attribute_definition::{AttributeCategory, AttributeDefinition, AttributeTarget};
@@ -95,3 +96,4 @@ pub use team::{Team, TeamBuilder};
 pub use title::{Title, TitleWinner};
 pub use validation::*;
 pub use venue::{Venue, VenueKind};
+pub use scoreboard::*;
