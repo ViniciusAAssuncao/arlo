@@ -19,7 +19,7 @@ pub fn available_decision_kinds(
         FIELD_POINT_OPPORTUNITY_ADVANCE_BUFFER_MIRIM,
     );
 
-    if is_last_down && can_score {
+    if (is_last_down || is_bonus_phase) && can_score {
         return smallvec![
             ArtrineDecisionKind::Cross,
             ArtrineDecisionKind::SelfFinish,

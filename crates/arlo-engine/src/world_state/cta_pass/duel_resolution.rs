@@ -43,13 +43,19 @@ pub fn resolve_pass_protection_duel(
     let clock_inst = state.clock().to_instant();
     sink.record(create_envelope(seq, clock_inst, cta_event));
 
+    let bonus_offset = if state.possession().is_bonus_phase() {
+        2.50
+    } else {
+        0.0
+    };
+
     let context = DuelContext::with_offsets(
         ContestOrientation::AttackerIsOffense,
         is_home_offense,
         state.tuning().home_advantage_profile.duel_logit(),
         0.0,
         0.0,
-        1.80,
+        1.80 + bonus_offset,
     );
 
     let mut duel_rng = state

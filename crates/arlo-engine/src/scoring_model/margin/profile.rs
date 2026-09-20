@@ -82,7 +82,7 @@ impl Default for MarginPenaltyProfile {
         Self {
             goal_point_weight: 1.0,
             field_point_weight: 0.0,
-            field_goal_weight: 0.45,
+            field_goal_weight: 0.0,
             max_penalty_logit: 2.5,
             threshold_gp: 2.0,
             softplus_beta: 2.0,
