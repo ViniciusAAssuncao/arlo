@@ -18,4 +18,7 @@ pub struct PlayerMedicalConditionDto {
     pub observation_days_remaining: Option<u32>,
     pub expected_recovery_days: Option<u32>,
     pub is_relapse: bool,
+    pub readiness_score: f64,
+    pub readiness_level: String,
+    pub caution_recommended: bool,
 }
