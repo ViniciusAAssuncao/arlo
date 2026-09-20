@@ -64,6 +64,14 @@ impl FatigueTracker {
             .unwrap_or_default()
     }
 
+    pub fn set_player_fatigue(&mut self, player_id: Uuid, is_home: bool, state: FatigueState) {
+        if is_home {
+            self.home_fatigue.insert(player_id, state);
+        } else {
+            self.away_fatigue.insert(player_id, state);
+        }
+    }
+
     pub fn substitute_player(&mut self, _outgoing: Uuid, incoming: Uuid, is_home: bool) {
         let map = if is_home {
             &mut self.home_fatigue

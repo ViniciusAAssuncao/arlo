@@ -9,6 +9,12 @@ pub enum RecoveryError {
     #[error("Domain error: {0}")]
     Domain(#[from] DomainError),
 
+    #[error(transparent)]
+    Persistence(#[from] arlo_persistence::PersistenceError),
+
+    #[error(transparent)]
+    Db(#[from] arlo_db::DbError),
+
     #[error("Invalid data: {0}")]
     InvalidData(String),
 

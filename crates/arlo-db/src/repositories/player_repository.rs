@@ -86,6 +86,21 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Player>> {
     Ok(results)
 }
 
+pub async fn list_all_with_team(pool: &SqlitePool) -> DbResult<Vec<Player>> {
+    let player_rows = fetch_all::<PlayerRow>(
+        pool,
+        "SELECT id, name, height_m, birthdate_unix_seconds, nationality_id, team_id, squad_number, captaincy_role FROM players WHERE team_id IS NOT NULL",
+    )
+    .await?;
+
+    let def_map = load_definitions_map(pool).await?;
+    let mut results = Vec::with_capacity(player_rows.len());
+    for pr in &player_rows {
+        results.push(assemble_player(pool, pr, &def_map).await?);
+    }
+    Ok(results)
+}
+
 pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<Player>> {
     let player_rows = fetch_all_by_param::<PlayerRow>(
         pool,

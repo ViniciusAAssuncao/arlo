@@ -19,6 +19,11 @@ impl MatchState {
         self.fatigue.fatigue_for(player_id)
     }
 
+    pub fn set_player_fatigue(&mut self, player_id: Uuid, state: FatigueState) {
+        let is_home = self.teams.is_home_player(&player_id);
+        self.fatigue.set_player_fatigue(player_id, is_home, state);
+    }
+
     pub fn fatigue_lookup(&self) -> FatigueLookup<'_> {
         self.fatigue.lookup()
     }
