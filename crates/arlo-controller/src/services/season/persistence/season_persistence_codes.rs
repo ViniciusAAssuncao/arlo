@@ -40,5 +40,7 @@ pub fn postponement_reason_to_code(reason: PostponementReason) -> &'static str {
     match reason {
         PostponementReason::GamesPerWeekConflict => "GamesPerWeekConflict",
         PostponementReason::ManualOverride => "ManualOverride",
+        PostponementReason::InsufficientRestGap => "InsufficientRestGap",
+        PostponementReason::CollectiveAgreementBlackout => "CollectiveAgreementBlackout",
     }
 }

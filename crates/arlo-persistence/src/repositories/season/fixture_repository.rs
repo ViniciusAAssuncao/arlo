@@ -148,3 +148,29 @@ pub async fn list_scheduled_on_date(
 
     Ok(rows)
 }
+
+pub async fn list_completed_by_team_id_desc(
+    pool: &SqlitePool,
+    team_id: Uuid,
+    limit: u32,
+) -> PersistenceResult<Vec<FixtureRow>> {
+    let rows = sqlx::query_as::<_, FixtureRow>(
+        r#"SELECT
+            id, season_stage_id, round_index, home_team_id, away_team_id,
+            is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year,
+            status, home_score, away_score, home_goal_points, away_goal_points,
+            home_field_goals, away_field_goals, home_field_points, away_field_points
+        FROM fixtures
+        WHERE (home_team_id = ? OR away_team_id = ?)
+          AND (status = 'Completed' OR status = 'Walkover')
+        ORDER BY scheduled_year DESC, scheduled_day_of_year DESC, round_index DESC
+        LIMIT ?"#,
+    )
+    .bind(team_id.to_string())
+    .bind(team_id.to_string())
+    .bind(limit as i64)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}

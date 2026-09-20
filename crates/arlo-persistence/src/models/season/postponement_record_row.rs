@@ -1,3 +1,5 @@
+use crate::error::PersistenceResult;
+use crate::models::season::postponement_reason_code::PostponementReasonCode;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -36,5 +38,9 @@ impl PostponementRecordRow {
             reason: reason.into(),
             created_at_unix_seconds,
         }
+    }
+
+    pub fn reason_code(&self) -> PersistenceResult<PostponementReasonCode> {
+        PostponementReasonCode::parse(&self.reason)
     }
 }

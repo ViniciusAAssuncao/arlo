@@ -1,4 +1,4 @@
-use crate::domain::calendar::CalendarSystem;
+use crate::domain::calendar::{CalendarDate, CalendarSystem};
 use crate::domain::season::{Fixture, FixtureStatus, SeasonStageInstance, StageStatus};
 use crate::error::{ControllerError, ControllerResult};
 use crate::services::season::grouped_schedule::cross_group_pairing_generator::generate_cross_group_pairings;
@@ -26,7 +26,7 @@ pub fn generate_grouped_schedule(
     stage_def: &StageDefinition,
     season_instance_id: Uuid,
     stage_instance_id: Uuid,
-    reference_year: i64,
+    anchor_date: CalendarDate,
     start_round_index: u32,
 ) -> ControllerResult<GeneratedStageSchedule> {
     let schedule_blocks = stage_def
@@ -141,7 +141,7 @@ pub fn generate_grouped_schedule(
 
     all_matches.sort_by_key(|m| m.round_index);
 
-    let scheduled_matches = assign_dates(calendar, config.timing(), reference_year, &all_matches)?;
+    let scheduled_matches = assign_dates(calendar, config.timing(), anchor_date, &all_matches)?;
 
     let mut fixtures = Vec::with_capacity(scheduled_matches.len());
     for sm in scheduled_matches {

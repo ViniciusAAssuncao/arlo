@@ -9,13 +9,13 @@ members = [
     "crates/arlo-db",
     "crates/arlo-tactics",
     "crates/arlo-engine",
-    "crates/arlo-formatter",
     "crates/arlo-events",
     "crates/arlo-stats",
     "crates/arlo-persistence",
     "crates/arlo-match-runner",
     "crates/arlo-manager-control",
     "crates/arlo-controller",
+    "crates/arlo-recovery",
 ]
 
 [workspace.package]
@@ -45,7 +45,6 @@ arlo-math            = { path = "crates/arlo-math" }
 arlo-db              = { path = "crates/arlo-db" }
 arlo-tactics         = { path = "crates/arlo-tactics" }
 arlo-engine          = { path = "crates/arlo-engine" }
-arlo-formatter       = { path = "crates/arlo-formatter" }
 arlo-runtime         = { path = "crates/arlo-runtime" }
 arlo-events          = { path = "crates/arlo-events" }
 arlo-stats           = { path = "crates/arlo-stats" }
@@ -53,3 +52,4 @@ arlo-persistence     = { path = "crates/arlo-persistence" }
 arlo-match-runner    = { path = "crates/arlo-match-runner" }
 arlo-manager-control = { path = "crates/arlo-manager-control" }
 arlo-controller      = { path = "crates/arlo-controller" }
+arlo-recovery        = { path = "crates/arlo-recovery" }

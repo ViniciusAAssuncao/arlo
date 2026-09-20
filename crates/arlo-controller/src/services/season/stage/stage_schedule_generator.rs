@@ -1,4 +1,4 @@
-use crate::domain::calendar::CalendarSystem;
+use crate::domain::calendar::{CalendarDate, CalendarSystem};
 use crate::domain::season::{
     BracketSeed, Fixture, FixtureStatus, KnockoutTie, SeasonStageInstance, StageStatus,
 };
@@ -26,7 +26,7 @@ pub fn generate_stage_schedule(
     season_instance_id: Uuid,
     stage_instance_id: Uuid,
     participating_teams: &[Uuid],
-    reference_year: i64,
+    anchor_date: CalendarDate,
     start_round_index: u32,
 ) -> ControllerResult<GeneratedStageSchedule> {
     match stage_def.stage_type() {
@@ -67,7 +67,7 @@ pub fn generate_stage_schedule(
             let scheduled_matches = assign_dates(
                 calendar,
                 config.timing(),
-                reference_year,
+                anchor_date,
                 &matches_with_offset,
             )?;
 
@@ -117,7 +117,7 @@ pub fn generate_stage_schedule(
             let generated_knockout = generate_knockout_bracket(
                 calendar,
                 config.timing(),
-                reference_year,
+                anchor_date,
                 stage_instance_id,
                 start_round_index,
                 &seeds,
@@ -144,7 +144,7 @@ pub fn generate_stage_schedule(
             stage_def,
             season_instance_id,
             stage_instance_id,
-            reference_year,
+            anchor_date,
             start_round_index,
         ),
     }
@@ -157,7 +157,7 @@ pub fn generate_stage_schedule_from_seeds(
     season_instance_id: Uuid,
     stage_instance_id: Uuid,
     seeds: &[BracketSeed],
-    reference_year: i64,
+    anchor_date: CalendarDate,
     start_round_index: u32,
 ) -> ControllerResult<GeneratedStageSchedule> {
     let team_ids: Vec<Uuid> = seeds.iter().map(|s| s.team_id()).collect();
@@ -168,7 +168,7 @@ pub fn generate_stage_schedule_from_seeds(
         season_instance_id,
         stage_instance_id,
         &team_ids,
-        reference_year,
+        anchor_date,
         start_round_index,
     )
 }

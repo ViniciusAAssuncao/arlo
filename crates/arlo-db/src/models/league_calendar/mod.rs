@@ -1,7 +1,10 @@
+pub mod collective_agreement_row;
+pub mod collective_agreement_rule_codes;
 pub mod competition_group_row;
 pub mod competition_group_team_row;
 pub mod entry_rule_pool_codes;
 pub mod entry_rule_pool_row;
+pub mod league_calendar_collective_agreement_row;
 pub mod league_calendar_config_codes;
 pub mod league_calendar_config_row;
 pub mod league_calendar_matchday_weekday_row;
@@ -14,10 +17,13 @@ pub mod stage_definition_codes;
 pub mod tie_break_criterion_code;
 pub mod tie_break_criterion_row;
 
+pub use collective_agreement_row::CollectiveAgreementRow;
+pub use collective_agreement_rule_codes::*;
 pub use competition_group_row::CompetitionGroupRow;
 pub use competition_group_team_row::CompetitionGroupTeamRow;
 pub use entry_rule_pool_codes::*;
 pub use entry_rule_pool_row::EntryRulePoolRow;
+pub use league_calendar_collective_agreement_row::LeagueCalendarCollectiveAgreementRow;
 pub use league_calendar_config_codes::*;
 pub use league_calendar_config_row::LeagueCalendarConfigRow;
 pub use league_calendar_matchday_weekday_row::LeagueCalendarMatchdayWeekdayRow;

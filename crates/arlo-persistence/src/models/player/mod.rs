@@ -20,6 +20,7 @@ pub mod match_player_receiving_row;
 pub mod match_player_scoring_attempt_by_post_row;
 pub mod match_player_scoring_attempt_row;
 pub mod match_player_touches_row;
+pub mod player_club_history_row;
 
 pub use match_player_artrine_decision_by_kind_row::MatchPlayerArtrineDecisionByKindRow;
 pub use match_player_artrine_decision_row::MatchPlayerArtrineDecisionRow;
@@ -43,3 +44,4 @@ pub use match_player_receiving_row::MatchPlayerReceivingRow;
 pub use match_player_scoring_attempt_by_post_row::MatchPlayerScoringAttemptByPostRow;
 pub use match_player_scoring_attempt_row::MatchPlayerScoringAttemptRow;
 pub use match_player_touches_row::MatchPlayerTouchesRow;
+pub use player_club_history_row::PlayerClubHistoryRow;

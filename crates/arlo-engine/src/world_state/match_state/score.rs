@@ -1,7 +1,7 @@
 use crate::match_decision::scoring::field_goal_points;
 use arlo_domain::sport_constants::{FIELD_POINT_VALUE, GOAL_POINT_VALUE};
 use arlo_events::ScoringPost;
-use arlo_formatter::ScoreBreakdown;
+use arlo_domain::ScoreBreakdown;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

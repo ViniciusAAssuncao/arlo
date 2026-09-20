@@ -1,4 +1,4 @@
-use crate::domain::calendar::CalendarSystem;
+use crate::domain::calendar::{CalendarDate, CalendarSystem};
 use crate::domain::season::{BracketSeed, Fixture};
 use crate::error::ControllerResult;
 use crate::services::season::stage::knockout_bracket_generator::{
@@ -10,7 +10,7 @@ use uuid::Uuid;
 pub fn generate_next_knockout_round(
     calendar: &CalendarSystem,
     timing: &SeasonTiming,
-    reference_year: i64,
+    anchor_date: CalendarDate,
     stage_instance_id: Uuid,
     existing_fixtures: &[Fixture],
     winner_seeds: &[BracketSeed],
@@ -26,7 +26,7 @@ pub fn generate_next_knockout_round(
     generate_knockout_bracket(
         calendar,
         timing,
-        reference_year,
+        anchor_date,
         stage_instance_id,
         start_round_index,
         winner_seeds,
