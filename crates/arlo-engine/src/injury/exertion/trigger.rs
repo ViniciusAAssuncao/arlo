@@ -35,8 +35,10 @@ pub fn evaluate_exertion_injury_probability(
     let age_mult = calculate_age_risk_multiplier(ctx.age_years);
     let susceptibility = derive_effective_susceptibility(ctx.player_table, &ctx.injury_profile);
     let workload_mult = position_workload_multiplier(position);
+    let target_scale = tuning.target_injuries_per_team_per_match().max(0.1);
 
     let hazard_rate = tuning.base_exertion_hazard_per_second()
+        * target_scale
         * age_mult
         * susceptibility
         * workload_mult

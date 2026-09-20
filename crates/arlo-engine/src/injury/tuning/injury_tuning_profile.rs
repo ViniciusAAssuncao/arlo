@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{ Deserialize, Serialize };
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct InjuryTuningProfile {
@@ -17,7 +17,7 @@ impl InjuryTuningProfile {
         base_contact_hazard_per_collision: f64,
         base_exertion_hazard_per_second: f64,
         fatigue_hazard_multiplier: f64,
-        age_hazard_multiplier: f64,
+        age_hazard_multiplier: f64
     ) -> Self {
         Self {
             target_injuries_per_team_per_match,
@@ -57,11 +57,11 @@ impl InjuryTuningProfile {
 impl Default for InjuryTuningProfile {
     fn default() -> Self {
         Self {
-            target_injuries_per_team_per_match: 1.0,
-            contact_share: 0.65,
-            base_contact_hazard_per_collision: 0.0025,
-            base_exertion_hazard_per_second: 0.0000095,
-            fatigue_hazard_multiplier: 1.50,
+            target_injuries_per_team_per_match: 0.85,
+            contact_share: 0.6,
+            base_contact_hazard_per_collision: 0.0003,
+            base_exertion_hazard_per_second: 0.0000015,
+            fatigue_hazard_multiplier: 1.5,
             age_hazard_multiplier: 1.25,
         }
     }

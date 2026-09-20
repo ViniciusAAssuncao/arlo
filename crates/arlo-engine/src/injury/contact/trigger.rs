@@ -45,7 +45,9 @@ pub fn evaluate_contact_injury_probability(
     .unwrap_or(0.1);
 
     let age_mult = calculate_age_risk_multiplier(age_years);
-    let p0 = tuning.base_contact_hazard_per_collision();
+    let target_scale = tuning.target_injuries_per_team_per_match().max(0.1);
+    
+    let p0 = (tuning.base_contact_hazard_per_collision() * target_scale).clamp(0.000001, 0.99);
     let base_logit = (p0 / (1.0 - p0)).ln();
     let modulated_logit = base_logit + (risk_stimulus * 2.5) + (age_mult - 1.0) * 0.8;
 
