@@ -5,6 +5,7 @@ use crate::repositories::collective_agreement::collective_agreement_catalog_cach
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::calendar::resolve_collective_agreement_windows;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
+use crate::services::season::active_season_resolver::resolve_active_season;
 use crate::services::season::conflict::postponement_resolver::resolve_conflicts_and_postpone;
 use crate::services::season::persistence::{map_row_to_fixture, persist_conflict_scan_result};
 pub use crate::services::season::conflict::ConflictScanReport;
@@ -35,17 +36,7 @@ pub async fn handle_conflict_scan(
         return Ok(ConflictScanReport::empty(competition_id));
     }
 
-    let season_instances = arlo_persistence::repositories::season::season_instances::list_by_competition_id(
-        pool,
-        competition_id,
-    )
-    .await?;
-
-    let active_season = match season_instances
-        .iter()
-        .find(|s| s.status == "Active" || s.status == "Pending")
-        .or_else(|| season_instances.first())
-    {
+    let active_season = match resolve_active_season(pool, competition_id).await? {
         Some(s) => s,
         None => return Ok(ConflictScanReport::empty(competition_id)),
     };

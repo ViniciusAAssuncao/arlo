@@ -8,6 +8,7 @@ pub mod match_team_score_repository;
 pub mod officiating;
 pub mod player;
 pub mod season;
+pub mod season_stats;
 pub mod team;
 
 pub use calendar::*;
@@ -20,4 +21,5 @@ pub use match_team_score_repository as match_team_score;
 pub use officiating::*;
 pub use player::*;
 pub use season::*;
+pub use season_stats::*;
 pub use team::*;

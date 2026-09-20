@@ -7,6 +7,7 @@ use crate::dto::season::LeagueOverviewDto;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::season::active_season_resolver::resolve_active_season;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -15,18 +16,8 @@ pub async fn get_league_overview(
     pool: &SqlitePool,
     competition_id: Uuid,
 ) -> ControllerResult<LeagueOverviewDto> {
-    let season_instances =
-        arlo_persistence::repositories::season::season_instances::list_by_competition_id(
-            pool,
-            competition_id,
-        )
-        .await?;
-
-    let active_season = match season_instances
-        .iter()
-        .find(|s| s.status == "Active" || s.status == "Pending")
-    {
-        Some(s) => s.clone(),
+    let active_season = match resolve_active_season(pool, competition_id).await? {
+        Some(s) => s,
         None => {
             return Ok(LeagueOverviewDto {
                 has_active_season: false,

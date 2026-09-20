@@ -4,6 +4,7 @@ use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::event_scheduling::handlers::stage_transition_handler::handle_stage_transition;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
+use crate::services::season::active_season_resolver::resolve_active_season;
 use crate::services::season::persistence::{
     activate_stage, advance_season_stage, load_stage_knockout_ties, map_row_to_fixture,
     mark_stage_completed,
@@ -57,16 +58,7 @@ pub async fn progress_season(
             ))
         })?;
 
-    let season_instances = arlo_persistence::repositories::season::season_instances::list_by_competition_id(
-        pool,
-        competition_id,
-    )
-    .await?;
-
-    let active_season = match season_instances
-        .iter()
-        .find(|s| s.status == "Active" || s.status == "Pending")
-    {
+    let active_season = match resolve_active_season(pool, competition_id).await? {
         Some(s) => s,
         None => return Ok(ProgressionOutcome::NoActiveSeason),
     };
