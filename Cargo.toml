@@ -15,6 +15,7 @@ members = [
     "crates/arlo-match-runner",
     "crates/arlo-manager-control",
     "crates/arlo-controller",
+    "crates/arlo-recovery",
 ]
 
 [workspace.package]
@@ -51,3 +52,4 @@ arlo-persistence     = { path = "crates/arlo-persistence" }
 arlo-match-runner    = { path = "crates/arlo-match-runner" }
 arlo-manager-control = { path = "crates/arlo-manager-control" }
 arlo-controller      = { path = "crates/arlo-controller" }
+arlo-recovery        = { path = "crates/arlo-recovery" }
