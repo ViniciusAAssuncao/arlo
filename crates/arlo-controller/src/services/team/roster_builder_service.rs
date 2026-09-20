@@ -69,10 +69,33 @@ pub async fn build_team_roster(
         None
     };
 
+    let player_ids: Vec<Uuid> = players.iter().map(|p| p.id()).collect();
+
+    let condition_rows = arlo_persistence::repositories::condition::player_condition::list_all(pool).await?;
+    let mut condition_map = HashMap::with_capacity(condition_rows.len());
+    for row in condition_rows {
+        if let Ok(pid) = Uuid::parse_str(&row.player_id) {
+            condition_map.insert(pid, row);
+        }
+    }
+
+    let active_injuries = arlo_persistence::repositories::condition::player_injury_history::list_active_by_player_ids(pool, &player_ids).await?;
+    let mut injury_map = HashMap::with_capacity(active_injuries.len());
+    for inj in active_injuries {
+        if let Ok(pid) = Uuid::parse_str(&inj.player_id) {
+            injury_map.entry(pid).or_insert(inj);
+        }
+    }
+
+    let injury_defs = arlo_db::repositories::injury_definition::list_all(pool).await.unwrap_or_default();
+    let def_map: HashMap<Uuid, String> = injury_defs.into_iter().map(|d| (d.id(), d.description().to_string())).collect();
+
     let mut match_days_cache: HashMap<String, Option<u32>> = HashMap::new();
     let mut roster_entries = Vec::with_capacity(players.len());
 
     for player in players {
+        let pid = player.id();
+
         let position = player
             .positions()
             .iter()
@@ -88,28 +111,32 @@ pub async fn build_team_roster(
 
         let ca = calculate_player_ability(&player, &key_index);
 
-        let latest_physical = arlo_persistence::repositories::player::physical_repository::get_latest_by_player_id(
-            pool,
-            player.id(),
-        )
-        .await?;
+        let (condition, morale, conditioning_score) = if let Some(cond) = condition_map.get(&pid) {
+            (cond.energy_level, cond.impulse_current_value as f64, cond.conditioning_score)
+        } else {
+            let latest_physical = arlo_persistence::repositories::player::physical_repository::get_latest_by_player_id(pool, pid).await?;
+            let latest_impulse = arlo_persistence::repositories::player::impulse_repository::get_latest_by_player_id(pool, pid).await?;
+            let c = latest_physical.as_ref().map(|p| p.end_energy_level).unwrap_or(1.0);
+            let m = latest_impulse.as_ref().map(|i| i.current_value as f64).unwrap_or(50.0);
+            (c, m, 0.5)
+        };
 
-        let latest_impulse = arlo_persistence::repositories::player::impulse_repository::get_latest_by_player_id(
-            pool,
-            player.id(),
-        )
-        .await?;
+        let (is_injured, injury_status, injury_name, injury_days_remaining) = if let Some(inj) = injury_map.get(&pid) {
+            let is_inj = inj.status == "Injured" || inj.days_remaining > 0;
+            let def_uuid = Uuid::parse_str(&inj.injury_definition_id).ok();
+            let desc = def_uuid.and_then(|id| def_map.get(&id).cloned());
+            let days = if is_inj {
+                Some(inj.days_remaining as u32)
+            } else {
+                Some(inj.observation_days_remaining as u32)
+            };
+            (is_inj, inj.status.clone(), desc, days)
+        } else {
+            (false, "Healthy".to_string(), None, None)
+        };
 
-        let condition = latest_physical
-            .as_ref()
-            .map(|p| p.end_energy_level)
-            .unwrap_or(1.0);
-
-        let morale = latest_impulse
-            .as_ref()
-            .map(|i| i.current_value as f64)
-            .unwrap_or(50.0);
-
+        let latest_physical = arlo_persistence::repositories::player::physical_repository::get_latest_by_player_id(pool, pid).await?;
+        let latest_impulse = arlo_persistence::repositories::player::impulse_repository::get_latest_by_player_id(pool, pid).await?;
         let last_match_id = latest_physical
             .as_ref()
             .map(|p| p.match_id.clone())
@@ -141,26 +168,7 @@ pub async fn build_team_roster(
                         let diff = ((current_date_unix_seconds - f_unix) / 86_400).max(0);
                         Some(diff as u32)
                     }
-                    _ => {
-                        let completed_at: Option<Option<i64>> = sqlx::query_scalar(
-                            "SELECT completed_at_unix_seconds FROM matches WHERE id = ?",
-                        )
-                        .bind(&m_id)
-                        .fetch_optional(pool)
-                        .await
-                        .unwrap_or(None);
-
-                        if let Some(Some(comp_sec)) = completed_at {
-                            if comp_sec > 0 {
-                                let diff = ((current_date_unix_seconds - comp_sec) / 86_400).max(0);
-                                Some(diff as u32)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
+                    _ => None,
                 };
 
                 match_days_cache.insert(m_id, computed_days);
@@ -179,8 +187,13 @@ pub async fn build_team_roster(
             current_ability: ca,
             condition,
             morale,
+            conditioning_score,
             height_m: player.height_m(),
             days_since_last_match,
+            is_injured,
+            injury_status,
+            injury_name,
+            injury_days_remaining,
         });
     }
 
