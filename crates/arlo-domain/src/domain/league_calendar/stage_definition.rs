@@ -4,6 +4,7 @@ use crate::domain::league_calendar::qualification_pool_rule_validation::validate
 use crate::domain::league_calendar::schedule_block::ScheduleBlock;
 use crate::domain::league_calendar::stage_entry_rule::StageEntryRule;
 use crate::domain::league_calendar::stage_type::StageType;
+use crate::domain::validation::validate_integer_range;
 use crate::error::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +15,7 @@ pub struct StageDefinition {
     entry_rule: StageEntryRule,
     knockout_leg_format: Option<KnockoutLegFormat>,
     schedule_blocks: Option<Vec<ScheduleBlock>>,
+    entry_gap_days: u32,
 }
 
 impl StageDefinition {
@@ -23,7 +25,17 @@ impl StageDefinition {
         entry_rule: StageEntryRule,
         knockout_leg_format: Option<KnockoutLegFormat>,
         schedule_blocks: Option<Vec<ScheduleBlock>>,
+        entry_gap_days: u32,
     ) -> DomainResult<Self> {
+        validate_integer_range(entry_gap_days as i32, 0, 365, "entry_gap_days")?;
+
+        if stage_order_index == 0 && entry_gap_days > 0 {
+            return Err(DomainError::InvalidInvariant {
+                field: "entry_gap_days".to_string(),
+                violation: InvariantViolation::UnexpectedValue,
+            });
+        }
+
         for pool in entry_rule.pools() {
             validate_qualification_pool_rule(pool)?;
         }
@@ -89,6 +101,7 @@ impl StageDefinition {
             entry_rule,
             knockout_leg_format,
             schedule_blocks,
+            entry_gap_days,
         })
     }
 
@@ -110,5 +123,9 @@ impl StageDefinition {
 
     pub fn schedule_blocks(&self) -> Option<&[ScheduleBlock]> {
         self.schedule_blocks.as_deref()
+    }
+
+    pub fn entry_gap_days(&self) -> u32 {
+        self.entry_gap_days
     }
 }

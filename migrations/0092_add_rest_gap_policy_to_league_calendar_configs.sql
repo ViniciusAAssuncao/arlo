@@ -1,0 +1,2 @@
+ALTER TABLE league_calendar_configs ADD COLUMN minimum_rest_gap_days INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE league_calendar_configs ADD COLUMN rest_gap_conflict_scope TEXT NOT NULL DEFAULT 'SameCompetitionOnly';

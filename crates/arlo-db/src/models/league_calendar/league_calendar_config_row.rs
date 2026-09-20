@@ -9,7 +9,7 @@ use crate::models::league_calendar::promotion_relegation_codes::{
 use arlo_domain::{
     CompetitionGroup, GamesPerWeekPolicy, LeagueCalendarConfig, LeagueMovementRule,
     NeutralOpenerPolicy, PostponementPolicy, PromotionRelegationPolicy, QtaWeightingPolicy,
-    SeasonTiming, SpaScoringPolicy, StageDefinition, TieBreakCriterion,
+    RestGapPolicy, SeasonTiming, SpaScoringPolicy, StageDefinition, TieBreakCriterion,
 };
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -46,6 +46,8 @@ pub struct LeagueCalendarConfigRow {
     pub relegation_count: Option<i32>,
     pub relegation_playoff_stage_order_index: Option<i32>,
     pub relegation_target_league_id: Option<String>,
+    pub minimum_rest_gap_days: i32,
+    pub rest_gap_conflict_scope: String,
     pub created_at_unix_seconds: i64,
 }
 
@@ -56,6 +58,7 @@ impl LeagueCalendarConfigRow {
         stages: Vec<StageDefinition>,
         groups: Vec<CompetitionGroup>,
         tie_break_criteria: Vec<TieBreakCriterion>,
+        collective_agreement_ids: Vec<Uuid>,
     ) -> DbResult<LeagueCalendarConfig> {
         let id = Uuid::parse_str(&self.id)?;
         let league_id = Uuid::parse_str(&self.competition_id)?;
@@ -70,6 +73,12 @@ impl LeagueCalendarConfigRow {
             parse_games_per_week_conflict_scope(&self.games_per_week_conflict_scope)?;
         let games_per_week =
             GamesPerWeekPolicy::new(self.max_games_per_team_per_week as u32, conflict_scope)?;
+        let rest_gap_conflict_scope =
+            parse_games_per_week_conflict_scope(&self.rest_gap_conflict_scope)?;
+        let rest_gap_policy = RestGapPolicy::new(
+            self.minimum_rest_gap_days as u32,
+            rest_gap_conflict_scope,
+        )?;
         let postponement_strategy =
             parse_postponement_strategy_kind(&self.postponement_strategy_kind)?;
         let postponement = PostponementPolicy::new(postponement_strategy);
@@ -179,6 +188,7 @@ impl LeagueCalendarConfigRow {
             algorithm,
             timing,
             games_per_week,
+            rest_gap_policy,
             postponement,
             neutral_opener,
             spa_scoring_policy,
@@ -187,6 +197,7 @@ impl LeagueCalendarConfigRow {
             promotion_relegation_policy,
             stages,
             groups,
+            collective_agreement_ids,
         )
         .map_err(Into::into)
     }

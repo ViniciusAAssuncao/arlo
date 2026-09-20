@@ -3,6 +3,7 @@ use crate::models::league_calendar::{
     CompetitionGroupRow,
     CompetitionGroupTeamRow,
     EntryRulePoolRow,
+    LeagueCalendarCollectiveAgreementRow,
     LeagueCalendarConfigRow,
     LeagueCalendarMatchdayWeekdayRow,
     LeagueCalendarStageDefinitionRow,
@@ -21,7 +22,7 @@ pub async fn get_by_competition_id(
 ) -> DbResult<Option<LeagueCalendarConfig>> {
     let config_row = fetch_optional_by_param::<LeagueCalendarConfigRow>(
         pool,
-        "SELECT id, competition_id, schedule_algorithm_kind, season_start_month_order_index, season_start_day_of_month, season_length_weeks, max_games_per_team_per_week, games_per_week_conflict_scope, postponement_strategy_kind, neutral_opener_enabled, neutral_opener_selection_strategy, spa_win_weight, spa_draw_weight, spa_loss_weight, spa_feo_k_factor, qta_home_win_weight, qta_away_win_weight, qta_home_draw_weight, qta_away_draw_weight, qta_home_loss_weight, qta_away_loss_weight, standings_stage_order_index, promotion_rule_kind, promotion_count, promotion_playoff_stage_order_index, promotion_target_league_id, relegation_rule_kind, relegation_count, relegation_playoff_stage_order_index, relegation_target_league_id, created_at_unix_seconds FROM league_calendar_configs WHERE competition_id = ?",
+        "SELECT id, competition_id, schedule_algorithm_kind, season_start_month_order_index, season_start_day_of_month, season_length_weeks, max_games_per_team_per_week, games_per_week_conflict_scope, postponement_strategy_kind, neutral_opener_enabled, neutral_opener_selection_strategy, spa_win_weight, spa_draw_weight, spa_loss_weight, spa_feo_k_factor, qta_home_win_weight, qta_away_win_weight, qta_home_draw_weight, qta_away_draw_weight, qta_home_loss_weight, qta_away_loss_weight, standings_stage_order_index, promotion_rule_kind, promotion_count, promotion_playoff_stage_order_index, promotion_target_league_id, relegation_rule_kind, relegation_count, relegation_playoff_stage_order_index, relegation_target_league_id, minimum_rest_gap_days, rest_gap_conflict_scope, created_at_unix_seconds FROM league_calendar_configs WHERE competition_id = ?",
         &competition_id.to_string(),
     )
     .await?;
@@ -83,7 +84,7 @@ pub async fn get_by_competition_id(
 
     let stage_rows = fetch_all_by_param::<LeagueCalendarStageDefinitionRow>(
         pool,
-        "SELECT id, league_calendar_config_id, stage_order_index, stage_type, leg_format FROM league_calendar_stage_definitions WHERE league_calendar_config_id = ? ORDER BY stage_order_index ASC",
+        "SELECT id, league_calendar_config_id, stage_order_index, stage_type, leg_format, entry_gap_days FROM league_calendar_stage_definitions WHERE league_calendar_config_id = ? ORDER BY stage_order_index ASC",
         &config_row.id,
     )
     .await?;
@@ -134,6 +135,24 @@ pub async fn get_by_competition_id(
         stages.push(stage_row.to_domain(schedule_blocks, entry_rule_pools)?);
     }
 
-    let domain = config_row.to_domain(allowed_weekdays, stages, groups, tie_break_criteria)?;
+    let collective_agreement_rows = fetch_all_by_param::<LeagueCalendarCollectiveAgreementRow>(
+        pool,
+        "SELECT id, league_calendar_config_id, collective_agreement_id FROM league_calendar_collective_agreements WHERE league_calendar_config_id = ?",
+        &config_row.id,
+    )
+    .await?;
+
+    let mut collective_agreement_ids = Vec::with_capacity(collective_agreement_rows.len());
+    for ca_row in collective_agreement_rows {
+        collective_agreement_ids.push(ca_row.collective_agreement_id()?);
+    }
+
+    let domain = config_row.to_domain(
+        allowed_weekdays,
+        stages,
+        groups,
+        tie_break_criteria,
+        collective_agreement_ids,
+    )?;
     Ok(Some(domain))
 }

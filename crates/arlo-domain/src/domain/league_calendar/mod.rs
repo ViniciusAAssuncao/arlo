@@ -3,6 +3,7 @@ pub mod games_per_week_conflict_scope;
 pub mod games_per_week_policy;
 pub mod knockout_leg_format;
 pub mod league_calendar_config;
+pub mod league_calendar_config_builder;
 pub mod league_calendar_group_reference_validation;
 pub mod league_movement_rule;
 pub mod neutral_opener_policy;
@@ -13,6 +14,7 @@ pub mod promotion_relegation_policy;
 pub mod qta_weighting_policy;
 pub mod qualification_pool_rule;
 pub mod qualification_pool_rule_validation;
+pub mod rest_gap_policy;
 pub mod schedule_algorithm_kind;
 pub mod schedule_block;
 pub mod season_timing;
@@ -28,6 +30,7 @@ pub use games_per_week_conflict_scope::GamesPerWeekConflictScope;
 pub use games_per_week_policy::GamesPerWeekPolicy;
 pub use knockout_leg_format::KnockoutLegFormat;
 pub use league_calendar_config::LeagueCalendarConfig;
+pub use league_calendar_config_builder::LeagueCalendarConfigBuilder;
 pub use league_calendar_group_reference_validation::{
     validate_entry_rule_group_references, validate_group_order_indices_sequential,
     validate_no_duplicate_team_across_groups, validate_schedule_block_group_references,
@@ -41,6 +44,7 @@ pub use promotion_relegation_policy::PromotionRelegationPolicy;
 pub use qta_weighting_policy::QtaWeightingPolicy;
 pub use qualification_pool_rule::QualificationPoolRule;
 pub use qualification_pool_rule_validation::validate_qualification_pool_rule;
+pub use rest_gap_policy::RestGapPolicy;
 pub use schedule_algorithm_kind::ScheduleAlgorithmKind;
 pub use schedule_block::ScheduleBlock;
 pub use season_timing::SeasonTiming;
