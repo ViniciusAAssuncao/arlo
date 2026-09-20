@@ -1,3 +1,4 @@
+pub mod blackout_window;
 pub mod calendar_catalog;
 pub mod calendar_date;
 pub mod calendar_month;
@@ -9,6 +10,7 @@ pub mod intercalation_rule;
 pub mod resolved_calendar_date;
 pub mod save_calendar_state;
 
+pub use blackout_window::BlackoutWindow;
 pub use calendar_catalog::CalendarCatalog;
 pub use calendar_date::CalendarDate;
 pub use calendar_month::CalendarMonthDefinition;
