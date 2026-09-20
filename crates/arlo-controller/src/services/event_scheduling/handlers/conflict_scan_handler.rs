@@ -1,7 +1,9 @@
 use crate::domain::event_scheduling::{PendingTrigger, TriggerKind};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
+use crate::repositories::collective_agreement::collective_agreement_catalog_cache::get_or_load_collective_agreement_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::calendar::resolve_collective_agreement_windows;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::season::conflict::postponement_resolver::resolve_conflicts_and_postpone;
 use crate::services::season::persistence::{map_row_to_fixture, persist_conflict_scan_result};
@@ -87,6 +89,19 @@ pub async fn handle_conflict_scan(
         .next()
         .ok_or_else(|| ControllerError::NotFound("No calendar systems found".to_string()))?;
 
+    let ca_catalog = get_or_load_collective_agreement_catalog(pool).await?;
+    let mut blackout_windows = Vec::new();
+    for ca_id in config_arc.collective_agreement_ids() {
+        if let Some(agreement) = ca_catalog.get(ca_id) {
+            let windows = resolve_collective_agreement_windows(
+                calendar,
+                agreement,
+                reference_year..=(reference_year + 1),
+            )?;
+            blackout_windows.extend(windows);
+        }
+    }
+
     let max_search_weeks = 52;
     let report = resolve_conflicts_and_postpone(
         calendar,
@@ -95,6 +110,8 @@ pub async fn handle_conflict_scan(
         competition_id,
         &stage_ids,
         &config_arc.games_per_week(),
+        &config_arc.rest_gap_policy(),
+        &blackout_windows,
         &config_arc.postponement(),
         &mut domain_fixtures,
         &team_ids,

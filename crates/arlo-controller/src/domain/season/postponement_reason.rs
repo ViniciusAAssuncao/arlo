@@ -4,4 +4,6 @@ use serde::{Deserialize, Serialize};
 pub enum PostponementReason {
     GamesPerWeekConflict,
     ManualOverride,
+    InsufficientRestGap,
+    CollectiveAgreementBlackout,
 }
