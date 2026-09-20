@@ -1,10 +1,11 @@
-use crate::domain::calendar::CalendarSystem;
+use crate::domain::calendar::{CalendarSystem, ResolvedCalendarDate};
 use crate::domain::season::{
     Fixture, FixtureStatus, SeasonInstance, SeasonInstanceStatus, SeasonStageInstance, StageStatus,
 };
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::calendar::date_encoder;
 use crate::services::season::grouped_schedule::generate_grouped_schedule;
 use crate::services::season::persistence::{
     activate_season_instance, activate_stage, persist_generated_season,
@@ -46,6 +47,15 @@ pub fn generate_season(
             )
         })?;
 
+    let timing = config.timing();
+    let start_resolved = ResolvedCalendarDate::RegularDay {
+        year: reference_year,
+        month_order_index: timing.start_month_order_index(),
+        day_of_month: timing.start_day_of_month(),
+        week_day_index: 0,
+    };
+    let anchor_date = date_encoder::encode(calendar, &start_resolved)?;
+
     match stage_0_def.stage_type() {
         StageType::GroupedCompetitionTable => {
             let season_instance_id = Uuid::new_v4();
@@ -57,7 +67,7 @@ pub fn generate_season(
                 stage_0_def,
                 season_instance_id,
                 stage_instance_id,
-                reference_year,
+                anchor_date,
                 0,
             )?;
 
@@ -88,7 +98,7 @@ pub fn generate_season(
             resolve_neutral_opener(&mut matches, &config.neutral_opener());
 
             let scheduled_matches =
-                assign_dates(calendar, config.timing(), reference_year, &matches)?;
+                assign_dates(calendar, config.timing(), anchor_date, &matches)?;
 
             let season_instance_id = Uuid::new_v4();
             let season_instance = SeasonInstance::new(

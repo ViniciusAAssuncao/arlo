@@ -2,7 +2,9 @@ use crate::domain::event_scheduling::{PendingTrigger, TriggerKind};
 use crate::domain::season::Fixture;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
+use crate::repositories::collective_agreement::collective_agreement_catalog_cache::get_or_load_collective_agreement_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::calendar::{date_advancer, resolve_collective_agreement_windows, skip_forward_past_blackout};
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::event_scheduling::stage_completion_date_calculator::calculate_stage_completion_date;
 use crate::services::season::persistence::persist_generated_stage_schedule;
@@ -27,7 +29,7 @@ pub async fn handle_stage_transition(
     target_stage_order_index: u32,
     completed_fixtures: &[Fixture],
     participating_team_ids: &[Uuid],
-    reference_year: i64,
+    _reference_year: i64,
     start_round_index: u32,
     trigger_store: Arc<PendingTriggerStore>,
 ) -> ControllerResult<GeneratedStageSchedule> {
@@ -79,6 +81,32 @@ pub async fn handle_stage_transition(
         &external_winners,
     )?;
 
+    let previous_stage_completion_date = calculate_stage_completion_date(calendar, completed_fixtures)
+        .ok_or_else(|| ControllerError::Validation("No completed fixtures found to calculate completion date".to_string()))?;
+
+    let gapped_anchor = date_advancer::advance(
+        calendar,
+        &previous_stage_completion_date,
+        target_stage_def.entry_gap_days() as i64,
+    );
+
+    let ca_catalog = get_or_load_collective_agreement_catalog(pool).await?;
+    let mut blackout_windows = Vec::new();
+    let years = (gapped_anchor.year() - 1)..=(gapped_anchor.year() + 1);
+
+    for ca_id in config_arc.collective_agreement_ids() {
+        if let Some(agreement) = ca_catalog.get(ca_id) {
+            let windows = resolve_collective_agreement_windows(
+                calendar,
+                agreement,
+                years.clone(),
+            )?;
+            blackout_windows.extend(windows);
+        }
+    }
+
+    let anchor_date = skip_forward_past_blackout(calendar, &gapped_anchor, &blackout_windows);
+
     let mut schedule = generate_stage_schedule_from_seeds(
         calendar,
         &config_arc,
@@ -86,7 +114,7 @@ pub async fn handle_stage_transition(
         season_instance_id,
         stage_instance_id,
         &seeds,
-        reference_year,
+        anchor_date,
         start_round_index,
     )?;
 

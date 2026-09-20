@@ -89,6 +89,18 @@ pub async fn handle_conflict_scan(
         .next()
         .ok_or_else(|| ControllerError::NotFound("No calendar systems found".to_string()))?;
 
+    let min_year = domain_fixtures
+        .iter()
+        .map(|f| f.scheduled_date().year())
+        .min()
+        .unwrap_or(reference_year);
+    let max_year = domain_fixtures
+        .iter()
+        .map(|f| f.scheduled_date().year())
+        .max()
+        .unwrap_or(reference_year);
+    let years = (min_year - 1)..=(max_year + 1);
+
     let ca_catalog = get_or_load_collective_agreement_catalog(pool).await?;
     let mut blackout_windows = Vec::new();
     for ca_id in config_arc.collective_agreement_ids() {
@@ -96,13 +108,20 @@ pub async fn handle_conflict_scan(
             let windows = resolve_collective_agreement_windows(
                 calendar,
                 agreement,
-                reference_year..=(reference_year + 1),
+                years.clone(),
             )?;
             blackout_windows.extend(windows);
         }
     }
 
-    let max_search_weeks = 52;
+    let max_search_days: u32 = 366;
+    let week_len = if !calendar.week_days().is_empty() {
+        calendar.week_days().len() as u32
+    } else {
+        7
+    };
+    let max_search_weeks = (max_search_days + week_len - 1) / week_len;
+
     let report = resolve_conflicts_and_postpone(
         calendar,
         config_arc.timing(),
