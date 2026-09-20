@@ -1,10 +1,12 @@
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FixtureSummaryDto {
     pub id: String,
     pub round_index: u32,
+    pub home_team_id: String,
+    pub away_team_id: String,
     pub home_team_name: String,
     pub away_team_name: String,
     pub status: String,

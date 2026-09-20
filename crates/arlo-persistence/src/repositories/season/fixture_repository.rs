@@ -139,7 +139,7 @@ pub async fn list_scheduled_on_date(
     scheduled_day_of_year: u32,
 ) -> PersistenceResult<Vec<FixtureRow>> {
     let rows = sqlx::query_as::<_, FixtureRow>(
-        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points, home_field_goals, away_field_goals, home_field_points, away_field_points FROM fixtures WHERE scheduled_year = ? AND scheduled_day_of_year = ? AND status = 'Scheduled' ORDER BY round_index ASC",
+        "SELECT id, season_stage_id, round_index, home_team_id, away_team_id, is_neutral_venue, venue_id, scheduled_year, scheduled_day_of_year, status, home_score, away_score, home_goal_points, away_goal_points, home_field_goals, away_field_goals, home_field_points, away_field_points FROM fixtures WHERE scheduled_year = ? AND scheduled_day_of_year = ? AND (status = 'Scheduled' OR status = 'Postponed') ORDER BY round_index ASC",
     )
     .bind(scheduled_year)
     .bind(scheduled_day_of_year as i32)

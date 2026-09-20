@@ -241,6 +241,14 @@ pub async fn get_league_overview(
                 field_points_against: entry.field_points_against(),
                 total_points_for: entry.total_points_for(),
                 total_points_against: entry.total_points_against(),
+                home_won: entry.home_away().home_won(),
+                home_drawn: entry.home_away().home_drawn(),
+                home_lost: entry.home_away().home_lost(),
+                away_won: entry.home_away().away_won(),
+                away_drawn: entry.home_away().away_drawn(),
+                away_lost: entry.home_away().away_lost(),
+                pb: entry.spa_metrics().pb(),
+                feo: entry.spa_metrics().feo(),
                 ispa: entry.spa_metrics().ispa(),
                 qta: entry.qta(),
             }
@@ -327,6 +335,8 @@ pub async fn get_league_overview(
         fixtures.push(FixtureSummaryDto {
             id: row.id,
             round_index: row.round_index as u32,
+            home_team_id: row.home_team_id.clone(),
+            away_team_id: row.away_team_id.clone(),
             home_team_name: home_name,
             away_team_name: away_name,
             status: row.status,
