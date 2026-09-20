@@ -1,7 +1,7 @@
 use crate::match_decision::event_translation::{
     create_envelope, translate_call_to_action_started, translate_duel_resolved,
 };
-use crate::resolution::{DuelContext, ContestOrientation};
+use crate::resolution::{ContestOrientation, DuelContext};
 use crate::resolution::duel_kind::DuelKind;
 use crate::resolution::group_rating::RatingParticipants;
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
@@ -49,7 +49,7 @@ pub fn resolve_pass_protection_duel(
         state.tuning().home_advantage_profile.duel_logit(),
         0.0,
         0.0,
-        0.0,
+        1.80,
     );
 
     let mut duel_rng = state

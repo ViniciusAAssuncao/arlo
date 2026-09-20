@@ -18,19 +18,41 @@ pub fn calculate_decision_bias(
     let raw = match kind {
         ArtrineDecisionKind::SelfCarry => {
             let base = action_mult(-0.35);
-            if drives_in_series < regime.goal_point_required_drives {
+            if drives_in_series >= regime.goal_point_required_drives {
+                base * 0.35
+            } else if drives_in_series >= regime.field_point_required_drives {
+                base * 0.55
+            } else {
                 base * (1.0
                     + CARRY_EARLY_DRIVE_BONUS_MULTIPLIER
                         * ((regime.goal_point_required_drives - drives_in_series) as f64))
+            }
+        }
+        ArtrineDecisionKind::ShortPass => {
+            let base = action_mult(-0.40);
+            if drives_in_series >= regime.goal_point_required_drives {
+                base * 0.35
+            } else if drives_in_series >= regime.field_point_required_drives {
+                base * 0.55
             } else {
                 base
             }
         }
-        ArtrineDecisionKind::ShortPass => action_mult(-0.40),
-        ArtrineDecisionKind::LongLaunch => action_mult(0.70),
+        ArtrineDecisionKind::LongLaunch => {
+            let base = action_mult(0.70);
+            if drives_in_series >= regime.goal_point_required_drives {
+                base * 0.40
+            } else if drives_in_series >= regime.field_point_required_drives {
+                base * 0.60
+            } else {
+                base
+            }
+        }
         ArtrineDecisionKind::Cross => {
             let scoring = if drives_in_series >= regime.goal_point_required_drives {
-                action_mult(0.80)
+                action_mult(0.80) * 3.60
+            } else if drives_in_series >= regime.field_point_required_drives {
+                action_mult(0.50) * 2.30
             } else {
                 action_mult(0.20)
             };
@@ -38,7 +60,9 @@ pub fn calculate_decision_bias(
         }
         ArtrineDecisionKind::SelfFinish => {
             let scoring = if drives_in_series >= regime.goal_point_required_drives {
-                action_mult(0.80)
+                action_mult(0.80) * 3.80
+            } else if drives_in_series >= regime.field_point_required_drives {
+                action_mult(0.50) * 2.50
             } else {
                 action_mult(0.20)
             };

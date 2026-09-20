@@ -107,9 +107,9 @@ impl DynamicEpvModel {
     ) -> f64 {
         let x = normalized_x.clamp(0.0, 1.0);
         if down >= 4 {
-            (0.60 - x * 0.30).clamp(0.15, 0.85)
+            (0.40 - x * 0.20).clamp(0.08, 0.60)
         } else {
-            (0.12 - x * 0.06 + (down as f64) * 0.03).clamp(0.02, 0.40)
+            (0.05 - x * 0.025 + (down as f64) * 0.015).clamp(0.01, 0.20)
         }
     }
 

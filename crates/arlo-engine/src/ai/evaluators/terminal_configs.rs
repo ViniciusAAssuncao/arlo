@@ -45,9 +45,10 @@ pub fn cross_config() -> ActionEvaluationConfig {
                 )
                 .value();
 
-                (raw_prob + 0.10 * ctx.situation.target_quality)
+                let perceived = (raw_prob + 0.10 * ctx.situation.target_quality)
                     * (0.60 + 0.40 * ctx.situation.offensive_gravity.min(2.0))
-                    * (0.80 + 0.25 * ctx.lateral_ratio())
+                    * (0.80 + 0.25 * ctx.lateral_ratio());
+                (perceived * 1.25).clamp(0.0, 1.0)
             },
             geometry_factor_fn: |ctx| 0.70 + 0.60 * ctx.lateral_ratio(),
         }),
@@ -83,8 +84,9 @@ pub fn finish_config() -> ActionEvaluationConfig {
                     ScoringOrigin::OpenPlay,
                 );
 
-                calculate_scoring_probability(scoring_kind, &situation, &ctx.scoring_difficulty).value()
-                    * ctx.shooting_angle_factor()
+                let raw_prob = calculate_scoring_probability(scoring_kind, &situation, &ctx.scoring_difficulty).value()
+                    * ctx.shooting_angle_factor();
+                (raw_prob * 1.25).clamp(0.0, 1.0)
             },
             geometry_factor_fn: |ctx| {
                 let zone_multiplier =

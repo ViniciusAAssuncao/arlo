@@ -6,7 +6,7 @@ use crate::resolution::group_rating::{
     RatingParticipants,
 };
 use crate::resolution::resolver::{resolve_duel, DuelResolutionRequest};
-use crate::resolution::{AttributedDuelOutcome, DuelKind};
+use crate::resolution::{AttributedDuelOutcome, DuelContext, DuelKind};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::context::DownResolutionContext;
 use crate::world_state::step::down_resolution::power_pair::derive_power_pair;
@@ -107,10 +107,10 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             let attacker_won = raw_duel.attacker_won();
             let net_advantage = raw_duel.net_advantage();
 
-            let to_base = if attacker_won { -3.5 } else { -1.5 };
+            let to_base = if attacker_won { -5.0 } else { -3.0 };
             let to_p = (logistic(to_base - 0.20 * net_advantage)
                 / ctx.risk_profile.tolerance_index())
-            .clamp(0.005, 0.45);
+            .clamp(0.001, 0.25);
 
             let turnover_team = if Probability::new_clamped(to_p).sample(rng) {
                 Some(ctx.defense_team_id)
@@ -146,6 +146,16 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 DuelKind::ShortDistribution
             };
 
+            let throw_initiative_offset = if is_aerial { 0.50 } else { 1.20 };
+            let throw_context = DuelContext::with_offsets(
+                ctx.duel_context.orientation(),
+                ctx.duel_context.is_home_offense(),
+                ctx.duel_context.home_advantage_duel_logit(),
+                ctx.duel_context.aggression_logit_offset(),
+                ctx.duel_context.misdirection_logit_offset(),
+                ctx.duel_context.physicality_logit_offset() + throw_initiative_offset,
+            );
+
             let (att_prof, def_prof) = get_cached_duel_profiles(throw_kind);
             let tables = state.teams.player_attribute_tables();
             let offense_power = state.power_for_team(ctx.offense_team_id);
@@ -160,8 +170,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 &state.tuning().home_advantage_profile,
                 Some(ctx.carrier_pos_domain),
                 Some(ctx.primary_defender_pos_domain),
-                ctx.duel_context.attacker_is_home(),
-                ctx.duel_context.defender_is_home(),
+                throw_context.attacker_is_home(),
+                throw_context.defender_is_home(),
             );
 
             let att_rating = calculate_anchored_side_rating(
@@ -196,7 +206,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 ctx.carrier_fatigue,
                 ctx.primary_defender_fatigue,
                 state.attribute_keys(),
-                &ctx.duel_context,
+                &throw_context,
             )
             .with_tables(
                 Some(&ctx.carrier_table),
@@ -234,6 +244,17 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             } else {
                 DuelKind::RouteContest
             };
+
+            let rec_initiative_offset = if is_aerial { 0.20 } else { 0.60 };
+            let rec_context = DuelContext::with_offsets(
+                ctx.duel_context.orientation(),
+                ctx.duel_context.is_home_offense(),
+                ctx.duel_context.home_advantage_duel_logit(),
+                ctx.duel_context.aggression_logit_offset(),
+                ctx.duel_context.misdirection_logit_offset(),
+                ctx.duel_context.physicality_logit_offset() + rec_initiative_offset,
+            );
+
             let (rec_att_prof, rec_def_prof) = get_cached_duel_profiles(rec_duel_kind);
             let rec_pos = state
                 .offensive_position_index_for_team(ctx.offense_team_id)
@@ -250,8 +271,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 &state.tuning().home_advantage_profile,
                 Some(rec_pos),
                 Some(ctx.primary_defender_pos_domain),
-                ctx.duel_context.attacker_is_home(),
-                ctx.duel_context.defender_is_home(),
+                rec_context.attacker_is_home(),
+                rec_context.defender_is_home(),
             );
 
             let rec_att_rating = calculate_player_duel_rating_from_table(
@@ -283,7 +304,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 rec_fatigue,
                 ctx.primary_defender_fatigue,
                 state.attribute_keys(),
-                &ctx.duel_context,
+                &rec_context,
             )
             .with_tables(Some(rec_table), Some(&ctx.primary_defender_table))
             .with_power_pair(Some(rec_power_pair));
@@ -294,7 +315,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             let attacker_won = throw_won && catch_won;
             let net_advantage = (raw_throw_duel.net_advantage() + raw_rec_duel.net_advantage()) * 0.5;
 
-            let turnover_team = if !attacker_won && raw_rec_duel.net_advantage() <= -2.0 {
+            let turnover_threshold = if is_aerial { -4.0 } else { -4.5 };
+            let turnover_team = if !attacker_won && raw_rec_duel.net_advantage() <= turnover_threshold {
                 Some(ctx.defense_team_id)
             } else {
                 None

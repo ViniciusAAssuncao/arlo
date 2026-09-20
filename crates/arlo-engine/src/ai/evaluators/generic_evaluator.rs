@@ -125,11 +125,17 @@ pub fn evaluate_action_utility(
     let emphasis_multiplier = 1.0 + ctx.emphasis_for(config.decision_kind);
     let tactical_bias = ctx.carrier_tactical_bias(config.decision_kind);
 
-    ((expected_future_value * gravity_factor * geometry_factor + urgency_bonus)
+    let base_utility = (expected_future_value * gravity_factor * geometry_factor + urgency_bonus)
         * risk_multiplier
         * game_state_bias
         * 3.5
-        + (intrinsic_rating * config.rating_additive_weight))
-        * emphasis_multiplier
-        * tactical_bias
+        + (intrinsic_rating * config.rating_additive_weight);
+
+    let biased_utility = if base_utility >= 0.0 {
+        base_utility * tactical_bias * emphasis_multiplier
+    } else {
+        base_utility / (tactical_bias.max(0.1) * emphasis_multiplier.max(0.1))
+    };
+
+    biased_utility
 }
