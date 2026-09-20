@@ -33,11 +33,11 @@ pub fn carry_config() -> ActionEvaluationConfig {
                 (adv_mirim, estimated_drives)
             },
             success_prob_fn: |ctx, skill_mult| {
-                0.45 + 0.35 * ctx.situation.pitch_control
-                    + 0.15 * skill_mult
+                0.50 + 0.25 * ctx.situation.pitch_control
+                    + 0.10 * skill_mult
                     + 0.03 * ctx.situation.pass_protection_net_advantage
             },
-            turnover_scale: 0.08,
+            turnover_scale: 0.05,
             urgency_bonus_fn: |ctx, estimated_drives, skill_mult| {
                 if ctx.situation.is_true_artrine && ctx.situation.drives_in_series < 3 && estimated_drives > 0 {
                     (estimated_drives as f64)
@@ -67,11 +67,11 @@ pub fn short_pass_config() -> ActionEvaluationConfig {
                 (adv_mirim, 0)
             },
             success_prob_fn: |ctx, skill_mult| {
-                0.55 + 0.04 * ctx.situation.pass_protection_net_advantage
-                    + 0.20 * ctx.situation.target_quality
-                    + 0.10 * skill_mult
+                0.60 + 0.04 * ctx.situation.pass_protection_net_advantage
+                    + 0.15 * ctx.situation.target_quality
+                    + 0.08 * skill_mult
             },
-            turnover_scale: 0.12,
+            turnover_scale: 0.08,
             urgency_bonus_fn: |_, _, _| 0.0,
         }),
     }
@@ -92,11 +92,11 @@ pub fn long_launch_config() -> ActionEvaluationConfig {
                 (adv_mirim, 0)
             },
             success_prob_fn: |ctx, skill_mult| {
-                0.40 + 0.03 * ctx.situation.pass_protection_net_advantage
-                    + 0.25 * ctx.situation.long_launch_target_quality
-                    + 0.10 * skill_mult
+                0.45 + 0.03 * ctx.situation.pass_protection_net_advantage
+                    + 0.20 * ctx.situation.long_launch_target_quality
+                    + 0.08 * skill_mult
             },
-            turnover_scale: 0.22,
+            turnover_scale: 0.18,
             urgency_bonus_fn: |_, _, _| 0.0,
         }),
     }

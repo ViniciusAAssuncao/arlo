@@ -10,6 +10,7 @@ use arlo_domain::{ArtrineDecisionKind, KickFoulDecisionKind, KickFoulScoringTier
 pub fn calculate_decision_bias(
     kind: ArtrineDecisionKind,
     drives_in_series: u32,
+    is_bonus_phase: bool,
     regime: &ScoringRegimePolicy,
     offensive_risk_bias: f64,
 ) -> f64 {
@@ -18,7 +19,7 @@ pub fn calculate_decision_bias(
     let raw = match kind {
         ArtrineDecisionKind::SelfCarry => {
             let base = action_mult(-0.35);
-            if drives_in_series >= regime.goal_point_required_drives {
+            if is_bonus_phase || drives_in_series >= regime.goal_point_required_drives {
                 base * 0.35
             } else if drives_in_series >= regime.field_point_required_drives {
                 base * 0.55
@@ -30,7 +31,7 @@ pub fn calculate_decision_bias(
         }
         ArtrineDecisionKind::ShortPass => {
             let base = action_mult(-0.40);
-            if drives_in_series >= regime.goal_point_required_drives {
+            if is_bonus_phase || drives_in_series >= regime.goal_point_required_drives {
                 base * 0.35
             } else if drives_in_series >= regime.field_point_required_drives {
                 base * 0.55
@@ -40,7 +41,7 @@ pub fn calculate_decision_bias(
         }
         ArtrineDecisionKind::LongLaunch => {
             let base = action_mult(0.70);
-            if drives_in_series >= regime.goal_point_required_drives {
+            if is_bonus_phase || drives_in_series >= regime.goal_point_required_drives {
                 base * 0.40
             } else if drives_in_series >= regime.field_point_required_drives {
                 base * 0.60
@@ -49,24 +50,28 @@ pub fn calculate_decision_bias(
             }
         }
         ArtrineDecisionKind::Cross => {
-            let scoring = if drives_in_series >= regime.goal_point_required_drives {
-                action_mult(0.80) * 3.60
+            let scoring = if is_bonus_phase {
+                action_mult(1.80) * 4.50
+            } else if drives_in_series >= regime.goal_point_required_drives {
+                action_mult(1.40) * 3.60
             } else if drives_in_series >= regime.field_point_required_drives {
                 action_mult(0.50) * 2.30
             } else {
-                action_mult(0.20)
+                action_mult(0.15)
             };
-            action_mult(0.65) * scoring
+            action_mult(0.85) * scoring
         }
         ArtrineDecisionKind::SelfFinish => {
-            let scoring = if drives_in_series >= regime.goal_point_required_drives {
-                action_mult(0.80) * 3.80
+            let scoring = if is_bonus_phase {
+                action_mult(1.80) * 4.50
+            } else if drives_in_series >= regime.goal_point_required_drives {
+                action_mult(1.30) * 3.80
             } else if drives_in_series >= regime.field_point_required_drives {
                 action_mult(0.50) * 2.50
             } else {
-                action_mult(0.20)
+                action_mult(0.15)
             };
-            action_mult(0.60) * scoring
+            action_mult(0.80) * scoring
         }
     };
     raw.clamp(MIN_DECISION_BIAS, MAX_DECISION_BIAS)

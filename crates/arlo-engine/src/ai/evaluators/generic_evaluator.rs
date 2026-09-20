@@ -120,6 +120,7 @@ pub fn evaluate_action_utility(
     let game_state_bias = ctx.situation.game_state_pressure.bias_for_decision(
         config.decision_kind,
         ctx.situation.drives_in_series,
+        ctx.situation.is_bonus_phase,
         &ctx.scoring_regime,
     );
     let emphasis_multiplier = 1.0 + ctx.emphasis_for(config.decision_kind);

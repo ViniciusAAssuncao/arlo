@@ -26,10 +26,10 @@ impl ActionProgressionKind {
     pub fn distribution_params(self, multiplier: f64) -> (f64, f64, f64, f64, f64) {
         let mult = multiplier.max(0.1);
         match self {
-            Self::Carry => (2.5, 9.5 * mult, 0.65, 1.0, 45.0),
-            Self::ShortPass => (2.8, 12.0 * mult, 0.55, 2.0, 35.0),
-            Self::LongLaunch => (2.2, 24.0 * mult, 0.95, 4.0, 65.0),
-            Self::Cross => (2.5, 11.5 * mult, 0.50, 2.0, 30.0),
+            Self::Carry => (2.5, 8.5 * mult, 0.65, 0.5, 45.0),
+            Self::ShortPass => (2.8, 11.0 * mult, 0.55, 1.0, 35.0),
+            Self::LongLaunch => (2.2, 22.0 * mult, 0.95, 2.0, 60.0),
+            Self::Cross => (2.5, 9.0 * mult, 0.50, 1.0, 25.0),
         }
     }
 }

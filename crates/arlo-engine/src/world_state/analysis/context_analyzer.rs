@@ -102,9 +102,10 @@ impl GameStatePressure {
         &self,
         kind: ArtrineDecisionKind,
         drives_in_series: u32,
+        is_bonus_phase: bool,
         regime: &ScoringRegimePolicy,
     ) -> f64 {
-        calculate_decision_bias(kind, drives_in_series, regime, self.offensive_risk_bias)
+        calculate_decision_bias(kind, drives_in_series, is_bonus_phase, regime, self.offensive_risk_bias)
     }
 
     pub fn bias_for_kick_foul_decision(

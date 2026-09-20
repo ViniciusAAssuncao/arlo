@@ -12,7 +12,7 @@ pub struct TeamStrengthProfile {
 impl Default for TeamStrengthProfile {
     fn default() -> Self {
         Self {
-            z_gap_gain: 1.5,
+            z_gap_gain: 1.2,
             artrine_individual_weight: 0.60,
             passer_individual_weight: 0.60,
             goalguard_individual_weight: 0.70,
