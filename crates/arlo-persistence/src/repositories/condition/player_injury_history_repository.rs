@@ -121,6 +121,36 @@ pub async fn get_active_by_player_id(
     Ok(row)
 }
 
+pub async fn list_all_active(
+    pool: &SqlitePool
+) -> PersistenceResult<Vec<PlayerInjuryHistoryRow>> {
+    let rows = sqlx
+        ::query_as::<_, PlayerInjuryHistoryRow>(
+            r#"SELECT
+            id,
+            player_id,
+            injury_definition_id,
+            body_region,
+            severity_grade,
+            onset_year,
+            onset_day_of_year,
+            expected_recovery_days,
+            days_remaining,
+            observation_days_remaining,
+            status,
+            is_relapse,
+            origin_record_id,
+            resolved_at_unix_seconds,
+            created_at_unix_seconds
+        FROM player_injury_history
+        WHERE status != 'Resolved'
+        ORDER BY created_at_unix_seconds DESC"#
+        )
+        .fetch_all(pool).await?;
+
+    Ok(rows)
+}
+
 pub async fn list_active_by_player_ids(
     pool: &SqlitePool,
     player_ids: &[Uuid]

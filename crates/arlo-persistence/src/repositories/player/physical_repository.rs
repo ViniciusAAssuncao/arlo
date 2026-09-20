@@ -67,3 +67,53 @@ pub async fn get_latest_by_player_id(
 
     Ok(row)
 }
+
+pub async fn list_latest_by_player_ids(
+    pool: &SqlitePool,
+    player_ids: &[Uuid],
+) -> PersistenceResult<Vec<MatchPlayerPhysicalRow>> {
+    if player_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let placeholders = std::iter::repeat("?").take(player_ids.len()).collect::<Vec<_>>().join(", ");
+
+    let sql = format!(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            end_energy_level,
+            peak_anaerobic_depletion,
+            total_distance_covered,
+            intra_match_recovery_amount
+        FROM (
+            SELECT
+                p.id,
+                p.match_id,
+                p.player_id,
+                p.end_energy_level,
+                p.peak_anaerobic_depletion,
+                p.total_distance_covered,
+                p.intra_match_recovery_amount,
+                ROW_NUMBER() OVER (
+                    PARTITION BY p.player_id
+                    ORDER BY COALESCE(f.scheduled_year, 0) DESC, COALESCE(f.scheduled_day_of_year, 0) DESC, COALESCE(m.completed_at_unix_seconds, 0) DESC, p.rowid DESC
+                ) AS rn
+            FROM match_player_physical p
+            LEFT JOIN matches m ON p.match_id = m.id
+            LEFT JOIN fixtures f ON m.fixture_id = f.id
+            WHERE p.player_id IN ({})
+        )
+        WHERE rn = 1"#,
+        placeholders
+    );
+
+    let mut query = sqlx::query_as::<_, MatchPlayerPhysicalRow>(&sql);
+    for id in player_ids {
+        query = query.bind(id.to_string());
+    }
+
+    let rows = query.fetch_all(pool).await?;
+    Ok(rows)
+}

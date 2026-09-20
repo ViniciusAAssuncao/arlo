@@ -12,6 +12,7 @@ arlo-engine.workspace = true
 arlo-events.workspace = true
 arlo-persistence.workspace = true
 rand.workspace = true
+rayon.workspace = true
 serde.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true

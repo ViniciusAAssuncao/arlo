@@ -9,7 +9,7 @@ use crate::services::season::conflict::team_fixture_window_loader::days_between;
 use arlo_recovery::availability::resolve_batch_player_statuses;
 use arlo_recovery::InjuryStatusKind;
 use sqlx::SqlitePool;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -88,7 +88,76 @@ pub async fn build_team_roster(
     let injury_defs = arlo_db::repositories::injury_definition::list_all(pool).await.unwrap_or_default();
     let def_map: HashMap<Uuid, String> = injury_defs.into_iter().map(|d| (d.id(), d.description().to_string())).collect();
 
-    let mut match_days_cache: HashMap<String, Option<u32>> = HashMap::new();
+    let latest_physical_rows = arlo_persistence::repositories::player::physical_repository::list_latest_by_player_ids(
+        pool,
+        &player_ids,
+    )
+    .await?;
+    let mut latest_physical_map = HashMap::with_capacity(latest_physical_rows.len());
+    for row in latest_physical_rows {
+        if let Ok(pid) = Uuid::parse_str(&row.player_id) {
+            latest_physical_map.insert(pid, row);
+        }
+    }
+
+    let latest_impulse_rows = arlo_persistence::repositories::player::impulse_repository::list_latest_by_player_ids(
+        pool,
+        &player_ids,
+    )
+    .await?;
+    let mut latest_impulse_map = HashMap::with_capacity(latest_impulse_rows.len());
+    for row in latest_impulse_rows {
+        if let Ok(pid) = Uuid::parse_str(&row.player_id) {
+            latest_impulse_map.insert(pid, row);
+        }
+    }
+
+    let mut distinct_match_ids = HashSet::new();
+    for pid in &player_ids {
+        if let Some(phys) = latest_physical_map.get(pid) {
+            distinct_match_ids.insert(phys.match_id.clone());
+        } else if let Some(imp) = latest_impulse_map.get(pid) {
+            distinct_match_ids.insert(imp.match_id.clone());
+        }
+    }
+
+    let mut match_days_cache: HashMap<String, Option<u32>> = HashMap::with_capacity(distinct_match_ids.len());
+
+    if !distinct_match_ids.is_empty() {
+        let match_id_vec: Vec<String> = distinct_match_ids.into_iter().collect();
+        let placeholders = std::iter::repeat("?").take(match_id_vec.len()).collect::<Vec<_>>().join(", ");
+        let sql = format!(
+            r#"SELECT m.id, f.scheduled_year, f.scheduled_day_of_year
+               FROM matches m
+               JOIN fixtures f ON m.fixture_id = f.id
+               WHERE m.id IN ({})"#,
+            placeholders
+        );
+
+        let mut query = sqlx::query_as::<_, (String, i64, i32)>(&sql);
+        for m_id in &match_id_vec {
+            query = query.bind(m_id);
+        }
+
+        let fixture_infos: Vec<(String, i64, i32)> = query.fetch_all(pool).await.unwrap_or_default();
+
+        for (m_id, year, day) in fixture_infos {
+            let computed_days = match calendar_opt {
+                Some(cal) => {
+                    let f_date = CalendarDate::new(year, day as u32);
+                    let diff = days_between(cal, &f_date, &current_date);
+                    Some(diff.max(0) as u32)
+                }
+                None => {
+                    let f_unix = (year - 1970) * 31_557_600 + (day as i64) * 86_400;
+                    let diff = ((current_date_unix_seconds - f_unix) / 86_400).max(0);
+                    Some(diff as u32)
+                }
+            };
+            match_days_cache.insert(m_id, computed_days);
+        }
+    }
+
     let mut roster_entries = Vec::with_capacity(players.len());
 
     for player in players {
@@ -112,10 +181,8 @@ pub async fn build_team_roster(
         let (condition, morale, conditioning_score) = if let Some(cond) = condition_map.get(&pid) {
             (cond.energy_level, cond.impulse_current_value as f64, cond.conditioning_score)
         } else {
-            let latest_physical = arlo_persistence::repositories::player::physical_repository::get_latest_by_player_id(pool, pid).await?;
-            let latest_impulse = arlo_persistence::repositories::player::impulse_repository::get_latest_by_player_id(pool, pid).await?;
-            let c = latest_physical.as_ref().map(|p| p.end_energy_level).unwrap_or(1.0);
-            let m = latest_impulse.as_ref().map(|i| i.current_value as f64).unwrap_or(50.0);
+            let c = latest_physical_map.get(&pid).map(|p| p.end_energy_level).unwrap_or(1.0);
+            let m = latest_impulse_map.get(&pid).map(|i| i.current_value as f64).unwrap_or(50.0);
             (c, m, 0.5)
         };
 
@@ -130,48 +197,12 @@ pub async fn build_team_roster(
             .and_then(|r| def_map.get(&r.injury_definition_id()).cloned());
         let injury_days_remaining = med_status.and_then(|s| s.active_days_remaining());
 
-        let latest_physical = arlo_persistence::repositories::player::physical_repository::get_latest_by_player_id(pool, pid).await?;
-        let latest_impulse = arlo_persistence::repositories::player::impulse_repository::get_latest_by_player_id(pool, pid).await?;
-        let last_match_id = latest_physical
-            .as_ref()
+        let last_match_id = latest_physical_map
+            .get(&pid)
             .map(|p| p.match_id.clone())
-            .or_else(|| latest_impulse.as_ref().map(|i| i.match_id.clone()));
+            .or_else(|| latest_impulse_map.get(&pid).map(|i| i.match_id.clone()));
 
-        let days_since_last_match = if let Some(m_id) = last_match_id {
-            if let Some(&cached) = match_days_cache.get(&m_id) {
-                cached
-            } else {
-                let fixture_info: Option<(i64, i32)> = sqlx::query_as::<_, (i64, i32)>(
-                    r#"SELECT f.scheduled_year, f.scheduled_day_of_year
-                       FROM matches m
-                       JOIN fixtures f ON m.fixture_id = f.id
-                       WHERE m.id = ?"#,
-                )
-                .bind(&m_id)
-                .fetch_optional(pool)
-                .await
-                .unwrap_or(None);
-
-                let computed_days = match (fixture_info, calendar_opt) {
-                    (Some((year, day)), Some(cal)) => {
-                        let f_date = CalendarDate::new(year, day as u32);
-                        let diff = days_between(cal, &f_date, &current_date);
-                        Some(diff.max(0) as u32)
-                    }
-                    (Some((year, day)), None) => {
-                        let f_unix = (year - 1970) * 31_557_600 + (day as i64) * 86_400;
-                        let diff = ((current_date_unix_seconds - f_unix) / 86_400).max(0);
-                        Some(diff as u32)
-                    }
-                    _ => None,
-                };
-
-                match_days_cache.insert(m_id, computed_days);
-                computed_days
-            }
-        } else {
-            None
-        };
+        let days_since_last_match = last_match_id.and_then(|m_id| match_days_cache.get(&m_id).copied().flatten());
 
         roster_entries.push(RosterEntryDto {
             player_id: player.id().to_string(),

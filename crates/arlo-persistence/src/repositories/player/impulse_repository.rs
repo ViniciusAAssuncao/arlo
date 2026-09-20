@@ -188,3 +188,79 @@ pub async fn get_latest_by_player_id(
 
     Ok(row)
 }
+
+pub async fn list_latest_by_player_ids(
+    pool: &SqlitePool,
+    player_ids: &[Uuid],
+) -> PersistenceResult<Vec<MatchPlayerImpulseRow>> {
+    if player_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let placeholders = std::iter::repeat("?").take(player_ids.len()).collect::<Vec<_>>().join(", ");
+
+    let sql = format!(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            baseline,
+            current_value,
+            initial_value,
+            min_value,
+            max_value,
+            average_value,
+            shifts_count,
+            positive_shifts,
+            negative_shifts,
+            time_below_baseline_seconds,
+            critical_reached_count,
+            runs_count,
+            longest_run_duration_seconds,
+            peak_run_value,
+            total_integrated_run_intensity,
+            average_run_duration_seconds,
+            average_run_intensity
+        FROM (
+            SELECT
+                p.id,
+                p.match_id,
+                p.player_id,
+                p.baseline,
+                p.current_value,
+                p.initial_value,
+                p.min_value,
+                p.max_value,
+                p.average_value,
+                p.shifts_count,
+                p.positive_shifts,
+                p.negative_shifts,
+                p.time_below_baseline_seconds,
+                p.critical_reached_count,
+                p.runs_count,
+                p.longest_run_duration_seconds,
+                p.peak_run_value,
+                p.total_integrated_run_intensity,
+                p.average_run_duration_seconds,
+                p.average_run_intensity,
+                ROW_NUMBER() OVER (
+                    PARTITION BY p.player_id
+                    ORDER BY COALESCE(f.scheduled_year, 0) DESC, COALESCE(f.scheduled_day_of_year, 0) DESC, COALESCE(m.completed_at_unix_seconds, 0) DESC, p.rowid DESC
+                ) AS rn
+            FROM match_player_impulse p
+            LEFT JOIN matches m ON p.match_id = m.id
+            LEFT JOIN fixtures f ON m.fixture_id = f.id
+            WHERE p.player_id IN ({})
+        )
+        WHERE rn = 1"#,
+        placeholders
+    );
+
+    let mut query = sqlx::query_as::<_, MatchPlayerImpulseRow>(&sql);
+    for id in player_ids {
+        query = query.bind(id.to_string());
+    }
+
+    let rows = query.fetch_all(pool).await?;
+    Ok(rows)
+}

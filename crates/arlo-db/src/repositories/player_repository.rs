@@ -2,7 +2,9 @@ use crate::error::{DbError, DbResult};
 use crate::models::{PlayerAttributeRow, PlayerPositionRow, PlayerRow};
 use crate::repositories::attribute_definition_repository;
 use crate::repositories::fetch::{fetch_all, fetch_all_by_param, fetch_optional_by_param};
-use arlo_domain::{AttributeDefinition, AttributeTarget, Player};
+use arlo_domain::{
+    AttributeDefinition, AttributeTarget, Player, PlayerAttributeValue, PlayerPosition,
+};
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -17,38 +19,67 @@ async fn load_definitions_map(pool: &SqlitePool) -> DbResult<HashMap<Uuid, Attri
     Ok(map)
 }
 
-async fn assemble_player(
+async fn load_positions_map(
     pool: &SqlitePool,
-    player_row: &PlayerRow,
-    def_map: &HashMap<Uuid, AttributeDefinition>,
-) -> DbResult<Player> {
-    let pos_rows = fetch_all_by_param::<PlayerPositionRow>(
+) -> DbResult<HashMap<Uuid, Vec<PlayerPosition>>> {
+    let pos_rows = fetch_all::<PlayerPositionRow>(
         pool,
-        "SELECT player_id, position, proficiency FROM player_positions WHERE player_id = ?",
-        &player_row.id,
+        "SELECT player_id, position, proficiency FROM player_positions",
     )
     .await?;
 
-    let mut positions = Vec::with_capacity(pos_rows.len());
+    let mut positions_by_player: HashMap<Uuid, Vec<PlayerPosition>> = HashMap::new();
     for pr in pos_rows {
-        positions.push(pr.to_domain()?);
+        let player_id = Uuid::parse_str(&pr.player_id)?;
+        positions_by_player
+            .entry(player_id)
+            .or_default()
+            .push(pr.to_domain()?);
     }
 
-    let attr_rows = fetch_all_by_param::<PlayerAttributeRow>(
+    Ok(positions_by_player)
+}
+
+async fn load_attributes_map(
+    pool: &SqlitePool,
+    def_map: &HashMap<Uuid, AttributeDefinition>,
+) -> DbResult<HashMap<Uuid, Vec<PlayerAttributeValue>>> {
+    let attr_rows = fetch_all::<PlayerAttributeRow>(
         pool,
-        "SELECT player_id, attribute_definition_id, value FROM player_attributes WHERE player_id = ?",
-        &player_row.id,
+        "SELECT player_id, attribute_definition_id, value FROM player_attributes",
     )
     .await?;
 
-    let mut attributes = Vec::with_capacity(attr_rows.len());
+    let mut attributes_by_player: HashMap<Uuid, Vec<PlayerAttributeValue>> = HashMap::new();
     for ar in attr_rows {
+        let player_id = Uuid::parse_str(&ar.player_id)?;
         let def_id = Uuid::parse_str(&ar.attribute_definition_id)?;
         let def = def_map.get(&def_id).ok_or_else(|| {
             DbError::NotFound(format!("AttributeDefinition {} not found", def_id))
         })?;
-        attributes.push(ar.to_domain(def)?);
+        attributes_by_player
+            .entry(player_id)
+            .or_default()
+            .push(ar.to_domain(def)?);
     }
+
+    Ok(attributes_by_player)
+}
+
+fn assemble_player(
+    player_row: &PlayerRow,
+    positions_by_player: &HashMap<Uuid, Vec<PlayerPosition>>,
+    attributes_by_player: &HashMap<Uuid, Vec<PlayerAttributeValue>>,
+) -> DbResult<Player> {
+    let player_id = Uuid::parse_str(&player_row.id)?;
+    let positions = positions_by_player
+        .get(&player_id)
+        .cloned()
+        .unwrap_or_default();
+    let attributes = attributes_by_player
+        .get(&player_id)
+        .cloned()
+        .unwrap_or_default();
 
     player_row.to_domain(positions, attributes)
 }
@@ -67,7 +98,40 @@ pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> DbResult<Option<Player>> 
     };
 
     let def_map = load_definitions_map(pool).await?;
-    let player = assemble_player(pool, &player_row, &def_map).await?;
+
+    let pos_rows = fetch_all_by_param::<PlayerPositionRow>(
+        pool,
+        "SELECT player_id, position, proficiency FROM player_positions WHERE player_id = ?",
+        &player_row.id,
+    )
+    .await?;
+
+    let mut positions_by_player: HashMap<Uuid, Vec<PlayerPosition>> = HashMap::new();
+    let mut positions = Vec::with_capacity(pos_rows.len());
+    for pr in pos_rows {
+        positions.push(pr.to_domain()?);
+    }
+    positions_by_player.insert(id, positions);
+
+    let attr_rows = fetch_all_by_param::<PlayerAttributeRow>(
+        pool,
+        "SELECT player_id, attribute_definition_id, value FROM player_attributes WHERE player_id = ?",
+        &player_row.id,
+    )
+    .await?;
+
+    let mut attributes_by_player: HashMap<Uuid, Vec<PlayerAttributeValue>> = HashMap::new();
+    let mut attributes = Vec::with_capacity(attr_rows.len());
+    for ar in attr_rows {
+        let def_id = Uuid::parse_str(&ar.attribute_definition_id)?;
+        let def = def_map.get(&def_id).ok_or_else(|| {
+            DbError::NotFound(format!("AttributeDefinition {} not found", def_id))
+        })?;
+        attributes.push(ar.to_domain(def)?);
+    }
+    attributes_by_player.insert(id, attributes);
+
+    let player = assemble_player(&player_row, &positions_by_player, &attributes_by_player)?;
     Ok(Some(player))
 }
 
@@ -79,9 +143,16 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Player>> {
     .await?;
 
     let def_map = load_definitions_map(pool).await?;
+    let positions_by_player = load_positions_map(pool).await?;
+    let attributes_by_player = load_attributes_map(pool, &def_map).await?;
+
     let mut results = Vec::with_capacity(player_rows.len());
     for pr in &player_rows {
-        results.push(assemble_player(pool, pr, &def_map).await?);
+        results.push(assemble_player(
+            pr,
+            &positions_by_player,
+            &attributes_by_player,
+        )?);
     }
     Ok(results)
 }
@@ -94,9 +165,16 @@ pub async fn list_all_with_team(pool: &SqlitePool) -> DbResult<Vec<Player>> {
     .await?;
 
     let def_map = load_definitions_map(pool).await?;
+    let positions_by_player = load_positions_map(pool).await?;
+    let attributes_by_player = load_attributes_map(pool, &def_map).await?;
+
     let mut results = Vec::with_capacity(player_rows.len());
     for pr in &player_rows {
-        results.push(assemble_player(pool, pr, &def_map).await?);
+        results.push(assemble_player(
+            pr,
+            &positions_by_player,
+            &attributes_by_player,
+        )?);
     }
     Ok(results)
 }
@@ -110,9 +188,16 @@ pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<P
     .await?;
 
     let def_map = load_definitions_map(pool).await?;
+    let positions_by_player = load_positions_map(pool).await?;
+    let attributes_by_player = load_attributes_map(pool, &def_map).await?;
+
     let mut results = Vec::with_capacity(player_rows.len());
     for pr in &player_rows {
-        results.push(assemble_player(pool, pr, &def_map).await?);
+        results.push(assemble_player(
+            pr,
+            &positions_by_player,
+            &attributes_by_player,
+        )?);
     }
     Ok(results)
 }
@@ -129,9 +214,16 @@ pub async fn list_by_nationality_id(
     .await?;
 
     let def_map = load_definitions_map(pool).await?;
+    let positions_by_player = load_positions_map(pool).await?;
+    let attributes_by_player = load_attributes_map(pool, &def_map).await?;
+
     let mut results = Vec::with_capacity(player_rows.len());
     for pr in &player_rows {
-        results.push(assemble_player(pool, pr, &def_map).await?);
+        results.push(assemble_player(
+            pr,
+            &positions_by_player,
+            &attributes_by_player,
+        )?);
     }
     Ok(results)
 }
