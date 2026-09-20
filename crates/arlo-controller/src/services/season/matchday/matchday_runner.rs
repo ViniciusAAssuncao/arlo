@@ -77,6 +77,21 @@ pub async fn persist_completed_simulation(
     .await
     .map_err(ControllerError::Persistence)?;
 
+    let (match_year, match_day) = match &simulation.persistence_context.completed_fixture {
+        Some(f) => (f.scheduled_year, f.scheduled_day_of_year as u32),
+        None => (0, 0),
+    };
+
+    arlo_recovery::orchestration::capture_post_match_condition(
+        pool,
+        &simulation.state,
+        simulation.run_result.raw_sink.events(),
+        match_year,
+        match_day,
+    )
+    .await
+    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+
     crate::repositories::season::standings_cache::invalidate(&simulation.stage_id).await;
 
     Ok(match_id)

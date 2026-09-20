@@ -76,6 +76,14 @@ pub async fn run_day_advancement(
 
     save_calendar_state::upsert(pool, &updated_row).await?;
 
+    arlo_recovery::orchestration::advance_all_players_one_day(
+        pool,
+        current_date.year(),
+        current_date.day_of_year(),
+    )
+    .await
+    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+
     let dispatched_events = dispatch_due_events(
         pool,
         Arc::clone(trigger_store),

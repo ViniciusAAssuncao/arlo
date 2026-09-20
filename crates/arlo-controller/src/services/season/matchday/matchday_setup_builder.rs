@@ -9,7 +9,9 @@ use arlo_domain::{MatchFormatRules, Pitch};
 use arlo_engine::{MatchSetupParams, TeamSetupParams};
 use arlo_persistence::models::season::FixtureRow;
 use arlo_persistence::persister::MatchPersistenceContext;
+use arlo_recovery::PlayerCondition;
 use sqlx::SqlitePool;
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -19,6 +21,7 @@ pub struct PreparedMatchdayFixture {
     pub fixture_row: FixtureRow,
     pub seed: u64,
     pub stage_id: Uuid,
+    pub initial_conditions: HashMap<Uuid, PlayerCondition>,
 }
 
 pub async fn build_matchday_setup(
@@ -43,6 +46,9 @@ pub async fn build_matchday_setup(
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?
         .ok_or_else(|| ControllerError::NotFound(format!("Away team {} not found", away_team_id)))?;
 
+    let (home_lineup, home_formation) = resolve_team_lineup(pool, home_team_id).await?;
+    let (away_lineup, away_formation) = resolve_team_lineup(pool, away_team_id).await?;
+
     let home_players = arlo_db::repositories::player::list_by_team_id(pool, home_team_id)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
@@ -50,6 +56,17 @@ pub async fn build_matchday_setup(
     let away_players = arlo_db::repositories::player::list_by_team_id(pool, away_team_id)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+
+    let mut all_player_ids = Vec::with_capacity(home_players.len() + away_players.len());
+    all_player_ids.extend(home_players.iter().map(|p| p.id()));
+    all_player_ids.extend(away_players.iter().map(|p| p.id()));
+
+    let initial_conditions = arlo_recovery::orchestration::match_condition_bridge::load_conditions_for_players(
+        pool,
+        &all_player_ids,
+    )
+    .await
+    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let home_managers = arlo_db::repositories::manager::list_by_team_id(pool, home_team_id)
         .await
@@ -66,9 +83,6 @@ pub async fn build_matchday_setup(
     let away_manager = away_managers.into_iter().next().ok_or_else(|| {
         ControllerError::NotFound(format!("Manager for away team {} not found", away_team_id))
     })?;
-
-    let (home_lineup, home_formation) = resolve_team_lineup(pool, home_team_id).await?;
-    let (away_lineup, away_formation) = resolve_team_lineup(pool, away_team_id).await?;
 
     let home_profile = resolve_team_instructions(pool, home_team_id).await?;
     let away_profile = resolve_team_instructions(pool, away_team_id).await?;
@@ -166,5 +180,6 @@ pub async fn build_matchday_setup(
         fixture_row: fixture.clone(),
         seed,
         stage_id,
+        initial_conditions,
     })
 }

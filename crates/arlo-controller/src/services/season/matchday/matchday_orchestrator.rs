@@ -46,8 +46,12 @@ pub async fn run_due_matches(
     let simulation_results: Vec<Result<CompletedMatchSimulation, ControllerError>> = prepared_matches
         .into_par_iter()
         .map(|prep| {
-            let state = MatchState::new(prep.setup_params)
+            let mut state = MatchState::new(prep.setup_params)
                 .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+            arlo_recovery::orchestration::match_condition_bridge::seed_match_state(
+                &mut state,
+                &prep.initial_conditions,
+            );
             simulate_match(
                 state,
                 prep.persistence_context,

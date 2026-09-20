@@ -1,7 +1,11 @@
 use crate::error::{ControllerError, ControllerResult};
 use arlo_domain::{Formation, Position};
+use arlo_persistence::models::condition::PlayerInjuryHistoryRow;
+use arlo_persistence::repositories::condition::player_injury_history;
+use arlo_recovery::injury_recovery::return_to_play_evaluator::is_available_for_selection;
+use arlo_recovery::InjuryStatusKind;
 use sqlx::SqlitePool;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -14,12 +18,41 @@ pub async fn ensure_minimum_roster(
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
+    let player_ids: Vec<Uuid> = existing_players.iter().map(|p| p.id()).collect();
+    let active_injuries = player_injury_history::list_active_by_player_ids(pool, &player_ids).await?;
+
+    let mut injuries_by_player: HashMap<Uuid, PlayerInjuryHistoryRow> =
+        HashMap::with_capacity(active_injuries.len());
+    for inj in active_injuries {
+        if let Ok(pid) = Uuid::parse_str(&inj.player_id) {
+            injuries_by_player.entry(pid).or_insert(inj);
+        }
+    }
+
+    let available_players: Vec<_> = existing_players
+        .iter()
+        .filter(|p| {
+            let status = if let Some(inj) = injuries_by_player.get(&p.id()) {
+                if inj.days_remaining > 0 || inj.status == "Injured" {
+                    InjuryStatusKind::Injured
+                } else if inj.observation_days_remaining > 0 || inj.status == "Observation" {
+                    InjuryStatusKind::Observation
+                } else {
+                    InjuryStatusKind::Healthy
+                }
+            } else {
+                InjuryStatusKind::Healthy
+            };
+            is_available_for_selection(status)
+        })
+        .collect();
+
     let required_count = formation.slots().len().max(14);
-    if existing_players.len() >= required_count {
+    if available_players.len() >= required_count {
         return Ok(());
     }
 
-    let needed_count = required_count - existing_players.len();
+    let needed_count = required_count - available_players.len();
 
     let team = arlo_db::repositories::team::get_by_id(pool, team_id)
         .await
