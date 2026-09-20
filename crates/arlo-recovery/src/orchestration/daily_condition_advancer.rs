@@ -128,21 +128,28 @@ pub async fn advance_all_players_one_day(
             conditioning_score,
             last_match_year,
             last_match_day_of_year,
+            was_active_today,
         ) = match conditions_by_player.get(&player_id) {
-            Some(row) => (
-                row.energy_level,
-                row.anaerobic_reserve,
-                row.impulse_current_value as f64,
-                row.impulse_baseline,
-                row.conditioning_score,
-                row.last_match_year,
-                row.last_match_day_of_year.map(|d| d as u32),
-            ),
-            None => (1.0, 1.0, 50.0, 50.0, 0.5, None, None),
+            Some(row) => {
+                let active = match (row.last_match_year, row.last_match_day_of_year) {
+                    (Some(my), Some(md)) => {
+                        my == row.last_updated_year && md == row.last_updated_day_of_year
+                    }
+                    _ => false,
+                };
+                (
+                    row.energy_level,
+                    row.anaerobic_reserve,
+                    row.impulse_current_value as f64,
+                    row.impulse_baseline,
+                    row.conditioning_score,
+                    row.last_match_year,
+                    row.last_match_day_of_year.map(|d| d as u32),
+                    active,
+                )
+            }
+            None => (1.0, 1.0, 50.0, 50.0, 0.5, None, None, false),
         };
-
-        let was_active_today = last_match_year == Some(current_year)
-            && last_match_day_of_year == Some(current_day_of_year);
 
         let mut is_injured_today = false;
         let mut is_post_long_injury = false;
@@ -216,8 +223,6 @@ pub async fn advance_all_players_one_day(
                     )?;
 
                     if let Some(relapse) = reinjury {
-                        player_injury_history::mark_resolved(pool, updated.id(), now_seconds)
-                            .await?;
                         let relapse_row = PlayerInjuryHistoryRow::new(
                             relapse.id(),
                             player_id,
@@ -235,7 +240,17 @@ pub async fn advance_all_players_one_day(
                             None,
                             now_seconds,
                         );
-                        player_injury_history::insert(pool, &relapse_row).await?;
+
+                        let mut tx = pool.begin().await?;
+                        player_injury_history::mark_resolved_with_tx(
+                            &mut tx,
+                            updated.id(),
+                            now_seconds,
+                        )
+                        .await?;
+                        player_injury_history::insert_with_tx(&mut tx, &relapse_row).await?;
+                        tx.commit().await?;
+
                         is_injured_today = true;
                     } else {
                         player_injury_history::update_progress(
