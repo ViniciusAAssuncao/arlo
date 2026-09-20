@@ -37,6 +37,7 @@ pub fn resolve_decision<R: Rng + ?Sized>(
         ctx.down,
         ctx.remaining_advance_mirim,
         ctx.drives_in_series,
+        ctx.is_bonus_phase,
         &ctx.scoring_regime,
     );
 

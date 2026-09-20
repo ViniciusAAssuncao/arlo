@@ -3,8 +3,11 @@ use crate::scoring_model::{
     ScoringSituation,
 };
 use crate::scoring_regime::ScoringRegimePolicy;
-use arlo_domain::sport_constants::{FIELD_POINT_VALUE, GOAL_POINT_VALUE};
+use arlo_domain::sport_constants::{
+    FIELD_GOAL_GOALPOST_VALUE, FIELD_POINT_VALUE, GOAL_POINT_VALUE,
+};
 use arlo_domain::PitchZone;
+use arlo_events::ScoringPost;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -99,6 +102,29 @@ impl DynamicEpvModel {
         .value()
     }
 
+    pub fn field_goal_probability(
+        &self,
+        normalized_x: f64,
+        drives_in_series: u32,
+    ) -> f64 {
+        let situation = ScoringSituation::new(
+            PitchZone::FirstZone,
+            normalized_x,
+            drives_in_series,
+            20.0,
+            12.0 + self.offensive_gravity,
+            10.0,
+            true,
+            ScoringOrigin::OpenPlay,
+        );
+        calculate_scoring_probability(
+            ScoringKind::FieldGoal(ScoringPost::Goalpost),
+            &situation,
+            &self.difficulty_profile,
+        )
+        .value()
+    }
+
     pub fn turnover_probability(
         &self,
         normalized_x: f64,
@@ -124,27 +150,54 @@ impl DynamicEpvModel {
         down: u8,
         remaining_advance_mirim: f64,
         drives_in_series: u32,
+        is_bonus_phase: bool,
         regime: &ScoringRegimePolicy,
     ) -> f64 {
-        let p_goal = self.goal_probability(
-            normalized_x,
-            drives_in_series,
-            down,
-            remaining_advance_mirim,
-            regime,
-        );
-        let p_field = self.field_point_probability(
-            normalized_x,
-            drives_in_series,
-            down,
-            remaining_advance_mirim,
-            regime,
-        );
-        let p_to = self.turnover_probability(normalized_x, down, remaining_advance_mirim);
-        let opp_val = self.opponent_epa(normalized_x);
+        if is_bonus_phase {
+            let p_fg = self.field_goal_probability(normalized_x, drives_in_series);
+            let p_to = self.turnover_probability(normalized_x, down, remaining_advance_mirim);
+            let opp_val = self.opponent_epa(normalized_x);
 
-        p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
-            - p_to * opp_val
+            p_fg * (FIELD_GOAL_GOALPOST_VALUE as f64) - p_to * opp_val
+        } else {
+            let p_goal = self.goal_probability(
+                normalized_x,
+                drives_in_series,
+                down,
+                remaining_advance_mirim,
+                regime,
+            );
+            let p_field = self.field_point_probability(
+                normalized_x,
+                drives_in_series,
+                down,
+                remaining_advance_mirim,
+                regime,
+            );
+            let p_to = self.turnover_probability(normalized_x, down, remaining_advance_mirim);
+            let opp_val = self.opponent_epa(normalized_x);
+
+            p_goal * (GOAL_POINT_VALUE as f64) + p_field * (FIELD_POINT_VALUE as f64)
+                - p_to * opp_val
+        }
+    }
+
+    pub fn calculate_epa_bonus_phase(
+        &self,
+        normalized_x: f64,
+        down: u8,
+        remaining_advance_mirim: f64,
+        drives_in_series: u32,
+        regime: &ScoringRegimePolicy,
+    ) -> f64 {
+        self.calculate_epa(
+            normalized_x,
+            down,
+            remaining_advance_mirim,
+            drives_in_series,
+            true,
+            regime,
+        )
     }
 }
 

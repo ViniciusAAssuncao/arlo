@@ -28,9 +28,14 @@ pub fn evaluate_action_utility(
                 let new_norm_x = (ctx.situation.normalized_proximity
                     + adv_mirim / ctx.situation.pitch_length_mirim.max(1.0))
                 .min(1.0);
-                let epv_success =
-                    ctx.epv_model
-                        .calculate_epa(new_norm_x, new_down, new_rem, new_drives, &ctx.scoring_regime);
+                let epv_success = ctx.epv_model.calculate_epa(
+                    new_norm_x,
+                    new_down,
+                    new_rem,
+                    new_drives,
+                    ctx.situation.is_bonus_phase,
+                    &ctx.scoring_regime,
+                );
                 let epv_fail = if ctx.situation.down >= 4 && ctx.situation.remaining_advance_mirim > 0.0 {
                     -ctx.opponent_epa()
                 } else {
@@ -39,6 +44,7 @@ pub fn evaluate_action_utility(
                         ctx.situation.down.saturating_add(1).min(4),
                         ctx.situation.remaining_advance_mirim,
                         ctx.situation.drives_in_series,
+                        ctx.situation.is_bonus_phase,
                         &ctx.scoring_regime,
                     )
                 };

@@ -21,6 +21,7 @@ pub fn calculate_kick_foul_realignment_stimulus(
         1,
         MINIMUM_ADVANCE_MIRINS_PER_SERIES,
         0,
+        false,
         regime,
     );
 

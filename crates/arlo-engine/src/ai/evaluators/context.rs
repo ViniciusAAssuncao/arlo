@@ -131,6 +131,27 @@ impl<'a> DecisionEvaluationContext<'a> {
             .opponent_epa(self.situation.normalized_proximity)
     }
 
+    pub fn is_bonus_phase(&self) -> bool {
+        self.situation.is_bonus_phase
+    }
+
+    pub fn calculate_epa(
+        &self,
+        normalized_x: f64,
+        down: u8,
+        remaining_advance_mirim: f64,
+        drives_in_series: u32,
+    ) -> f64 {
+        self.epv_model.calculate_epa(
+            normalized_x,
+            down,
+            remaining_advance_mirim,
+            drives_in_series,
+            self.situation.is_bonus_phase,
+            &self.scoring_regime,
+        )
+    }
+
     pub fn is_lateral(&self) -> bool {
         self.situation.channel != ArtroPlacement::Central
     }
