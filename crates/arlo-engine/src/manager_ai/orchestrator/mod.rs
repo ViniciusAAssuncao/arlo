@@ -1,17 +1,14 @@
-pub mod foul_challenge_stage;
-pub mod injury_substitution_stage;
-pub mod kick_foul_realignment_stage;
 pub mod manager_ai_engine;
-pub mod reviewable_call_stage;
-pub mod substitution_stage;
-pub mod tactical_adjustment_stage;
-pub mod time_call_stage;
+pub mod officiating_stages;
+pub mod squad_stages;
+pub mod tactical_stages;
 
-pub use foul_challenge_stage::evaluate_foul_challenge_stage;
-pub use injury_substitution_stage::evaluate_injury_substitution_stage;
-pub use kick_foul_realignment_stage::evaluate_kick_foul_realignment_stage;
 pub use manager_ai_engine::ManagerAiEngine;
-pub use reviewable_call_stage::evaluate_reviewable_call_challenge_stage;
-pub use substitution_stage::evaluate_substitution_stage;
-pub use tactical_adjustment_stage::evaluate_tactical_adjustment_stage;
-pub use time_call_stage::evaluate_time_call_stage;
+pub use officiating_stages::{
+    evaluate_foul_challenge_stage, evaluate_reviewable_call_challenge_stage,
+};
+pub use squad_stages::{evaluate_injury_substitution_stage, evaluate_substitution_stage};
+pub use tactical_stages::{
+    evaluate_kick_foul_realignment_stage, evaluate_tactical_adjustment_stage,
+    evaluate_time_call_stage,
+};

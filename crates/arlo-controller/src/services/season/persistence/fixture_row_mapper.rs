@@ -28,6 +28,10 @@ pub fn map_row_to_fixture(row: &FixtureRow) -> ControllerResult<Fixture> {
         (Some(home_score), Some(away_score)) => {
             let home_goal_points = row.home_goal_points.unwrap_or(0) as u32;
             let away_goal_points = row.away_goal_points.unwrap_or(0) as u32;
+            let home_field_goals = row.home_field_goals.unwrap_or(0) as u32;
+            let away_field_goals = row.away_field_goals.unwrap_or(0) as u32;
+            let home_field_points = row.home_field_points.unwrap_or(0) as u32;
+            let away_field_points = row.away_field_points.unwrap_or(0) as u32;
             let winner_team_id = if home_score > away_score {
                 Some(home_team_id)
             } else if away_score > home_score {
@@ -40,6 +44,10 @@ pub fn map_row_to_fixture(row: &FixtureRow) -> ControllerResult<Fixture> {
                 away_score as u32,
                 home_goal_points,
                 away_goal_points,
+                home_field_goals,
+                away_field_goals,
+                home_field_points,
+                away_field_points,
                 winner_team_id,
             ))
         }

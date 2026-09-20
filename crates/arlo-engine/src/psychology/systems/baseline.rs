@@ -1,88 +1,62 @@
+pub use crate::attributes::profiles::default_impulse_baseline_profile;
+use crate::attributes::profiles::AttributeProfile;
 use crate::attributes::PlayerAttributeTable;
 use crate::caching::impulse_baseline_profile;
-use crate::spatial::decision_vector::extract_attribute_value;
-use crate::weighting::{calculate_weighted_saturated_average, AttributeWeight};
-use arlo_domain::sport_constants::{
-    ATTRIBUTE_SATURATION_MULTIPLIER, ATTRIBUTE_SATURATION_THRESHOLD, HOME_IMPULSE_BASELINE_BOOST,
-    MAX_CAPTAINCY_BASELINE_BOOST,
-};
+use crate::home_advantage::HomeAdvantageProfile;
+use arlo_domain::sport_constants::MAX_CAPTAINCY_BASELINE_BOOST;
 use arlo_domain::{AttributeKey, CaptaincyRole, Player};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ImpulseBaselineProfile {
-    weights: Vec<AttributeWeight>,
-}
+pub type ImpulseBaselineProfile = AttributeProfile;
 
-impl ImpulseBaselineProfile {
-    pub fn new(weights: Vec<AttributeWeight>) -> Self {
-        Self { weights }
-    }
-
-    pub fn weights(&self) -> &[AttributeWeight] {
-        &self.weights
-    }
-}
-
-pub fn default_impulse_baseline_profile() -> ImpulseBaselineProfile {
-    ImpulseBaselineProfile::new(vec![
-        AttributeWeight::new(AttributeKey::Determination, 5.0),
-        AttributeWeight::new(AttributeKey::Composure, 4.5),
-        AttributeWeight::new(AttributeKey::Bravery, 4.0),
-        AttributeWeight::new(AttributeKey::Consistency, 4.0),
-        AttributeWeight::new(AttributeKey::Concentration, 3.5),
-        AttributeWeight::new(AttributeKey::Leadership, 3.0),
-        AttributeWeight::new(AttributeKey::Teamwork, 2.5),
-    ])
-}
-
-pub fn calculate_player_impulse_baseline_from_table_with_profile(
+pub fn calculate_player_impulse_baseline(
     table: &PlayerAttributeTable,
     profile: &ImpulseBaselineProfile,
 ) -> f64 {
-    let mut items = Vec::with_capacity(profile.weights().len());
-    for w in profile.weights() {
-        if w.weight > 0.0 {
-            let val = table.get(w.key);
-            items.push((val, w.weight));
-        }
-    }
-
-    let avg = calculate_weighted_saturated_average(
-        &items,
-        ATTRIBUTE_SATURATION_THRESHOLD,
-        ATTRIBUTE_SATURATION_MULTIPLIER,
-    )
-    .unwrap_or(10.0);
-
+    let avg = profile.evaluate_saturated_average(|key| table.get(key));
     let norm = (avg - 10.0) / 10.0;
     let mapped = 100.0 / (1.0 + (-1.8 * norm).exp());
     mapped.clamp(0.0, 100.0)
 }
 
-pub fn calculate_player_impulse_baseline_with_profile(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    profile: &ImpulseBaselineProfile,
-) -> f64 {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    calculate_player_impulse_baseline_from_table_with_profile(&table, profile)
+pub fn calculate_captaincy_influence(table: &PlayerAttributeTable) -> f64 {
+    let leadership = table.get(AttributeKey::Leadership);
+    let communication = table.get(AttributeKey::Communication);
+    let determination = table.get(AttributeKey::Determination);
+    let teamwork = table.get(AttributeKey::Teamwork);
+
+    let composite =
+        (leadership * 0.40 + communication * 0.25 + determination * 0.20 + teamwork * 0.15) / 20.0;
+
+    let delta = (composite.clamp(0.0, 1.0) - 0.50) / 0.50;
+    delta.clamp(-1.0, 1.0)
 }
 
-pub fn calculate_player_impulse_baseline(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+pub fn calculate_player_contextual_baseline(
+    table: &PlayerAttributeTable,
+    captain_influence: f64,
+    is_captain: bool,
+    is_home: bool,
+    ha_profile: &HomeAdvantageProfile,
 ) -> f64 {
     let profile = impulse_baseline_profile();
-    calculate_player_impulse_baseline_with_profile(player, attribute_keys, profile)
+    let base = calculate_player_impulse_baseline(table, profile);
+
+    let captain_boost = if is_captain {
+        captain_influence * MAX_CAPTAINCY_BASELINE_BOOST * 0.50
+    } else {
+        captain_influence * MAX_CAPTAINCY_BASELINE_BOOST
+    };
+
+    let home_boost = if is_home {
+        ha_profile.impulse_baseline_boost()
+    } else {
+        0.0
+    };
+
+    (base + captain_boost + home_boost).clamp(5.0, 98.0)
 }
 
-pub fn find_active_captain<'a>(
-    players: &[&'a Player],
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-) -> Option<&'a Player> {
+pub fn find_active_captain<'a>(players: &[&'a Player]) -> Option<&'a Player> {
     if players.is_empty() {
         return None;
     }
@@ -101,76 +75,5 @@ pub fn find_active_captain<'a>(
         return Some(vice_captain);
     }
 
-    players.iter().copied().max_by(|a, b| {
-        let table_a = PlayerAttributeTable::from_player(a, attribute_keys);
-        let table_b = PlayerAttributeTable::from_player(b, attribute_keys);
-        let lead_a = extract_attribute_value(&table_a, AttributeKey::Leadership);
-        let lead_b = extract_attribute_value(&table_b, AttributeKey::Leadership);
-        lead_a
-            .partial_cmp(&lead_b)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    })
-}
-
-pub fn calculate_captaincy_influence_from_table(table: &PlayerAttributeTable) -> f64 {
-    let leadership = extract_attribute_value(table, AttributeKey::Leadership);
-    let communication = extract_attribute_value(table, AttributeKey::Communication);
-    let determination = extract_attribute_value(table, AttributeKey::Determination);
-    let teamwork = extract_attribute_value(table, AttributeKey::Teamwork);
-
-    let composite =
-        (leadership * 0.40 + communication * 0.25 + determination * 0.20 + teamwork * 0.15) / 20.0;
-
-    let delta = (composite.clamp(0.0, 1.0) - 0.50) / 0.50;
-    delta.clamp(-1.0, 1.0)
-}
-
-pub fn calculate_captaincy_influence(
-    captain: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-) -> f64 {
-    let table = PlayerAttributeTable::from_player(captain, attribute_keys);
-    calculate_captaincy_influence_from_table(&table)
-}
-
-pub fn calculate_player_contextual_baseline_from_table(
-    _player: &Player,
-    table: &PlayerAttributeTable,
-    captain_influence: f64,
-    is_captain: bool,
-    is_home: bool,
-) -> f64 {
-    let profile = impulse_baseline_profile();
-    let base = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
-
-    let captain_boost = if is_captain {
-        captain_influence * MAX_CAPTAINCY_BASELINE_BOOST * 0.50
-    } else {
-        captain_influence * MAX_CAPTAINCY_BASELINE_BOOST
-    };
-
-    let home_boost = if is_home {
-        HOME_IMPULSE_BASELINE_BOOST
-    } else {
-        0.0
-    };
-
-    (base + captain_boost + home_boost).clamp(5.0, 98.0)
-}
-
-pub fn calculate_player_contextual_baseline(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    captain: Option<&Player>,
-    is_home: bool,
-) -> f64 {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    let (influence, is_cap) = match captain {
-        Some(cap) => (
-            calculate_captaincy_influence(cap, attribute_keys),
-            cap.id() == player.id(),
-        ),
-        None => (0.0, false),
-    };
-    calculate_player_contextual_baseline_from_table(player, &table, influence, is_cap, is_home)
+    players.first().copied()
 }

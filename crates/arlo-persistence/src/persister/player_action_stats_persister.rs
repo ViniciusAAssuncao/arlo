@@ -6,9 +6,9 @@ use crate::models::{
 };
 use crate::repositories;
 use arlo_stats::{
-    AggregatorRegistry, PlayerArtrineDecisionAggregator, PlayerAssistsAggregator,
+    AggregatorRegistry, PlayerArtrineDecisionAggregator, PlayerAssistAggregator,
     PlayerDrivesAggregator, PlayerDuelAggregator, PlayerReceivingAggregator,
-    PlayerScoringAttemptsAggregator, PlayerTouchesAggregator,
+    PlayerScoringAttemptAggregator, PlayerTouchesAggregator,
 };
 use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
@@ -64,7 +64,7 @@ pub async fn persist_player_action_stats(
         repositories::match_player_receiving::insert_batch(tx, &rows).await?;
     }
 
-    if let Some(agg) = aggregators.get::<PlayerScoringAttemptsAggregator>() {
+    if let Some(agg) = aggregators.get::<PlayerScoringAttemptAggregator>() {
         let mut score_attempt_rows = Vec::new();
         let mut score_attempt_by_post_rows = Vec::new();
         for (pid, s) in agg.all_stats() {
@@ -92,7 +92,7 @@ pub async fn persist_player_action_stats(
         .await?;
     }
 
-    if let Some(agg) = aggregators.get::<PlayerAssistsAggregator>() {
+    if let Some(agg) = aggregators.get::<PlayerAssistAggregator>() {
         let rows: Vec<_> = agg
             .all_stats()
             .values()

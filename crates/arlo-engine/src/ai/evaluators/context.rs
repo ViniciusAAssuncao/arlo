@@ -1,144 +1,108 @@
 use crate::ai::cognitive::RiskProfile;
 use crate::ai::epv::DynamicEpvModel;
+use crate::attributes::profiles::AttributeProfile as DuelProfile;
 use crate::attributes::PlayerAttributeTable;
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::calculate_player_impulse_baseline_from_table_with_profile;
-use crate::resolution::duel_noise::player_noise_distribution_from_table_with_impulse;
-use crate::resolution::duel_profiles::DuelProfile;
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
+use crate::resolution::duel_noise::player_consistency_noise_scale;
 use crate::resolution::group_rating::calculate_player_duel_rating_from_table;
-use crate::world_state::GameStatePressure;
-use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player, Position, SlotRole};
-use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
+use crate::scoring_model::ScoringDifficultyProfile;
+use crate::scoring_regime::ScoringRegimePolicy;
+use crate::world_state::context_analyzer::GameStatePressure;
+use arlo_domain::{ArtrineDecisionKind, ArtroPlacement, AttributeKey, Player, Position, SlotRole};
 use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions};
 use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub struct DecisionEvaluationContext<'a> {
-    pub carrier: &'a Player,
-    pub carrier_table: &'a PlayerAttributeTable,
-    pub carrier_position: Position,
-    pub carrier_role: SlotRole,
-    pub carrier_instructions: PlayerInstructions,
-    pub carrier_physical_state: PhysicalState,
-    pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
-    pub epv_model: DynamicEpvModel,
-    pub current_epv: f64,
-    pub normalized_proximity: f64,
+pub struct ContextSituation {
     pub drives_in_series: u32,
     pub down: u8,
     pub remaining_advance_mirim: f64,
     pub pass_protection_net_advantage: f64,
-    pub best_available_target_weight: f64,
-    pub long_launch_target_weight: f64,
-    pub pitch_control_ahead: f64,
-    pub distance_to_next_artro_mirim: f64,
-    pub pitch_length_mirim: f64,
-    pub pitch_width_mirim: f64,
-    pub carrier_pos_vec: VectorPosition,
+    pub target_quality: f64,
+    pub long_launch_target_quality: f64,
+    pub team_advantage: f64,
+    pub channel: ArtroPlacement,
+    pub pitch_control: f64,
+    pub expected_free_path: f64,
     pub offensive_gravity: f64,
     pub passing_range: PassingRange,
-    pub risk_profile: RiskProfile,
     pub game_state_pressure: GameStatePressure,
     pub play_call_emphasis: DecisionEmphasis,
     pub is_true_artrine: bool,
-    pub expected_free_path_mirim: f64,
-    pub opponent_epa_at_proximity: f64,
-    pub cached_probability_bounds: (f64, f64),
+    pub is_bonus_phase: bool,
+    pub normalized_proximity: f64,
+    pub pitch_length_mirim: f64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ContextCarrier<'a> {
+    pub player: &'a Player,
+    pub table: &'a PlayerAttributeTable,
+    pub position: Position,
+    pub role: SlotRole,
+    pub instructions: PlayerInstructions,
+    pub physical_state: PhysicalState,
+    pub probability_bounds: (f64, f64),
+}
+
+#[derive(Debug, Clone)]
+pub struct DecisionEvaluationContext<'a> {
+    pub carrier: ContextCarrier<'a>,
+    pub situation: ContextSituation,
+    pub attribute_keys: &'a HashMap<Uuid, AttributeKey>,
+    pub epv_model: DynamicEpvModel,
+    pub current_epv: f64,
+    pub risk_profile: RiskProfile,
+    pub scoring_difficulty: ScoringDifficultyProfile,
+    pub scoring_regime: ScoringRegimePolicy,
 }
 
 impl<'a> DecisionEvaluationContext<'a> {
     pub fn new(
-        carrier: &'a Player,
-        carrier_table: &'a PlayerAttributeTable,
-        carrier_position: Position,
-        carrier_role: SlotRole,
-        carrier_instructions: PlayerInstructions,
-        carrier_physical_state: PhysicalState,
+        carrier: ContextCarrier<'a>,
+        situation: ContextSituation,
         attribute_keys: &'a HashMap<Uuid, AttributeKey>,
         epv_model: DynamicEpvModel,
         current_epv: f64,
-        normalized_proximity: f64,
-        drives_in_series: u32,
-        down: u8,
-        remaining_advance_mirim: f64,
-        pass_protection_net_advantage: f64,
-        best_available_target_weight: f64,
-        long_launch_target_weight: f64,
-        pitch_control_ahead: f64,
-        distance_to_next_artro_mirim: f64,
-        pitch_length_mirim: f64,
-        pitch_width_mirim: f64,
-        carrier_pos_vec: VectorPosition,
-        offensive_gravity: f64,
-        passing_range: PassingRange,
         risk_profile: RiskProfile,
-        game_state_pressure: GameStatePressure,
-        play_call_emphasis: DecisionEmphasis,
-        is_true_artrine: bool,
-        expected_free_path_mirim: f64,
+        scoring_regime: ScoringRegimePolicy,
     ) -> Self {
-        let opponent_epa_at_proximity = epv_model.opponent_epa(normalized_proximity);
-        let cached_probability_bounds = Self::calculate_probability_bounds_from_table(
-            carrier,
-            carrier_table,
-            &carrier_physical_state,
-        );
+        let scoring_difficulty = epv_model.difficulty_profile();
 
         Self {
             carrier,
-            carrier_table,
-            carrier_position,
-            carrier_role,
-            carrier_instructions,
-            carrier_physical_state,
+            situation,
             attribute_keys,
             epv_model,
             current_epv,
-            normalized_proximity,
-            drives_in_series,
-            down,
-            remaining_advance_mirim,
-            pass_protection_net_advantage,
-            best_available_target_weight,
-            long_launch_target_weight,
-            pitch_control_ahead,
-            distance_to_next_artro_mirim,
-            pitch_length_mirim,
-            pitch_width_mirim,
-            carrier_pos_vec,
-            offensive_gravity,
-            passing_range,
             risk_profile,
-            game_state_pressure,
-            play_call_emphasis,
-            is_true_artrine,
-            expected_free_path_mirim,
-            opponent_epa_at_proximity,
-            cached_probability_bounds,
+            scoring_difficulty,
+            scoring_regime,
         }
     }
 
-    pub fn calculate_probability_bounds_from_table(
-        carrier: &Player,
+    pub fn with_scoring_difficulty(mut self, scoring_difficulty: ScoringDifficultyProfile) -> Self {
+        self.scoring_difficulty = scoring_difficulty;
+        self
+    }
+
+    pub fn calculate_probability_bounds(
         table: &PlayerAttributeTable,
         physical_state: &PhysicalState,
     ) -> (f64, f64) {
+        let deg_ctx = DegradationContext::new(physical_state);
         let consistency =
-            extract_effective_attribute_value(table, AttributeKey::Consistency, physical_state);
+            extract_effective_attribute_value(table, AttributeKey::Consistency, &deg_ctx);
         let profile = crate::caching::impulse_baseline_profile();
-        let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
+        let baseline = calculate_player_impulse_baseline(table, profile);
         let impulse_state = ImpulseState::from_baseline(baseline);
-        let noise_params = player_noise_distribution_from_table_with_impulse(
-            carrier,
-            table,
-            physical_state,
-            &impulse_state,
-            baseline,
-        );
-        let scale = noise_params.scale();
+        let deg_ctx_impulse =
+            DegradationContext::with_impulse(physical_state, &impulse_state, baseline);
+        let scale = player_consistency_noise_scale(table, &deg_ctx_impulse);
         let norm_consistency = (consistency.clamp(0.0, 20.0)) / 20.0;
         let floor =
             (0.001 + 0.049 * (1.0 - norm_consistency) * (1.0 + scale * 0.1)).clamp(0.0001, 0.15);
@@ -147,100 +111,93 @@ impl<'a> DecisionEvaluationContext<'a> {
         (floor, ceiling)
     }
 
-    pub fn calculate_probability_bounds(
-        carrier: &Player,
-        attribute_keys: &HashMap<Uuid, AttributeKey>,
-        physical_state: &PhysicalState,
-    ) -> (f64, f64) {
-        let table = PlayerAttributeTable::from_player(carrier, attribute_keys);
-        Self::calculate_probability_bounds_from_table(carrier, &table, physical_state)
-    }
-
-    pub fn carrier(&self) -> &'a Player {
-        self.carrier
-    }
-
-    pub fn carrier_table(&self) -> &'a PlayerAttributeTable {
-        self.carrier_table
-    }
-
-    pub fn artrine(&self) -> &'a Player {
-        self.carrier
-    }
-
-    pub fn target_quality(&self) -> f64 {
-        (self.best_available_target_weight - 8.0) / 10.0
-    }
-
-    pub fn long_launch_target_quality(&self) -> f64 {
-        (self.long_launch_target_weight - 8.0) / 10.0
-    }
-
-    pub fn pitch_control(&self) -> f64 {
-        self.pitch_control_ahead.max(0.0).min(1.0)
-    }
-
-    pub fn expected_free_path(&self) -> f64 {
-        if self.expected_free_path_mirim > 0.0 {
-            self.expected_free_path_mirim
-        } else {
-            crate::spatial::estimate_free_path_from_pitch_control(
-                self.pitch_control(),
-                ((1.0 - self.normalized_proximity) * self.pitch_length_mirim).max(0.0),
-            )
-        }
-    }
-
     pub fn carrier_rating(&self, profile: &DuelProfile) -> f64 {
         calculate_player_duel_rating_from_table(
-            self.carrier,
-            self.carrier_position,
-            self.carrier_table,
+            self.carrier.player,
+            self.carrier.position,
+            self.carrier.table,
             profile,
-            &self.carrier_physical_state,
+            &self.carrier.physical_state,
         )
-    }
-
-    pub fn artrine_rating(&self, profile: &DuelProfile) -> f64 {
-        self.carrier_rating(profile)
-    }
-
-    pub fn skill_multiplier(&self, intrinsic_rating: f64) -> f64 {
-        intrinsic_rating / 10.0
-    }
-
-    pub fn consistency(&self) -> f64 {
-        extract_effective_attribute_value(
-            self.carrier_table,
-            AttributeKey::Consistency,
-            &self.carrier_physical_state,
-        )
-    }
-
-    pub fn probability_bounds(&self) -> (f64, f64) {
-        self.cached_probability_bounds
     }
 
     pub fn bound_probability(&self, raw_p: f64) -> f64 {
-        let (floor, ceiling) = self.probability_bounds();
+        let (floor, ceiling) = self.carrier.probability_bounds;
         raw_p.clamp(floor, ceiling)
     }
 
     pub fn opponent_epa(&self) -> f64 {
-        self.opponent_epa_at_proximity
+        self.epv_model
+            .opponent_epa(self.situation.normalized_proximity)
+    }
+
+    pub fn is_bonus_phase(&self) -> bool {
+        self.situation.is_bonus_phase
+    }
+
+    pub fn calculate_epa(
+        &self,
+        normalized_x: f64,
+        down: u8,
+        remaining_advance_mirim: f64,
+        drives_in_series: u32,
+    ) -> f64 {
+        self.epv_model.calculate_epa(
+            normalized_x,
+            down,
+            remaining_advance_mirim,
+            drives_in_series,
+            self.situation.is_bonus_phase,
+            &self.scoring_regime,
+        )
+    }
+
+    pub fn is_lateral(&self) -> bool {
+        self.situation.channel != ArtroPlacement::Central
+    }
+
+    pub fn lateral_ratio(&self) -> f64 {
+        if self.is_lateral() {
+            0.85
+        } else {
+            0.0
+        }
+    }
+
+    pub fn shooting_angle_factor(&self) -> f64 {
+        if self.is_lateral() {
+            0.75
+        } else {
+            1.0
+        }
+    }
+
+    pub fn emphasis_for(&self, kind: ArtrineDecisionKind) -> f64 {
+        match kind {
+            ArtrineDecisionKind::SelfCarry => {
+                self.situation.play_call_emphasis.self_carry().value()
+            }
+            ArtrineDecisionKind::ShortPass => {
+                self.situation.play_call_emphasis.short_pass().value()
+            }
+            ArtrineDecisionKind::LongLaunch => {
+                self.situation.play_call_emphasis.long_launch().value()
+            }
+            ArtrineDecisionKind::Cross => self.situation.play_call_emphasis.cross().value(),
+            ArtrineDecisionKind::SelfFinish => {
+                self.situation.play_call_emphasis.self_finish().value()
+            }
+        }
     }
 
     pub fn carrier_tactical_bias(&self, kind: ArtrineDecisionKind) -> f64 {
-        let center_y_m = (self.pitch_width_mirim * 0.5) * MIRIM_TO_METERS;
-        let dist_from_center_m = (self.carrier_pos_vec.raw().1 - center_y_m).abs();
-        let is_lateral = dist_from_center_m > (self.pitch_width_mirim * 0.20 * MIRIM_TO_METERS);
         crate::open_play::CarrierTacticalBias::calculate_bias(
-            self.carrier_position,
-            self.carrier_role,
-            &self.carrier_instructions,
+            self.carrier.position,
+            self.carrier.role,
+            &self.carrier.instructions,
             kind,
-            self.normalized_proximity,
-            is_lateral,
+            self.situation.normalized_proximity,
+            self.is_lateral(),
         )
     }
 }

@@ -6,11 +6,11 @@ pub mod foul_perception;
 pub mod judgment_model;
 pub mod perception;
 
-pub use decision::{base_challenge_stimulus, ChallengeDecisionEngine};
+pub use decision::{base_challenge_stimulus, calculate_challenge_stimulus, ChallengeDecisionEngine};
 pub use execution::{
     apply_challenge, evaluate_and_execute_challenge, execute_challenge, reverse_out_of_bounds_ruling,
 };
-pub use foul_decision::evaluate_foul_challenge;
+pub use foul_decision::{calculate_foul_challenge_stimulus, evaluate_foul_challenge};
 pub use foul_execution::{
     apply_foul_challenge, evaluate_and_execute_foul_challenge, execute_foul_challenge,
 };

@@ -1,8 +1,10 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::error::{EngineError, EngineResult};
 use crate::lineup_runtime::find_goalguard;
-use arlo_domain::{AttributeKey, Player, Position, SlotRole};
-use arlo_math::stats::sample_categorical;
+use crate::physical::PhysicalState;
+pub use crate::set_piece::kicker_selection::select_kicker;
+use arlo_domain::{Pitch, Player, Position, SlotRole};
+use arlo_tactics::PlayerInstructions;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -33,49 +35,35 @@ impl<'a> KickFoulParticipants<'a> {
     }
 }
 
-pub fn select_kicker<'a, R: Rng + ?Sized>(
-    offense_players: &[&'a Player],
-    offense_role_index: &HashMap<Uuid, SlotRole>,
-    tables: &HashMap<Uuid, PlayerAttributeTable>,
-    rng: &mut R,
-) -> Option<&'a Player> {
-    if let Some(designated_id) =
-        crate::set_piece::kicker_selection::select_kicker(offense_players, Some(offense_role_index))
-    {
-        return offense_players
-            .iter()
-            .copied()
-            .find(|p| p.id() == designated_id);
-    }
-
-    if offense_players.is_empty() {
-        return None;
-    }
-
-    let weights: Vec<f64> = offense_players
-        .iter()
-        .map(|p| {
-            let table = tables.get(&p.id());
-            table
-                .map(|t| t.get(AttributeKey::GoalKicking) + t.get(AttributeKey::Finishing))
-                .unwrap_or(0.0)
-        })
-        .collect();
-
-    let idx = sample_categorical(&weights, rng).unwrap_or(0);
-    offense_players.get(idx).copied()
-}
-
-pub fn select_kick_foul_participants<'a, R: Rng + ?Sized>(
+pub fn select_kick_foul_participants<'a, F, R>(
     offense_players: &[&'a Player],
     defense_players: &[&'a Player],
     offense_role_index: &HashMap<Uuid, SlotRole>,
+    offense_pos_index: &HashMap<Uuid, Position>,
+    offense_instructions_index: &HashMap<Uuid, PlayerInstructions>,
+    pitch: &Pitch,
     tables: &HashMap<Uuid, PlayerAttributeTable>,
+    attacking_positive_x: bool,
+    fatigue_for: Option<&F>,
     rng: &mut R,
-) -> EngineResult<KickFoulParticipants<'a>> {
-    let kicker = select_kicker(offense_players, offense_role_index, tables, rng)
-        .or_else(|| offense_players.first().copied())
-        .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{:?}", Position::CenterOffense)))?;
+) -> EngineResult<KickFoulParticipants<'a>>
+where
+    F: Fn(&Uuid) -> PhysicalState,
+    R: Rng + ?Sized,
+{
+    let kicker = select_kicker(
+        offense_players,
+        Some(offense_role_index),
+        pitch,
+        offense_pos_index,
+        offense_instructions_index,
+        tables,
+        attacking_positive_x,
+        fatigue_for,
+        rng,
+    )
+    .or_else(|| offense_players.first().copied())
+    .ok_or_else(|| EngineError::MissingRequiredPosition(format!("{:?}", Position::CenterOffense)))?;
 
     let goalguard = find_goalguard(defense_players)
         .or_else(|_| defense_players.first().copied().ok_or_else(|| EngineError::MissingRequiredPosition(format!("{:?}", Position::Goalguard))))?;

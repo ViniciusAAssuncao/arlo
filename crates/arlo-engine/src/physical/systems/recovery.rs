@@ -1,6 +1,7 @@
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::physical::state::PhysicalState;
-use crate::spatial::decision_vector::extract_attribute_value;
+use crate::physical::systems::energy_recovery::recover_player_energy;
+use crate::physical::tuning::EnergyTuningProfile;
 use arlo_domain::{AttributeKey, Player};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -10,20 +11,6 @@ pub fn calculate_recovery_tau(stamina: f64, natural_fitness: f64) -> f64 {
         (natural_fitness.clamp(0.0, 20.0) * 0.6 + stamina.clamp(0.0, 20.0) * 0.4) / 20.0;
     let tau = 180.0 - (130.0 * norm_fitness);
     tau.clamp(40.0, 240.0)
-}
-
-pub fn calculate_player_recovery_tau_from_table(table: &PlayerAttributeTable) -> f64 {
-    let stamina = extract_attribute_value(table, AttributeKey::Stamina);
-    let natural_fitness = extract_attribute_value(table, AttributeKey::NaturalFitness);
-    calculate_recovery_tau(stamina, natural_fitness)
-}
-
-pub fn calculate_player_recovery_tau(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-) -> f64 {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    calculate_player_recovery_tau_from_table(&table)
 }
 
 pub fn recover_w_prime(
@@ -41,13 +28,15 @@ pub fn recover_w_prime(
     (1.0 - recovered_deficit).clamp(0.0, 1.0)
 }
 
-pub fn recover_player_physical_state_from_table(
+pub fn recover_player_physical_state(
     state: &mut PhysicalState,
     table: &PlayerAttributeTable,
     dead_ball_seconds: f64,
+    is_time_call: bool,
+    profile: &EnergyTuningProfile,
 ) {
-    let stamina = extract_attribute_value(table, AttributeKey::Stamina);
-    let natural_fitness = extract_attribute_value(table, AttributeKey::NaturalFitness);
+    let stamina = table.get(AttributeKey::Stamina);
+    let natural_fitness = table.get(AttributeKey::NaturalFitness);
     let new_w_prime = recover_w_prime(
         state.w_prime_balance(),
         dead_ball_seconds,
@@ -55,23 +44,16 @@ pub fn recover_player_physical_state_from_table(
         natural_fitness,
     );
     state.set_w_prime_balance(new_w_prime);
+    recover_player_energy(state, dead_ball_seconds, natural_fitness, is_time_call, profile);
 }
 
-pub fn recover_player_physical_state(
-    state: &mut PhysicalState,
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    dead_ball_seconds: f64,
-) {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    recover_player_physical_state_from_table(state, &table, dead_ball_seconds);
-}
-
-pub fn recover_team_physical_states_from_tables(
+pub fn recover_team_physical_states(
     states: &mut HashMap<Uuid, PhysicalState>,
     players: &[&Player],
     attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     dead_ball_seconds: f64,
+    is_time_call: bool,
+    profile: &EnergyTuningProfile,
 ) {
     if dead_ball_seconds <= 0.0 {
         return;
@@ -81,45 +63,8 @@ pub fn recover_team_physical_states_from_tables(
         let table = attribute_tables
             .get(&player.id())
             .unwrap_or(&DEFAULT_PLAYER_ATTRIBUTE_TABLE);
-        recover_player_physical_state_from_table(state, table, dead_ball_seconds);
+        recover_player_physical_state(state, table, dead_ball_seconds, is_time_call, profile);
     }
-}
-
-pub fn recover_team_physical_states(
-    states: &mut HashMap<Uuid, PhysicalState>,
-    players: &[&Player],
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    dead_ball_seconds: f64,
-) {
-    if dead_ball_seconds <= 0.0 {
-        return;
-    }
-    for player in players {
-        let state = states.entry(player.id()).or_default();
-        recover_player_physical_state(state, player, attribute_keys, dead_ball_seconds);
-    }
-}
-
-pub fn apply_intra_match_recovery_from_tables(
-    home_fatigue: &mut HashMap<Uuid, PhysicalState>,
-    away_fatigue: &mut HashMap<Uuid, PhysicalState>,
-    home_players: &[&Player],
-    away_players: &[&Player],
-    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
-    dead_ball_seconds: f64,
-) {
-    recover_team_physical_states_from_tables(
-        home_fatigue,
-        home_players,
-        attribute_tables,
-        dead_ball_seconds,
-    );
-    recover_team_physical_states_from_tables(
-        away_fatigue,
-        away_players,
-        attribute_tables,
-        dead_ball_seconds,
-    );
 }
 
 pub fn apply_intra_match_recovery(
@@ -127,19 +72,25 @@ pub fn apply_intra_match_recovery(
     away_fatigue: &mut HashMap<Uuid, PhysicalState>,
     home_players: &[&Player],
     away_players: &[&Player],
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    attribute_tables: &HashMap<Uuid, PlayerAttributeTable>,
     dead_ball_seconds: f64,
+    is_time_call: bool,
+    profile: &EnergyTuningProfile,
 ) {
     recover_team_physical_states(
         home_fatigue,
         home_players,
-        attribute_keys,
+        attribute_tables,
         dead_ball_seconds,
+        is_time_call,
+        profile,
     );
     recover_team_physical_states(
         away_fatigue,
         away_players,
-        attribute_keys,
+        attribute_tables,
         dead_ball_seconds,
+        is_time_call,
+        profile,
     );
 }

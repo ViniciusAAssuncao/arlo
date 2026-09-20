@@ -1,3 +1,4 @@
+use crate::ai::gravity::OffensiveGravity;
 use crate::attributes::{
     ManagerAttributeTable, PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE,
 };
@@ -5,14 +6,17 @@ use crate::kick_foul::KickFoulTracker;
 use crate::officiating::AddedTimeTracker;
 use crate::possession::PossessionSnapshot;
 use crate::rng::RngProvider;
-use crate::spatial::DynamicSpatialMap;
 use crate::time::RealTimeAccumulator;
+use crate::tuning::EngineTuning;
 use crate::world_state::clock::MatchClock;
 use crate::world_state::match_state::availability::PlayerAvailabilityTracker;
 use crate::world_state::match_state::decision_cooldown::DecisionCooldownTracker;
 use crate::world_state::match_state::fatigue::FatigueTracker;
 use crate::world_state::match_state::forced_substitution_tracker::ForcedSubstitutionTracker;
 use crate::world_state::match_state::foul_review::FoulReviewTracker;
+use crate::world_state::match_state::gravity_cache::{
+    calculate_team_offensive_gravity, MatchGravityCache,
+};
 use crate::world_state::match_state::impulse::ImpulseTracker;
 use crate::world_state::match_state::matchday_squad::MatchdaySquad;
 use crate::world_state::match_state::officiating::OfficiatingTracker;
@@ -20,6 +24,8 @@ use crate::world_state::match_state::play_call_efficacy::PlayCallEfficacyTracker
 use crate::world_state::match_state::play_calling::PlayCallTracker;
 use crate::world_state::match_state::referee_registry::RefereeRegistry;
 use crate::world_state::match_state::score::MatchScoreboard;
+use crate::team_strength::{calculate_team_match_power, TeamMatchPower};
+use crate::world_state::match_state::team_power::MatchPowerCache;
 use crate::world_state::match_state::teams::TeamRegistry;
 use arlo_domain::pitch::Pitch;
 use arlo_domain::{
@@ -43,7 +49,6 @@ pub struct MatchState {
     pub(crate) injury_catalog: Arc<InjuryCatalog>,
     pub(crate) player_injury_profiles: HashMap<Uuid, PlayerInjuryProfile>,
     pub(crate) possession: PossessionSnapshot,
-    pub(crate) spatial_map: DynamicSpatialMap,
     pub(crate) clock: MatchClock,
     pub(crate) real_time: RealTimeAccumulator,
     pub(crate) rng_provider: RngProvider,
@@ -61,9 +66,17 @@ pub struct MatchState {
     pub(crate) kick_foul: KickFoulTracker,
     pub(crate) added_time: AddedTimeTracker,
     pub(crate) forced_substitution_tracker: ForcedSubstitutionTracker,
+    pub(crate) power_cache: MatchPowerCache,
+    pub(crate) gravity_cache: MatchGravityCache,
+    pub(crate) tuning: Arc<EngineTuning>,
+    pub(crate) match_date_unix_seconds: i64,
 }
 
 impl MatchState {
+    pub fn match_date_unix_seconds(&self) -> i64 {
+        self.match_date_unix_seconds
+    }
+
     pub fn attribute_table_for(&self, player_id: &Uuid) -> &PlayerAttributeTable {
         self.teams
             .player_attribute_table(player_id)
@@ -100,14 +113,6 @@ impl MatchState {
 
     pub fn possession_mut(&mut self) -> &mut PossessionSnapshot {
         &mut self.possession
-    }
-
-    pub fn spatial_map(&self) -> &DynamicSpatialMap {
-        &self.spatial_map
-    }
-
-    pub fn spatial_map_mut(&mut self) -> &mut DynamicSpatialMap {
-        &mut self.spatial_map
     }
 
     pub fn clock(&self) -> &MatchClock {
@@ -182,5 +187,85 @@ impl MatchState {
 
     pub fn kick_foul_mut(&mut self) -> &mut KickFoulTracker {
         &mut self.kick_foul
+    }
+
+    pub fn power_cache(&self) -> &MatchPowerCache {
+        &self.power_cache
+    }
+
+    pub fn power_cache_mut(&mut self) -> &mut MatchPowerCache {
+        &mut self.power_cache
+    }
+
+    pub fn home_team_power(&self) -> TeamMatchPower {
+        self.power_cache.home_power()
+    }
+
+    pub fn away_team_power(&self) -> TeamMatchPower {
+        self.power_cache.away_power()
+    }
+
+    pub fn power_for_team(&self, team_id: Uuid) -> TeamMatchPower {
+        self.power_cache
+            .power_for_team(team_id, self.teams.home_team_id())
+    }
+
+    pub fn gravity_cache(&self) -> &MatchGravityCache {
+        &self.gravity_cache
+    }
+
+    pub fn gravity_cache_mut(&mut self) -> &mut MatchGravityCache {
+        &mut self.gravity_cache
+    }
+
+    pub fn home_offensive_gravity(&self) -> OffensiveGravity {
+        self.gravity_cache.home_gravity()
+    }
+
+    pub fn away_offensive_gravity(&self) -> OffensiveGravity {
+        self.gravity_cache.away_gravity()
+    }
+
+    pub fn offensive_gravity_for_team(&self, team_id: Uuid) -> OffensiveGravity {
+        self.gravity_cache
+            .gravity_for_team(team_id, self.teams.home_team_id())
+    }
+
+    pub fn tuning(&self) -> &EngineTuning {
+        &self.tuning
+    }
+
+    pub fn tuning_arc(&self) -> Arc<EngineTuning> {
+        Arc::clone(&self.tuning)
+    }
+
+    pub fn invalidate_team_power(&mut self) {
+        self.power_cache.mark_dirty();
+        self.gravity_cache.mark_dirty();
+    }
+
+    pub fn refresh_team_powers(&mut self) {
+        let home_id = self.teams.home_team_id();
+        let away_id = self.teams.away_team_id();
+        let home_power = calculate_team_match_power(self, home_id);
+        let away_power = calculate_team_match_power(self, away_id);
+        let home_gravity = calculate_team_offensive_gravity(self, home_id);
+        let away_gravity = calculate_team_offensive_gravity(self, away_id);
+        let period = self.clock.period();
+        let seconds = self.clock.seconds_in_period();
+        self.power_cache
+            .update(home_power, away_power, period, seconds);
+        self.gravity_cache
+            .update(home_gravity, away_gravity, period, seconds);
+    }
+
+    pub fn refresh_team_powers_if_needed(&mut self) {
+        let period = self.clock.period();
+        let seconds = self.clock.seconds_in_period();
+        if self.power_cache.should_refresh(period, seconds, 180.0)
+            || self.gravity_cache.should_refresh(period, seconds, 180.0)
+        {
+            self.refresh_team_powers();
+        }
     }
 }

@@ -32,13 +32,11 @@ use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
 use crate::resolution::{AttributedDuelOutcome, DuelKind};
 use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::MatchState;
-use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
-use arlo_domain::{KickFoulDecisionKind, PitchZone};
+use arlo_domain::KickFoulDecisionKind;
 use arlo_events::{
     CountdownReason, EventArtroPlacement, EventSink, MatchClockInstant, MatchEvent,
     SubstitutionReason, TimeCallReason,
 };
-use arlo_math::units::Position as VectorPosition;
 use arlo_tactics::PlayCallCategory;
 use uuid::Uuid;
 
@@ -70,16 +68,13 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         self.sink.record(create_envelope(seq, clock_inst, event));
     }
 
-    pub fn emit_drives(&mut self, artrine_id: Uuid, drive_row_indices: &[usize]) {
-        for &row_index in drive_row_indices {
+    pub fn emit_drives(&mut self, artrine_id: Uuid, drives_count: u32, placement: EventArtroPlacement) {
+        for _ in 0..drives_count {
             self.state.increment_drives();
-            let rx = ((row_index as f64) + 1.0) * ARTRO_ROW_SPACING_MIRIM;
             let drive_event = translate_drive_recorded(
                 artrine_id,
-                row_index,
-                EventArtroPlacement::Central,
                 self.state.drives_in_current_series(),
-                rx,
+                placement,
             );
             self.publish(drive_event);
         }
@@ -148,7 +143,6 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         recovering_player_id: Option<Uuid>,
         lost_by_player_id: Option<Uuid>,
         in_live_play: bool,
-        point: VectorPosition,
     ) {
         let turnover_event = translate_turnover(
             offense_team_id,
@@ -156,7 +150,6 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
             recovering_player_id,
             lost_by_player_id,
             in_live_play,
-            point,
         );
         self.publish(turnover_event);
     }
@@ -165,11 +158,10 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         &mut self,
         offense_team_id: Uuid,
         last_player_id: Option<Uuid>,
-        point: VectorPosition,
         was_immediate: bool,
     ) {
         let oob_event =
-            translate_out_of_bounds(offense_team_id, last_player_id, point, was_immediate);
+            translate_out_of_bounds(offense_team_id, last_player_id, was_immediate);
         self.publish(oob_event);
     }
 
@@ -214,22 +206,12 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
         energy: f64,
         w_bal: f64,
         distance_delta_mirim: f64,
-        high_intensity_distance_mirim: f64,
-        low_intensity_distance_mirim: f64,
-        metabolic_energy_joules: f64,
-        zone: PitchZone,
-        peak_speed_meters_per_sec: f64,
     ) {
         let strain_ev = translate_physical_strain_recorded(
             player_id,
             energy,
             w_bal,
             distance_delta_mirim,
-            high_intensity_distance_mirim,
-            low_intensity_distance_mirim,
-            metabolic_energy_joules,
-            zone,
-            peak_speed_meters_per_sec,
         );
         self.publish(strain_ev);
     }

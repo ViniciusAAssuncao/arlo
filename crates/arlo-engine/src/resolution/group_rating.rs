@@ -1,14 +1,8 @@
+use crate::attributes::profiles::AttributeProfile as DuelProfile;
 use crate::attributes::{PlayerAttributeTable, DEFAULT_PLAYER_ATTRIBUTE_TABLE};
 use crate::lineup_runtime::calculate_fit_for_position;
-use crate::physical::systems::degradation::extract_effective_attribute_value;
+use crate::physical::systems::degradation::{extract_effective_attribute_value, DegradationContext};
 use crate::physical::PhysicalState;
-use crate::resolution::duel_profiles::DuelProfile;
-use crate::weighting::apply_saturation;
-use arlo_domain::sport_constants::{
-    ATTRIBUTE_SATURATION_THRESHOLD, GROUP_AGGREGATION_SATURATION_MULTIPLIER,
-    GROUP_AGGREGATION_SATURATION_THRESHOLD, GROUP_SATURATION_MULTIPLIER,
-    GROUP_SATURATION_THRESHOLD,
-};
 use arlo_domain::{AttributeKey, Player, Position};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -72,22 +66,10 @@ pub fn calculate_player_duel_rating_from_table(
     profile: &DuelProfile,
     state: &PhysicalState,
 ) -> f64 {
-    let mut total_weight = 0.0;
-    let mut accumulated = 0.0;
-
-    for w in profile.weights() {
-        if w.weight > 0.0 {
-            let val = extract_effective_attribute_value(table, w.key, state);
-            accumulated += val * w.weight;
-            total_weight += w.weight;
-        }
-    }
-
-    let raw = if total_weight > 0.0 {
-        accumulated / total_weight
-    } else {
-        0.0
-    };
+    let deg_ctx = DegradationContext::new(state);
+    let raw = profile.evaluate_weighted_average(|key| {
+        extract_effective_attribute_value(table, key, &deg_ctx)
+    });
     let fit = calculate_fit_for_position(player, functional_position);
     raw * fit.efficiency_multiplier()
 }
@@ -122,31 +104,22 @@ pub fn calculate_group_rating(ratings: &[f64]) -> f64 {
     if ratings.is_empty() {
         return 0.0;
     }
-    let mut sorted = ratings.to_vec();
-    sorted.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-    let lead = sorted[0];
-    if sorted.len() == 1 {
-        return lead;
+    if ratings.len() == 1 {
+        return ratings[0];
     }
-
-    let mut helper_sum = 0.0;
-    for &rating in &sorted[1..] {
-        let raw_contrib = (rating / ATTRIBUTE_SATURATION_THRESHOLD) * GROUP_SATURATION_THRESHOLD;
-        let sat_contrib = apply_saturation(
-            raw_contrib,
-            GROUP_SATURATION_THRESHOLD,
-            GROUP_SATURATION_MULTIPLIER,
-        );
-        helper_sum += sat_contrib;
+    let mut max_rating = ratings[0];
+    let mut sum_helpers = 0.0;
+    for &rating in ratings {
+        if rating > max_rating {
+            sum_helpers += max_rating;
+            max_rating = rating;
+        } else {
+            sum_helpers += rating;
+        }
     }
-
-    let aggregated_bonus = apply_saturation(
-        helper_sum,
-        GROUP_AGGREGATION_SATURATION_THRESHOLD,
-        GROUP_AGGREGATION_SATURATION_MULTIPLIER,
-    );
-
-    lead + aggregated_bonus
+    let helper_count = (ratings.len() - 1) as f64;
+    let avg_helper = sum_helpers / helper_count;
+    max_rating * 0.75 + avg_helper * 0.25
 }
 
 fn resolve_participant_rating(
@@ -201,25 +174,9 @@ pub fn calculate_anchored_rating(anchor_rating: f64, helper_ratings: &[f64]) -> 
     if helper_ratings.is_empty() {
         return anchor_rating;
     }
-
-    let mut helper_sum = 0.0;
-    for &rating in helper_ratings {
-        let raw_contrib = (rating / ATTRIBUTE_SATURATION_THRESHOLD) * GROUP_SATURATION_THRESHOLD;
-        let sat_contrib = apply_saturation(
-            raw_contrib,
-            GROUP_SATURATION_THRESHOLD,
-            GROUP_SATURATION_MULTIPLIER,
-        );
-        helper_sum += sat_contrib;
-    }
-
-    let aggregated_bonus = apply_saturation(
-        helper_sum,
-        GROUP_AGGREGATION_SATURATION_THRESHOLD,
-        GROUP_AGGREGATION_SATURATION_MULTIPLIER,
-    );
-
-    anchor_rating + aggregated_bonus
+    let sum: f64 = helper_ratings.iter().copied().sum();
+    let avg_helper = sum / (helper_ratings.len() as f64);
+    anchor_rating * 0.75 + avg_helper * 0.25
 }
 
 pub fn calculate_anchored_side_rating(

@@ -17,10 +17,8 @@ pub async fn insert(
             new_offense_team_id,
             recovering_player_id,
             lost_by_player_id,
-            in_live_play,
-            point_x,
-            point_y
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+            in_live_play
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&row.id)
     .bind(&row.match_id)
@@ -32,8 +30,6 @@ pub async fn insert(
     .bind(&row.recovering_player_id)
     .bind(&row.lost_by_player_id)
     .bind(row.in_live_play)
-    .bind(row.point_x)
-    .bind(row.point_y)
     .execute(&mut **tx)
     .await?;
 

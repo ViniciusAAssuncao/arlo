@@ -8,7 +8,7 @@ pub fn perceives_bad_foul_call<R: Rng + ?Sized>(
     judging_ability: f64,
     rng: &mut R,
 ) -> bool {
-    let model = build_challenge_judgment_model(challenge_judgment, judging_ability);
+    let judgment_score = build_challenge_judgment_model(challenge_judgment, judging_ability);
     let signal_present = !original_call_correct;
-    sample_detection_outcome(&model, signal_present, rng)
+    sample_detection_outcome(judgment_score, signal_present, rng)
 }

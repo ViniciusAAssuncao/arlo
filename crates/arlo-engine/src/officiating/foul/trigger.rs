@@ -1,64 +1,75 @@
-use crate::officiating::foul::attribution::recklessness_score;
+use crate::attributes::PlayerAttributeTable;
 use crate::officiating::foul::context::FoulEvaluationContext;
 use crate::physical::systems::degradation::calculate_physical_exhaustion;
-use arlo_domain::sport_constants::{
-    ATTRIBUTE_MAX, BASE_FOUL_TRIGGER_LOGIT, FOUL_FATIGUE_LOGIT_SCALE,
-    FOUL_LEVERAGE_LOGIT_SCALE, FOUL_NET_ADVANTAGE_LOGIT_SCALE,
-    FOUL_RECKLESSNESS_LOGIT_SCALE, FOUL_REFEREE_CONSISTENCY_NOISE_SCALE,
-    FOUL_REFEREE_RIGOR_LOGIT_SCALE,
-};
+use crate::resolution::{resolve_contest, ContestRequest, ContestOrientation};
+use arlo_domain::sport_constants::ATTRIBUTE_MAX;
 use arlo_domain::AttributeKey;
-use arlo_math::stats::contrast::logistic;
-use arlo_math::stats::noise::sample_gaussian_noise;
-use arlo_math::Probability;
 use rand::Rng;
 
-pub fn evaluate_foul_trigger_probability(ctx: &FoulEvaluationContext<'_>) -> f64 {
-    let net_advantage_term =
-        ctx.duel_outcome.net_advantage().abs() * FOUL_NET_ADVANTAGE_LOGIT_SCALE;
+fn player_recklessness_rating(table: &PlayerAttributeTable) -> f64 {
+    let strength = table.get(AttributeKey::Strength);
+    let controlled_aggression = table.get(AttributeKey::ControlledAggression);
+    (strength - controlled_aggression).max(0.0)
+}
 
-    let recklessness =
-        recklessness_score(ctx.carrier_table) + recklessness_score(ctx.defender_table);
-    let recklessness_term = recklessness * FOUL_RECKLESSNESS_LOGIT_SCALE;
+pub fn build_foul_trigger_request<'a>(ctx: &'a FoulEvaluationContext<'a>) -> ContestRequest<'a> {
+    let carrier_exhaustion = calculate_physical_exhaustion(&ctx.carrier_physical_state);
+    let defender_exhaustion = calculate_physical_exhaustion(&ctx.defender_physical_state);
 
-    let physicality_term = ctx.duel_context.physicality_logit_offset();
-    let aggression_term = ctx.duel_context.aggression_logit_offset();
+    let carrier_reckless = player_recklessness_rating(ctx.carrier_table);
+    let defender_reckless = player_recklessness_rating(ctx.defender_table);
 
-    let combined_exhaustion = calculate_physical_exhaustion(&ctx.carrier_physical_state)
-        + calculate_physical_exhaustion(&ctx.defender_physical_state);
-    let fatigue_term = combined_exhaustion * FOUL_FATIGUE_LOGIT_SCALE;
+    let carrier_imprudence = carrier_reckless * (1.0 + 0.5 * carrier_exhaustion);
+    let defender_imprudence = defender_reckless * (1.0 + 0.5 * defender_exhaustion);
+    let mean_imprudence = (carrier_imprudence + defender_imprudence) * 0.5;
 
-    let leverage_term = ctx.game_state_pressure.urgency_index() * FOUL_LEVERAGE_LOGIT_SCALE;
+    let contact_stimulus = ctx.contact_severity * 4.0 + ctx.duel_outcome.net_advantage().abs() * 0.25;
+    let urgency_bonus = ctx.game_state_pressure.urgency_index() * 0.35;
+    let attacker_imprudence_rating = mean_imprudence + contact_stimulus + urgency_bonus;
 
-    let norm_rigor = (ctx
+    let referee_rigor: f64 = ctx
         .head_referee_table
         .get(AttributeKey::Rigor)
-        .clamp(0.0, ATTRIBUTE_MAX))
-        / ATTRIBUTE_MAX;
-    let rigor_term = norm_rigor * FOUL_REFEREE_RIGOR_LOGIT_SCALE;
+        .clamp(0.0_f64, ATTRIBUTE_MAX);
+    let referee_tolerance_rating: f64 = (25.0_f64 - referee_rigor).clamp(5.0_f64, 30.0_f64);
 
-    BASE_FOUL_TRIGGER_LOGIT
-        + net_advantage_term
-        + recklessness_term
-        + physicality_term
-        + aggression_term
-        + fatigue_term
-        + leverage_term
-        + rigor_term
+    ContestRequest::for_contest(
+        ctx.duel_outcome.kind(),
+        attacker_imprudence_rating,
+        referee_tolerance_rating,
+        &ctx.duel_context.with_orientation(ContestOrientation::Neutral),
+    )
+    .with_slope(0.28)
+}
+
+pub fn resolve_foul_trigger<R: Rng + ?Sized>(
+    ctx: &FoulEvaluationContext<'_>,
+    rng: &mut R,
+) -> (bool, f64) {
+    let req = build_foul_trigger_request(ctx);
+    let outcome = resolve_contest(req, rng);
+    (outcome.attacker_won(), outcome.win_probability().value())
 }
 
 pub fn sample_foul_trigger<R: Rng + ?Sized>(ctx: &FoulEvaluationContext<'_>, rng: &mut R) -> bool {
-    let base_logit = evaluate_foul_trigger_probability(ctx);
+    resolve_foul_trigger(ctx, rng).0
+}
 
-    let consistency = ctx
-        .head_referee_table
-        .get(AttributeKey::Consistency)
-        .clamp(0.0, ATTRIBUTE_MAX);
-    let norm_consistency = consistency / ATTRIBUTE_MAX;
-    let noise_scale = FOUL_REFEREE_CONSISTENCY_NOISE_SCALE * (1.0 + (1.0 - norm_consistency));
-    let jitter = sample_gaussian_noise(noise_scale, rng);
-
-    let total_logit = base_logit + jitter;
-    let prob = Probability::new_clamped(logistic(total_logit));
-    prob.sample(rng)
+pub fn evaluate_foul_trigger_probability(ctx: &FoulEvaluationContext<'_>) -> f64 {
+    let req = build_foul_trigger_request(ctx);
+    let slope = req.slope_override.unwrap_or(0.28);
+    let mut offset = req.context.aggression_logit_offset() + req.context.physicality_logit_offset();
+    if req.context.attacker_is_home() {
+        offset += req.context.home_advantage_duel_logit();
+    }
+    if req.context.defender_is_home() {
+        offset -= req.context.home_advantage_duel_logit();
+    }
+    arlo_math::stats::contrast::bradley_terry_with_offset(
+        req.attacker_rating,
+        req.defender_rating,
+        slope,
+        offset,
+    )
+    .value()
 }

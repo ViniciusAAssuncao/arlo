@@ -126,13 +126,11 @@ impl IntoSnapshot for PlayerScoringAttemptStats {
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
-pub struct PlayerScoringAttemptsAggregator {
+pub struct PlayerScoringAttemptAggregator {
     stats: HashMap<Uuid, PlayerScoringAttemptStats>,
 }
 
-pub type PlayerScoringAttemptAggregator = PlayerScoringAttemptsAggregator;
-
-impl PlayerScoringAttemptsAggregator {
+impl PlayerScoringAttemptAggregator {
     pub fn new() -> Self {
         Self {
             stats: HashMap::new(),
@@ -178,7 +176,7 @@ impl PlayerScoringAttemptsAggregator {
     }
 }
 
-impl IntoSnapshot for PlayerScoringAttemptsAggregator {
+impl IntoSnapshot for PlayerScoringAttemptAggregator {
     type Snapshot = HashMap<Uuid, PlayerScoringAttemptSnapshot>;
 
     fn into_snapshot(&self) -> Self::Snapshot {
@@ -189,7 +187,7 @@ impl IntoSnapshot for PlayerScoringAttemptsAggregator {
     }
 }
 
-impl StatAggregator for PlayerScoringAttemptsAggregator {
+impl StatAggregator for PlayerScoringAttemptAggregator {
     fn handle_event(&mut self, event: &MatchEvent) {
         match event {
             MatchEvent::GoalPoint(e) => {

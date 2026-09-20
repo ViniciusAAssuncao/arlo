@@ -19,10 +19,10 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.7.1"
 edition = "2021"
 authors = ["Hadab Institute"]
-license = "MIT OR Apache-2.0"
+license = "MIT"
 
 [workspace.dependencies]
 serde                = { version = "1.0.197", features = ["derive"] }

@@ -1,4 +1,4 @@
-use arlo_stats::PlayerAssistsStats;
+use arlo_stats::PlayerAssistStats;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,7 +19,7 @@ impl MatchPlayerAssistRow {
         }
     }
 
-    pub fn from_stats(id: Uuid, match_id: Uuid, stats: &PlayerAssistsStats) -> Self {
+    pub fn from_stats(id: Uuid, match_id: Uuid, stats: &PlayerAssistStats) -> Self {
         Self::new(id, match_id, stats.player_id, stats.goalpoint_assists)
     }
 }

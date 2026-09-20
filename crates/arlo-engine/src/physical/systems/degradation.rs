@@ -1,14 +1,54 @@
 use crate::attributes::PlayerAttributeTable;
-use crate::physical::models::metabolic_power::{
-    calculate_player_critical_speed_from_table, calculate_player_max_sprint_speed_from_table,
-};
 use crate::physical::state::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::spatial::decision_vector::extract_attribute_value;
-use arlo_domain::{AttributeKey, Player};
-use arlo_math::units::Speed;
-use std::collections::HashMap;
-use uuid::Uuid;
+use arlo_domain::AttributeKey;
+
+#[derive(Debug, Clone, Copy)]
+pub struct DegradationContext<'a> {
+    physical_state: &'a PhysicalState,
+    impulse_state: Option<&'a ImpulseState>,
+    baseline: f64,
+}
+
+impl<'a> DegradationContext<'a> {
+    pub fn new(physical_state: &'a PhysicalState) -> Self {
+        Self {
+            physical_state,
+            impulse_state: None,
+            baseline: 50.0,
+        }
+    }
+
+    pub fn with_impulse(
+        physical_state: &'a PhysicalState,
+        impulse_state: &'a ImpulseState,
+        baseline: f64,
+    ) -> Self {
+        Self {
+            physical_state,
+            impulse_state: Some(impulse_state),
+            baseline,
+        }
+    }
+
+    pub fn physical_state(&self) -> &'a PhysicalState {
+        self.physical_state
+    }
+
+    pub fn impulse_state(&self) -> Option<&'a ImpulseState> {
+        self.impulse_state
+    }
+
+    pub fn baseline(&self) -> f64 {
+        self.baseline
+    }
+}
+
+impl<'a> From<&'a PhysicalState> for DegradationContext<'a> {
+    fn from(physical_state: &'a PhysicalState) -> Self {
+        Self::new(physical_state)
+    }
+}
 
 pub fn is_physical_attribute(key: AttributeKey) -> bool {
     matches!(
@@ -40,18 +80,18 @@ pub fn physical_attribute_modifier(state: &PhysicalState) -> f64 {
     mod_val.clamp(0.4, 1.0)
 }
 
-pub fn cognitive_technical_modifier_with_impulse(
-    state: &PhysicalState,
+pub fn cognitive_technical_modifier(
+    context: &DegradationContext<'_>,
     concentration: f64,
-    impulse_state: &ImpulseState,
-    baseline: f64,
 ) -> f64 {
     let norm_conc = concentration.clamp(0.0, 20.0) / 20.0;
     let critical_threshold = (0.45 - 0.2 * norm_conc).clamp(0.15, 0.6);
-    let current_energy = state.energy() * (0.85 + 0.15 * state.w_prime_balance());
+    let current_energy = context.physical_state.energy()
+        * (0.85 + 0.15 * context.physical_state.w_prime_balance());
 
     let base_mod = if current_energy >= critical_threshold {
-        let buffer = (current_energy - critical_threshold) / (1.0 - critical_threshold).max(1e-5);
+        let buffer =
+            (current_energy - critical_threshold) / (1.0 - critical_threshold).max(1e-5);
         (0.94 + 0.06 * buffer).clamp(0.94, 1.0)
     } else {
         let deficit = (critical_threshold - current_energy) / critical_threshold.max(1e-5);
@@ -60,128 +100,65 @@ pub fn cognitive_technical_modifier_with_impulse(
         (0.6 + 0.34 * decay).clamp(0.5, 0.94)
     };
 
-    let impulse_delta = impulse_state.accumulator() - baseline;
-    let impulse_modifier = if impulse_delta >= 0.0 {
-        let norm_excess = impulse_delta / 50.0;
-        0.05 * (2.0 / (1.0 + (-2.5 * norm_excess).exp()) - 1.0)
+    let impulse_modifier = if let Some(impulse_state) = context.impulse_state {
+        let impulse_delta = impulse_state.accumulator() - context.baseline;
+        if impulse_delta >= 0.0 {
+            let norm_excess = impulse_delta / 50.0;
+            0.05 * (2.0 / (1.0 + (-2.5 * norm_excess).exp()) - 1.0)
+        } else {
+            let norm_deficit = -impulse_delta / 50.0;
+            -0.12 * (2.0 / (1.0 + (-2.5 * norm_deficit).exp()) - 1.0)
+        }
     } else {
-        let norm_deficit = -impulse_delta / 50.0;
-        -0.12 * (2.0 / (1.0 + (-2.5 * norm_deficit).exp()) - 1.0)
+        0.0
     };
 
     (base_mod + impulse_modifier).clamp(0.4, 1.05)
 }
 
-pub fn cognitive_technical_modifier(state: &PhysicalState, concentration: f64) -> f64 {
-    cognitive_technical_modifier_with_impulse(
-        state,
-        concentration,
-        &ImpulseState::from_baseline(50.0),
-        50.0,
-    )
-}
-
-pub fn attribute_degradation_modifier_with_impulse(
-    key: AttributeKey,
-    state: &PhysicalState,
-    concentration: f64,
-    impulse_state: &ImpulseState,
-    baseline: f64,
-) -> f64 {
-    if is_physical_attribute(key) {
-        physical_attribute_modifier(state)
-    } else {
-        cognitive_technical_modifier_with_impulse(state, concentration, impulse_state, baseline)
-    }
-}
-
 pub fn attribute_degradation_modifier(
     key: AttributeKey,
-    state: &PhysicalState,
+    context: &DegradationContext<'_>,
     concentration: f64,
 ) -> f64 {
     if is_physical_attribute(key) {
-        physical_attribute_modifier(state)
+        physical_attribute_modifier(context.physical_state)
     } else {
-        cognitive_technical_modifier(state, concentration)
+        cognitive_technical_modifier(context, concentration)
     }
-}
-
-pub fn extract_effective_attribute_value_with_impulse(
-    table: &PlayerAttributeTable,
-    key: AttributeKey,
-    state: &PhysicalState,
-    impulse_state: &ImpulseState,
-    baseline: f64,
-) -> f64 {
-    let base_val = extract_attribute_value(table, key);
-    let concentration = extract_attribute_value(table, AttributeKey::Concentration);
-    let modifier = attribute_degradation_modifier_with_impulse(
-        key,
-        state,
-        concentration,
-        impulse_state,
-        baseline,
-    );
-    (base_val * modifier).clamp(0.0, 20.0)
 }
 
 pub fn extract_effective_attribute_value(
     table: &PlayerAttributeTable,
     key: AttributeKey,
-    state: &PhysicalState,
+    context: &DegradationContext<'_>,
 ) -> f64 {
-    let base_val = extract_attribute_value(table, key);
-    let concentration = extract_attribute_value(table, AttributeKey::Concentration);
-    let modifier = attribute_degradation_modifier(key, state, concentration);
+    let base_val = table.get(key);
+    let concentration = table.get(AttributeKey::Concentration);
+    let modifier = attribute_degradation_modifier(key, context, concentration);
     (base_val * modifier).clamp(0.0, 20.0)
 }
 
-pub fn calculate_effective_player_speed_with_impulse_from_table(
-    player: &Player,
+pub fn extract_effective_attributes_batch<const N: usize>(
     table: &PlayerAttributeTable,
-    state: &PhysicalState,
-    impulse_state: &ImpulseState,
-) -> Speed {
-    let max_speed = calculate_player_max_sprint_speed_from_table(player, table).value();
-    let crit_speed = calculate_player_critical_speed_from_table(player, table, 0).value();
-    let w_bal = state.w_prime_balance().clamp(0.0, 1.0);
-    let phys_mod = physical_attribute_modifier(state);
-    let speed_ceiling = crit_speed + (max_speed - crit_speed).max(0.0) * w_bal;
-    let _ = impulse_state;
-    let final_speed = speed_ceiling * phys_mod;
-    Speed::new(final_speed.max(1.0))
-}
-
-pub fn calculate_effective_player_speed_with_impulse(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    state: &PhysicalState,
-    impulse_state: &ImpulseState,
-) -> Speed {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    calculate_effective_player_speed_with_impulse_from_table(player, &table, state, impulse_state)
-}
-
-pub fn calculate_effective_player_speed_from_table(
-    player: &Player,
-    table: &PlayerAttributeTable,
-    state: &PhysicalState,
-) -> Speed {
-    let max_speed = calculate_player_max_sprint_speed_from_table(player, table).value();
-    let crit_speed = calculate_player_critical_speed_from_table(player, table, 0).value();
-    let w_bal = state.w_prime_balance().clamp(0.0, 1.0);
-    let phys_mod = physical_attribute_modifier(state);
-    let speed_ceiling = crit_speed + (max_speed - crit_speed).max(0.0) * w_bal;
-    let final_speed = speed_ceiling * phys_mod;
-    Speed::new(final_speed.max(1.0))
-}
-
-pub fn calculate_effective_player_speed(
-    player: &Player,
-    attribute_keys: &HashMap<Uuid, AttributeKey>,
-    state: &PhysicalState,
-) -> Speed {
-    let table = PlayerAttributeTable::from_player(player, attribute_keys);
-    calculate_effective_player_speed_from_table(player, &table, state)
+    keys: [AttributeKey; N],
+    context: &DegradationContext<'_>,
+) -> [f64; N] {
+    let concentration = table.get(AttributeKey::Concentration);
+    let cog_mod = cognitive_technical_modifier(context, concentration);
+    let phys_mod = physical_attribute_modifier(context.physical_state);
+    let mut out = [0.0; N];
+    let mut i = 0;
+    while i < N {
+        let key = keys[i];
+        let base_val = table.get(key);
+        let modifier = if is_physical_attribute(key) {
+            phys_mod
+        } else {
+            cog_mod
+        };
+        out[i] = (base_val * modifier).clamp(0.0, 20.0);
+        i += 1;
+    }
+    out
 }

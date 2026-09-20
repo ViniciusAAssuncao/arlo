@@ -89,6 +89,7 @@ impl MatchState {
 
     pub fn activate_tactical_profile(&mut self, team_id: Uuid, profile: TeamTacticalProfile) {
         self.teams.activate_tactical_profile(team_id, profile);
+        self.invalidate_team_power();
     }
 
     pub fn home_instructions(&self) -> &TeamInstructions {

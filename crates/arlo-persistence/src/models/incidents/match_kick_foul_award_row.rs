@@ -12,12 +12,9 @@ pub struct MatchKickFoulAwardRow {
     pub awarded_team_id: String,
     pub offending_team_id: String,
     pub scoring_tier: String,
-    pub spot_x_mirim: f64,
-    pub spot_y_mirim: f64,
 }
 
 impl MatchKickFoulAwardRow {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Uuid,
         match_id: Uuid,
@@ -27,8 +24,6 @@ impl MatchKickFoulAwardRow {
         awarded_team_id: Uuid,
         offending_team_id: Uuid,
         scoring_tier: impl Into<String>,
-        spot_x_mirim: f64,
-        spot_y_mirim: f64,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -39,8 +34,6 @@ impl MatchKickFoulAwardRow {
             awarded_team_id: awarded_team_id.to_string(),
             offending_team_id: offending_team_id.to_string(),
             scoring_tier: scoring_tier.into(),
-            spot_x_mirim,
-            spot_y_mirim,
         }
     }
 
@@ -65,8 +58,6 @@ impl MatchKickFoulAwardRow {
             event.awarded_team_id(),
             event.offending_team_id(),
             tier_str,
-            event.spot_x_mirim(),
-            event.spot_y_mirim(),
         )
     }
 }

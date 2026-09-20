@@ -1,12 +1,10 @@
 use crate::attributes::PlayerAttributeTable;
 use crate::physical::systems::degradation::{
-    calculate_physical_exhaustion, extract_effective_attribute_value_with_impulse,
+    calculate_physical_exhaustion, extract_effective_attributes_batch, DegradationContext,
 };
 use crate::physical::PhysicalState;
 use crate::psychology::state::ImpulseState;
-use crate::psychology::systems::baseline::{
-    calculate_player_impulse_baseline, calculate_player_impulse_baseline_from_table_with_profile,
-};
+use crate::psychology::systems::baseline::calculate_player_impulse_baseline;
 use arlo_domain::{ArtrineDecisionKind, AttributeKey, Player};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -35,7 +33,7 @@ impl RiskProfile {
             loss_aversion_lambda: loss_aversion_lambda.clamp(1.10, 4.50),
             gain_diminishing_alpha: gain_diminishing_alpha.clamp(0.60, 1.00),
             loss_diminishing_beta: loss_diminishing_beta.clamp(0.60, 1.00),
-            probability_distortion_gamma: probability_distortion_gamma.clamp(0.40, 1.00),
+            probability_distortion_gamma: probability_distortion_gamma.clamp(0.85, 1.00),
             physical_exhaustion: 0.0,
         }
     }
@@ -53,7 +51,7 @@ impl RiskProfile {
             loss_aversion_lambda: loss_aversion_lambda.clamp(1.10, 4.50),
             gain_diminishing_alpha: gain_diminishing_alpha.clamp(0.60, 1.00),
             loss_diminishing_beta: loss_diminishing_beta.clamp(0.60, 1.00),
-            probability_distortion_gamma: probability_distortion_gamma.clamp(0.40, 1.00),
+            probability_distortion_gamma: probability_distortion_gamma.clamp(0.85, 1.00),
             physical_exhaustion: physical_exhaustion.clamp(0.0, 1.0),
         }
     }
@@ -65,41 +63,25 @@ impl RiskProfile {
         impulse_state: &ImpulseState,
     ) -> Self {
         let profile = crate::caching::impulse_baseline_profile();
-        let baseline = calculate_player_impulse_baseline_from_table_with_profile(table, profile);
+        let baseline = calculate_player_impulse_baseline(table, profile);
 
-        let flair = extract_effective_attribute_value_with_impulse(
+        let deg_ctx = DegradationContext::with_impulse(physical_state, impulse_state, baseline);
+
+        let [flair, bravery, vision, decisions] = extract_effective_attributes_batch(
             table,
-            AttributeKey::Flair,
-            physical_state,
-            impulse_state,
-            baseline,
-        );
-        let bravery = extract_effective_attribute_value_with_impulse(
-            table,
-            AttributeKey::Bravery,
-            physical_state,
-            impulse_state,
-            baseline,
-        );
-        let vision = extract_effective_attribute_value_with_impulse(
-            table,
-            AttributeKey::Vision,
-            physical_state,
-            impulse_state,
-            baseline,
-        );
-        let decisions = extract_effective_attribute_value_with_impulse(
-            table,
-            AttributeKey::Decisions,
-            physical_state,
-            impulse_state,
-            baseline,
+            [
+                AttributeKey::Flair,
+                AttributeKey::Bravery,
+                AttributeKey::Vision,
+                AttributeKey::Decisions,
+            ],
+            &deg_ctx,
         );
 
-        let norm_flair = (flair.clamp(0.0, 20.0)) / 10.0;
-        let norm_bravery = (bravery.clamp(0.0, 20.0)) / 10.0;
-        let norm_vision = (vision.clamp(0.0, 20.0)) / 10.0;
-        let norm_decisions = (decisions.clamp(0.0, 20.0)) / 10.0;
+        let norm_flair = flair / 10.0;
+        let norm_bravery = bravery / 10.0;
+        let norm_vision = vision / 10.0;
+        let norm_decisions = decisions / 10.0;
 
         let physical_exhaustion = calculate_physical_exhaustion(physical_state);
 
@@ -129,10 +111,10 @@ impl RiskProfile {
         let gain_diminishing_alpha = (0.88 + 0.06 * (norm_vision - 1.0)).clamp(0.70, 1.00);
         let loss_diminishing_beta = (0.88 + 0.06 * (norm_decisions - 1.0)).clamp(0.70, 1.00);
 
-        let probability_distortion_gamma = (0.65 - 0.12 * (norm_flair - 1.0)
-            + 0.15 * (norm_decisions - 1.0)
-            - 0.10 * physical_exhaustion)
-            .clamp(0.40, 0.95);
+        let probability_distortion_gamma = (0.92 - 0.04 * (norm_flair - 1.0)
+            + 0.05 * (norm_decisions - 1.0)
+            - 0.03 * physical_exhaustion)
+            .clamp(0.85, 1.00);
 
         Self {
             tolerance_index,
@@ -159,7 +141,9 @@ impl RiskProfile {
         attribute_keys: &HashMap<Uuid, AttributeKey>,
         physical_state: &PhysicalState,
     ) -> Self {
-        let baseline = calculate_player_impulse_baseline(player, attribute_keys);
+        let table = PlayerAttributeTable::from_player(player, attribute_keys);
+        let profile = crate::caching::impulse_baseline_profile();
+        let baseline = calculate_player_impulse_baseline(&table, profile);
         Self::from_player_with_impulse(
             player,
             attribute_keys,
@@ -221,15 +205,7 @@ impl RiskProfile {
     }
 
     pub fn weight_probability(&self, p: f64) -> f64 {
-        let p_clamped = p.clamp(0.0001, 0.9999);
-        let g = self.probability_distortion_gamma;
-        let num = p_clamped.powf(g);
-        let den = (p_clamped.powf(g) + (1.0 - p_clamped).powf(g)).powf(1.0 / g);
-        if den > 1e-9 {
-            (num / den).clamp(0.0, 1.0)
-        } else {
-            p_clamped
-        }
+        p.clamp(0.0, 1.0)
     }
 
     pub fn risk_multiplier_for_action(&self, kind: ArtrineDecisionKind) -> f64 {
@@ -253,7 +229,7 @@ impl Default for RiskProfile {
             loss_aversion_lambda: 2.25,
             gain_diminishing_alpha: 0.88,
             loss_diminishing_beta: 0.88,
-            probability_distortion_gamma: 0.65,
+            probability_distortion_gamma: 1.0,
             physical_exhaustion: 0.0,
         }
     }

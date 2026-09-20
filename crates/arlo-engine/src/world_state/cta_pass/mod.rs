@@ -8,13 +8,13 @@ pub use kinematics::{calculate_pass_kinematics, PassKinematicsResult};
 pub use participants::{extract_participants, PhaseParticipants};
 
 use crate::error::EngineResult;
-use crate::possession::TouchActionType;
+use crate::possession::{locate_zone, TouchActionType};
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::DurationLedger;
 use crate::world_state::match_state::MatchState;
+use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
 use arlo_domain::{Player, Position as DomainPosition, SlotRole};
 use arlo_events::EventSink;
-use arlo_math::units::{Position as VectorPosition, MIRIM_TO_METERS};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -26,9 +26,9 @@ pub struct PassPhaseResult<'a> {
     pub pass_duel_outcome: AttributedDuelOutcome,
     pub pass_completed: bool,
     pub is_aerial: bool,
-    pub reception_point: VectorPosition,
+    pub reception_x_mirim: f64,
+    pub reception_y_mirim: f64,
     pub down_number: u32,
-    pub scrimmage_point: VectorPosition,
     pub scrimmage_x_mirim: f64,
     pub duration_ledger: DurationLedger,
 }
@@ -54,23 +54,20 @@ pub fn resolve_pass_phase<'a>(
     )?;
 
     let down_number = state.possession().down() as u32;
-    let scrimmage_point = state.possession().scrimmage_point();
-    let scrimmage_x_mirim = scrimmage_point.raw().0 / MIRIM_TO_METERS;
+    let scrimmage_x_mirim = state.possession().scrimmage_x_mirim();
 
-    let passer_pos = state
-        .spatial_map()
-        .get_position(&participants.passer.id())
-        .unwrap_or(scrimmage_point);
-    let artrine_pos = state
-        .spatial_map()
-        .get_position(&participants.artrine.id())
-        .unwrap_or(scrimmage_point);
-    let pass_rusher_pos = state
-        .spatial_map()
-        .get_position(&participants.pass_rusher.id())
-        .unwrap_or(scrimmage_point);
+    let pitch_length_mirim = state.pitch().length_mirim();
+    let norm_prox = if is_home_offense {
+        (scrimmage_x_mirim / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
+    } else {
+        ((pitch_length_mirim - scrimmage_x_mirim) / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
+    };
+    let passer_zone = locate_zone(
+        norm_prox,
+        pitch_length_mirim,
+        AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
+    );
 
-    let passer_zone = state.pitch().zone_at_position(passer_pos);
     let current_time = state.clock().seconds_in_period();
     state.possession_mut().live_sequence_mut().record_touch(
         participants.passer.id(),
@@ -95,14 +92,11 @@ pub fn resolve_pass_phase<'a>(
         state,
         &participants,
         pass_won,
-        passer_pos,
-        artrine_pos,
-        pass_rusher_pos,
         sink,
     );
 
     if kinematics.pass_completed {
-        let artrine_zone = state.pitch().zone_at_position(kinematics.reception_point);
+        let artrine_zone = passer_zone;
         state.possession_mut().live_sequence_mut().record_touch(
             participants.artrine.id(),
             TouchActionType::Reception,
@@ -119,9 +113,9 @@ pub fn resolve_pass_phase<'a>(
         pass_duel_outcome,
         pass_completed: kinematics.pass_completed,
         is_aerial: kinematics.is_aerial,
-        reception_point: kinematics.reception_point,
+        reception_x_mirim: kinematics.reception_x_mirim,
+        reception_y_mirim: kinematics.reception_y_mirim,
         down_number,
-        scrimmage_point,
         scrimmage_x_mirim,
         duration_ledger: kinematics.duration_ledger,
     })

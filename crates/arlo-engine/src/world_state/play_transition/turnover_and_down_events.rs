@@ -6,7 +6,6 @@ use crate::world_state::constants::IMMEDIATE_CONTROL_THRESHOLD_SECONDS;
 use crate::world_state::play_transition::possession_resolver::determine_countdown_reason;
 use crate::world_state::play_transition::publisher::EventPublisher;
 use arlo_events::EventSink;
-use arlo_math::units::MIRIM_TO_METERS;
 use arlo_math::Probability;
 
 pub fn resolve_turnover_and_down_events(
@@ -23,7 +22,6 @@ pub fn resolve_turnover_and_down_events(
             detailed_outcome.recovering_player_id,
             detailed_outcome.lost_by_player_id,
             !detailed_outcome.out_of_bounds,
-            detailed_outcome.last_valid_possession_point,
         );
     }
 
@@ -35,12 +33,11 @@ pub fn resolve_turnover_and_down_events(
         publisher.emit_out_of_bounds_event(
             detailed_outcome.offense_team_id,
             Some(detailed_outcome.artrine_id),
-            detailed_outcome.last_valid_possession_point,
             was_immediate,
         );
     }
 
-    let end_x_mirim = detailed_outcome.last_valid_possession_point.raw().0 / MIRIM_TO_METERS;
+    let end_x_mirim = detailed_outcome.last_valid_x_mirim;
     let new_down = transition_result.snapshot.down() as u32;
     let is_possession_change =
         transition_result.snapshot.role().offense() != detailed_outcome.offense_team_id;
