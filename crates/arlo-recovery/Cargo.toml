@@ -9,6 +9,7 @@ license.workspace = true
 arlo-db.workspace = true
 arlo-domain.workspace = true
 arlo-engine.workspace = true
+arlo-events.workspace = true
 arlo-persistence.workspace = true
 rand.workspace = true
 serde.workspace = true
