@@ -12,6 +12,7 @@ pub struct LeagueCalendarStageDefinitionRow {
     pub stage_order_index: i32,
     pub stage_type: String,
     pub leg_format: Option<String>,
+    pub entry_gap_days: i32,
 }
 
 impl LeagueCalendarStageDefinitionRow {
@@ -30,6 +31,7 @@ impl LeagueCalendarStageDefinitionRow {
             entry_rule,
             knockout_leg_format,
             schedule_blocks,
+            self.entry_gap_days as u32,
         )
         .map_err(Into::into)
     }

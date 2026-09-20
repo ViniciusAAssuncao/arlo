@@ -1,6 +1,7 @@
 use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::league_calendar::competition_group::CompetitionGroup;
 use crate::domain::league_calendar::games_per_week_policy::GamesPerWeekPolicy;
+use crate::domain::league_calendar::league_calendar_config_builder::LeagueCalendarConfigBuilder;
 use crate::domain::league_calendar::league_calendar_group_reference_validation::{
     validate_entry_rule_group_references, validate_group_order_indices_sequential,
     validate_no_duplicate_team_across_groups, validate_schedule_block_group_references,
@@ -10,6 +11,7 @@ use crate::domain::league_calendar::neutral_opener_policy::NeutralOpenerPolicy;
 use crate::domain::league_calendar::postponement_policy::PostponementPolicy;
 use crate::domain::league_calendar::promotion_relegation_policy::PromotionRelegationPolicy;
 use crate::domain::league_calendar::qta_weighting_policy::QtaWeightingPolicy;
+use crate::domain::league_calendar::rest_gap_policy::RestGapPolicy;
 use crate::domain::league_calendar::schedule_algorithm_kind::ScheduleAlgorithmKind;
 use crate::domain::league_calendar::season_timing::SeasonTiming;
 use crate::domain::league_calendar::spa_scoring_policy::SpaScoringPolicy;
@@ -27,6 +29,7 @@ pub struct LeagueCalendarConfig {
     algorithm: ScheduleAlgorithmKind,
     timing: SeasonTiming,
     games_per_week: GamesPerWeekPolicy,
+    rest_gap_policy: RestGapPolicy,
     postponement: PostponementPolicy,
     neutral_opener: NeutralOpenerPolicy,
     spa_scoring_policy: SpaScoringPolicy,
@@ -35,6 +38,7 @@ pub struct LeagueCalendarConfig {
     promotion_relegation_policy: PromotionRelegationPolicy,
     stages: Vec<StageDefinition>,
     groups: Vec<CompetitionGroup>,
+    collective_agreement_ids: Vec<Uuid>,
 }
 
 impl LeagueCalendarConfig {
@@ -44,6 +48,7 @@ impl LeagueCalendarConfig {
         algorithm: ScheduleAlgorithmKind,
         timing: SeasonTiming,
         games_per_week: GamesPerWeekPolicy,
+        rest_gap_policy: RestGapPolicy,
         postponement: PostponementPolicy,
         neutral_opener: NeutralOpenerPolicy,
         spa_scoring_policy: SpaScoringPolicy,
@@ -52,6 +57,7 @@ impl LeagueCalendarConfig {
         promotion_relegation_policy: PromotionRelegationPolicy,
         stages: Vec<StageDefinition>,
         groups: Vec<CompetitionGroup>,
+        collective_agreement_ids: Vec<Uuid>,
     ) -> DomainResult<Self> {
         if stages.is_empty() {
             return Err(DomainError::InvalidInvariant {
@@ -65,6 +71,13 @@ impl LeagueCalendarConfig {
             |s| s.stage_order_index(),
             "stages",
             "stage_order_index",
+        )?;
+
+        validate_no_duplicate_keys(
+            &collective_agreement_ids,
+            |id| *id,
+            "collective_agreement_ids",
+            "collective_agreement_id",
         )?;
 
         let mut sorted_indices: Vec<u32> = stages.iter().map(|s| s.stage_order_index()).collect();
@@ -126,6 +139,7 @@ impl LeagueCalendarConfig {
             algorithm,
             timing,
             games_per_week,
+            rest_gap_policy,
             postponement,
             neutral_opener,
             spa_scoring_policy,
@@ -134,7 +148,26 @@ impl LeagueCalendarConfig {
             promotion_relegation_policy,
             stages,
             groups,
+            collective_agreement_ids,
         })
+    }
+
+    pub fn builder(
+        id: Uuid,
+        league_id: Uuid,
+        algorithm: ScheduleAlgorithmKind,
+        timing: SeasonTiming,
+        games_per_week: GamesPerWeekPolicy,
+        postponement: PostponementPolicy,
+    ) -> LeagueCalendarConfigBuilder {
+        LeagueCalendarConfigBuilder::new(
+            id,
+            league_id,
+            algorithm,
+            timing,
+            games_per_week,
+            postponement,
+        )
     }
 
     pub fn id(&self) -> Uuid {
@@ -155,6 +188,10 @@ impl LeagueCalendarConfig {
 
     pub fn games_per_week(&self) -> GamesPerWeekPolicy {
         self.games_per_week
+    }
+
+    pub fn rest_gap_policy(&self) -> RestGapPolicy {
+        self.rest_gap_policy
     }
 
     pub fn postponement(&self) -> PostponementPolicy {
@@ -187,5 +224,9 @@ impl LeagueCalendarConfig {
 
     pub fn groups(&self) -> &[CompetitionGroup] {
         &self.groups
+    }
+
+    pub fn collective_agreement_ids(&self) -> &[Uuid] {
+        &self.collective_agreement_ids
     }
 }

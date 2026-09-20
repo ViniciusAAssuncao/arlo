@@ -1,3 +1,4 @@
+pub mod active_season_resolver;
 pub mod conflict;
 pub mod grouped_schedule;
 pub mod matchday;
@@ -9,6 +10,7 @@ pub mod stage;
 pub mod standings;
 pub mod venue;
 
+pub use active_season_resolver::*;
 pub use conflict::*;
 pub use grouped_schedule::*;
 pub use matchday::*;

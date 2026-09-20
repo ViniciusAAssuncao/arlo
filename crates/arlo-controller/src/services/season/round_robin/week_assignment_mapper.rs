@@ -1,6 +1,6 @@
 use crate::domain::calendar::{CalendarDate, CalendarSystem, ResolvedCalendarDate};
 use crate::error::ControllerResult;
-use crate::services::calendar::{date_advancer, date_encoder, date_resolver};
+use crate::services::calendar::{date_advancer, date_resolver};
 use crate::services::season::round_robin::circle_method_generator::RoundRobinMatch;
 use arlo_domain::SeasonTiming;
 use uuid::Uuid;
@@ -17,20 +17,12 @@ pub struct ScheduledMatch {
 pub fn assign_dates(
     calendar: &CalendarSystem,
     timing: &SeasonTiming,
-    reference_year: i64,
+    anchor_date: CalendarDate,
     matches: &[RoundRobinMatch],
 ) -> ControllerResult<Vec<ScheduledMatch>> {
     if matches.is_empty() {
         return Ok(Vec::new());
     }
-
-    let start_resolved = ResolvedCalendarDate::RegularDay {
-        year: reference_year,
-        month_order_index: timing.start_month_order_index(),
-        day_of_month: timing.start_day_of_month(),
-        week_day_index: 0,
-    };
-    let start_date = date_encoder::encode(calendar, &start_resolved)?;
 
     let week_len = if !calendar.week_days().is_empty() {
         calendar.week_days().len() as i64
@@ -40,6 +32,7 @@ pub fn assign_dates(
 
     let allowed_weekdays = timing.allowed_weekdays();
 
+    let base_round_index = matches.iter().map(|m| m.round_index).min().unwrap_or(0);
     let mut current_round = u32::MAX;
     let mut match_idx_in_round: usize = 0;
     let mut scheduled = Vec::with_capacity(matches.len());
@@ -50,8 +43,8 @@ pub fn assign_dates(
             match_idx_in_round = 0;
         }
 
-        let week_number = m.round_index as i64;
-        let week_base_date = date_advancer::advance(calendar, &start_date, week_number * week_len);
+        let week_number = (m.round_index - base_round_index) as i64;
+        let week_base_date = date_advancer::advance(calendar, &anchor_date, week_number * week_len);
         let base_resolved = date_resolver::resolve(calendar, &week_base_date);
 
         let base_weekday = match base_resolved {

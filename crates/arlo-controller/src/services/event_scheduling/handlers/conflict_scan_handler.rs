@@ -1,8 +1,11 @@
 use crate::domain::event_scheduling::{PendingTrigger, TriggerKind};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
+use crate::repositories::collective_agreement::collective_agreement_catalog_cache::get_or_load_collective_agreement_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::services::calendar::resolve_collective_agreement_windows;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
+use crate::services::season::active_season_resolver::resolve_active_season;
 use crate::services::season::conflict::postponement_resolver::resolve_conflicts_and_postpone;
 use crate::services::season::persistence::{map_row_to_fixture, persist_conflict_scan_result};
 pub use crate::services::season::conflict::ConflictScanReport;
@@ -33,17 +36,7 @@ pub async fn handle_conflict_scan(
         return Ok(ConflictScanReport::empty(competition_id));
     }
 
-    let season_instances = arlo_persistence::repositories::season::season_instances::list_by_competition_id(
-        pool,
-        competition_id,
-    )
-    .await?;
-
-    let active_season = match season_instances
-        .iter()
-        .find(|s| s.status == "Active" || s.status == "Pending")
-        .or_else(|| season_instances.first())
-    {
+    let active_season = match resolve_active_season(pool, competition_id).await? {
         Some(s) => s,
         None => return Ok(ConflictScanReport::empty(competition_id)),
     };
@@ -87,7 +80,39 @@ pub async fn handle_conflict_scan(
         .next()
         .ok_or_else(|| ControllerError::NotFound("No calendar systems found".to_string()))?;
 
-    let max_search_weeks = 52;
+    let min_year = domain_fixtures
+        .iter()
+        .map(|f| f.scheduled_date().year())
+        .min()
+        .unwrap_or(reference_year);
+    let max_year = domain_fixtures
+        .iter()
+        .map(|f| f.scheduled_date().year())
+        .max()
+        .unwrap_or(reference_year);
+    let years = (min_year - 1)..=(max_year + 1);
+
+    let ca_catalog = get_or_load_collective_agreement_catalog(pool).await?;
+    let mut blackout_windows = Vec::new();
+    for ca_id in config_arc.collective_agreement_ids() {
+        if let Some(agreement) = ca_catalog.get(ca_id) {
+            let windows = resolve_collective_agreement_windows(
+                calendar,
+                agreement,
+                years.clone(),
+            )?;
+            blackout_windows.extend(windows);
+        }
+    }
+
+    let max_search_days: u32 = 366;
+    let week_len = if !calendar.week_days().is_empty() {
+        calendar.week_days().len() as u32
+    } else {
+        7
+    };
+    let max_search_weeks = (max_search_days + week_len - 1) / week_len;
+
     let report = resolve_conflicts_and_postpone(
         calendar,
         config_arc.timing(),
@@ -95,6 +120,8 @@ pub async fn handle_conflict_scan(
         competition_id,
         &stage_ids,
         &config_arc.games_per_week(),
+        &config_arc.rest_gap_policy(),
+        &blackout_windows,
         &config_arc.postponement(),
         &mut domain_fixtures,
         &team_ids,

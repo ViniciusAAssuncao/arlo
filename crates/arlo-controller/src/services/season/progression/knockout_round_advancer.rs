@@ -1,7 +1,9 @@
 use crate::domain::calendar::CalendarSystem;
 use crate::domain::event_scheduling::{PendingTrigger, TriggerKind};
 use crate::domain::season::{KnockoutTie, SeasonStageInstance, StageStatus};
-use crate::error::ControllerResult;
+use crate::error::{ControllerError, ControllerResult};
+use crate::repositories::collective_agreement::collective_agreement_catalog_cache::get_or_load_collective_agreement_catalog;
+use crate::services::calendar::{resolve_collective_agreement_windows, skip_forward_past_blackout};
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::event_scheduling::stage_completion_date_calculator::calculate_stage_completion_date;
 use crate::services::season::persistence::{
@@ -28,7 +30,7 @@ pub async fn advance_knockout_round(
     config: &LeagueCalendarConfig,
     calendar: &CalendarSystem,
     trigger_store: Arc<PendingTriggerStore>,
-    reference_year: i64,
+    _reference_year: i64,
 ) -> ControllerResult<Option<GeneratedStageSchedule>> {
     let leg_format = match stage_def.knockout_leg_format() {
         Some(fmt) => fmt,
@@ -98,10 +100,30 @@ pub async fn advance_knockout_round(
         KnockoutBracketProgress::RoundCompleteNeedsNextRound {
             winner_seeds, ..
         } => {
+            let round_completion_date = calculate_stage_completion_date(calendar, &fixtures)
+                .ok_or_else(|| ControllerError::Validation("No fixtures found to calculate completion date".to_string()))?;
+
+            let ca_catalog = get_or_load_collective_agreement_catalog(pool).await?;
+            let mut blackout_windows = Vec::new();
+            let years = (round_completion_date.year() - 1)..=(round_completion_date.year() + 1);
+
+            for ca_id in config.collective_agreement_ids() {
+                if let Some(agreement) = ca_catalog.get(ca_id) {
+                    let windows = resolve_collective_agreement_windows(
+                        calendar,
+                        agreement,
+                        years.clone(),
+                    )?;
+                    blackout_windows.extend(windows);
+                }
+            }
+
+            let anchor_date = skip_forward_past_blackout(calendar, &round_completion_date, &blackout_windows);
+
             let generated = generate_next_knockout_round(
                 calendar,
                 config.timing(),
-                reference_year,
+                anchor_date,
                 stage_instance_id,
                 &fixtures,
                 &winner_seeds,
