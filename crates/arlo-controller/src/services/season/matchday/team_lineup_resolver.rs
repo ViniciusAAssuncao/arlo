@@ -1,6 +1,7 @@
 use crate::error::{ControllerError, ControllerResult};
 use crate::services::season::matchday::emergency_roster::ensure_minimum_roster;
 use crate::services::season::matchday::matchday_catalog_cache::get_or_load_matchday_catalogs;
+use crate::services::season::matchday::medical_caution_resolver::resolve_lineup_candidates_with_caution;
 use arlo_domain::{Formation, Player};
 use arlo_engine::manager_ai::LineupSelectionEngine;
 use arlo_recovery::availability::resolve_batch_player_statuses;
@@ -63,11 +64,13 @@ pub async fn resolve_team_lineup(
         players = filter_available_players(pool, refreshed).await?;
     }
 
+    let candidate_players =
+        resolve_lineup_candidates_with_caution(pool, &players, &formations).await?;
+    let candidate_id_set: HashSet<Uuid> = candidate_players.iter().map(|p| p.id()).collect();
+
     let existing_lineups = arlo_tactics::tactical_lineup::list_by_team_id(pool, team_id)
         .await
         .unwrap_or_default();
-
-    let player_id_set: HashSet<Uuid> = players.iter().map(|p| p.id()).collect();
 
     for lineup in existing_lineups {
         if let Ok(Some(formation)) =
@@ -82,7 +85,7 @@ pub async fn resolve_team_lineup(
 
                 for assignment in assignments {
                     let pid = assignment.player_id();
-                    if !player_id_set.contains(&pid) || !assigned_players.insert(pid) {
+                    if !candidate_id_set.contains(&pid) || !assigned_players.insert(pid) {
                         valid = false;
                         break;
                     }
@@ -106,11 +109,19 @@ pub async fn resolve_team_lineup(
     let catalogs = get_or_load_matchday_catalogs(pool).await?;
 
     let (lineup, _bench) = LineupSelectionEngine::select(
-        &players,
+        &candidate_players,
         &formations,
         &manager,
         &catalogs.attribute_keys_by_id,
     )
+    .or_else(|_| {
+        LineupSelectionEngine::select(
+            &players,
+            &formations,
+            &manager,
+            &catalogs.attribute_keys_by_id,
+        )
+    })
     .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let formation = arlo_db::repositories::formation::get_by_id(pool, lineup.formation_id())

@@ -161,6 +161,98 @@ pub async fn list_active_by_player_ids(
     Ok(rows)
 }
 
+pub async fn get_latest_resolved_by_player_id(
+    pool: &SqlitePool,
+    player_id: Uuid,
+    since_unix_seconds: i64
+) -> PersistenceResult<Option<PlayerInjuryHistoryRow>> {
+    let row = sqlx
+        ::query_as::<_, PlayerInjuryHistoryRow>(
+            r#"SELECT
+            id,
+            player_id,
+            injury_definition_id,
+            body_region,
+            severity_grade,
+            onset_year,
+            onset_day_of_year,
+            expected_recovery_days,
+            days_remaining,
+            observation_days_remaining,
+            status,
+            is_relapse,
+            origin_record_id,
+            resolved_at_unix_seconds,
+            created_at_unix_seconds
+        FROM player_injury_history
+        WHERE player_id = ?
+          AND status = 'Resolved'
+          AND resolved_at_unix_seconds IS NOT NULL
+          AND resolved_at_unix_seconds >= ?
+        ORDER BY resolved_at_unix_seconds DESC, created_at_unix_seconds DESC
+        LIMIT 1"#
+        )
+        .bind(player_id.to_string())
+        .bind(since_unix_seconds)
+        .fetch_optional(pool).await?;
+
+    Ok(row)
+}
+
+pub async fn list_latest_resolved_by_player_ids(
+    pool: &SqlitePool,
+    player_ids: &[Uuid],
+    since_unix_seconds: i64
+) -> PersistenceResult<Vec<PlayerInjuryHistoryRow>> {
+    if player_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let placeholders = std::iter::repeat("?").take(player_ids.len()).collect::<Vec<_>>().join(", ");
+
+    let sql = format!(
+        r#"SELECT
+            id,
+            player_id,
+            injury_definition_id,
+            body_region,
+            severity_grade,
+            onset_year,
+            onset_day_of_year,
+            expected_recovery_days,
+            days_remaining,
+            observation_days_remaining,
+            status,
+            is_relapse,
+            origin_record_id,
+            resolved_at_unix_seconds,
+            created_at_unix_seconds
+        FROM (
+            SELECT *,
+                ROW_NUMBER() OVER (
+                    PARTITION BY player_id
+                    ORDER BY resolved_at_unix_seconds DESC, created_at_unix_seconds DESC
+                ) AS rn
+            FROM player_injury_history
+            WHERE status = 'Resolved'
+              AND resolved_at_unix_seconds IS NOT NULL
+              AND resolved_at_unix_seconds >= ?
+              AND player_id IN ({})
+        )
+        WHERE rn = 1"#,
+        placeholders
+    );
+
+    let mut query = sqlx::query_as::<_, PlayerInjuryHistoryRow>(&sql);
+    query = query.bind(since_unix_seconds);
+    for id in player_ids {
+        query = query.bind(id.to_string());
+    }
+
+    let rows = query.fetch_all(pool).await?;
+    Ok(rows)
+}
+
 pub async fn update_progress(
     pool: &SqlitePool,
     id: Uuid,

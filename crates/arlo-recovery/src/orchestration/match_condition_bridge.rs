@@ -4,7 +4,8 @@ use crate::domain::{
 use crate::error::{RecoveryError, RecoveryResult};
 use crate::fatigue_recovery::calculate_player_age_years;
 use crate::injury_recovery::register_injury;
-use crate::tuning::RecoveryTuningProfile;
+use crate::readiness::calculate_match_readiness;
+use crate::tuning::{ReadinessTuningProfile, RecoveryTuningProfile};
 use arlo_domain::sport_constants::impulse_floor_for_baseline;
 use arlo_domain::{AttributeKey, BodyRegion, InjurySeverityGrade};
 use arlo_engine::physical::FatigueState;
@@ -179,11 +180,23 @@ pub fn seed_match_state(
         .map(|a| a.player().id())
         .collect();
 
+    let tuning = ReadinessTuningProfile::default();
+
     for player_id in home_player_ids.into_iter().chain(away_player_ids) {
         if let Some(cond) = conditions.get(&player_id) {
+            let assessment = calculate_match_readiness(cond, None, &tuning);
+            let w_prime = if assessment.score < tuning.fully_fit_threshold {
+                let deficit = (tuning.fully_fit_threshold - assessment.score)
+                    / tuning.fully_fit_threshold;
+                let penalty = deficit * tuning.max_anaerobic_caution_reduction;
+                (cond.fatigue().w_prime() * (1.0 - penalty)).clamp(0.05, 1.0)
+            } else {
+                cond.fatigue().w_prime()
+            };
+
             let fatigue_state = FatigueState::new(
                 cond.fatigue().energy(),
-                cond.fatigue().w_prime(),
+                w_prime,
             );
             state.set_player_fatigue(player_id, fatigue_state);
 
