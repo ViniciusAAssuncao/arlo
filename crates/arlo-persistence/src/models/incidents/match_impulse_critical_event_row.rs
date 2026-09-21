@@ -1,7 +1,8 @@
 use arlo_events::{ImpulseCriticalReached, MatchClockInstant};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchImpulseCriticalEventRow {
     pub id: String,
     pub match_id: String,

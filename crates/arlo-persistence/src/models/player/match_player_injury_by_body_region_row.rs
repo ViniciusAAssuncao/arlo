@@ -1,7 +1,8 @@
 use arlo_domain::BodyRegion;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, FromRow)]
 pub struct MatchPlayerInjuryByBodyRegionRow {
     pub id: String,
     pub match_id: String,

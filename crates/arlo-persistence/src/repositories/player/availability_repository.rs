@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchPlayerAvailabilityRow;
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const COLUMNS: &[&str] = &[
     "id",
@@ -57,4 +58,50 @@ pub async fn insert_batch(
         },
     )
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerAvailabilityRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerAvailabilityRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            total_suspended_seconds,
+            expulsion_count,
+            is_currently_expelled
+        FROM match_player_availability
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerAvailabilityRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerAvailabilityRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            total_suspended_seconds,
+            expulsion_count,
+            is_currently_expelled
+        FROM match_player_availability
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
 }

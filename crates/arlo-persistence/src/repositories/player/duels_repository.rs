@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchPlayerDuelByKindRow, MatchPlayerDuelRow};
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const DUEL_COLUMNS: &[&str] = &[
     "id",
@@ -175,4 +176,132 @@ pub async fn insert_by_kind_batch(
         },
     )
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerDuelRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerDuelRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            total_duels,
+            total_wins,
+            total_losses,
+            win_rate,
+            attacker_duels,
+            attacker_wins,
+            attacker_losses,
+            attacker_win_rate,
+            defender_duels,
+            defender_wins,
+            defender_losses,
+            defender_win_rate
+        FROM match_player_duels
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerDuelRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerDuelRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            total_duels,
+            total_wins,
+            total_losses,
+            win_rate,
+            attacker_duels,
+            attacker_wins,
+            attacker_losses,
+            attacker_win_rate,
+            defender_duels,
+            defender_wins,
+            defender_losses,
+            defender_win_rate
+        FROM match_player_duels
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
+}
+
+pub async fn list_by_kind_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerDuelByKindRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerDuelByKindRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            duel_kind,
+            total,
+            wins,
+            losses,
+            as_attacker_wins,
+            as_attacker_losses,
+            as_defender_wins,
+            as_defender_losses,
+            win_rate,
+            attacker_win_rate,
+            defender_win_rate
+        FROM match_player_duels_by_kind
+        WHERE match_id = ?
+        ORDER BY player_id ASC, duel_kind ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_by_kind_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerDuelByKindRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerDuelByKindRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            duel_kind,
+            total,
+            wins,
+            losses,
+            as_attacker_wins,
+            as_attacker_losses,
+            as_defender_wins,
+            as_defender_losses,
+            win_rate,
+            attacker_win_rate,
+            defender_win_rate
+        FROM match_player_duels_by_kind
+        WHERE match_id = ? AND player_id = ?
+        ORDER BY duel_kind ASC"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

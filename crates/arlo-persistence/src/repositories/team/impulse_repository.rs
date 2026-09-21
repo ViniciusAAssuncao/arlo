@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchTeamImpulseRow, MatchTeamImpulseRunRow};
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const IMPULSE_COLUMNS: &[&str] = &[
     "id",
@@ -153,4 +154,62 @@ pub async fn insert_runs_batch(
         b.push_bind(row.average_intensity);
     })
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchTeamImpulseRow>> {
+    let rows = sqlx::query_as::<_, MatchTeamImpulseRow>(
+        r#"SELECT
+            id,
+            match_id,
+            team_id,
+            average_baseline,
+            current_average_value,
+            min_average_value,
+            max_average_value,
+            average_value,
+            time_below_baseline_seconds,
+            runs_count,
+            longest_run_duration_seconds,
+            peak_run_average_value,
+            total_integrated_run_intensity,
+            average_run_duration_seconds,
+            average_run_intensity
+        FROM match_team_impulse
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_runs_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchTeamImpulseRunRow>> {
+    let rows = sqlx::query_as::<_, MatchTeamImpulseRunRow>(
+        r#"SELECT
+            id,
+            match_id,
+            team_id,
+            run_index,
+            start_time_seconds,
+            end_time_seconds,
+            duration_seconds,
+            peak_average_value,
+            integrated_intensity,
+            average_intensity
+        FROM match_team_impulse_runs
+        WHERE match_id = ?
+        ORDER BY team_id ASC, run_index ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

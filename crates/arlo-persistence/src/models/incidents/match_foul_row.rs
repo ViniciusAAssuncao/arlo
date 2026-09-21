@@ -1,8 +1,9 @@
 use arlo_domain::PunishmentKind;
 use arlo_events::{FoulOrigin, FoulRaised, MatchClockInstant};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchFoulRow {
     pub id: String,
     pub match_id: String,

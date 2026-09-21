@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchImpulseCriticalEventRow;
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const COLUMNS: &[&str] = &[
     "id",
@@ -65,4 +66,29 @@ pub async fn insert_batch(
         },
     )
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchImpulseCriticalEventRow>> {
+    let rows = sqlx::query_as::<_, MatchImpulseCriticalEventRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            player_id,
+            value,
+            duration_seconds
+        FROM match_impulse_critical_events
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

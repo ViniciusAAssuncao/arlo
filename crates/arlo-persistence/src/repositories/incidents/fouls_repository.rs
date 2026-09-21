@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchFoulRow;
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const COLUMNS: &[&str] = &[
     "id",
@@ -84,4 +85,36 @@ pub async fn insert_batch(
         b.push_bind(row.punishment_magnitude);
     })
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchFoulRow>> {
+    let rows = sqlx::query_as::<_, MatchFoulRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            offending_player_id,
+            offending_team_id,
+            opposing_player_id,
+            opposing_team_id,
+            origin,
+            original_call_correct,
+            peace_referee_intervened,
+            fault_definition_id,
+            punishment_kind,
+            punishment_magnitude
+        FROM match_fouls
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

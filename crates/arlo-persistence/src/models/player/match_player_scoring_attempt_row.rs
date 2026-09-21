@@ -1,7 +1,8 @@
 use arlo_stats::PlayerScoringAttemptStats;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchPlayerScoringAttemptRow {
     pub id: String,
     pub match_id: String,

@@ -1,8 +1,9 @@
 use arlo_domain::KickFoulDecisionKind;
 use arlo_events::{KickFoulDecisionMade, MatchClockInstant};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchKickFoulDecisionRow {
     pub id: String,
     pub match_id: String,

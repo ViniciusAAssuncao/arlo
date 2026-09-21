@@ -1,7 +1,8 @@
 use arlo_events::{MatchClockInstant, SubstitutionMade};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchSubstitutionRow {
     pub id: String,
     pub match_id: String,

@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchAvailabilityChangeRow;
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const COLUMNS: &[&str] = &[
     "id",
@@ -73,4 +74,31 @@ pub async fn insert_batch(
         },
     )
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchAvailabilityChangeRow>> {
+    let rows = sqlx::query_as::<_, MatchAvailabilityChangeRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            player_id,
+            team_id,
+            previous_status,
+            new_status,
+            remaining_seconds
+        FROM match_availability_changes
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

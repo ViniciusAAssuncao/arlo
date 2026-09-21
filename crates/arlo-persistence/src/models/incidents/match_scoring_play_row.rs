@@ -1,9 +1,10 @@
 use arlo_events::{
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, ScoringAttemptMissed,
 };
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchScoringPlayRow {
     pub id: String,
     pub match_id: String,

@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchPlayerTouchesRow;
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const COLUMNS: &[&str] = &[
     "id",
@@ -67,4 +68,58 @@ pub async fn insert_batch(
         b.push_bind(row.turnovers_conceded);
     })
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerTouchesRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerTouchesRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            passes_attempted,
+            passes_received,
+            drives_recorded,
+            recoveries,
+            scoring_attempts,
+            total_touches,
+            turnovers_conceded
+        FROM match_player_touches
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerTouchesRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerTouchesRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            passes_attempted,
+            passes_received,
+            drives_recorded,
+            recoveries,
+            scoring_attempts,
+            total_touches,
+            turnovers_conceded
+        FROM match_player_touches
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
 }

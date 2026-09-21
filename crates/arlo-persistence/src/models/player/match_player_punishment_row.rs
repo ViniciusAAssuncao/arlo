@@ -1,8 +1,9 @@
 use arlo_domain::PunishmentKind;
 use arlo_stats::PlayerPunishmentStats;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchPlayerPunishmentRow {
     pub id: String,
     pub match_id: String,

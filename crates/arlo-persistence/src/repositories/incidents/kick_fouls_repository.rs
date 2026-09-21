@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchKickFoulAwardRow, MatchKickFoulDecisionRow};
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const AWARD_COLUMNS: &[&str] = &[
     "id",
@@ -119,4 +120,53 @@ pub async fn insert_decisions_batch(
         },
     )
     .await
+}
+
+pub async fn list_awards_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchKickFoulAwardRow>> {
+    let rows = sqlx::query_as::<_, MatchKickFoulAwardRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            awarded_team_id,
+            offending_team_id,
+            scoring_tier
+        FROM match_kick_foul_awards
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_decisions_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchKickFoulDecisionRow>> {
+    let rows = sqlx::query_as::<_, MatchKickFoulDecisionRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            taker_id,
+            decision
+        FROM match_kick_foul_decisions
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

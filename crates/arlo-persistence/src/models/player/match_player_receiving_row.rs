@@ -1,7 +1,8 @@
 use arlo_stats::PlayerReceivingStats;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchPlayerReceivingRow {
     pub id: String,
     pub match_id: String,

@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchPlayerArtrineDecisionByKindRow, MatchPlayerArtrineDecisionRow};
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const DECISION_COLUMNS: &[&str] = &[
     "id",
@@ -169,4 +170,126 @@ pub async fn insert_by_kind_batch(
         },
     )
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerArtrineDecisionRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerArtrineDecisionRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            total_decisions,
+            total_successful_decisions,
+            total_failed_decisions,
+            total_mirins_advanced,
+            total_points_generated,
+            goal_points_generated,
+            field_points_generated,
+            field_goals_generated,
+            success_rate,
+            average_mirins_per_decision,
+            average_points_per_decision
+        FROM match_player_artrine_decisions
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerArtrineDecisionRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerArtrineDecisionRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            total_decisions,
+            total_successful_decisions,
+            total_failed_decisions,
+            total_mirins_advanced,
+            total_points_generated,
+            goal_points_generated,
+            field_points_generated,
+            field_goals_generated,
+            success_rate,
+            average_mirins_per_decision,
+            average_points_per_decision
+        FROM match_player_artrine_decisions
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
+}
+
+pub async fn list_by_kind_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerArtrineDecisionByKindRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerArtrineDecisionByKindRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            decision_kind,
+            total,
+            successful,
+            failed,
+            mirins_advanced,
+            points_generated,
+            success_rate,
+            average_mirins_advanced,
+            average_points_generated
+        FROM match_player_artrine_decisions_by_kind
+        WHERE match_id = ?
+        ORDER BY player_id ASC, decision_kind ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_by_kind_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerArtrineDecisionByKindRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerArtrineDecisionByKindRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            decision_kind,
+            total,
+            successful,
+            failed,
+            mirins_advanced,
+            points_generated,
+            success_rate,
+            average_mirins_advanced,
+            average_points_generated
+        FROM match_player_artrine_decisions_by_kind
+        WHERE match_id = ? AND player_id = ?
+        ORDER BY decision_kind ASC"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

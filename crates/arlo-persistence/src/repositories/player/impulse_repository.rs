@@ -240,6 +240,184 @@ pub async fn insert_runs_batch(
     .await
 }
 
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerImpulseRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerImpulseRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            baseline,
+            current_value,
+            initial_value,
+            min_value,
+            max_value,
+            average_value,
+            shifts_count,
+            positive_shifts,
+            negative_shifts,
+            time_below_baseline_seconds,
+            critical_reached_count,
+            runs_count,
+            longest_run_duration_seconds,
+            peak_run_value,
+            total_integrated_run_intensity,
+            average_run_duration_seconds,
+            average_run_intensity
+        FROM match_player_impulse
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerImpulseRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerImpulseRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            baseline,
+            current_value,
+            initial_value,
+            min_value,
+            max_value,
+            average_value,
+            shifts_count,
+            positive_shifts,
+            negative_shifts,
+            time_below_baseline_seconds,
+            critical_reached_count,
+            runs_count,
+            longest_run_duration_seconds,
+            peak_run_value,
+            total_integrated_run_intensity,
+            average_run_duration_seconds,
+            average_run_intensity
+        FROM match_player_impulse
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
+}
+
+pub async fn list_shifts_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerImpulseShiftByKindRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerImpulseShiftByKindRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            event_kind,
+            shifts_count
+        FROM match_player_impulse_shifts_by_kind
+        WHERE match_id = ?
+        ORDER BY player_id ASC, event_kind ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_shifts_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerImpulseShiftByKindRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerImpulseShiftByKindRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            event_kind,
+            shifts_count
+        FROM match_player_impulse_shifts_by_kind
+        WHERE match_id = ? AND player_id = ?
+        ORDER BY event_kind ASC"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_runs_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerImpulseRunRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerImpulseRunRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            run_index,
+            start_time_seconds,
+            end_time_seconds,
+            duration_seconds,
+            peak_value,
+            integrated_intensity,
+            shifts_count,
+            average_intensity
+        FROM match_player_impulse_runs
+        WHERE match_id = ?
+        ORDER BY player_id ASC, run_index ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_runs_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerImpulseRunRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerImpulseRunRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            run_index,
+            start_time_seconds,
+            end_time_seconds,
+            duration_seconds,
+            peak_value,
+            integrated_intensity,
+            shifts_count,
+            average_intensity
+        FROM match_player_impulse_runs
+        WHERE match_id = ? AND player_id = ?
+        ORDER BY run_index ASC"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
 pub async fn get_latest_by_player_id(
     pool: &SqlitePool,
     player_id: Uuid,

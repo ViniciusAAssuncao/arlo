@@ -1,7 +1,8 @@
 use arlo_events::{MatchClockInstant, Turnover};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchTurnoverRow {
     pub id: String,
     pub match_id: String,

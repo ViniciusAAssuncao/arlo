@@ -1,7 +1,8 @@
 use arlo_stats::PlayerFoulStats;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, FromRow)]
 pub struct MatchPlayerFoulRow {
     pub id: String,
     pub match_id: String,

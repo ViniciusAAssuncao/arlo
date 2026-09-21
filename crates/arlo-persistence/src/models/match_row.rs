@@ -1,7 +1,8 @@
 use crate::models::match_seed_codec::encode_match_seed;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchRow {
     pub id: String,
     pub fixture_id: Option<String>,

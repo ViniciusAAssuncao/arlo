@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchPlayerReceivingRow;
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{ Sqlite, Transaction };
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const COLUMNS: &[&str] = &[
     "id",
@@ -21,11 +22,10 @@ const COLUMNS: &[&str] = &[
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
-    row: &MatchPlayerReceivingRow
+    row: &MatchPlayerReceivingRow,
 ) -> PersistenceResult<()> {
-    sqlx
-        ::query(
-            r#"INSERT INTO match_player_receiving (
+    sqlx::query(
+        r#"INSERT INTO match_player_receiving (
             id,
             match_id,
             player_id,
@@ -39,29 +39,30 @@ pub async fn insert(
             longest_reception_mirim,
             average_mirins_per_reception,
             average_rac_per_reception
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
-        )
-        .bind(&row.id)
-        .bind(&row.match_id)
-        .bind(&row.player_id)
-        .bind(row.targets)
-        .bind(row.receptions)
-        .bind(row.drops)
-        .bind(row.catch_rate)
-        .bind(row.drop_rate)
-        .bind(row.receiving_mirins)
-        .bind(row.run_after_catch_mirins)
-        .bind(row.longest_reception_mirim)
-        .bind(row.average_mirins_per_reception)
-        .bind(row.average_rac_per_reception)
-        .execute(&mut **tx).await?;
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+    )
+    .bind(&row.id)
+    .bind(&row.match_id)
+    .bind(&row.player_id)
+    .bind(row.targets)
+    .bind(row.receptions)
+    .bind(row.drops)
+    .bind(row.catch_rate)
+    .bind(row.drop_rate)
+    .bind(row.receiving_mirins)
+    .bind(row.run_after_catch_mirins)
+    .bind(row.longest_reception_mirim)
+    .bind(row.average_mirins_per_reception)
+    .bind(row.average_rac_per_reception)
+    .execute(&mut **tx)
+    .await?;
 
     Ok(())
 }
 
 pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
-    rows: &[MatchPlayerReceivingRow]
+    rows: &[MatchPlayerReceivingRow],
 ) -> PersistenceResult<()> {
     execute_batch_insert(tx, "match_player_receiving", COLUMNS, rows, |b, row| {
         b.push_bind(&row.id);
@@ -77,5 +78,66 @@ pub async fn insert_batch(
         b.push_bind(row.longest_reception_mirim);
         b.push_bind(row.average_mirins_per_reception);
         b.push_bind(row.average_rac_per_reception);
-    }).await
+    })
+    .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerReceivingRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerReceivingRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            targets,
+            receptions,
+            drops,
+            catch_rate,
+            drop_rate,
+            receiving_mirins,
+            run_after_catch_mirins,
+            longest_reception_mirim,
+            average_mirins_per_reception,
+            average_rac_per_reception
+        FROM match_player_receiving
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerReceivingRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerReceivingRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            targets,
+            receptions,
+            drops,
+            catch_rate,
+            drop_rate,
+            receiving_mirins,
+            run_after_catch_mirins,
+            longest_reception_mirim,
+            average_mirins_per_reception,
+            average_rac_per_reception
+        FROM match_player_receiving
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
 }

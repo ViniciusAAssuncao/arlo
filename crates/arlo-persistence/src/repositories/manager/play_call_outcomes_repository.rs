@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchPlayCallOutcomeRow;
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const COLUMNS: &[&str] = &[
     "id",
@@ -47,4 +48,25 @@ pub async fn insert_batch(
         b.push_bind(row.successes);
     })
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayCallOutcomeRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayCallOutcomeRow>(
+        r#"SELECT
+            id,
+            match_id,
+            play_call_id,
+            attempts,
+            successes
+        FROM match_play_call_outcomes
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

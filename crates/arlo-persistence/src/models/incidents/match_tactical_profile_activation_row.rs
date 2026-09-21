@@ -1,7 +1,8 @@
 use arlo_events::{MatchClockInstant, TacticalProfileActivated};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchTacticalProfileActivationRow {
     pub id: String,
     pub match_id: String,

@@ -3,7 +3,8 @@ use crate::models::{
     MatchManagerDecisionRow, MatchManagerPlayCallByCategoryRow, MatchManagerSubstitutionByReasonRow,
 };
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const DECISION_COLUMNS: &[&str] = &[
     "id",
@@ -171,4 +172,72 @@ pub async fn insert_play_calls_by_category_batch(
         },
     )
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchManagerDecisionRow>> {
+    let rows = sqlx::query_as::<_, MatchManagerDecisionRow>(
+        r#"SELECT
+            id,
+            match_id,
+            team_id,
+            substitutions_made,
+            time_calls_used,
+            challenges_won,
+            challenges_lost,
+            tactical_profile_switches
+        FROM match_manager_decisions
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_substitutions_by_reason_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchManagerSubstitutionByReasonRow>> {
+    let rows = sqlx::query_as::<_, MatchManagerSubstitutionByReasonRow>(
+        r#"SELECT
+            id,
+            match_id,
+            team_id,
+            reason,
+            substitutions_count
+        FROM match_manager_substitutions_by_reason
+        WHERE match_id = ?
+        ORDER BY team_id ASC, reason ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_play_calls_by_category_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchManagerPlayCallByCategoryRow>> {
+    let rows = sqlx::query_as::<_, MatchManagerPlayCallByCategoryRow>(
+        r#"SELECT
+            id,
+            match_id,
+            team_id,
+            category,
+            play_calls_count
+        FROM match_manager_play_calls_by_category
+        WHERE match_id = ?
+        ORDER BY team_id ASC, category ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

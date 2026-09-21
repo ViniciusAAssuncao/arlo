@@ -1,8 +1,9 @@
 use arlo_domain::{BodyRegion, InjuryMechanism, InjurySeverityGrade};
 use arlo_events::{InjuryIncidentRecorded, MatchClockInstant};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchInjuryRow {
     pub id: String,
     pub match_id: String,

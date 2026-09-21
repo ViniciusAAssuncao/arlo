@@ -58,6 +58,54 @@ pub async fn insert_batch(
     .await
 }
 
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerPhysicalRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerPhysicalRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            end_energy_level,
+            peak_anaerobic_depletion,
+            total_distance_covered,
+            intra_match_recovery_amount
+        FROM match_player_physical
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerPhysicalRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerPhysicalRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            end_energy_level,
+            peak_anaerobic_depletion,
+            total_distance_covered,
+            intra_match_recovery_amount
+        FROM match_player_physical
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
+}
+
 pub async fn get_latest_by_player_id(
     pool: &SqlitePool,
     player_id: Uuid,

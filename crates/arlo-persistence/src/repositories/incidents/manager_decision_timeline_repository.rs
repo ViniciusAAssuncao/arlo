@@ -4,7 +4,8 @@ use crate::models::{
     MatchTimeCallRow,
 };
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const TIME_CALL_COLUMNS: &[&str] = &[
     "id",
@@ -256,4 +257,106 @@ pub async fn insert_play_call_selections_batch(
         },
     )
     .await
+}
+
+pub async fn list_time_calls_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchTimeCallRow>> {
+    let rows = sqlx::query_as::<_, MatchTimeCallRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            team_id,
+            remaining_time_calls_after,
+            reason
+        FROM match_time_calls
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_challenges_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchChallengeRow>> {
+    let rows = sqlx::query_as::<_, MatchChallengeRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            team_id,
+            call_kind,
+            success,
+            remaining_challenges_after
+        FROM match_challenges
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_tactical_profile_activations_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchTacticalProfileActivationRow>> {
+    let rows = sqlx::query_as::<_, MatchTacticalProfileActivationRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            team_id,
+            profile_id,
+            profile_name
+        FROM match_tactical_profile_activations
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_play_call_selections_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayCallSelectionRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayCallSelectionRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            team_id,
+            play_call_id,
+            play_call_name,
+            category
+        FROM match_play_call_selections
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

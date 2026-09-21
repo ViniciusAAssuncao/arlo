@@ -1,8 +1,9 @@
 use arlo_domain::KickFoulScoringTier;
 use arlo_events::{KickFoulAwarded, MatchClockInstant};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchKickFoulAwardRow {
     pub id: String,
     pub match_id: String,

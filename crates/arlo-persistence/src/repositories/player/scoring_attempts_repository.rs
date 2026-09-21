@@ -1,7 +1,8 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchPlayerScoringAttemptByPostRow, MatchPlayerScoringAttemptRow};
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
 
 const SCORING_ATTEMPT_COLUMNS: &[&str] = &[
     "id",
@@ -145,4 +146,114 @@ pub async fn insert_by_post_batch(
         },
     )
     .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerScoringAttemptRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerScoringAttemptRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            attempts,
+            converted,
+            missed,
+            conversion_rate,
+            miss_rate,
+            goal_points_scored,
+            field_points_scored,
+            field_goals_scored,
+            total_points_scored
+        FROM match_player_scoring_attempts
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerScoringAttemptRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerScoringAttemptRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            attempts,
+            converted,
+            missed,
+            conversion_rate,
+            miss_rate,
+            goal_points_scored,
+            field_points_scored,
+            field_goals_scored,
+            total_points_scored
+        FROM match_player_scoring_attempts
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
+}
+
+pub async fn list_by_post_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerScoringAttemptByPostRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerScoringAttemptByPostRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            scoring_post,
+            attempts,
+            converted,
+            missed,
+            conversion_rate
+        FROM match_player_scoring_attempts_by_post
+        WHERE match_id = ?
+        ORDER BY player_id ASC, scoring_post ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_by_post_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerScoringAttemptByPostRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerScoringAttemptByPostRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            scoring_post,
+            attempts,
+            converted,
+            missed,
+            conversion_rate
+        FROM match_player_scoring_attempts_by_post
+        WHERE match_id = ? AND player_id = ?
+        ORDER BY scoring_post ASC"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }
