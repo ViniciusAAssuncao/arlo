@@ -1,6 +1,27 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchPlayerInjuryByBodyRegionRow, MatchPlayerInjuryRow};
+use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, Transaction};
+
+const INJURY_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "total_injuries",
+    "contact_injuries",
+    "non_contact_injuries",
+    "grade_1_injuries",
+    "grade_2_injuries",
+    "grade_3_injuries",
+];
+
+const INJURY_BY_BODY_REGION_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "body_region",
+    "injuries_count",
+];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -38,10 +59,18 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerInjuryRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_player_injuries", INJURY_COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(&row.player_id);
+        b.push_bind(row.total_injuries);
+        b.push_bind(row.contact_injuries);
+        b.push_bind(row.non_contact_injuries);
+        b.push_bind(row.grade_1_injuries);
+        b.push_bind(row.grade_2_injuries);
+        b.push_bind(row.grade_3_injuries);
+    })
+    .await
 }
 
 pub async fn insert_by_body_region(
@@ -72,8 +101,18 @@ pub async fn insert_by_body_region_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerInjuryByBodyRegionRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_by_body_region(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(
+        tx,
+        "match_player_injuries_by_body_region",
+        INJURY_BY_BODY_REGION_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(&row.player_id);
+            b.push_bind(&row.body_region);
+            b.push_bind(row.injuries_count);
+        },
+    )
+    .await
 }

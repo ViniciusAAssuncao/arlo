@@ -1,3 +1,4 @@
+pub mod batching;
 pub mod calendar;
 pub mod condition;
 pub mod incidents;
@@ -12,6 +13,7 @@ pub mod season;
 pub mod season_stats;
 pub mod team;
 
+pub use batching::*;
 pub use calendar::*;
 pub use condition::*;
 pub use incidents::*;

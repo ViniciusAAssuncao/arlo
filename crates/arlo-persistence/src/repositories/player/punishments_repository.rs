@@ -1,6 +1,23 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchPlayerPunishmentRow;
+use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, Transaction};
+
+const COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "yardage_loss_count",
+    "loss_of_down_count",
+    "loss_of_drive_count",
+    "time_penalty_count",
+    "expulsion_count",
+    "invalidate_play_count",
+    "total_yardage_loss_mirim",
+    "total_loss_of_down_count",
+    "total_time_penalty_seconds",
+    "total_loss_of_drive_count",
+];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -46,8 +63,20 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerPunishmentRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_player_punishments", COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(&row.player_id);
+        b.push_bind(row.yardage_loss_count);
+        b.push_bind(row.loss_of_down_count);
+        b.push_bind(row.loss_of_drive_count);
+        b.push_bind(row.time_penalty_count);
+        b.push_bind(row.expulsion_count);
+        b.push_bind(row.invalidate_play_count);
+        b.push_bind(row.total_yardage_loss_mirim);
+        b.push_bind(row.total_loss_of_down_count);
+        b.push_bind(row.total_time_penalty_seconds);
+        b.push_bind(row.total_loss_of_drive_count);
+    })
+    .await
 }

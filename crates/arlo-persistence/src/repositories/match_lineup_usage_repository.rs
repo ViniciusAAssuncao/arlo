@@ -1,6 +1,17 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchLineupUsageRow;
+use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, Transaction};
+
+const COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "team_id",
+    "tactical_lineup_id",
+    "formation_id",
+    "team_tactical_profile_id",
+    "manager_id",
+];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -34,8 +45,14 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchLineupUsageRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_team_lineup_usage", COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(&row.team_id);
+        b.push_bind(&row.tactical_lineup_id);
+        b.push_bind(&row.formation_id);
+        b.push_bind(&row.team_tactical_profile_id);
+        b.push_bind(&row.manager_id);
+    })
+    .await
 }

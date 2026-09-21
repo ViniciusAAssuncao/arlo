@@ -1,7 +1,18 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchPlayerPhysicalRow;
+use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
+
+const COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "end_energy_level",
+    "peak_anaerobic_depletion",
+    "total_distance_covered",
+    "intra_match_recovery_amount",
+];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -35,10 +46,16 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerPhysicalRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_player_physical", COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(&row.player_id);
+        b.push_bind(row.end_energy_level);
+        b.push_bind(row.peak_anaerobic_depletion);
+        b.push_bind(row.total_distance_covered);
+        b.push_bind(row.intra_match_recovery_amount);
+    })
+    .await
 }
 
 pub async fn get_latest_by_player_id(

@@ -1,6 +1,22 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchPlayerKickFoulByDecisionRow, MatchPlayerKickFoulRow};
+use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, Transaction};
+
+const KICK_FOUL_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "kick_foul_takes",
+];
+
+const KICK_FOUL_BY_DECISION_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "decision_kind",
+    "takes_count",
+];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -28,10 +44,19 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerKickFoulRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(
+        tx,
+        "match_player_kick_fouls",
+        KICK_FOUL_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(&row.player_id);
+            b.push_bind(row.kick_foul_takes);
+        },
+    )
+    .await
 }
 
 pub async fn insert_by_decision(
@@ -62,8 +87,18 @@ pub async fn insert_by_decision_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerKickFoulByDecisionRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_by_decision(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(
+        tx,
+        "match_player_kick_fouls_by_decision",
+        KICK_FOUL_BY_DECISION_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(&row.player_id);
+            b.push_bind(&row.decision_kind);
+            b.push_bind(row.takes_count);
+        },
+    )
+    .await
 }

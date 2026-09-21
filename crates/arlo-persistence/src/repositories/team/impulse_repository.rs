@@ -1,6 +1,38 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchTeamImpulseRow, MatchTeamImpulseRunRow};
+use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, Transaction};
+
+const IMPULSE_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "team_id",
+    "average_baseline",
+    "current_average_value",
+    "min_average_value",
+    "max_average_value",
+    "average_value",
+    "time_below_baseline_seconds",
+    "runs_count",
+    "longest_run_duration_seconds",
+    "peak_run_average_value",
+    "total_integrated_run_intensity",
+    "average_run_duration_seconds",
+    "average_run_intensity",
+];
+
+const RUN_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "team_id",
+    "run_index",
+    "start_time_seconds",
+    "end_time_seconds",
+    "duration_seconds",
+    "peak_average_value",
+    "integrated_intensity",
+    "average_intensity",
+];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -50,10 +82,24 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchTeamImpulseRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_team_impulse", IMPULSE_COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(&row.team_id);
+        b.push_bind(row.average_baseline);
+        b.push_bind(row.current_average_value);
+        b.push_bind(row.min_average_value);
+        b.push_bind(row.max_average_value);
+        b.push_bind(row.average_value);
+        b.push_bind(row.time_below_baseline_seconds);
+        b.push_bind(row.runs_count);
+        b.push_bind(row.longest_run_duration_seconds);
+        b.push_bind(row.peak_run_average_value);
+        b.push_bind(row.total_integrated_run_intensity);
+        b.push_bind(row.average_run_duration_seconds);
+        b.push_bind(row.average_run_intensity);
+    })
+    .await
 }
 
 pub async fn insert_run(
@@ -94,8 +140,17 @@ pub async fn insert_runs_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchTeamImpulseRunRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_run(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_team_impulse_runs", RUN_COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(&row.team_id);
+        b.push_bind(row.run_index);
+        b.push_bind(row.start_time_seconds);
+        b.push_bind(row.end_time_seconds);
+        b.push_bind(row.duration_seconds);
+        b.push_bind(row.peak_average_value);
+        b.push_bind(row.integrated_intensity);
+        b.push_bind(row.average_intensity);
+    })
+    .await
 }

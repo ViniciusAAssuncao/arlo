@@ -1,6 +1,33 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchPlayerScoringAttemptByPostRow, MatchPlayerScoringAttemptRow};
+use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, Transaction};
+
+const SCORING_ATTEMPT_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "attempts",
+    "converted",
+    "missed",
+    "conversion_rate",
+    "miss_rate",
+    "goal_points_scored",
+    "field_points_scored",
+    "field_goals_scored",
+    "total_points_scored",
+];
+
+const SCORING_ATTEMPT_BY_POST_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "scoring_post",
+    "attempts",
+    "converted",
+    "missed",
+    "conversion_rate",
+];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -44,10 +71,27 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerScoringAttemptRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(
+        tx,
+        "match_player_scoring_attempts",
+        SCORING_ATTEMPT_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(&row.player_id);
+            b.push_bind(row.attempts);
+            b.push_bind(row.converted);
+            b.push_bind(row.missed);
+            b.push_bind(row.conversion_rate);
+            b.push_bind(row.miss_rate);
+            b.push_bind(row.goal_points_scored);
+            b.push_bind(row.field_points_scored);
+            b.push_bind(row.field_goals_scored);
+            b.push_bind(row.total_points_scored);
+        },
+    )
+    .await
 }
 
 pub async fn insert_by_post(
@@ -84,8 +128,21 @@ pub async fn insert_by_post_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerScoringAttemptByPostRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_by_post(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(
+        tx,
+        "match_player_scoring_attempts_by_post",
+        SCORING_ATTEMPT_BY_POST_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(&row.player_id);
+            b.push_bind(&row.scoring_post);
+            b.push_bind(row.attempts);
+            b.push_bind(row.converted);
+            b.push_bind(row.missed);
+            b.push_bind(row.conversion_rate);
+        },
+    )
+    .await
 }

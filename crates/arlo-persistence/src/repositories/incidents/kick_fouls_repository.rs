@@ -1,6 +1,28 @@
 use crate::error::PersistenceResult;
 use crate::models::{MatchKickFoulAwardRow, MatchKickFoulDecisionRow};
+use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, Transaction};
+
+const AWARD_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "sequence_number",
+    "period",
+    "seconds_in_period",
+    "awarded_team_id",
+    "offending_team_id",
+    "scoring_tier",
+];
+
+const DECISION_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "sequence_number",
+    "period",
+    "seconds_in_period",
+    "taker_id",
+    "decision",
+];
 
 pub async fn insert_award(
     tx: &mut Transaction<'_, Sqlite>,
@@ -36,10 +58,17 @@ pub async fn insert_awards_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchKickFoulAwardRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_award(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_kick_foul_awards", AWARD_COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(row.sequence_number);
+        b.push_bind(row.period);
+        b.push_bind(row.seconds_in_period);
+        b.push_bind(&row.awarded_team_id);
+        b.push_bind(&row.offending_team_id);
+        b.push_bind(&row.scoring_tier);
+    })
+    .await
 }
 
 pub async fn insert_decision(
@@ -74,8 +103,20 @@ pub async fn insert_decisions_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchKickFoulDecisionRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_decision(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(
+        tx,
+        "match_kick_foul_decisions",
+        DECISION_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(row.sequence_number);
+            b.push_bind(row.period);
+            b.push_bind(row.seconds_in_period);
+            b.push_bind(&row.taker_id);
+            b.push_bind(&row.decision);
+        },
+    )
+    .await
 }
