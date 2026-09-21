@@ -1,12 +1,10 @@
-use crate::error::{ ControllerError, ControllerResult };
+use crate::error::{ControllerError, ControllerResult};
 use crate::services::season::matchday::due_fixture_finder::find_due_fixtures;
 use crate::services::season::matchday::matchday_catalog_cache::get_or_load_matchday_catalogs;
 use crate::services::season::matchday::matchday_runner::{
-    persist_completed_simulation,
-    simulate_match,
-    CompletedMatchSimulation,
+    persist_completed_simulation, simulate_match, CompletedMatchSimulation,
 };
-use crate::services::season::matchday::matchday_setup_builder::{ build_matchday_setup };
+use crate::services::season::matchday::matchday_setup_builder::build_matchday_setup;
 use crate::services::season::matchday::walkover_resolver;
 use arlo_engine::MatchState;
 use rayon::prelude::*;
@@ -17,7 +15,7 @@ use tokio::task::JoinSet;
 pub async fn run_due_matches(
     pool: &SqlitePool,
     year: i64,
-    day_of_year: u32
+    day_of_year: u32,
 ) -> ControllerResult<u32> {
     let due_fixtures = find_due_fixtures(pool, year, day_of_year).await?;
     if due_fixtures.is_empty() {
@@ -52,11 +50,10 @@ pub async fn run_due_matches(
                 }
             }
             Err(join_err) => {
-                return Err(
-                    ControllerError::InvalidData(
-                        format!("Task join error during match setup: {}", join_err)
-                    )
-                );
+                return Err(ControllerError::InvalidData(format!(
+                    "Task join error during match setup: {}",
+                    join_err
+                )));
             }
         }
     }
@@ -65,43 +62,66 @@ pub async fn run_due_matches(
         return Ok(matches_played_count);
     }
 
-    let simulation_results: Vec<
-        Result<CompletedMatchSimulation, ControllerError>
-    > = prepared_matches
-        .into_par_iter()
-        .map(|prep| {
-            let mut state = MatchState::new(prep.setup_params).map_err(|e|
-                ControllerError::InvalidData(e.to_string())
-            )?;
-            arlo_recovery::orchestration::match_condition_bridge::seed_match_state(
-                &mut state,
-                &prep.initial_conditions
-            );
-            simulate_match(
-                state,
-                prep.persistence_context,
-                prep.fixture_row,
-                prep.seed,
-                prep.stage_id
-            )
-        })
-        .collect();
+    let simulation_results: Vec<Result<CompletedMatchSimulation, ControllerError>> =
+        prepared_matches
+            .into_par_iter()
+            .map(|prep| {
+                let mut state = MatchState::new(prep.setup_params)
+                    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+                arlo_recovery::orchestration::match_condition_bridge::seed_match_state(
+                    &mut state,
+                    &prep.initial_conditions,
+                );
+                simulate_match(
+                    state,
+                    prep.persistence_context,
+                    prep.fixture_row,
+                    prep.seed,
+                    prep.stage_id,
+                )
+            })
+            .collect();
+
+    let mut tx = pool.begin().await?;
+    let mut persisted_simulations = Vec::new();
 
     for sim_result in simulation_results {
         match sim_result {
-            Ok(simulation) =>
-                match persist_completed_simulation(pool, simulation).await {
+            Ok(simulation) => {
+                match persist_completed_simulation(&mut tx, &simulation).await {
                     Ok(_) => {
                         matches_played_count += 1;
+                        persisted_simulations.push(simulation);
                     }
                     Err(err) => {
                         eprintln!("Failed to persist match simulation result: {}", err);
                     }
                 }
+            }
             Err(err) => {
                 eprintln!("Match simulation failed: {}", err);
             }
         }
+    }
+
+    tx.commit().await?;
+
+    for simulation in &persisted_simulations {
+        let (match_year, match_day) = match &simulation.persistence_context.completed_fixture {
+            Some(f) => (f.scheduled_year, f.scheduled_day_of_year as u32),
+            None => (0, 0),
+        };
+
+        let _ = arlo_recovery::orchestration::capture_post_match_condition(
+            pool,
+            &simulation.state,
+            simulation.run_result.raw_sink.events(),
+            match_year,
+            match_day,
+        )
+        .await;
+
+        crate::repositories::season::standings_cache::invalidate(&simulation.stage_id).await;
     }
 
     Ok(matches_played_count)

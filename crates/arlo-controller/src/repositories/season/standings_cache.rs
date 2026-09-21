@@ -1,4 +1,5 @@
 use crate::domain::season::StandingsEntry;
+use crate::domain::season::Fixture;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::season::persistence::map_row_to_fixture;
@@ -17,6 +18,14 @@ static STANDINGS_CACHE: LazyLock<RwLock<HashMap<Uuid, Arc<Vec<StandingsEntry>>>>
 pub async fn get_or_compute_standings(
     pool: &SqlitePool,
     stage_id: Uuid,
+) -> ControllerResult<Arc<Vec<StandingsEntry>>> {
+    get_or_compute_standings_with_fixtures(pool, stage_id, None).await
+}
+
+pub async fn get_or_compute_standings_with_fixtures(
+    pool: &SqlitePool,
+    stage_id: Uuid,
+    provided_fixtures: Option<&[Fixture]>,
 ) -> ControllerResult<Arc<Vec<StandingsEntry>>> {
     {
         let read_guard = STANDINGS_CACHE.read().await;
@@ -46,24 +55,42 @@ pub async fn get_or_compute_standings(
             ))
         })?;
 
-    let fixture_rows = fixtures::list_by_stage_id(pool, stage_id).await?;
-    let mut domain_fixtures = Vec::with_capacity(fixture_rows.len());
-    let mut team_ids_set = BTreeSet::new();
-
-    for row in &fixture_rows {
-        let fixture = map_row_to_fixture(row)?;
-        team_ids_set.insert(fixture.home_team_id());
-        team_ids_set.insert(fixture.away_team_id());
-        domain_fixtures.push(fixture);
-    }
-
-    let team_ids: Vec<Uuid> = if team_ids_set.is_empty() {
-        let teams = arlo_db::repositories::team::list_by_league_id(pool, competition_id)
-            .await
-            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-        teams.into_iter().map(|t| t.id()).collect()
+    let (domain_fixtures, team_ids) = if let Some(fixtures_slice) = provided_fixtures {
+        let mut team_ids_set = BTreeSet::new();
+        for f in fixtures_slice {
+            team_ids_set.insert(f.home_team_id());
+            team_ids_set.insert(f.away_team_id());
+        }
+        let team_ids: Vec<Uuid> = if team_ids_set.is_empty() {
+            let teams = arlo_db::repositories::team::list_by_league_id(pool, competition_id)
+                .await
+                .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+            teams.into_iter().map(|t| t.id()).collect()
+        } else {
+            team_ids_set.into_iter().collect()
+        };
+        (fixtures_slice.to_vec(), team_ids)
     } else {
-        team_ids_set.into_iter().collect()
+        let fixture_rows = fixtures::list_by_stage_id(pool, stage_id).await?;
+        let mut domain_fixtures = Vec::with_capacity(fixture_rows.len());
+        let mut team_ids_set = BTreeSet::new();
+
+        for row in &fixture_rows {
+            let fixture = map_row_to_fixture(row)?;
+            team_ids_set.insert(fixture.home_team_id());
+            team_ids_set.insert(fixture.away_team_id());
+            domain_fixtures.push(fixture);
+        }
+
+        let team_ids: Vec<Uuid> = if team_ids_set.is_empty() {
+            let teams = arlo_db::repositories::team::list_by_league_id(pool, competition_id)
+                .await
+                .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+            teams.into_iter().map(|t| t.id()).collect()
+        } else {
+            team_ids_set.into_iter().collect()
+        };
+        (domain_fixtures, team_ids)
     };
 
     let seed = seed_from_uuid(stage_id);

@@ -11,35 +11,32 @@ use crate::persister::squad_selection_persister::persist_squad_selections;
 use crate::persister::team_stats_persister::persist_team_stats;
 use arlo_engine::MatchState;
 use arlo_match_runner::MatchRunResult;
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 pub struct MatchPersister;
 
 impl MatchPersister {
     pub async fn persist_completed_match(
-        pool: &SqlitePool,
+        tx: &mut Transaction<'_, Sqlite>,
         state: &MatchState,
         run_result: &MatchRunResult,
         context: &MatchPersistenceContext,
     ) -> PersistenceResult<Uuid> {
         let match_id = Uuid::new_v4();
-        let mut tx = pool.begin().await?;
 
         if let Some(fixture_row) = &context.completed_fixture {
-            crate::repositories::fixtures::update(&mut tx, fixture_row).await?;
+            crate::repositories::fixtures::update(tx, fixture_row).await?;
         }
 
-        persist_match_core(&mut tx, match_id, state, context).await?;
-        persist_squad_selections(&mut tx, match_id, state, run_result).await?;
-        persist_player_action_stats(&mut tx, match_id, &run_result.aggregators).await?;
-        persist_player_condition_stats(&mut tx, match_id, &run_result.aggregators).await?;
-        persist_team_stats(&mut tx, match_id, &run_result.aggregators).await?;
-        persist_manager_stats(&mut tx, match_id, &run_result.aggregators).await?;
-        persist_referee_stats(&mut tx, match_id, state, &run_result.aggregators).await?;
-        persist_incident_events(&mut tx, match_id, run_result).await?;
-
-        tx.commit().await?;
+        persist_match_core(tx, match_id, state, context).await?;
+        persist_squad_selections(tx, match_id, state, run_result).await?;
+        persist_player_action_stats(tx, match_id, &run_result.aggregators).await?;
+        persist_player_condition_stats(tx, match_id, &run_result.aggregators).await?;
+        persist_team_stats(tx, match_id, &run_result.aggregators).await?;
+        persist_manager_stats(tx, match_id, &run_result.aggregators).await?;
+        persist_referee_stats(tx, match_id, state, &run_result.aggregators).await?;
+        persist_incident_events(tx, match_id, run_result).await?;
 
         Ok(match_id)
     }

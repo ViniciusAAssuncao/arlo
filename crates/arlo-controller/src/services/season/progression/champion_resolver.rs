@@ -14,7 +14,7 @@ pub async fn resolve_season_champion(
     pool: &SqlitePool,
     competition_id: Uuid,
     season_instance_id: Uuid,
-    knockout_champion: Option<Uuid>,
+    champion_team_id: Option<Uuid>,
 ) -> ControllerResult<Title> {
     let season_row = arlo_persistence::repositories::season::season_instances::get_by_id(
         pool,
@@ -30,18 +30,18 @@ pub async fn resolve_season_champion(
 
     let reference_year = season_row.reference_year;
 
-    let config = get_or_load_league_calendar_config(pool, competition_id)
-        .await?
-        .ok_or_else(|| {
-            ControllerError::NotFound(format!(
-                "League calendar config for competition {} not found",
-                competition_id
-            ))
-        })?;
-
-    let winner_team_id = if let Some(champion_id) = knockout_champion {
-        champion_id
+    let winner_team_id = if let Some(winner_id) = champion_team_id {
+        winner_id
     } else {
+        let config = get_or_load_league_calendar_config(pool, competition_id)
+            .await?
+            .ok_or_else(|| {
+                ControllerError::NotFound(format!(
+                    "League calendar config for competition {} not found",
+                    competition_id
+                ))
+            })?;
+
         let last_stage_def = config
             .stages()
             .iter()

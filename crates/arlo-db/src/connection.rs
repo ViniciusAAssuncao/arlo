@@ -15,7 +15,8 @@ pub async fn open_pool(db_url: &str) -> DbResult<SqlitePool> {
         .pragma("foreign_keys", "ON")
         .pragma("temp_store", "MEMORY")
         .pragma("cache_size", "-64000")
-        .pragma("mmap_size", "268435456");
+        .pragma("mmap_size", "268435456")
+        .pragma("wal_autocheckpoint", "10000");
 
     let pool = SqlitePoolOptions::new()
         .max_connections(8)
@@ -25,6 +26,8 @@ pub async fn open_pool(db_url: &str) -> DbResult<SqlitePool> {
     let mut migrator = sqlx::migrate!("../../migrations");
     migrator.set_ignore_missing(true);
     migrator.run(&pool).await?;
+
+    sqlx::query("PRAGMA optimize").execute(&pool).await?;
 
     Ok(pool)
 }

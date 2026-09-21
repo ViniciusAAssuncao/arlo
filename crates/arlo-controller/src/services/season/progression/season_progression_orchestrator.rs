@@ -2,6 +2,7 @@ use crate::domain::season::{SeasonStageInstance, StageStatus};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use crate::repositories::season::standings_cache;
 use crate::services::event_scheduling::handlers::stage_transition_handler::handle_stage_transition;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::season::active_season_resolver::resolve_active_season;
@@ -122,6 +123,19 @@ pub async fn progress_season(
         ))
     })?;
 
+    let fixture_rows = arlo_persistence::repositories::season::fixtures::list_by_stage_id(
+        pool,
+        current_stage_id,
+    )
+    .await?;
+
+    let mut domain_fixtures = Vec::with_capacity(fixture_rows.len());
+    for row in &fixture_rows {
+        domain_fixtures.push(map_row_to_fixture(row)?);
+    }
+
+    let domain_ties = load_stage_knockout_ties(pool, current_stage_id).await?;
+
     if stage_type == StageType::KnockoutBracket {
         if let Some(schedule) = advance_knockout_round(
             pool,
@@ -134,6 +148,8 @@ pub async fn progress_season(
             calendar,
             Arc::clone(&trigger_store),
             reference_year,
+            &domain_fixtures,
+            domain_ties.clone(),
         )
         .await?
         {
@@ -151,19 +167,6 @@ pub async fn progress_season(
             });
         }
     }
-
-    let fixture_rows = arlo_persistence::repositories::season::fixtures::list_by_stage_id(
-        pool,
-        current_stage_id,
-    )
-    .await?;
-
-    let mut domain_fixtures = Vec::with_capacity(fixture_rows.len());
-    for row in &fixture_rows {
-        domain_fixtures.push(map_row_to_fixture(row)?);
-    }
-
-    let domain_ties = load_stage_knockout_ties(pool, current_stage_id).await?;
 
     if !is_stage_complete(
         &current_stage_instance,
@@ -225,7 +228,7 @@ pub async fn progress_season(
             schedule,
         })
     } else {
-        let knockout_champion = if stage_type == StageType::KnockoutBracket {
+        let champion = if stage_type == StageType::KnockoutBracket {
             match detect_knockout_bracket_progress(
                 &domain_ties,
                 &domain_fixtures,
@@ -237,14 +240,20 @@ pub async fn progress_season(
                 _ => None,
             }
         } else {
-            None
+            let standings = standings_cache::get_or_compute_standings_with_fixtures(
+                pool,
+                current_stage_id,
+                Some(&domain_fixtures),
+            )
+            .await?;
+            standings.first().map(|e| e.team_id())
         };
 
         finalize_season(
             pool,
             competition_id,
             season_instance_id,
-            knockout_champion,
+            champion,
             calendar,
             trigger_store,
         )

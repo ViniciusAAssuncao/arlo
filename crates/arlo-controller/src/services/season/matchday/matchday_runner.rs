@@ -6,7 +6,7 @@ use arlo_persistence::persister::{MatchPersistenceContext, MatchPersister};
 use arlo_stats::AggregatorRegistry;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, Transaction};
 use uuid::Uuid;
 
 pub struct CompletedMatchSimulation {
@@ -65,34 +65,17 @@ pub fn simulate_match(
 }
 
 pub async fn persist_completed_simulation(
-    pool: &SqlitePool,
-    simulation: CompletedMatchSimulation,
+    tx: &mut Transaction<'_, Sqlite>,
+    simulation: &CompletedMatchSimulation,
 ) -> ControllerResult<Uuid> {
     let match_id = MatchPersister::persist_completed_match(
-        pool,
+        tx,
         &simulation.state,
         &simulation.run_result,
         &simulation.persistence_context,
     )
     .await
     .map_err(ControllerError::Persistence)?;
-
-    let (match_year, match_day) = match &simulation.persistence_context.completed_fixture {
-        Some(f) => (f.scheduled_year, f.scheduled_day_of_year as u32),
-        None => (0, 0),
-    };
-
-    arlo_recovery::orchestration::capture_post_match_condition(
-        pool,
-        &simulation.state,
-        simulation.run_result.raw_sink.events(),
-        match_year,
-        match_day,
-    )
-    .await
-    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
-    crate::repositories::season::standings_cache::invalidate(&simulation.stage_id).await;
 
     Ok(match_id)
 }
