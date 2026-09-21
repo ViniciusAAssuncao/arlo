@@ -1,10 +1,12 @@
 use arlo_events::{
     FieldGoalScored, FieldPointScored, GoalPointScored, MatchClockInstant, ScoringAttemptMissed,
 };
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, FromRow)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct MatchScoringPlayRow {
     pub id: String,
     pub match_id: String,

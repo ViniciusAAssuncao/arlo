@@ -1,9 +1,11 @@
 use arlo_domain::KickFoulDecisionKind;
 use arlo_events::{KickFoulDecisionMade, MatchClockInstant};
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, FromRow)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct MatchKickFoulDecisionRow {
     pub id: String,
     pub match_id: String,

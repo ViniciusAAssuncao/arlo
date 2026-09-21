@@ -12,6 +12,7 @@ pub enum MatchOutcome {
 #[serde(rename_all = "camelCase")]
 pub struct TeamFormEntryDto {
     pub fixture_id: String,
+    pub match_id: Option<String>,
     pub opponent_id: String,
     pub opponent_name: String,
     pub is_home: bool,

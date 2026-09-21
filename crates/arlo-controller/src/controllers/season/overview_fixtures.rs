@@ -1,17 +1,36 @@
 use crate::domain::calendar::{CalendarDate, CalendarSystem, ResolvedCalendarDate};
 use crate::dto::season::FixtureSummaryDto;
+use crate::error::ControllerResult;
 use crate::services::calendar::date_resolver;
 use arlo_persistence::models::season::FixtureRow;
+use arlo_persistence::repositories::match_repository;
+use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub fn build_overview_fixtures(
+pub async fn build_overview_fixtures(
+    pool: &SqlitePool,
     fixture_rows: Vec<FixtureRow>,
     calendar: &CalendarSystem,
     team_name_map: &HashMap<Uuid, String>,
     team_home_venue_map: &HashMap<Uuid, Option<Uuid>>,
     venue_name_map: &HashMap<Uuid, String>,
-) -> Vec<FixtureSummaryDto> {
+) -> ControllerResult<Vec<FixtureSummaryDto>> {
+    let fixture_uuids: Vec<Uuid> = fixture_rows
+        .iter()
+        .filter_map(|r| Uuid::parse_str(&r.id).ok())
+        .collect();
+
+    let match_id_map: HashMap<String, String> = if fixture_uuids.is_empty() {
+        HashMap::new()
+    } else {
+        let match_rows = match_repository::list_by_fixture_ids(pool, &fixture_uuids).await?;
+        match_rows
+            .into_iter()
+            .filter_map(|m| m.fixture_id.map(|fid| (fid, m.id)))
+            .collect()
+    };
+
     let mut fixtures = Vec::with_capacity(fixture_rows.len());
 
     for row in fixture_rows {
@@ -90,9 +109,11 @@ pub fn build_overview_fixtures(
         };
 
         let venue_name = target_venue_id.and_then(|vid| venue_name_map.get(&vid).cloned());
+        let match_id = match_id_map.get(&row.id).cloned();
 
         fixtures.push(FixtureSummaryDto {
             id: row.id,
+            match_id,
             round_index: row.round_index as u32,
             home_team_id: row.home_team_id.clone(),
             away_team_id: row.away_team_id.clone(),
@@ -117,5 +138,5 @@ pub fn build_overview_fixtures(
     }
 
     fixtures.sort_by_key(|f| (f.round_index, f.scheduled_day_of_year));
-    fixtures
+    Ok(fixtures)
 }

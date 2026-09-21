@@ -1,9 +1,11 @@
 use arlo_domain::PunishmentKind;
 use arlo_events::{FoulOrigin, FoulRaised, MatchClockInstant};
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, FromRow)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct MatchFoulRow {
     pub id: String,
     pub match_id: String,

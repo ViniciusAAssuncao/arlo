@@ -1,9 +1,11 @@
 use arlo_domain::{BodyRegion, InjuryMechanism, InjurySeverityGrade};
 use arlo_events::{InjuryIncidentRecorded, MatchClockInstant};
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, FromRow)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct MatchInjuryRow {
     pub id: String,
     pub match_id: String,

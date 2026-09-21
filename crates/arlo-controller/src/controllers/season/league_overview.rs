@@ -97,12 +97,14 @@ pub async fn get_league_overview(
 
     let standings = build_overview_standings(&standings_entries, &team_name_map);
     let fixtures = build_overview_fixtures(
+        pool,
         fixture_rows,
         calendar,
         &team_name_map,
         &team_home_venue_map,
         &venue_name_map,
-    );
+    )
+    .await?;
 
     Ok(LeagueOverviewDto {
         has_active_season: true,
