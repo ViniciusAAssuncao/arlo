@@ -77,8 +77,8 @@ pub async fn insert(pool: &SqlitePool, formation: &Formation) -> DbResult<()> {
         .bind(formation.id().to_string())
         .bind(index as i32)
         .bind(pos_code)
-        .bind(0.0)
-        .bind(0.0)
+        .bind(slot.pitch_length_ratio())
+        .bind(slot.pitch_width_ratio())
         .bind(role_code)
         .execute(&mut *tx)
         .await?;

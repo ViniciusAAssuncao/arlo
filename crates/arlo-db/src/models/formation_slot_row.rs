@@ -19,6 +19,11 @@ impl FormationSlotRow {
     pub fn to_domain(&self) -> DbResult<FormationSlot> {
         let position = parse_position(&self.position)?;
         let role = parse_slot_role(&self.slot_role)?;
-        Ok(FormationSlot::new(position, role))
+        Ok(FormationSlot::new(
+            position,
+            role,
+            self.pitch_length_ratio,
+            self.pitch_width_ratio,
+        ))
     }
 }
