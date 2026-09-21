@@ -2,23 +2,12 @@ use crate::error::{DbError, DbResult};
 use crate::models::{
     ManagerAttributeRow, ManagerPreferredFormationRow, ManagerRow, ManagerTacticalProfileRow,
 };
-use crate::repositories::attribute_definition_repository;
 use crate::repositories::fetch::{fetch_all, fetch_all_by_param, fetch_optional_by_param};
 use crate::repositories::person_repository;
-use arlo_domain::{AttributeDefinition, AttributeTarget, Manager, Person};
+use arlo_domain::{AttributeDefinition, Manager, Person};
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
-
-async fn load_definitions_map(pool: &SqlitePool) -> DbResult<HashMap<Uuid, AttributeDefinition>> {
-    let defs =
-        attribute_definition_repository::list_by_applies_to(pool, AttributeTarget::Manager).await?;
-    let mut map = HashMap::new();
-    for d in defs {
-        map.insert(d.id(), d);
-    }
-    Ok(map)
-}
 
 async fn assemble_manager(
     pool: &SqlitePool,
@@ -65,7 +54,11 @@ async fn assemble_manager(
     manager_row.to_domain(person, attributes, tactical_profile)
 }
 
-pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> DbResult<Option<Manager>> {
+pub async fn get_by_id(
+    pool: &SqlitePool,
+    id: Uuid,
+    def_map: &HashMap<Uuid, AttributeDefinition>,
+) -> DbResult<Option<Manager>> {
     let row = fetch_optional_by_param::<ManagerRow>(
         pool,
         "SELECT id, team_id, control_mode FROM managers WHERE id = ?",
@@ -82,14 +75,15 @@ pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> DbResult<Option<Manager>>
         .await?
         .ok_or_else(|| DbError::NotFound(format!("Person not found for manager {}", id)))?;
 
-    let def_map = load_definitions_map(pool).await?;
-    let manager = assemble_manager(pool, &row, person, &def_map).await?;
+    let manager = assemble_manager(pool, &row, person, def_map).await?;
     Ok(Some(manager))
 }
 
-pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Manager>> {
+pub async fn list_all(
+    pool: &SqlitePool,
+    def_map: &HashMap<Uuid, AttributeDefinition>,
+) -> DbResult<Vec<Manager>> {
     let rows = fetch_all::<ManagerRow>(pool, "SELECT id, team_id, control_mode FROM managers").await?;
-    let def_map = load_definitions_map(pool).await?;
 
     let mut results = Vec::with_capacity(rows.len());
     for row in &rows {
@@ -97,19 +91,22 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<Manager>> {
         let person = person_repository::get_by_id(pool, id)
             .await?
             .ok_or_else(|| DbError::NotFound(format!("Person not found for manager {}", id)))?;
-        results.push(assemble_manager(pool, row, person, &def_map).await?);
+        results.push(assemble_manager(pool, row, person, def_map).await?);
     }
     Ok(results)
 }
 
-pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<Manager>> {
+pub async fn list_by_team_id(
+    pool: &SqlitePool,
+    team_id: Uuid,
+    def_map: &HashMap<Uuid, AttributeDefinition>,
+) -> DbResult<Vec<Manager>> {
     let rows = fetch_all_by_param::<ManagerRow>(
         pool,
         "SELECT id, team_id, control_mode FROM managers WHERE team_id = ?",
         &team_id.to_string(),
     )
     .await?;
-    let def_map = load_definitions_map(pool).await?;
 
     let mut results = Vec::with_capacity(rows.len());
     for row in &rows {
@@ -117,7 +114,7 @@ pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<M
         let person = person_repository::get_by_id(pool, id)
             .await?
             .ok_or_else(|| DbError::NotFound(format!("Person not found for manager {}", id)))?;
-        results.push(assemble_manager(pool, row, person, &def_map).await?);
+        results.push(assemble_manager(pool, row, person, def_map).await?);
     }
     Ok(results)
 }

@@ -1,11 +1,14 @@
 use crate::error::{ControllerError, ControllerResult};
+use crate::repositories::attribute::attribute_definition_cache::get_or_load_manager_attribute_definitions;
+use crate::repositories::formation::formation_cache::get_or_load_formations;
+use crate::services::season::matchday::emergency_roster::ensure_minimum_roster;
 use crate::services::season::matchday::matchday_catalog_cache::MatchdayCatalogs;
 use crate::services::season::matchday::matchday_referee_selector::select_referees;
 use crate::services::season::matchday::team_lineup_resolver::resolve_team_lineup;
 use crate::services::season::matchday::team_playbook_resolver::resolve_team_playbook;
 use crate::services::season::matchday::team_profile_resolver::resolve_team_instructions;
 use crate::services::season::standings::random_tiebreak_resolver::seed_from_uuid;
-use arlo_domain::{MatchFormatRules, Pitch, Player};
+use arlo_domain::{Formation, MatchFormatRules, Pitch, Player};
 use arlo_engine::{MatchSetupParams, TeamSetupParams};
 use arlo_persistence::models::season::FixtureRow;
 use arlo_persistence::persister::MatchPersistenceContext;
@@ -51,6 +54,29 @@ async fn filter_available_players(
     Ok(available)
 }
 
+async fn resolve_and_ensure_available_players(
+    pool: &SqlitePool,
+    team_id: Uuid,
+    fallback_formation: &Formation,
+) -> ControllerResult<Vec<Player>> {
+    let raw_players = arlo_db::repositories::player::list_by_team_id(pool, team_id)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+
+    let existing_count = raw_players.len();
+    let mut available = filter_available_players(pool, raw_players).await?;
+
+    if available.len() < 14 {
+        ensure_minimum_roster(pool, team_id, fallback_formation, available.len(), existing_count).await?;
+        let refreshed = arlo_db::repositories::player::list_by_team_id(pool, team_id)
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+        available = filter_available_players(pool, refreshed).await?;
+    }
+
+    Ok(available)
+}
+
 pub async fn build_matchday_setup(
     pool: &SqlitePool,
     fixture: &FixtureRow,
@@ -73,19 +99,20 @@ pub async fn build_matchday_setup(
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?
         .ok_or_else(|| ControllerError::NotFound(format!("Away team {} not found", away_team_id)))?;
 
-    let (home_lineup, home_formation) = resolve_team_lineup(pool, home_team_id).await?;
-    let (away_lineup, away_formation) = resolve_team_lineup(pool, away_team_id).await?;
+    let formations = get_or_load_formations(pool).await?;
+    if formations.is_empty() {
+        return Err(ControllerError::NotFound(
+            "No formations available in database".to_string(),
+        ));
+    }
 
-    let raw_home_players = arlo_db::repositories::player::list_by_team_id(pool, home_team_id)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let home_players = resolve_and_ensure_available_players(pool, home_team_id, &formations[0]).await?;
+    let away_players = resolve_and_ensure_available_players(pool, away_team_id, &formations[0]).await?;
 
-    let raw_away_players = arlo_db::repositories::player::list_by_team_id(pool, away_team_id)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
-    let home_players = filter_available_players(pool, raw_home_players).await?;
-    let away_players = filter_available_players(pool, raw_away_players).await?;
+    let (home_lineup, home_formation) =
+        resolve_team_lineup(pool, home_team_id, &home_players, &formations).await?;
+    let (away_lineup, away_formation) =
+        resolve_team_lineup(pool, away_team_id, &away_players, &formations).await?;
 
     let mut all_player_ids = Vec::with_capacity(home_players.len() + away_players.len());
     all_player_ids.extend(home_players.iter().map(|p| p.id()));
@@ -98,7 +125,9 @@ pub async fn build_matchday_setup(
     .await
     .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
-    let home_managers = arlo_db::repositories::manager::list_by_team_id(pool, home_team_id)
+    let manager_defs = get_or_load_manager_attribute_definitions(pool).await?;
+
+    let home_managers = arlo_db::repositories::manager::list_by_team_id(pool, home_team_id, &manager_defs)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
@@ -106,7 +135,7 @@ pub async fn build_matchday_setup(
         ControllerError::NotFound(format!("Manager for home team {} not found", home_team_id))
     })?;
 
-    let away_managers = arlo_db::repositories::manager::list_by_team_id(pool, away_team_id)
+    let away_managers = arlo_db::repositories::manager::list_by_team_id(pool, away_team_id, &manager_defs)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 

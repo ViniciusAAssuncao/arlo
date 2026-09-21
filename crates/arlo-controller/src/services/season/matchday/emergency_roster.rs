@@ -1,6 +1,5 @@
 use crate::error::{ControllerError, ControllerResult};
 use arlo_domain::{Formation, Position};
-use arlo_recovery::availability::resolve_batch_player_statuses;
 use sqlx::SqlitePool;
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -10,32 +9,15 @@ pub async fn ensure_minimum_roster(
     pool: &SqlitePool,
     team_id: Uuid,
     formation: &Formation,
+    available_player_count: usize,
+    existing_players_count: usize,
 ) -> ControllerResult<()> {
-    let existing_players = arlo_db::repositories::player::list_by_team_id(pool, team_id)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
-    let player_ids: Vec<Uuid> = existing_players.iter().map(|p| p.id()).collect();
-    let statuses = resolve_batch_player_statuses(pool, &player_ids)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
-    let available_players: Vec<_> = existing_players
-        .iter()
-        .filter(|p| {
-            statuses
-                .get(&p.id())
-                .map(|s| s.is_available_for_selection())
-                .unwrap_or(true)
-        })
-        .collect();
-
     let required_count = formation.slots().len().max(14);
-    if available_players.len() >= required_count {
+    if available_player_count >= required_count {
         return Ok(());
     }
 
-    let needed_count = required_count - available_players.len();
+    let needed_count = required_count - available_player_count;
 
     let team = arlo_db::repositories::team::get_by_id(pool, team_id)
         .await
@@ -90,9 +72,9 @@ pub async fn ensure_minimum_roster(
     for i in 0..needed_count {
         let player_id = Uuid::new_v4();
         let first_name = "Jogador";
-        let last_name = format!("Emergencial {}", existing_players.len() + i + 1);
+        let last_name = format!("Emergencial {}", existing_players_count + i + 1);
 
-        let slot_idx = (existing_players.len() + i) % formation.slots().len();
+        let slot_idx = (existing_players_count + i) % formation.slots().len();
         let slot = &formation.slots()[slot_idx];
         let target_pos = if slot.defensive_position() == Position::Goalguard
             || slot.position() == Position::Goalguard
