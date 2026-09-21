@@ -69,6 +69,8 @@ pub async fn ensure_minimum_roster(
         .await
         .unwrap_or_default();
 
+    let mut tx = pool.begin().await?;
+
     for i in 0..needed_count {
         let player_id = Uuid::new_v4();
         let first_name = "Jogador";
@@ -203,7 +205,7 @@ pub async fn ensure_minimum_roster(
                     _ => {}
                 }
             }
-            query.execute(pool).await?;
+            query.execute(&mut *tx).await?;
         }
 
         if !pos_col_names.is_empty() {
@@ -243,7 +245,7 @@ pub async fn ensure_minimum_roster(
                     _ => {}
                 }
             }
-            let _ = query.execute(pool).await;
+            let _ = query.execute(&mut *tx).await;
         }
 
         if !attr_col_names.is_empty() && !attr_defs.is_empty() {
@@ -255,7 +257,7 @@ pub async fn ensure_minimum_roster(
                         .bind(player_id.to_string())
                         .bind(def.id().to_string())
                         .bind(1i32)
-                        .execute(pool)
+                        .execute(&mut *tx)
                         .await;
                 } else {
                     let sql = "INSERT OR IGNORE INTO player_attributes (player_id, attribute_definition_id, value) VALUES (?, ?, ?)";
@@ -263,12 +265,14 @@ pub async fn ensure_minimum_roster(
                         .bind(player_id.to_string())
                         .bind(def.id().to_string())
                         .bind(1i32)
-                        .execute(pool)
+                        .execute(&mut *tx)
                         .await;
                 }
             }
         }
     }
+
+    tx.commit().await?;
 
     Ok(())
 }

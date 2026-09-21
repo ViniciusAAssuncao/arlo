@@ -9,8 +9,6 @@ use crate::services::season::matchday::walkover_resolver;
 use arlo_engine::MatchState;
 use rayon::prelude::*;
 use sqlx::SqlitePool;
-use std::sync::Arc;
-use tokio::task::JoinSet;
 
 pub async fn run_due_matches(
     pool: &SqlitePool,
@@ -24,36 +22,19 @@ pub async fn run_due_matches(
 
     let catalogs = get_or_load_matchday_catalogs(pool).await?;
 
-    let mut join_set = JoinSet::new();
-
-    for fixture in due_fixtures {
-        let pool = pool.clone();
-        let catalogs = Arc::clone(&catalogs);
-        join_set.spawn(async move {
-            let res = build_matchday_setup(&pool, &fixture, &catalogs).await;
-            (fixture, res)
-        });
-    }
-
-    let mut prepared_matches = Vec::new();
+    let mut prepared_matches = Vec::with_capacity(due_fixtures.len());
     let mut matches_played_count = 0u32;
 
-    while let Some(join_res) = join_set.join_next().await {
-        match join_res {
-            Ok((_, Ok(prep))) => {
+    for fixture in due_fixtures {
+        match build_matchday_setup(pool, &fixture, &catalogs).await {
+            Ok(prep) => {
                 prepared_matches.push(prep);
             }
-            Ok((fixture, Err(err))) => {
+            Err(err) => {
                 eprintln!("build_matchday_setup failed for fixture {}: {}", fixture.id, err);
                 if walkover_resolver::handle_walkover(pool, &fixture).await.is_ok() {
                     matches_played_count += 1;
                 }
-            }
-            Err(join_err) => {
-                return Err(ControllerError::InvalidData(format!(
-                    "Task join error during match setup: {}",
-                    join_err
-                )));
             }
         }
     }

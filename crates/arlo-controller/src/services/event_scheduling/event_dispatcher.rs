@@ -1,6 +1,6 @@
 use crate::domain::calendar::CalendarDate;
 use crate::domain::event_scheduling::TriggerKind;
-use crate::error::{ControllerError, ControllerResult};
+use crate::error::ControllerResult;
 use crate::services::event_scheduling::handlers::conflict_scan_handler::{
     handle_conflict_scan, ConflictScanReport,
 };
@@ -12,7 +12,6 @@ use crate::services::season::progression::season_progression_orchestrator::{
 use crate::services::season::season_generator::GeneratedSeason;
 use sqlx::SqlitePool;
 use std::sync::Arc;
-use tokio::task::JoinSet;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -42,79 +41,51 @@ pub async fn dispatch_due_events(
         return Ok(Vec::new());
     }
 
-    let mut join_set = JoinSet::new();
+    let mut results = Vec::with_capacity(due_triggers.len());
 
     for trigger in due_triggers {
-        let pool = pool.clone();
-        let store = Arc::clone(&trigger_store);
         let year = current_date.year();
 
         match trigger.kind() {
             TriggerKind::SeasonGenerationDue => {
-                join_set.spawn(async move {
-                    let generated = handle_season_generation(
-                        &pool,
-                        trigger.competition_id(),
-                        calendar_system_id,
-                        year,
-                        store,
-                    )
-                    .await?;
-                    Ok::<DispatchedEventResult, ControllerError>(
-                        DispatchedEventResult::SeasonGenerated {
-                            competition_id: trigger.competition_id(),
-                            season: generated,
-                        },
-                    )
+                let generated = handle_season_generation(
+                    pool,
+                    trigger.competition_id(),
+                    calendar_system_id,
+                    year,
+                    Arc::clone(&trigger_store),
+                )
+                .await?;
+                results.push(DispatchedEventResult::SeasonGenerated {
+                    competition_id: trigger.competition_id(),
+                    season: generated,
                 });
             }
             TriggerKind::StageTransitionCheckDue => {
-                join_set.spawn(async move {
-                    let outcome = progress_season(
-                        &pool,
-                        trigger.competition_id(),
-                        calendar_system_id,
-                        store,
-                        year,
-                    )
-                    .await?;
-                    Ok::<DispatchedEventResult, ControllerError>(
-                        DispatchedEventResult::StageTransitionChecked {
-                            competition_id: trigger.competition_id(),
-                            outcome,
-                        },
-                    )
+                let outcome = progress_season(
+                    pool,
+                    trigger.competition_id(),
+                    calendar_system_id,
+                    Arc::clone(&trigger_store),
+                    year,
+                )
+                .await?;
+                results.push(DispatchedEventResult::StageTransitionChecked {
+                    competition_id: trigger.competition_id(),
+                    outcome,
                 });
             }
             TriggerKind::ConflictScanDue => {
-                join_set.spawn(async move {
-                    let report = handle_conflict_scan(
-                        &pool,
-                        trigger.competition_id(),
-                        store,
-                    )
-                    .await?;
-                    Ok::<DispatchedEventResult, ControllerError>(
-                        DispatchedEventResult::ConflictScanned {
-                            competition_id: trigger.competition_id(),
-                            report,
-                        },
-                    )
+                let report = handle_conflict_scan(
+                    pool,
+                    trigger.competition_id(),
+                    Arc::clone(&trigger_store),
+                )
+                .await?;
+                results.push(DispatchedEventResult::ConflictScanned {
+                    competition_id: trigger.competition_id(),
+                    report,
                 });
-            }
-        }
-    }
-
-    let mut results = Vec::new();
-    while let Some(res) = join_set.join_next().await {
-        match res {
-            Ok(Ok(event_result)) => results.push(event_result),
-            Ok(Err(_)) => {}
-            Err(join_err) => {
-                return Err(ControllerError::InvalidData(format!(
-                    "Task join error during event dispatch: {}",
-                    join_err
-                )))
             }
         }
     }
