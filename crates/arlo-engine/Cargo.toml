@@ -20,4 +20,3 @@ serde.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-criterion.workspace = true
