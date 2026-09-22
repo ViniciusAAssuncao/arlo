@@ -177,7 +177,6 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             new_origin.reset(next_scrimmage_x);
             (current.role().swap(), true)
         } else {
-            updated_series.advance_down();
             updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
             (*current.role(), false)
         };

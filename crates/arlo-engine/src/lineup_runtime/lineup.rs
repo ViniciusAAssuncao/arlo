@@ -130,11 +130,39 @@ impl Lineup {
             });
         }
 
+        let mut has_artrine = false;
+        let mut has_passer = false;
+        let mut has_goalguard = false;
+
         let mut seen = HashSet::with_capacity(expected_count);
         for a in &assignments {
             if !seen.insert(a.player().id()) {
                 return Err(EngineError::DuplicatePlayer(a.player().id()));
             }
+
+            let p = a.slot().position();
+            let op = a.slot().offensive_position();
+            let dp = a.slot().defensive_position();
+
+            if p == Position::Artrine || op == Position::Artrine || dp == Position::Artrine {
+                has_artrine = true;
+            }
+            if p == Position::Passer || op == Position::Passer || dp == Position::Passer {
+                has_passer = true;
+            }
+            if p == Position::Goalguard || op == Position::Goalguard || dp == Position::Goalguard {
+                has_goalguard = true;
+            }
+        }
+
+        if !has_artrine {
+            return Err(EngineError::MissingRequiredPosition(format!("{:?}", Position::Artrine)));
+        }
+        if !has_passer {
+            return Err(EngineError::MissingRequiredPosition(format!("{:?}", Position::Passer)));
+        }
+        if !has_goalguard {
+            return Err(EngineError::MissingRequiredPosition(format!("{:?}", Position::Goalguard)));
         }
 
         let players_cache = assignments.iter().map(|a| Arc::clone(&a.player)).collect();

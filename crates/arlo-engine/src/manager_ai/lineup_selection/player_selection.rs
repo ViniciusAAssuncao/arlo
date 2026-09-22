@@ -6,14 +6,21 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 fn slot_demand_priority(slot: &FormationSlot) -> u8 {
-    if slot.defensive_position() == Position::Goalguard
-        || slot.position() == Position::Goalguard
+    let is_goalguard = slot.position() == Position::Goalguard
         || slot.offensive_position() == Position::Goalguard
-    {
+        || slot.defensive_position() == Position::Goalguard;
+    let is_passer = slot.position() == Position::Passer
+        || slot.offensive_position() == Position::Passer
+        || slot.defensive_position() == Position::Passer;
+    let is_artrine = slot.position() == Position::Artrine
+        || slot.offensive_position() == Position::Artrine
+        || slot.defensive_position() == Position::Artrine;
+
+    if is_goalguard {
         0
-    } else if slot.position() == Position::Passer {
+    } else if is_passer {
         1
-    } else if slot.position() == Position::Artrine {
+    } else if is_artrine {
         2
     } else {
         3
@@ -36,7 +43,15 @@ pub fn assign_players(
 
     for slot_idx in slot_indices {
         let slot = &slots[slot_idx];
-        let target_pos = slot.position();
+
+        let mut target_pos = slot.position();
+        if slot.position() == Position::Goalguard || slot.defensive_position() == Position::Goalguard || slot.offensive_position() == Position::Goalguard {
+            target_pos = Position::Goalguard;
+        } else if slot.position() == Position::Passer || slot.defensive_position() == Position::Passer || slot.offensive_position() == Position::Passer {
+            target_pos = Position::Passer;
+        } else if slot.position() == Position::Artrine || slot.defensive_position() == Position::Artrine || slot.offensive_position() == Position::Artrine {
+            target_pos = Position::Artrine;
+        }
 
         let mut best_player = roster
             .iter()

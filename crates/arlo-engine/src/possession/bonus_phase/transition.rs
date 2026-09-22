@@ -33,10 +33,11 @@ pub fn resolve_bonus_phase_transition(
             triggers_countdown: true,
         }
     } else {
-        if !is_out_or_arbitral {
+        if is_out_or_arbitral {
             updated_series.advance_down();
-            updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
         }
+        updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
+        
         BonusPhaseTransitionResult {
             role: current_role,
             triggers_countdown: false,
