@@ -101,10 +101,14 @@ pub fn resolve_down<'a, R: Rng + ?Sized>(
     };
     let end_y_mirim = state.pitch().width_mirim() * 0.5;
 
-    let distribution_flight = contest.distribution_flight.map(|f| DistributionFlightInfo {
-        distance_mirim: progression.mirins_advanced,
-        ..f
-    });
+    let distribution_flight = contest
+        .distribution_flight
+        .map(|f| DistributionFlightInfo {
+            distance_mirim: progression.mirins_advanced,
+            ..f
+        })
+        .into_iter()
+        .collect();
 
     let receiver_id = contest
         .receiver

@@ -31,7 +31,7 @@ pub struct ArtrineExecutionOutcome {
     pub fouls: Vec<FoulResolution>,
     pub injuries: Vec<InjuryIncidentResolution>,
     pub receiver_id: Option<Uuid>,
-    pub distribution_flight: Option<DistributionFlightInfo>,
+    pub distribution_flight: Vec<DistributionFlightInfo>,
 }
 
 impl ArtrineExecutionOutcome {
@@ -56,7 +56,7 @@ impl ArtrineExecutionOutcome {
             fouls: Vec::new(),
             injuries: Vec::new(),
             receiver_id: None,
-            distribution_flight: None,
+            distribution_flight: Vec::new(),
         }
     }
 }

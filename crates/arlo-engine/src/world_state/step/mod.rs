@@ -210,7 +210,7 @@ pub fn step_call_to_action(
                 fouls: Vec::new(),
                 injuries: Vec::new(),
                 receiver_id: None,
-                distribution_flight: None,
+                distribution_flight: Vec::new(),
             },
         )
     } else {

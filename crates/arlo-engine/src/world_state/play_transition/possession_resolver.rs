@@ -29,7 +29,7 @@ pub fn classify_play_outcome(
     let pass_failed = !pass_phase.pass_completed;
     let is_distribution_dropped = execution_outcome
         .distribution_flight
-        .as_ref()
+        .last()
         .is_some_and(|f| !f.caught && execution_outcome.turnover.is_none());
 
     let out_of_bounds = pass_failed || is_scored || is_missed || is_distribution_dropped;
@@ -51,7 +51,7 @@ pub fn classify_play_outcome(
     } else if let Some(turnover_team) = execution_outcome.turnover {
         let category = if execution_outcome
             .distribution_flight
-            .as_ref()
+            .last()
             .is_some_and(|f| !f.caught)
         {
             TurnoverCategory::Interception

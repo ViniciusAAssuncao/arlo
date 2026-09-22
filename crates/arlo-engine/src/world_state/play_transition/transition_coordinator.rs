@@ -80,7 +80,7 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
             EventArtroPlacement::Central,
         );
 
-        if let Some(flight_info) = &self.execution_outcome.distribution_flight {
+        for flight_info in &self.execution_outcome.distribution_flight {
             self.publisher.emit_distribution_flight(flight_info);
         }
 
