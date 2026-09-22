@@ -1,7 +1,11 @@
+pub mod chain_budget;
 pub mod chain_state;
+pub mod continuation_model;
 pub mod termination_reason;
 pub mod touch_outcome;
 
+pub use chain_budget::{initialize_chain_budget, is_budget_exhausted, DEFAULT_CHAIN_SAFETY_BUDGET};
 pub use chain_state::ChainState;
+pub use continuation_model::{evaluate_continuation_probability, sample_continuation};
 pub use termination_reason::TerminationReason;
 pub use touch_outcome::TouchOutcome;
