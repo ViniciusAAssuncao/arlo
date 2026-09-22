@@ -84,8 +84,8 @@ pub fn evaluate_action_utility(
                 let v_opp = ctx.opponent_epa();
                 let raw_p = (term.success_prob_fn)(ctx, skill_mult);
                 let p_succ = ctx.bound_probability(raw_p);
-                let p_to = 1.0 - p_succ;
-                let p_fail = 0.0;
+                let p_fail = 1.0 - p_succ;
+                let p_to = 0.0;
                 let geom = (term.geometry_factor_fn)(ctx);
 
                 (
@@ -93,8 +93,8 @@ pub fn evaluate_action_utility(
                     p_to,
                     p_fail,
                     value - ctx.current_epv,
+                    -v_opp - (ctx.current_epv * 0.15),
                     0.0,
-                    -v_opp - ctx.current_epv,
                     geom,
                     0.0,
                 )

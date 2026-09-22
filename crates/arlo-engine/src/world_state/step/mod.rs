@@ -124,25 +124,32 @@ pub fn step_call_to_action(
         let goalguard = crate::lineup_runtime::find_player_by_position(&defense_players, arlo_domain::Position::Goalguard).unwrap_or(defense_players[0]);
         let pass_rusher = crate::lineup_runtime::find_player_by_position(&defense_players, arlo_domain::Position::PassRusher).unwrap_or(defense_players[0]);
 
-        let dummy_outcome = crate::resolution::DuelOutcome::new(
+        let req = crate::resolution::resolver::DuelResolutionRequest::for_contest(
             crate::resolution::DuelKind::PassProtection,
-            true,
             10.0,
             10.0,
-            arlo_math::Probability::new_clamped(1.0),
-            0.0,
+            &crate::resolution::DuelContext::neutral(),
         );
+        let mut duel_rng = state
+            .rng_provider()
+            .indexed_rng_for(crate::rng::RngStream::DuelResolution, state.event_sequence());
+        let dummy_outcome = crate::resolution::resolver::resolve_duel(req, &mut duel_rng);
+
         let pass_duel_outcome = crate::resolution::AttributedDuelOutcome::new(
             dummy_outcome,
             smallvec::smallvec![passer.id()],
             smallvec::smallvec![pass_rusher.id()],
         );
 
-        sink.record(create_envelope(
-            state.next_sequence(),
-            state.clock().to_instant(),
-            arlo_events::PassCompleted::new(passer.id(), artrine.id(), false, 5.0),
-        ));
+        let pass_completed = dummy_outcome.attacker_won();
+
+        if pass_completed {
+            sink.record(create_envelope(
+                state.next_sequence(),
+                state.clock().to_instant(),
+                arlo_events::PassCompleted::new(passer.id(), artrine.id(), false, 5.0),
+            ));
+        }
 
         let current_time = state.clock().seconds_in_period();
         let pitch_length_mirim = state.pitch().length_mirim();
@@ -176,7 +183,7 @@ pub fn step_call_to_action(
             pass_rusher,
             goalguard,
             pass_duel_outcome,
-            pass_completed: true,
+            pass_completed,
             is_aerial: false,
             reception_x_mirim: state.possession().scrimmage_x_mirim(),
             reception_y_mirim: state.pitch().width_mirim() * 0.5,

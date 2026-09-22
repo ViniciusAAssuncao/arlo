@@ -113,7 +113,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             let to_base = if attacker_won { -5.0 } else { -3.0 };
             let to_p = (logistic(to_base - 0.20 * net_advantage)
                 / touch_ctx.risk_profile.tolerance_index())
-            .clamp(0.001, 0.25);
+            .clamp(0.03, 0.25);
 
             let turnover_team = if Probability::new_clamped(to_p).sample(rng) {
                 Some(static_ctx.defense_team_id)
@@ -433,6 +433,14 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             let attacker_won = raw_duel.attacker_won();
             let net_advantage = raw_duel.net_advantage();
 
+            let turnover_threshold = -4.0;
+            let turnover_team = if !attacker_won && net_advantage <= turnover_threshold {
+                Some(static_ctx.defense_team_id)
+            } else {
+                None
+            };
+            let recovering_player_id = turnover_team.map(|_| primary_defender.id());
+
             let primary_duel = AttributedDuelOutcome::new(
                 raw_duel,
                 smallvec![carrier.id()],
@@ -443,8 +451,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 primary_duel: Some(primary_duel),
                 secondary_duel: None,
                 receiver: Some(finisher),
-                turnover_team: None,
-                recovering_player_id: None,
+                turnover_team,
+                recovering_player_id,
                 attacker_won,
                 net_advantage,
                 is_aerial: true,

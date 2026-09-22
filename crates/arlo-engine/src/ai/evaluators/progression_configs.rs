@@ -74,10 +74,12 @@ pub fn short_pass_config() -> ActionEvaluationConfig {
                                         + ctx.situation.pitch_control * 2.0;
                 let context_multiplier = if !ctx.situation.is_true_artrine {
                     2.5
-                } else if ctx.situation.drives_in_series >= 3 {
-                    2.0
+                } else if ctx.situation.is_bonus_phase || ctx.situation.drives_in_series >= ctx.scoring_regime.goal_point_required_drives {
+                    0.2
+                } else if ctx.situation.drives_in_series >= ctx.scoring_regime.field_point_required_drives {
+                    0.6
                 } else {
-                    1.2
+                    1.5
                 };
                 tactical_investment * context_multiplier * skill_mult
             },
@@ -109,10 +111,12 @@ pub fn long_launch_config() -> ActionEvaluationConfig {
                 let stretch_value = ctx.situation.long_launch_target_quality.max(0.0) * 4.0;
                 let context_multiplier = if !ctx.situation.is_true_artrine {
                     2.0
-                } else if ctx.situation.drives_in_series >= 3 {
-                    1.5
+                } else if ctx.situation.is_bonus_phase || ctx.situation.drives_in_series >= ctx.scoring_regime.goal_point_required_drives {
+                    0.2
+                } else if ctx.situation.drives_in_series >= ctx.scoring_regime.field_point_required_drives {
+                    0.5
                 } else {
-                    1.0
+                    1.2
                 };
                 stretch_value * context_multiplier * skill_mult
             },

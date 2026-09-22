@@ -31,7 +31,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
     duels: &mut Vec<AttributedDuelOutcome>,
     rng: &mut R,
 ) -> ScoringDecision {
-    if contest.turnover_team.is_some() {
+    if contest.turnover_team.is_some() || !contest.attacker_won {
         return ScoringDecision::NoOpportunity;
     }
 

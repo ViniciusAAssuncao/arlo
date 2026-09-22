@@ -36,6 +36,7 @@ pub fn handle_turnover_without_out(
 ) -> TransitionResult {
     let new_role = PossessionRole::new(new_offense, current.role().offense());
     let mut new_series = current.series_state().clone();
+    new_series.reset(current.scrimmage_x_mirim());
     new_series.set_bonus_phase(false);
 
     let mut new_origin = current.possession_origin().clone();
