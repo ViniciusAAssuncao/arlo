@@ -42,7 +42,7 @@ pub fn carry_config() -> ActionEvaluationConfig {
                 if ctx.situation.is_true_artrine && ctx.situation.drives_in_series < 3 && estimated_drives > 0 {
                     (estimated_drives as f64)
                         * ((3 - ctx.situation.drives_in_series) as f64)
-                        * 0.65
+                        * 5.0
                         * skill_mult
                 } else {
                     0.0

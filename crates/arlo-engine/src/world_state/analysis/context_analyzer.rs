@@ -87,7 +87,7 @@ impl GameStatePressure {
     }
 
     pub fn carry_bias(&self) -> f64 {
-        self.action_risk_multiplier(-0.35)
+        self.action_risk_multiplier(0.10)
     }
 
     pub fn cross_bias(&self) -> f64 {

@@ -12,6 +12,7 @@ pub use step_outcome::PlayStepOutcome;
 
 use crate::error::EngineResult;
 use crate::manager_ai::orchestrator::ManagerAiEngine;
+use crate::match_decision::event_translation::create_envelope;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::officiating::punishment::capture_play_reversal_snapshot;
@@ -137,6 +138,38 @@ pub fn step_call_to_action(
             smallvec::smallvec![pass_rusher.id()],
         );
 
+        sink.record(create_envelope(
+            state.next_sequence(),
+            state.clock().to_instant(),
+            arlo_events::PassCompleted::new(passer.id(), artrine.id(), false, 5.0),
+        ));
+
+        let current_time = state.clock().seconds_in_period();
+        let pitch_length_mirim = state.pitch().length_mirim();
+        let scrimmage_x = state.possession().scrimmage_x_mirim();
+        let norm_prox = if context.is_home_offense {
+            (scrimmage_x / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
+        } else {
+            ((pitch_length_mirim - scrimmage_x) / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
+        };
+        let zone = crate::possession::locate_zone(
+            norm_prox,
+            pitch_length_mirim,
+            arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
+        );
+        state.possession_mut().live_sequence_mut().record_touch(
+            passer.id(),
+            crate::possession::TouchActionType::InitialHandoff,
+            zone,
+            current_time,
+        );
+        state.possession_mut().live_sequence_mut().record_touch(
+            artrine.id(),
+            crate::possession::TouchActionType::Reception,
+            zone,
+            current_time,
+        );
+
         crate::world_state::cta_pass::PassPhaseResult {
             passer,
             artrine,
@@ -153,12 +186,7 @@ pub fn step_call_to_action(
         }
     };
 
-    let carrier = if down == 1 || current_carrier_id.is_none() || !pass_phase.pass_completed {
-        pass_phase.artrine
-    } else {
-        let cid = current_carrier_id.unwrap();
-        offense_players.iter().copied().find(|p| p.id() == cid).unwrap_or(pass_phase.artrine)
-    };
+    let carrier = pass_phase.artrine;
 
     let (chosen_decision, execution_outcome) = if !pass_phase.pass_completed {
         let center_y = state.pitch().width_mirim() * 0.5;

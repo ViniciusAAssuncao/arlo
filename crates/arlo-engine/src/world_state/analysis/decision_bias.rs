@@ -20,7 +20,7 @@ pub fn calculate_decision_bias(
 
     let raw = match kind {
         ArtrineDecisionKind::SelfCarry => {
-            let base = action_mult(-0.35);
+            let base = action_mult(0.10);
             if is_bonus_phase || drives_in_series >= regime.goal_point_required_drives {
                 base * 0.35
             } else if drives_in_series >= regime.field_point_required_drives {
@@ -57,9 +57,11 @@ pub fn calculate_decision_bias(
             } else if drives_in_series >= regime.goal_point_required_drives {
                 action_mult(1.40) * 3.60
             } else if drives_in_series >= regime.field_point_required_drives {
-                action_mult(0.50) * 2.30
-            } else if (down == 3 || down == 4) && normalized_proximity > 0.80 {
-                action_mult(0.30) * 1.50
+                if (down == 3 || down == 4) && normalized_proximity > 0.80 {
+                    action_mult(0.60) * 2.80
+                } else {
+                    action_mult(0.50) * 2.30
+                }
             } else {
                 action_mult(0.15)
             };
@@ -71,9 +73,11 @@ pub fn calculate_decision_bias(
             } else if drives_in_series >= regime.goal_point_required_drives {
                 action_mult(1.30) * 3.80
             } else if drives_in_series >= regime.field_point_required_drives {
-                action_mult(0.50) * 2.50
-            } else if (down == 3 || down == 4) && normalized_proximity > 0.80 {
-                action_mult(0.30) * 1.60
+                if (down == 3 || down == 4) && normalized_proximity > 0.80 {
+                    action_mult(0.60) * 3.00
+                } else {
+                    action_mult(0.50) * 2.50
+                }
             } else {
                 action_mult(0.15)
             };

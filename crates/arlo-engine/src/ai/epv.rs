@@ -80,8 +80,8 @@ impl DynamicEpvModel {
         _remaining_advance_mirim: f64,
         regime: &ScoringRegimePolicy,
     ) -> f64 {
-        if drives_in_series < regime.field_point_required_drives && normalized_x < 0.40 {
-            return 0.0;
+        if drives_in_series < regime.field_point_required_drives {
+            return (normalized_x * 0.05).clamp(0.0, 0.05);
         }
 
         let situation = ScoringSituation::new(
