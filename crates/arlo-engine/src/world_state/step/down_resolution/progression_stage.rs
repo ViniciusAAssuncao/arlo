@@ -74,8 +74,8 @@ pub fn resolve_progression<R: Rng + ?Sized>(
 
     let tempo_mult = effort_multiplier(static_ctx.offense_tempo);
     let base_seconds =
-        (14.0 + (mirins_advanced * 0.6).clamp(0.0, 20.0) + contest.net_advantage * 0.2) / tempo_mult;
-    let live_duration = Duration::new(base_seconds.clamp(8.0, 42.0));
+        (8.0 + (mirins_advanced * 0.4).clamp(0.0, 15.0) + contest.net_advantage * 0.1) / tempo_mult;
+    let live_duration = Duration::new(base_seconds.clamp(4.0, 25.0));
 
     ActionProgressionOutcome {
         mirins_advanced,

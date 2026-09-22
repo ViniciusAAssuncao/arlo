@@ -95,25 +95,25 @@ pub fn handle_dead_ball_and_clock(
     }
 
     let raw_live = play_ledger.total_live().value();
-    let live_seconds = if raw_live >= 15.0 {
+    let live_seconds = if raw_live >= 10.0 {
         raw_live
     } else if detailed_outcome.scoring_decision.is_scored() {
-        32.0
-    } else if detailed_outcome.turnover.is_some() || !detailed_outcome.pass_completed {
         18.0
+    } else if detailed_outcome.turnover.is_some() || !detailed_outcome.pass_completed {
+        10.0
     } else if detailed_outcome.mirins_advanced >= 8.0 {
-        28.0
+        14.0
     } else {
-        24.0
+        12.0
     };
 
     let raw_dead = play_ledger.total_dead_ball().value();
-    let dead_ball_seconds = if raw_dead >= 15.0 {
+    let dead_ball_seconds = if raw_dead >= 10.0 {
         raw_dead
     } else if transition_result.countdown_to_size_triggered {
-        25.0
+        16.0
     } else {
-        raw_dead.max(12.0)
+        raw_dead.max(8.0)
     };
 
     publisher

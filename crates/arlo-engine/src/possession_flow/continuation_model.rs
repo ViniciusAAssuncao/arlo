@@ -7,14 +7,14 @@ use arlo_math::Probability;
 use arlo_tactics::{PassingRange, PressingIntensity, Tempo};
 use rand::Rng;
 
-pub const CONTINUATION_BASE_LOGIT: f64 = 0.50;
+pub const CONTINUATION_BASE_LOGIT: f64 = 1.00;
 pub const CONTINUATION_CONTROL_WEIGHT: f64 = 1.50;
 pub const CONTINUATION_TEMPO_WEIGHT: f64 = 0.40;
 pub const CONTINUATION_PASSING_RANGE_WEIGHT: f64 = 0.35;
 pub const CONTINUATION_URGENCY_WEIGHT: f64 = 0.25;
 pub const CONTINUATION_RISK_WEIGHT: f64 = 0.20;
-pub const CONTINUATION_FATIGUE_PENALTY_WEIGHT: f64 = 1.20;
-pub const CONTINUATION_PRESSING_PENALTY_WEIGHT: f64 = 1.50;
+pub const CONTINUATION_FATIGUE_PENALTY_WEIGHT: f64 = 1.00;
+pub const CONTINUATION_PRESSING_PENALTY_WEIGHT: f64 = 1.20;
 
 pub fn evaluate_continuation_probability(
     offense_control_power: f64,
