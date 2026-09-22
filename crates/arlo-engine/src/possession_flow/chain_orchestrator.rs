@@ -1,22 +1,23 @@
+use crate::artrine::event_translation::translate_artrine_decision_made;
 use crate::artrine::DistributionFlightInfo;
+use crate::match_decision::event_translation::create_envelope;
 use crate::match_decision::scoring::ScoringDecision;
-use crate::possession_flow::{initialize_chain_budget, is_budget_exhausted, sample_continuation};
+use crate::possession::TouchActionType;
+use crate::possession_flow::net_advance::calculate_net_advance;
 use crate::possession_flow::touch_action_selection::select_touch_action;
+use crate::possession_flow::{initialize_chain_budget, is_budget_exhausted, sample_continuation};
 use crate::resolution::AttributedDuelOutcome;
 use crate::time::{DurationComponentKind, DurationLedger};
+use crate::world_state::cta_pass::PassPhaseResult;
+use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::collateral_stage::resolve_collateral_events;
 use crate::world_state::step::down_resolution::contest_stage::resolve_contest;
 use crate::world_state::step::down_resolution::context::{DownStaticContext, TouchDynamicContext};
 use crate::world_state::step::down_resolution::progression_stage::resolve_progression;
 use crate::world_state::step::down_resolution::scoring_stage::resolve_scoring;
-use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
-use crate::world_state::cta_pass::PassPhaseResult;
 use arlo_domain::{ArtrineDecisionKind, Player};
 use arlo_events::EventSink;
-use crate::match_decision::event_translation::create_envelope;
-use crate::artrine::event_translation::translate_artrine_decision_made;
-use crate::possession::TouchActionType;
 use rand::Rng;
 use uuid::Uuid;
 
@@ -47,28 +48,29 @@ pub fn orchestrate_chain<'a, R: Rng + ?Sized>(
     sink: &mut impl EventSink,
 ) -> ChainAggregationResult {
     let clock_inst = state.clock().to_instant();
+    let start_x_mirim = pass_phase.scrimmage_x_mirim;
     let mut current_carrier = initial_carrier;
     let mut current_x_mirim = pass_phase.scrimmage_x_mirim;
     let mut previous_advantage = pass_phase.pass_duel_outcome.outcome().net_advantage();
-    
-    let mut accumulated_mirins = 0.0;
+
     let mut accumulated_drives = 0;
     let mut duration_ledger = DurationLedger::new();
     let mut all_duels = Vec::new();
     let mut all_fouls = Vec::new();
     let mut all_injuries = Vec::new();
     let mut all_flights = Vec::new();
-    
+
     let mut final_turnover = None;
     let mut final_recovering = None;
     let mut final_scoring = ScoringDecision::NoOpportunity;
     let mut final_receiver_id = Some(current_carrier.id());
-    
+
     let mut chain_state = initialize_chain_budget(current_carrier.id());
     let mut first_decision = None;
 
     loop {
-        let current_time_seconds = state.clock().seconds_in_period() + duration_ledger.total_live().value();
+        let current_time_seconds =
+            state.clock().seconds_in_period() + duration_ledger.total_live().value();
         let is_true_artrine = current_carrier.id() == pass_phase.artrine.id();
 
         let touch_ctx = TouchDynamicContext::build(
@@ -81,10 +83,10 @@ pub fn orchestrate_chain<'a, R: Rng + ?Sized>(
             is_true_artrine,
         );
         let primary_defender = touch_ctx.primary_defender;
-        
+
         let decision_res = select_touch_action(static_ctx, &touch_ctx, state.attribute_keys(), rng);
         let decision = decision_res.chosen();
-        
+
         if first_decision.is_none() {
             first_decision = Some(decision);
         }
@@ -99,9 +101,33 @@ pub fn orchestrate_chain<'a, R: Rng + ?Sized>(
             sink.record(create_envelope(state.next_sequence(), clock_inst, decision_event));
         }
 
-        let contest = resolve_contest(static_ctx, &touch_ctx, current_carrier, primary_defender, decision, state, rng);
-        let progression = resolve_progression(static_ctx, &touch_ctx, current_carrier, decision, &contest, state, rng);
-        let collateral = resolve_collateral_events(static_ctx, &touch_ctx, current_carrier, primary_defender, &contest, state, rng);
+        let contest = resolve_contest(
+            static_ctx,
+            &touch_ctx,
+            current_carrier,
+            primary_defender,
+            decision,
+            state,
+            rng,
+        );
+        let progression = resolve_progression(
+            static_ctx,
+            &touch_ctx,
+            current_carrier,
+            decision,
+            &contest,
+            state,
+            rng,
+        );
+        let collateral = resolve_collateral_events(
+            static_ctx,
+            &touch_ctx,
+            current_carrier,
+            primary_defender,
+            &contest,
+            state,
+            rng,
+        );
 
         let mut duels = contest.all_duels();
         let scoring = resolve_scoring(
@@ -150,7 +176,6 @@ pub fn orchestrate_chain<'a, R: Rng + ?Sized>(
             progression.live_duration,
         );
 
-        accumulated_mirins += progression.mirins_advanced;
         accumulated_drives += progression.drives_recorded;
         all_duels.extend(duels);
         all_fouls.extend(collateral.fouls);
@@ -162,7 +187,7 @@ pub fn orchestrate_chain<'a, R: Rng + ?Sized>(
                 ..f
             });
         }
-        
+
         current_x_mirim = if static_ctx.is_home_offense {
             progression.new_normalized_proximity * static_ctx.pitch_length_mirim
         } else {
@@ -180,7 +205,7 @@ pub fn orchestrate_chain<'a, R: Rng + ?Sized>(
             final_scoring = scoring;
             break;
         }
-        
+
         if decision == ArtrineDecisionKind::Cross || decision == ArtrineDecisionKind::LongLaunch {
             if !contest.attacker_won {
                 break;
@@ -221,9 +246,15 @@ pub fn orchestrate_chain<'a, R: Rng + ?Sized>(
     }
 
     let end_y_mirim = state.pitch().width_mirim() * 0.5;
+    let net_advance_mirins = calculate_net_advance(
+        start_x_mirim,
+        current_x_mirim,
+        static_ctx.is_home_offense,
+        static_ctx.pitch_length_mirim,
+    );
 
     ChainAggregationResult {
-        mirins_advanced: accumulated_mirins,
+        mirins_advanced: net_advance_mirins,
         drives_recorded: accumulated_drives,
         turnover: final_turnover,
         recovering_player_id: final_recovering,
