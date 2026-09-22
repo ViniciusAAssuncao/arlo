@@ -9,7 +9,7 @@ use crate::play_resolution::contact_events::{evaluate_contact_likelihood, sample
 use crate::possession::PitchState;
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
-use crate::world_state::step::down_resolution::context::DownResolutionContext;
+use crate::world_state::step::down_resolution::context::{DownStaticContext, TouchDynamicContext};
 use arlo_domain::Player;
 use rand::Rng;
 
@@ -19,7 +19,8 @@ pub struct ActionCollateralOutcome {
 }
 
 pub fn resolve_collateral_events<R: Rng + ?Sized>(
-    ctx: &DownResolutionContext<'_>,
+    static_ctx: &DownStaticContext<'_>,
+    touch_ctx: &TouchDynamicContext<'_>,
     contest: &ActionContestOutcome<'_>,
     state: &MatchState,
     rng: &mut R,
@@ -36,31 +37,31 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
     };
 
     let carrier_susceptibility = state
-        .player_injury_profile(&ctx.carrier.id())
+        .player_injury_profile(&touch_ctx.carrier.id())
         .injury_susceptibility_multiplier();
     let defender_susceptibility = state
-        .player_injury_profile(&ctx.primary_defender.id())
+        .player_injury_profile(&touch_ctx.primary_defender.id())
         .injury_susceptibility_multiplier();
     let referee_table = state.head_referee_attribute_table();
-    let offense_instructions = *state.instructions_for_team(ctx.offense_team_id);
-    let defense_instructions = *state.instructions_for_team(ctx.defense_team_id);
+    let offense_instructions = *state.instructions_for_team(static_ctx.offense_team_id);
+    let defense_instructions = *state.instructions_for_team(static_ctx.defense_team_id);
 
     let pitch_state = PitchState::new(
-        ctx.down,
-        ctx.remaining_advance_mirim,
-        ctx.zone,
-        ctx.channel,
-        ctx.normalized_proximity,
-        ctx.drives_in_series,
-        ctx.is_bonus_phase,
+        touch_ctx.down,
+        touch_ctx.remaining_advance_mirim,
+        touch_ctx.zone,
+        touch_ctx.channel,
+        touch_ctx.normalized_proximity,
+        touch_ctx.drives_in_series,
+        touch_ctx.is_bonus_phase,
     );
 
     let contact_profile = evaluate_contact_likelihood(
-        &ctx.carrier_table,
-        &ctx.carrier_fatigue,
+        &touch_ctx.carrier_table,
+        &touch_ctx.carrier_fatigue,
         carrier_susceptibility,
-        &ctx.primary_defender_table,
-        &ctx.primary_defender_fatigue,
+        &touch_ctx.primary_defender_table,
+        &touch_ctx.primary_defender_fatigue,
         defender_susceptibility,
         &offense_instructions,
         &defense_instructions,
@@ -72,23 +73,24 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
 
     let peace_referee_table = state.peace_referee_attribute_table();
     let fault_catalog = state.fault_catalog_arc();
+    
     let foul_eval_ctx = FoulEvaluationContext::new(
-        ctx.carrier.id(),
-        ctx.offense_team_id,
-        ctx.primary_defender.id(),
-        ctx.defense_team_id,
-        &ctx.carrier_table,
-        &ctx.primary_defender_table,
-        ctx.carrier_fatigue,
-        ctx.primary_defender_fatigue,
+        touch_ctx.carrier.id(),
+        static_ctx.offense_team_id,
+        touch_ctx.primary_defender.id(),
+        static_ctx.defense_team_id,
+        &touch_ctx.carrier_table,
+        &touch_ctx.primary_defender_table,
+        touch_ctx.carrier_fatigue,
+        touch_ctx.primary_defender_fatigue,
         &referee_table,
         &peace_referee_table,
         *primary_duel,
-        ctx.duel_context,
+        touch_ctx.duel_context,
         contact_sampling.contact_severity,
-        ctx.game_state_pressure,
+        static_ctx.game_state_pressure,
         true,
-        ctx.zone,
+        touch_ctx.zone,
     );
 
     if let Some(foul_res) = evaluate_and_resolve_foul(&foul_eval_ctx, &fault_catalog, rng) {
@@ -96,32 +98,32 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
     }
 
     if let Some(receiver) = contest.receiver {
-        if receiver.id() != ctx.carrier.id() {
-            let outfield_defenders: Vec<&Player> = ctx
+        if receiver.id() != touch_ctx.carrier.id() {
+            let outfield_defenders: Vec<&Player> = static_ctx
                 .defense_players
                 .iter()
                 .copied()
-                .filter(|p| p.id() != ctx.primary_defender.id())
+                .filter(|p| p.id() != touch_ctx.primary_defender.id())
                 .collect();
 
             if let Some(last_defender) = identify_last_defender(
                 &outfield_defenders,
-                state.defensive_position_index_for_team(ctx.defense_team_id),
+                state.defensive_position_index_for_team(static_ctx.defense_team_id),
             ) {
                 let rec_table = state.attribute_table_for(&receiver.id());
                 let def_table = state.attribute_table_for(&last_defender.id());
 
                 let lf_ctx = LineFaultEvaluationContext::new(
                     receiver.id(),
-                    ctx.offense_team_id,
+                    static_ctx.offense_team_id,
                     last_defender.id(),
-                    ctx.defense_team_id,
+                    static_ctx.defense_team_id,
                     rec_table,
                     def_table,
                     &referee_table,
                     &peace_referee_table,
-                    &ctx.duel_context,
-                    ctx.zone,
+                    &touch_ctx.duel_context,
+                    touch_ctx.zone,
                 );
                 if let Some(lf_res) = evaluate_and_resolve_line_fault(&lf_ctx, rng) {
                     fouls.push(lf_res);
@@ -132,24 +134,24 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
 
     if contact_sampling.contact_occurred {
         let match_date = state.match_date_unix_seconds();
-        let carrier_age = calculate_player_age(ctx.carrier, match_date);
-        let defender_age = calculate_player_age(ctx.primary_defender, match_date);
+        let carrier_age = calculate_player_age(touch_ctx.carrier, match_date);
+        let defender_age = calculate_player_age(touch_ctx.primary_defender, match_date);
         let injury_tuning = *state.tuning().injury_tuning();
         let injury_catalog = state.injury_catalog_arc();
 
         let contact_injury_ctx = ContactInjuryContext::new(
             contact_sampling.contact_severity,
-            ctx.carrier.id(),
-            ctx.offense_team_id,
-            &ctx.carrier_table,
-            ctx.carrier_fatigue,
-            state.player_injury_profile(&ctx.carrier.id()),
+            touch_ctx.carrier.id(),
+            static_ctx.offense_team_id,
+            &touch_ctx.carrier_table,
+            touch_ctx.carrier_fatigue,
+            state.player_injury_profile(&touch_ctx.carrier.id()),
             carrier_age,
-            ctx.primary_defender.id(),
-            ctx.defense_team_id,
-            &ctx.primary_defender_table,
-            ctx.primary_defender_fatigue,
-            state.player_injury_profile(&ctx.primary_defender.id()),
+            touch_ctx.primary_defender.id(),
+            static_ctx.defense_team_id,
+            &touch_ctx.primary_defender_table,
+            touch_ctx.primary_defender_fatigue,
+            state.player_injury_profile(&touch_ctx.primary_defender.id()),
             defender_age,
         );
 

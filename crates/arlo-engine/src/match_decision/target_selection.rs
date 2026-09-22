@@ -16,6 +16,7 @@ use uuid::Uuid;
 pub enum ReceptionRole {
     Finisher,
     OpenPlayReceiver,
+    ContinuationReceiver,
 }
 
 pub fn player_base_reception_weight(
@@ -45,6 +46,24 @@ pub fn player_base_reception_weight(
                 &deg_ctx,
             );
             (hands * 0.45 + ant * 0.35 + pos * 0.20).max(0.1)
+        }
+        ReceptionRole::ContinuationReceiver => {
+            let pos = extract_effective_attribute_value(
+                table,
+                AttributeKey::Positioning,
+                &deg_ctx,
+            );
+            let ant = extract_effective_attribute_value(
+                table,
+                AttributeKey::Anticipation,
+                &deg_ctx,
+            );
+            let accel = extract_effective_attribute_value(
+                table,
+                AttributeKey::Acceleration,
+                &deg_ctx,
+            );
+            (pos * 0.40 + ant * 0.40 + accel * 0.20).max(0.1)
         }
         ReceptionRole::Finisher => {
             let finishing =

@@ -6,7 +6,7 @@ use crate::team_identity::{
 };
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
-use crate::world_state::step::down_resolution::context::DownResolutionContext;
+use crate::world_state::step::down_resolution::context::{DownStaticContext, TouchDynamicContext};
 use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
 use arlo_domain::{ArtrineDecisionKind, PitchZone};
 use arlo_math::units::Duration;
@@ -21,7 +21,8 @@ pub struct ActionProgressionOutcome {
 }
 
 pub fn resolve_progression<R: Rng + ?Sized>(
-    ctx: &DownResolutionContext<'_>,
+    static_ctx: &DownStaticContext<'_>,
+    touch_ctx: &TouchDynamicContext<'_>,
     decision: ArtrineDecisionKind,
     contest: &ActionContestOutcome<'_>,
     _state: &MatchState,
@@ -31,11 +32,11 @@ pub fn resolve_progression<R: Rng + ?Sized>(
         ArtrineDecisionKind::SelfCarry => (ActionProgressionKind::Carry, 1.0),
         ArtrineDecisionKind::ShortPass => (
             ActionProgressionKind::ShortPass,
-            short_pass_advance_multiplier(ctx.passing_range),
+            short_pass_advance_multiplier(static_ctx.passing_range),
         ),
         ArtrineDecisionKind::LongLaunch => (
             ActionProgressionKind::LongLaunch,
-            long_launch_advance_multiplier(ctx.passing_range),
+            long_launch_advance_multiplier(static_ctx.passing_range),
         ),
         ArtrineDecisionKind::Cross => (ActionProgressionKind::Cross, 1.0),
         ArtrineDecisionKind::SelfFinish => (ActionProgressionKind::Carry, 0.1),
@@ -51,26 +52,26 @@ pub fn resolve_progression<R: Rng + ?Sized>(
         sample_action_progression(prog_kind, contest.net_advantage, effective_mult, rng);
 
     let drives_recorded = award_drives_with_profile(
-        ctx.is_true_artrine,
+        touch_ctx.is_true_artrine,
         decision,
         contest.attacker_won,
         contest.net_advantage,
-        &ctx.carrier_table,
+        &touch_ctx.carrier_table,
         mirins_advanced,
-        &ctx.drive_award_profile,
+        &static_ctx.drive_award_profile,
         rng,
     );
 
-    let delta_norm = mirins_advanced / ctx.pitch_length_mirim.max(1.0);
-    let new_normalized_proximity = (ctx.normalized_proximity + delta_norm).clamp(0.0, 1.0);
+    let delta_norm = mirins_advanced / static_ctx.pitch_length_mirim.max(1.0);
+    let new_normalized_proximity = (touch_ctx.normalized_proximity + delta_norm).clamp(0.0, 1.0);
 
     let new_zone = locate_zone(
         new_normalized_proximity,
-        ctx.pitch_length_mirim,
+        static_ctx.pitch_length_mirim,
         AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
     );
 
-    let tempo_mult = effort_multiplier(ctx.offense_tempo);
+    let tempo_mult = effort_multiplier(static_ctx.offense_tempo);
     let base_seconds =
         (14.0 + (mirins_advanced * 0.6).clamp(0.0, 20.0) + contest.net_advantage * 0.2) / tempo_mult;
     let live_duration = Duration::new(base_seconds.clamp(8.0, 42.0));

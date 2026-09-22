@@ -9,7 +9,7 @@ pub mod scoring_stage;
 
 pub use collateral_stage::{resolve_collateral_events, ActionCollateralOutcome};
 pub use contest_stage::{resolve_contest, ActionContestOutcome};
-pub use context::DownResolutionContext;
+pub use context::{DownStaticContext, TouchDynamicContext};
 pub use decision_stage::resolve_decision;
 pub use executor::resolve_down;
 pub use power_pair::{derive_power_pair, DuelPowerPair};

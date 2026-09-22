@@ -10,6 +10,7 @@ pub fn available_decision_kinds(
     is_bonus_phase: bool,
     down: u8,
     normalized_proximity: f64,
+    _is_true_artrine: bool,
 ) -> SmallVec<[ArtrineDecisionKind; 5]> {
     let regime = ScoringRegimePolicy::default();
 
