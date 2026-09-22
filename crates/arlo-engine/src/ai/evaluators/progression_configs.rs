@@ -72,7 +72,18 @@ pub fn short_pass_config() -> ActionEvaluationConfig {
                     + 0.08 * skill_mult
             },
             turnover_scale: 0.08,
-            urgency_bonus_fn: |_, _, _| 0.0,
+            urgency_bonus_fn: |ctx, _, skill_mult| {
+                let tactical_investment = ctx.situation.target_quality.max(0.0) * 3.5 
+                                        + ctx.situation.pitch_control * 2.0;
+                let context_multiplier = if !ctx.situation.is_true_artrine {
+                    2.5
+                } else if ctx.situation.drives_in_series >= 3 {
+                    2.0
+                } else {
+                    1.2
+                };
+                tactical_investment * context_multiplier * skill_mult
+            },
         }),
     }
 }
@@ -97,7 +108,17 @@ pub fn long_launch_config() -> ActionEvaluationConfig {
                     + 0.08 * skill_mult
             },
             turnover_scale: 0.18,
-            urgency_bonus_fn: |_, _, _| 0.0,
+            urgency_bonus_fn: |ctx, _, skill_mult| {
+                let stretch_value = ctx.situation.long_launch_target_quality.max(0.0) * 4.0;
+                let context_multiplier = if !ctx.situation.is_true_artrine {
+                    2.0
+                } else if ctx.situation.drives_in_series >= 3 {
+                    1.5
+                } else {
+                    1.0
+                };
+                stretch_value * context_multiplier * skill_mult
+            },
         }),
     }
 }
