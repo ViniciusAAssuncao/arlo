@@ -69,9 +69,7 @@ fn assign_best_candidate_for_role(
                         .get(*idx)
                         .map(|s| s.position())
                         .unwrap_or(Position::Midcenter);
-                    if (role == SlotRole::FalseArtrine || role == SlotRole::Launcher)
-                        && pos == Position::Artrine
-                    {
+                    if !is_role_eligible_for_position(role, pos) {
                         return false;
                     }
                     roles.get(&p.id()) == Some(&SlotRole::Standard)
@@ -79,8 +77,16 @@ fn assign_best_candidate_for_role(
                 .max_by(|(idx_a, a), (idx_b, b)| {
                     let pos_a = slots.get(*idx_a).map(|s| s.position()).unwrap_or(Position::Midcenter);
                     let pos_b = slots.get(*idx_b).map(|s| s.position()).unwrap_or(Position::Midcenter);
-                    let affinity_a = if is_role_eligible_for_position(role, pos_a) { 1.35 } else { 0.80 };
-                    let affinity_b = if is_role_eligible_for_position(role, pos_b) { 1.35 } else { 0.80 };
+                    let mut affinity_a = if is_role_eligible_for_position(role, pos_a) { 1.35 } else { 0.80 };
+                    let mut affinity_b = if is_role_eligible_for_position(role, pos_b) { 1.35 } else { 0.80 };
+                    
+                    if pos_a == Position::Artrine || pos_a == Position::Passer {
+                        affinity_a *= 0.05;
+                    }
+                    if pos_b == Position::Artrine || pos_b == Position::Passer {
+                        affinity_b *= 0.05;
+                    }
+
                     let score_a = evaluate_candidate_suitability(a, role, attribute_keys) * affinity_a;
                     let score_b = evaluate_candidate_suitability(b, role, attribute_keys) * affinity_b;
                     score_a
@@ -220,11 +226,21 @@ pub fn assign_roles(
                 .get(*idx)
                 .map(|s| s.position())
                 .unwrap_or(Position::Midcenter);
-            let pos_mult = if is_role_eligible_for_position(SlotRole::Blocker, pos) {
+                
+            if !is_role_eligible_for_position(SlotRole::Blocker, pos) {
+                continue;
+            }
+
+            let mut pos_mult = if is_role_eligible_for_position(SlotRole::Blocker, pos) {
                 1.25
             } else {
                 0.75
             };
+            
+            if pos == Position::Artrine || pos == Position::Passer {
+                pos_mult *= 0.05;
+            }
+
             let blocking_score =
                 evaluate_candidate_suitability(player, SlotRole::Blocker, attribute_keys) * pos_mult;
             if blocking_score >= blocker_threshold {

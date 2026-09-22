@@ -38,9 +38,10 @@ pub fn assign_players(
         let slot = &slots[slot_idx];
         let target_pos = slot.position();
 
-        let best_player = roster
+        let mut best_player = roster
             .iter()
             .filter(|p| !allocated_ids.contains(&p.id()))
+            .filter(|p| crate::lineup_runtime::calculate_fit_for_position(p, target_pos).effective_proficiency() > 3.0)
             .max_by(|a, b| {
                 let table_a = PlayerAttributeTable::from_player(a, attribute_keys);
                 let table_b = PlayerAttributeTable::from_player(b, attribute_keys);
@@ -51,6 +52,22 @@ pub fn assign_players(
                     .partial_cmp(&score_b)
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
+
+        if best_player.is_none() {
+            best_player = roster
+                .iter()
+                .filter(|p| !allocated_ids.contains(&p.id()))
+                .max_by(|a, b| {
+                    let table_a = PlayerAttributeTable::from_player(a, attribute_keys);
+                    let table_b = PlayerAttributeTable::from_player(b, attribute_keys);
+                    let score_a = calculate_player_contribution(a, &table_a, target_pos, &initial_state).value();
+                    let score_b = calculate_player_contribution(b, &table_b, target_pos, &initial_state).value();
+
+                    score_a
+                        .partial_cmp(&score_b)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+        }
 
         if let Some(player) = best_player {
             allocated_ids.insert(player.id());

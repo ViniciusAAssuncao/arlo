@@ -8,6 +8,8 @@ pub fn available_decision_kinds(
     possession_advance_mirim: f64,
     is_last_down: bool,
     is_bonus_phase: bool,
+    down: u8,
+    normalized_proximity: f64,
 ) -> SmallVec<[ArtrineDecisionKind; 5]> {
     let regime = ScoringRegimePolicy::default();
 
@@ -17,6 +19,8 @@ pub fn available_decision_kinds(
         drives_in_current_series,
         possession_advance_mirim,
         FIELD_POINT_OPPORTUNITY_ADVANCE_BUFFER_MIRIM,
+        down,
+        normalized_proximity,
     );
 
     if (is_last_down || is_bonus_phase) && can_score {

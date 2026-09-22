@@ -21,6 +21,7 @@ pub struct DetailedPlayOutcome {
     pub duels: Vec<AttributedDuelOutcome>,
     pub turnover: Option<Uuid>,
     pub recovering_player_id: Option<Uuid>,
+    pub receiver_id: Option<Uuid>,
     pub lost_by_player_id: Option<Uuid>,
     pub out_of_bounds: bool,
     pub arbitral_stoppage: bool,
@@ -34,6 +35,8 @@ impl DetailedPlayOutcome {
     pub fn to_possession_outcome(&self) -> PossessionPlayOutcome {
         PossessionPlayOutcome {
             turnover: self.turnover,
+            recovering_player_id: self.recovering_player_id,
+            receiver_id: self.receiver_id,
             out_of_bounds: self.out_of_bounds,
             arbitral_stoppage: self.arbitral_stoppage,
             mirins_advanced: self.mirins_advanced,

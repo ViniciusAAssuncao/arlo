@@ -34,12 +34,12 @@ pub fn resolve_and_apply_kick_foul<R: Rng + ?Sized>(
             );
         } else if let Some(restart) = &outcome.restart {
             if restart.caught {
-                apply_restart_outcome(publisher, restart.reception_x_mirim);
+                apply_restart_outcome(publisher, pending.awarded_team_id(), restart.reception_x_mirim);
             } else {
-                apply_turnover_outcome(publisher, restart.reception_x_mirim);
+                apply_turnover_outcome(publisher, pending.awarded_team_id(), restart.reception_x_mirim);
             }
         } else {
-            apply_turnover_outcome(publisher, pending.spot_x_mirim());
+            apply_turnover_outcome(publisher, pending.awarded_team_id(), pending.spot_x_mirim());
         }
     }
 

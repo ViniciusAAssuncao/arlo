@@ -15,6 +15,7 @@ pub struct PossessionSnapshot {
     pub series_state: SeriesState,
     pub live_sequence: LiveSequenceTracker,
     pub possession_origin: PossessionOrigin,
+    pub current_carrier: Option<Uuid>,
 }
 
 impl PossessionSnapshot {
@@ -32,6 +33,7 @@ impl PossessionSnapshot {
             series_state,
             live_sequence: LiveSequenceTracker::new(),
             possession_origin,
+            current_carrier: None,
         }
     }
 
@@ -50,7 +52,13 @@ impl PossessionSnapshot {
             series_state,
             live_sequence,
             possession_origin,
+            current_carrier: None,
         }
+    }
+
+    pub fn with_current_carrier(mut self, carrier: Option<Uuid>) -> Self {
+        self.current_carrier = carrier;
+        self
     }
 
     pub fn opening(home_team: Uuid, away_team: Uuid, initial_scrimmage_x_mirim: f64) -> Self {
@@ -61,6 +69,7 @@ impl PossessionSnapshot {
             series_state: SeriesState::initial(initial_scrimmage_x_mirim),
             live_sequence: LiveSequenceTracker::new(),
             possession_origin: PossessionOrigin::new(initial_scrimmage_x_mirim),
+            current_carrier: None,
         }
     }
 
@@ -98,6 +107,10 @@ impl PossessionSnapshot {
 
     pub fn possession_origin_mut(&mut self) -> &mut PossessionOrigin {
         &mut self.possession_origin
+    }
+
+    pub fn current_carrier(&self) -> Option<Uuid> {
+        self.current_carrier
     }
 
     pub fn offense(&self) -> Uuid {

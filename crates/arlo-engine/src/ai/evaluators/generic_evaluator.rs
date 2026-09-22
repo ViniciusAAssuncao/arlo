@@ -78,12 +78,8 @@ pub fn evaluate_action_utility(
                     >= ctx.scoring_regime.goal_point_required_drives
                 {
                     GOAL_POINT_VALUE as f64
-                } else if ctx.situation.drives_in_series
-                    >= ctx.scoring_regime.field_point_required_drives
-                {
-                    FIELD_POINT_VALUE as f64
                 } else {
-                    2.0
+                    FIELD_POINT_VALUE as f64
                 };
                 let v_opp = ctx.opponent_epa();
                 let raw_p = (term.success_prob_fn)(ctx, skill_mult);
@@ -128,6 +124,8 @@ pub fn evaluate_action_utility(
         ctx.situation.drives_in_series,
         ctx.situation.is_bonus_phase,
         &ctx.scoring_regime,
+        ctx.situation.down,
+        ctx.situation.normalized_proximity,
     );
     let emphasis_multiplier = 1.0 + ctx.emphasis_for(config.decision_kind);
     let tactical_bias = ctx.carrier_tactical_bias(config.decision_kind);

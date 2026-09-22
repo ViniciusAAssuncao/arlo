@@ -18,7 +18,7 @@ pub fn replace_possession_preserving_ball_and_clock(
         series,
         live_sequence,
         origin,
-    );
+    ).with_current_carrier(None);
 
     state.reset_drives();
 }

@@ -31,8 +31,9 @@ pub fn calculate_base_difficulty_logit(
         ScoringKind::FieldPoint => {
             let intercept = profile.field_point_intercept;
             let distance_penalty = distance_factor * profile.field_point_distance_weight;
+            let desperation_penalty = if situation.origin == ScoringOrigin::OpenPlay && situation.drives_in_series < 1 { 0.65 } else { 0.0 };
 
-            intercept - distance_penalty - origin_penalty
+            intercept - distance_penalty - origin_penalty - desperation_penalty
         }
         ScoringKind::FieldGoal(post) => {
             let intercept = profile.field_goal_intercept(post);

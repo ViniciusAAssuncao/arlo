@@ -15,6 +15,12 @@ pub fn apply_score_outcome(
     apply_match_score(publisher.state_mut(), awarded_team_id, scoring_decision);
     publisher.emit_scoring_event(scoring_decision);
 
+    let opposing_team_id = if awarded_team_id == publisher.state().home_team_id() {
+        publisher.state().away_team_id()
+    } else {
+        publisher.state().home_team_id()
+    };
+
     if matches!(scoring_decision, ScoringDecision::GoalPoint { .. }) {
         let is_home = awarded_team_id == publisher.state().home_team_id();
         let bonus_spot_x = bonus_phase_scrimmage_x(
@@ -22,7 +28,7 @@ pub fn apply_score_outcome(
             AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
             is_home,
         );
-        let current_role = *publisher.state().possession().role();
+        let next_role = crate::possession::PossessionRole::new(awarded_team_id, opposing_team_id);
         let mut new_series = publisher.state().possession().series_state().clone();
         new_series.reset(bonus_spot_x);
         new_series.set_bonus_phase(true);
@@ -31,14 +37,14 @@ pub fn apply_score_outcome(
 
         replace_possession_preserving_ball_and_clock(
             publisher.state_mut(),
-            current_role,
+            next_role,
             new_series,
             new_origin,
         );
     } else {
         let center_scrimmage_x_mirim = publisher.state().pitch().length_mirim() / 2.0;
 
-        let swapped_role = publisher.state().possession().role().swap();
+        let next_role = crate::possession::PossessionRole::new(opposing_team_id, awarded_team_id);
         let mut new_series = publisher.state().possession().series_state().clone();
         new_series.reset(center_scrimmage_x_mirim);
         new_series.set_bonus_phase(false);
@@ -47,7 +53,7 @@ pub fn apply_score_outcome(
 
         replace_possession_preserving_ball_and_clock(
             publisher.state_mut(),
-            swapped_role,
+            next_role,
             new_series,
             new_origin,
         );

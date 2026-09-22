@@ -104,6 +104,7 @@ pub fn build_detailed_play_outcome(
         duels: resolved_duels,
         turnover: classification.turnover,
         recovering_player_id: classification.recovering_player_id,
+        receiver_id: execution_outcome.receiver_id,
         lost_by_player_id: classification.lost_by_player_id,
         out_of_bounds: classification.out_of_bounds,
         arbitral_stoppage: classification.arbitral_stoppage,

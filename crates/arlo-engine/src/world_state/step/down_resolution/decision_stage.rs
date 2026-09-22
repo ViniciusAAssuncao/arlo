@@ -26,6 +26,8 @@ pub fn resolve_decision<R: Rng + ?Sized>(
         ctx.possession_advanced_mirins,
         ctx.is_last_down,
         ctx.is_bonus_phase,
+        ctx.down,
+        ctx.normalized_proximity,
     );
 
     let epv_model = DynamicEpvModel::with_difficulty(

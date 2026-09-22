@@ -130,6 +130,17 @@ pub fn handle_dead_ball_and_clock(
             .advance_impulse_dynamics(dead_ball_seconds);
     }
 
+    let remaining_before = publisher.state().clock().remaining_seconds_in_period();
+    let actual_live_seconds = live_seconds.min(remaining_before);
+
+    if let Some(turnover_team) = detailed_outcome.turnover {
+        let split_time = actual_live_seconds / 2.0;
+        publisher.emit_possession_time_recorded(detailed_outcome.offense_team_id, split_time);
+        publisher.emit_possession_time_recorded(turnover_team, split_time);
+    } else {
+        publisher.emit_possession_time_recorded(detailed_outcome.offense_team_id, actual_live_seconds);
+    }
+
     let mut period_ended = publisher
         .state_mut()
         .clock_mut()

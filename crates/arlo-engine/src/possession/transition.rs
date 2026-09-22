@@ -10,6 +10,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayOutcome {
     pub turnover: Option<Uuid>,
+    pub recovering_player_id: Option<Uuid>,
+    pub receiver_id: Option<Uuid>,
     pub out_of_bounds: bool,
     pub arbitral_stoppage: bool,
     pub mirins_advanced: f64,
@@ -30,6 +32,7 @@ pub struct TransitionResult {
 pub fn handle_turnover_without_out(
     current: &PossessionSnapshot,
     new_offense: Uuid,
+    recovering_player_id: Option<Uuid>,
 ) -> TransitionResult {
     let new_role = PossessionRole::new(new_offense, current.role().offense());
     let mut new_series = current.series_state().clone();
@@ -45,7 +48,7 @@ pub fn handle_turnover_without_out(
         new_series,
         current.live_sequence().clone(),
         new_origin,
-    );
+    ).with_current_carrier(recovering_player_id);
 
     TransitionResult {
         snapshot: new_snapshot,
@@ -60,7 +63,7 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
 
     if let Some(new_offense) = outcome.turnover {
         if !outcome.out_of_bounds && !outcome.arbitral_stoppage {
-            return handle_turnover_without_out(current, new_offense);
+            return handle_turnover_without_out(current, new_offense, outcome.recovering_player_id);
         }
     }
 
@@ -138,7 +141,7 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             updated_series,
             current.live_sequence().clone(),
             new_origin,
-        );
+        ).with_current_carrier(None);
 
         TransitionResult {
             snapshot: new_snapshot,
@@ -186,7 +189,7 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             updated_series,
             current.live_sequence().clone(),
             new_origin,
-        );
+        ).with_current_carrier(outcome.receiver_id);
 
         TransitionResult {
             snapshot: new_snapshot,

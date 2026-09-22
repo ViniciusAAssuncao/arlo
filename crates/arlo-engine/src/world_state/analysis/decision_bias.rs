@@ -13,6 +13,8 @@ pub fn calculate_decision_bias(
     is_bonus_phase: bool,
     regime: &ScoringRegimePolicy,
     offensive_risk_bias: f64,
+    down: u8,
+    normalized_proximity: f64,
 ) -> f64 {
     let action_mult = |coeff: f64| (1.0 + coeff * offensive_risk_bias).clamp(MIN_DECISION_BIAS, MAX_DECISION_BIAS);
 
@@ -56,6 +58,8 @@ pub fn calculate_decision_bias(
                 action_mult(1.40) * 3.60
             } else if drives_in_series >= regime.field_point_required_drives {
                 action_mult(0.50) * 2.30
+            } else if (down == 3 || down == 4) && normalized_proximity > 0.80 {
+                action_mult(0.30) * 1.50
             } else {
                 action_mult(0.15)
             };
@@ -68,6 +72,8 @@ pub fn calculate_decision_bias(
                 action_mult(1.30) * 3.80
             } else if drives_in_series >= regime.field_point_required_drives {
                 action_mult(0.50) * 2.50
+            } else if (down == 3 || down == 4) && normalized_proximity > 0.80 {
+                action_mult(0.30) * 1.60
             } else {
                 action_mult(0.15)
             };

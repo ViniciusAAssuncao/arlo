@@ -45,6 +45,7 @@ fn build_finished_match_outcome(state: &MatchState) -> DetailedPlayOutcome {
         duels: Vec::new(),
         turnover: None,
         recovering_player_id: None,
+        receiver_id: None,
         lost_by_player_id: None,
         out_of_bounds: false,
         arbitral_stoppage: true,
@@ -101,17 +102,63 @@ pub fn step_call_to_action(
     let offense_players = context.offense_players();
     let defense_players = context.defense_players();
 
-    let pass_phase = resolve_pass_phase(
-        state,
-        &offense_players,
-        &context.offense_pos_index,
-        &context.offense_role_index,
-        &defense_players,
-        context.is_home_offense,
-        context.offense_team_id,
-        context.defense_team_id,
-        sink,
-    )?;
+    let down = state.possession().down();
+    let current_carrier_id = state.possession().current_carrier();
+
+    let pass_phase = if down == 1 || current_carrier_id.is_none() {
+        resolve_pass_phase(
+            state,
+            &offense_players,
+            &context.offense_pos_index,
+            &context.offense_role_index,
+            &defense_players,
+            context.is_home_offense,
+            context.offense_team_id,
+            context.defense_team_id,
+            sink,
+        )?
+    } else {
+        let passer = crate::lineup_runtime::find_player_by_position(&offense_players, arlo_domain::Position::Passer).unwrap_or(offense_players[0]);
+        let artrine = crate::lineup_runtime::find_player_by_position(&offense_players, arlo_domain::Position::Artrine).unwrap_or(offense_players[0]);
+        let goalguard = crate::lineup_runtime::find_player_by_position(&defense_players, arlo_domain::Position::Goalguard).unwrap_or(defense_players[0]);
+        let pass_rusher = crate::lineup_runtime::find_player_by_position(&defense_players, arlo_domain::Position::PassRusher).unwrap_or(defense_players[0]);
+
+        let dummy_outcome = crate::resolution::DuelOutcome::new(
+            crate::resolution::DuelKind::PassProtection,
+            true,
+            10.0,
+            10.0,
+            arlo_math::Probability::new_clamped(1.0),
+            0.0,
+        );
+        let pass_duel_outcome = crate::resolution::AttributedDuelOutcome::new(
+            dummy_outcome,
+            smallvec::smallvec![passer.id()],
+            smallvec::smallvec![pass_rusher.id()],
+        );
+
+        crate::world_state::cta_pass::PassPhaseResult {
+            passer,
+            artrine,
+            pass_rusher,
+            goalguard,
+            pass_duel_outcome,
+            pass_completed: true,
+            is_aerial: false,
+            reception_x_mirim: state.possession().scrimmage_x_mirim(),
+            reception_y_mirim: state.pitch().width_mirim() * 0.5,
+            down_number: down as u32,
+            scrimmage_x_mirim: state.possession().scrimmage_x_mirim(),
+            duration_ledger: DurationLedger::new(),
+        }
+    };
+
+    let carrier = if down == 1 || current_carrier_id.is_none() || !pass_phase.pass_completed {
+        pass_phase.artrine
+    } else {
+        let cid = current_carrier_id.unwrap();
+        offense_players.iter().copied().find(|p| p.id() == cid).unwrap_or(pass_phase.artrine)
+    };
 
     let (chosen_decision, execution_outcome) = if !pass_phase.pass_completed {
         let center_y = state.pitch().width_mirim() * 0.5;
@@ -147,6 +194,7 @@ pub fn step_call_to_action(
             state,
             &context,
             &pass_phase,
+            carrier,
             &offense_players,
             &defense_players,
             &mut rng,

@@ -47,7 +47,7 @@ pub fn apply_challenge<R: Rng + ?Sized>(
                 } else {
                     publisher.state().home_team_id()
                 };
-                let transition_res = handle_turnover_without_out(&snap, turnover_team);
+                let transition_res = handle_turnover_without_out(&snap, turnover_team, None);
                 *publisher.state_mut().possession_mut() = transition_res.snapshot;
             }
             ReviewableCallKind::OutOfBoundsClassification => {

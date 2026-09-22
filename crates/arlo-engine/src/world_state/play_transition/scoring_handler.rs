@@ -73,5 +73,6 @@ pub fn post_transition_score_reset(
     }
 
     next_snapshot.live_sequence_mut().clear();
+    next_snapshot = next_snapshot.with_current_carrier(None);
     next_snapshot
 }

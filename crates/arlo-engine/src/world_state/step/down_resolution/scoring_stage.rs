@@ -47,6 +47,8 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         ctx.is_bonus_phase,
         total_drives,
         total_adv,
+        ctx.down,
+        progression.new_normalized_proximity,
     );
 
     if opportunity == ScoringOpportunity::None {

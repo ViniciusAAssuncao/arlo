@@ -88,29 +88,29 @@ pub fn evaluate_contact_likelihood(
         _ => 0.0,
     };
 
-    let base_contact_logit = -0.40
-        + 1.30 * off_physicality
-        + 1.50 * def_aggression
-        + 0.90 * (pressing_mult - 1.0)
-        + 0.40 * carrier_bravery
-        + 0.50 * def_recklessness
+    let base_contact_logit = -1.50
+        + 1.00 * off_physicality
+        + 1.20 * def_aggression
+        + 0.60 * (pressing_mult - 1.0)
+        + 0.30 * carrier_bravery
+        + 0.40 * def_recklessness
         + zone_bonus;
 
-    let contact_probability = logistic(base_contact_logit).clamp(0.05, 0.95);
+    let contact_probability = logistic(base_contact_logit).clamp(0.05, 0.85);
 
-    let expected_contact_severity = ((0.20
-        + 0.35 * off_physicality
-        + 0.35 * def_aggression
-        + 0.30 * def_strength)
-        * (1.0 + 0.30 * mean_exhaustion))
-        .clamp(0.05, 1.0);
+    let expected_contact_severity = ((0.15
+        + 0.25 * off_physicality
+        + 0.25 * def_aggression
+        + 0.25 * def_strength)
+        * (1.0 + 0.20 * mean_exhaustion))
+        .clamp(0.05, 0.85);
 
     let ref_rigor = referee_table.get(AttributeKey::Rigor) / ATTRIBUTE_MAX;
-    let foul_logit = base_contact_logit - 0.80
-        + 1.20 * def_recklessness
-        + 0.80 * ref_rigor
-        + 0.30 * mean_exhaustion;
-    let foul_probability = (contact_probability * logistic(foul_logit)).clamp(0.01, 0.80);
+    let foul_logit = base_contact_logit - 1.80
+        + 1.00 * def_recklessness
+        + 0.60 * ref_rigor
+        + 0.20 * mean_exhaustion;
+    let foul_probability = (contact_probability * logistic(foul_logit)).clamp(0.005, 0.40);
 
     ContactLikelihoodProfile::new(
         contact_probability,
