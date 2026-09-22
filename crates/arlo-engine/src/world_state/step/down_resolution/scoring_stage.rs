@@ -13,13 +13,15 @@ use crate::world_state::step::down_resolution::contest_stage::ActionContestOutco
 use crate::world_state::step::down_resolution::context::{DownStaticContext, TouchDynamicContext};
 use crate::world_state::step::down_resolution::progression_stage::ActionProgressionOutcome;
 use crate::world_state::step::setup::CallToActionContext;
-use arlo_domain::ArtrineDecisionKind;
+use arlo_domain::{ArtrineDecisionKind, Player};
 use rand::Rng;
 use uuid::Uuid;
 
 pub fn resolve_scoring<R: Rng + ?Sized>(
     static_ctx: &DownStaticContext<'_>,
     touch_ctx: &TouchDynamicContext<'_>,
+    carrier: &Player,
+    _primary_defender: &Player,
     decision: ArtrineDecisionKind,
     contest: &ActionContestOutcome<'_>,
     progression: &ActionProgressionOutcome,
@@ -65,7 +67,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         .duel_context
         .for_duel_kind(duel_kind_for_opportunity(opportunity));
 
-    let finisher = contest.receiver.unwrap_or(touch_ctx.carrier);
+    let finisher = contest.receiver.unwrap_or(carrier);
 
     let effective_kicker = if matches!(
         opportunity,
@@ -103,7 +105,7 @@ pub fn resolve_scoring<R: Rng + ?Sized>(
         .possession()
         .live_sequence()
         .primary_assister(effective_kicker.id())
-        .or_else(|| Some(touch_ctx.carrier.id()));
+        .or_else(|| Some(carrier.id()));
 
     let defense_closed = progression.new_normalized_proximity >= 0.75
         && state

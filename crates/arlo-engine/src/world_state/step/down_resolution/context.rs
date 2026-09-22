@@ -13,15 +13,15 @@ use crate::scoring_regime::ScoringRegimePolicy;
 use crate::world_state::context_analyzer::{analyze_match_state, GameStatePressure};
 use crate::world_state::match_state::MatchState;
 use crate::world_state::step::setup::CallToActionContext;
+use crate::team_identity::resolve_lead_defender_with_marking;
 use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
 use arlo_domain::{ArtroPlacement, PitchZone, Player, Position, SlotRole};
 use arlo_tactics::{DecisionEmphasis, PassingRange, PlayerInstructions, Tempo};
 use std::collections::HashMap;
-use uuid::Uuid;
 
 pub struct DownStaticContext<'a> {
-    pub offense_team_id: Uuid,
-    pub defense_team_id: Uuid,
+    pub offense_team_id: uuid::Uuid,
+    pub defense_team_id: uuid::Uuid,
     pub offense_players: Vec<&'a Player>,
     pub defense_players: Vec<&'a Player>,
     pub is_home_offense: bool,
@@ -165,7 +165,12 @@ impl<'a> TouchDynamicContext<'a> {
         let carrier_fatigue = state.fatigue_lookup().get(&carrier.id());
         let carrier_impulse = state.impulse_for(&carrier.id());
 
-        let primary_defender = static_ctx.defense_players.first().copied().unwrap_or(carrier);
+        let primary_defender = resolve_lead_defender_with_marking(
+            carrier.id(),
+            &call_context.offense_pos_index,
+            &static_ctx.defense_players,
+            &call_context.defense_instructions_index,
+        );
         let primary_defender_table = *state.attribute_table_for(&primary_defender.id());
         let primary_defender_fatigue = state.fatigue_lookup().get(&primary_defender.id());
 

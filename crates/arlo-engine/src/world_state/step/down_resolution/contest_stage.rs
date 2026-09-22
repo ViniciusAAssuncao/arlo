@@ -46,6 +46,8 @@ impl<'a> ActionContestOutcome<'a> {
 pub fn resolve_contest<'a, R: Rng + ?Sized>(
     static_ctx: &DownStaticContext<'a>,
     touch_ctx: &TouchDynamicContext<'a>,
+    carrier: &'a Player,
+    primary_defender: &'a Player,
     decision: ArtrineDecisionKind,
     state: &MatchState,
     rng: &mut R,
@@ -60,14 +62,14 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
 
             let (att_prof, def_prof) = get_cached_duel_profiles(duel_kind);
             let att_rating = calculate_player_duel_rating_from_table(
-                touch_ctx.carrier,
+                carrier,
                 touch_ctx.carrier_pos_domain,
                 &touch_ctx.carrier_table,
                 att_prof,
                 &touch_ctx.carrier_fatigue,
             );
             let def_rating = calculate_player_duel_rating_from_table(
-                touch_ctx.primary_defender,
+                primary_defender,
                 touch_ctx.primary_defender_pos_domain,
                 &touch_ctx.primary_defender_table,
                 def_prof,
@@ -94,8 +96,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 duel_kind,
                 att_rating,
                 def_rating,
-                touch_ctx.carrier,
-                touch_ctx.primary_defender,
+                carrier,
+                primary_defender,
                 touch_ctx.carrier_fatigue,
                 touch_ctx.primary_defender_fatigue,
                 state.attribute_keys(),
@@ -119,18 +121,18 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 None
             };
 
-            let recovering_player_id = turnover_team.map(|_| touch_ctx.primary_defender.id());
+            let recovering_player_id = turnover_team.map(|_| primary_defender.id());
 
             let primary_duel = AttributedDuelOutcome::new(
                 raw_duel,
-                smallvec![touch_ctx.carrier.id()],
-                smallvec![touch_ctx.primary_defender.id()],
+                smallvec![carrier.id()],
+                smallvec![primary_defender.id()],
             );
 
             ActionContestOutcome {
                 primary_duel: Some(primary_duel),
                 secondary_duel: None,
-                receiver: Some(touch_ctx.carrier),
+                receiver: Some(carrier),
                 turnover_team,
                 recovering_player_id,
                 attacker_won,
@@ -176,7 +178,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             );
 
             let att_rating = calculate_anchored_side_rating(
-                touch_ctx.carrier,
+                carrier,
                 touch_ctx.carrier_pos_domain,
                 RatingParticipants::from_slice_with_index(
                     &touch_ctx.target_candidates,
@@ -202,8 +204,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 throw_kind,
                 att_rating,
                 def_rating,
-                touch_ctx.carrier,
-                touch_ctx.primary_defender,
+                carrier,
+                primary_defender,
                 touch_ctx.carrier_fatigue,
                 touch_ctx.primary_defender_fatigue,
                 state.attribute_keys(),
@@ -231,14 +233,14 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
                 rng,
             )
-            .unwrap_or(touch_ctx.carrier.id());
+            .unwrap_or(carrier.id());
 
             let receiver = touch_ctx
                 .target_candidates
                 .iter()
                 .copied()
                 .find(|p| p.id() == receiver_id)
-                .unwrap_or(touch_ctx.carrier);
+                .unwrap_or(carrier);
 
             let rec_duel_kind = if is_aerial {
                 DuelKind::AerialDuel
@@ -301,7 +303,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 rec_att_rating,
                 rec_def_rating,
                 receiver,
-                touch_ctx.primary_defender,
+                primary_defender,
                 rec_fatigue,
                 touch_ctx.primary_defender_fatigue,
                 state.attribute_keys(),
@@ -322,22 +324,22 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
             } else {
                 None
             };
-            let recovering_player_id = turnover_team.map(|_| touch_ctx.primary_defender.id());
+            let recovering_player_id = turnover_team.map(|_| primary_defender.id());
 
             let primary_duel = AttributedDuelOutcome::new(
                 raw_throw_duel,
-                smallvec![touch_ctx.carrier.id()],
-                smallvec![touch_ctx.primary_defender.id()],
+                smallvec![carrier.id()],
+                smallvec![primary_defender.id()],
             );
             let secondary_duel = AttributedDuelOutcome::new(
                 raw_rec_duel,
                 smallvec![receiver.id()],
-                smallvec![touch_ctx.primary_defender.id()],
+                smallvec![primary_defender.id()],
             );
 
             let flight_info = DistributionFlightInfo {
                 receiver_id: receiver.id(),
-                passer_id: touch_ctx.carrier.id(),
+                passer_id: carrier.id(),
                 decision_kind: decision,
                 is_aerial,
                 distance_mirim: 0.0,
@@ -369,25 +371,25 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 Some(&|id: &Uuid| state.fatigue_lookup().get(id)),
                 rng,
             )
-            .unwrap_or(touch_ctx.carrier.id());
+            .unwrap_or(carrier.id());
 
             let finisher = touch_ctx
                 .target_candidates
                 .iter()
                 .copied()
                 .find(|p| p.id() == finisher_id)
-                .unwrap_or(touch_ctx.carrier);
+                .unwrap_or(carrier);
 
             let (att_prof, def_prof) = get_cached_duel_profiles(DuelKind::CrossDistribution);
             let att_rating = calculate_player_duel_rating_from_table(
-                touch_ctx.carrier,
+                carrier,
                 touch_ctx.carrier_pos_domain,
                 &touch_ctx.carrier_table,
                 att_prof,
                 &touch_ctx.carrier_fatigue,
             );
             let def_rating = calculate_player_duel_rating_from_table(
-                touch_ctx.primary_defender,
+                primary_defender,
                 touch_ctx.primary_defender_pos_domain,
                 &touch_ctx.primary_defender_table,
                 def_prof,
@@ -414,8 +416,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
                 DuelKind::CrossDistribution,
                 att_rating,
                 def_rating,
-                touch_ctx.carrier,
-                touch_ctx.primary_defender,
+                carrier,
+                primary_defender,
                 touch_ctx.carrier_fatigue,
                 touch_ctx.primary_defender_fatigue,
                 state.attribute_keys(),
@@ -433,8 +435,8 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
 
             let primary_duel = AttributedDuelOutcome::new(
                 raw_duel,
-                smallvec![touch_ctx.carrier.id()],
-                smallvec![touch_ctx.primary_defender.id()],
+                smallvec![carrier.id()],
+                smallvec![primary_defender.id()],
             );
 
             ActionContestOutcome {
@@ -452,7 +454,7 @@ pub fn resolve_contest<'a, R: Rng + ?Sized>(
         ArtrineDecisionKind::SelfFinish => ActionContestOutcome {
             primary_duel: None,
             secondary_duel: None,
-            receiver: Some(touch_ctx.carrier),
+            receiver: Some(carrier),
             turnover_team: None,
             recovering_player_id: None,
             attacker_won: true,

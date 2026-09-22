@@ -8,7 +8,7 @@ use crate::world_state::match_state::MatchState;
 use crate::world_state::step::down_resolution::contest_stage::ActionContestOutcome;
 use crate::world_state::step::down_resolution::context::{DownStaticContext, TouchDynamicContext};
 use arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM;
-use arlo_domain::{ArtrineDecisionKind, PitchZone};
+use arlo_domain::{ArtrineDecisionKind, PitchZone, Player};
 use arlo_math::units::Duration;
 use rand::Rng;
 
@@ -23,6 +23,7 @@ pub struct ActionProgressionOutcome {
 pub fn resolve_progression<R: Rng + ?Sized>(
     static_ctx: &DownStaticContext<'_>,
     touch_ctx: &TouchDynamicContext<'_>,
+    carrier: &Player,
     decision: ArtrineDecisionKind,
     contest: &ActionContestOutcome<'_>,
     _state: &MatchState,
@@ -52,7 +53,7 @@ pub fn resolve_progression<R: Rng + ?Sized>(
         sample_action_progression(prog_kind, contest.net_advantage, effective_mult, rng);
 
     let drives_recorded = award_drives_with_profile(
-        touch_ctx.is_true_artrine,
+        touch_ctx.is_true_artrine && carrier.id() == touch_ctx.carrier.id(),
         decision,
         contest.attacker_won,
         contest.net_advantage,
