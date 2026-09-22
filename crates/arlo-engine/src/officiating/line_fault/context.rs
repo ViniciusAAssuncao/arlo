@@ -15,6 +15,8 @@ pub struct LineFaultEvaluationContext<'a> {
     pub peace_referee_table: &'a RefereeAttributeTable,
     pub duel_context: &'a DuelContext,
     pub zone: PitchZone,
+    pub normalized_proximity: f64,
+    pub defensive_line_height: f64,
 }
 
 impl<'a> LineFaultEvaluationContext<'a> {
@@ -29,6 +31,8 @@ impl<'a> LineFaultEvaluationContext<'a> {
         peace_referee_table: &'a RefereeAttributeTable,
         duel_context: &'a DuelContext,
         zone: PitchZone,
+        normalized_proximity: f64,
+        defensive_line_height: f64,
     ) -> Self {
         Self {
             receiver_id,
@@ -41,6 +45,8 @@ impl<'a> LineFaultEvaluationContext<'a> {
             peace_referee_table,
             duel_context,
             zone,
+            normalized_proximity,
+            defensive_line_height,
         }
     }
 }

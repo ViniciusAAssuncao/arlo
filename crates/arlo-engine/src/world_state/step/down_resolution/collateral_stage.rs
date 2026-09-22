@@ -76,7 +76,7 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
 
         let contact_sampling = sample_contact_event(&contact_profile, rng);
         let fault_catalog = state.fault_catalog_arc();
-        
+
         let foul_eval_ctx = FoulEvaluationContext::new(
             carrier.id(),
             static_ctx.offense_team_id,
@@ -152,6 +152,12 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
                 let rec_table = state.attribute_table_for(&receiver.id());
                 let def_table = state.attribute_table_for(&last_defender.id());
 
+                let def_line_height = state
+                    .instructions_for_team(static_ctx.defense_team_id)
+                    .out_of_possession()
+                    .defensive_line_height()
+                    .value();
+
                 let lf_ctx = LineFaultEvaluationContext::new(
                     receiver.id(),
                     static_ctx.offense_team_id,
@@ -163,6 +169,8 @@ pub fn resolve_collateral_events<R: Rng + ?Sized>(
                     &peace_referee_table,
                     &touch_ctx.duel_context,
                     touch_ctx.zone,
+                    touch_ctx.normalized_proximity,
+                    def_line_height,
                 );
                 if let Some(lf_res) = evaluate_and_resolve_line_fault(&lf_ctx, rng) {
                     fouls.push(lf_res);

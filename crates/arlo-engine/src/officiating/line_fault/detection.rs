@@ -1,6 +1,10 @@
 use crate::officiating::line_fault::context::LineFaultEvaluationContext;
-use crate::resolution::{resolve_contest, ContestRequest, DuelKind, ContestOrientation};
+use crate::officiating::line_fault::depth_gate::{
+    evaluate_reception_depth_gate, scale_line_fault_probability,
+};
+use crate::resolution::{resolve_contest, ContestOrientation, ContestRequest, DuelKind};
 use arlo_domain::{AttributeKey, PitchZone, Player, Position as DomainPosition};
+use arlo_math::Probability;
 use rand::Rng;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -29,6 +33,16 @@ pub fn is_line_fault<R: Rng + ?Sized>(
     ctx: &LineFaultEvaluationContext<'_>,
     rng: &mut R,
 ) -> (bool, f64) {
+    let gate = evaluate_reception_depth_gate(
+        ctx.normalized_proximity,
+        ctx.defensive_line_height,
+        ctx.zone,
+    );
+
+    if !gate.is_plausibly_beyond {
+        return (false, 0.0);
+    }
+
     let def_pos = ctx.defender_table.get(AttributeKey::Positioning);
     let def_ant = ctx.defender_table.get(AttributeKey::Anticipation);
     let defense_trap_rating = def_pos * 0.55 + def_ant * 0.45;
@@ -55,8 +69,15 @@ pub fn is_line_fault<R: Rng + ?Sized>(
     .with_slope(0.35);
 
     let outcome = resolve_contest(req, rng);
-    let fault_occurred = outcome.attacker_won();
-    let margin = (outcome.net_advantage() * 0.2).max(0.0);
+    let base_p = outcome.win_probability().value();
+    let scaled_p = scale_line_fault_probability(base_p, gate.depth_margin);
+    let fault_occurred = Probability::new_clamped(scaled_p).sample(rng);
+
+    let margin = if fault_occurred {
+        (outcome.net_advantage() * 0.2 + gate.depth_margin * 5.0).max(0.0)
+    } else {
+        0.0
+    };
 
     (fault_occurred, margin)
 }
