@@ -1,6 +1,6 @@
 use crate::artrine::event_translation::translate_artrine_decision_made;
 use crate::artrine::DistributionFlightInfo;
-use crate::match_decision::event_translation::create_envelope;
+use crate::match_decision::event_translation::{create_envelope, translate_attributed_duel_events};
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::TouchActionType;
 use crate::possession_flow::net_advance::calculate_net_advance;
@@ -144,6 +144,12 @@ pub fn orchestrate_chain<'a, R: Rng + ?Sized>(
             &mut duels,
             rng,
         );
+
+        for duel in &duels {
+            for event in translate_attributed_duel_events(duel, current_carrier.id()) {
+                sink.record(create_envelope(state.next_sequence(), clock_inst, event));
+            }
+        }
 
         state.possession_mut().live_sequence_mut().record_touch(
             current_carrier.id(),

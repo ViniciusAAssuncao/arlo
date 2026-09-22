@@ -1,7 +1,7 @@
 use crate::artrine::DistributionFlightInfo;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::possession::LiveSequenceTracker;
-use crate::resolution::{DuelKind as EngineDuelKind, DuelOutcome};
+use crate::resolution::{AttributedDuelOutcome, DuelKind as EngineDuelKind, DuelOutcome};
 use arlo_events::{
     CallToActionStarted, CountdownReason, CountdownToSizeStarted, DistributionCompleted,
     DownAdvanced, DriveRecorded, DuelKind as PublicDuelKind, DuelResolved, EventArtroPlacement,
@@ -10,6 +10,7 @@ use arlo_events::{
     PossessionTimeRecorded, ReceptionResolved, RecoveryIntervalProcessed, ScoringAttemptMissed,
     Turnover,
 };
+use smallvec::SmallVec;
 use uuid::Uuid;
 
 pub fn translate_duel_kind(kind: EngineDuelKind) -> PublicDuelKind {
@@ -53,7 +54,45 @@ pub fn translate_reception_resolved(
     caught: bool,
     is_aerial: bool,
 ) -> ReceptionResolved {
-    ReceptionResolved::new(receiver_id, passer_id, caught, is_aerial)
+    ReceptionResolved::new(
+        receiver_id,
+        passer_id,
+        caught,
+        is_aerial,
+    )
+}
+
+pub fn translate_attributed_duel_events(
+    duel: &AttributedDuelOutcome,
+    default_receiver_id: Uuid,
+) -> SmallVec<[MatchEvent; 2]> {
+    let mut events = SmallVec::new();
+    let duel_event = translate_duel_resolved(
+        duel.outcome(),
+        duel.attacker_ids().to_vec(),
+        duel.defender_ids().to_vec(),
+    );
+    events.push(MatchEvent::DuelResolved(duel_event));
+
+    if matches!(
+        duel.outcome().kind(),
+        EngineDuelKind::RouteContest | EngineDuelKind::AerialDuel
+    ) {
+        let receiver_id = duel
+            .attacker_ids()
+            .first()
+            .copied()
+            .unwrap_or(default_receiver_id);
+        let reception_event = translate_reception_resolved(
+            receiver_id,
+            default_receiver_id,
+            duel.outcome().attacker_won(),
+            duel.outcome().kind() == EngineDuelKind::AerialDuel,
+        );
+        events.push(MatchEvent::ReceptionResolved(reception_event));
+    }
+
+    events
 }
 
 pub fn translate_call_to_action_started(

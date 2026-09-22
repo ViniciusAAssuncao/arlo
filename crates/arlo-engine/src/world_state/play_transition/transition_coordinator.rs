@@ -85,8 +85,6 @@ impl<'a, 'b, 'c, S: EventSink> TransitionPipeline<'a, 'b, 'c, S> {
         }
 
         apply_duel_strain(&mut self.publisher, &self.play_duels);
-        self.publisher
-            .emit_duel_events(&self.execution_outcome.duels, self.pass_phase.artrine.id());
 
         let mut participated_ids = HashSet::new();
         participated_ids.insert(self.pass_phase.passer.id());

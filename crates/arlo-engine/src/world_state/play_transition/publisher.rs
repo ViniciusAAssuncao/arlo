@@ -10,11 +10,10 @@ use crate::manager_ai::event_translation::{
     translate_tactical_profile_activated, translate_time_call_used,
 };
 use crate::match_decision::event_translation::{
-    create_envelope, translate_countdown_started, translate_distribution_completed,
-    translate_down_advanced, translate_drive_recorded, translate_duel_resolved,
+    create_envelope, translate_attributed_duel_events, translate_countdown_started,
+    translate_distribution_completed, translate_down_advanced, translate_drive_recorded,
     translate_out_of_bounds, translate_physical_strain_recorded, translate_possession_time,
-    translate_reception_resolved, translate_recovery_interval_processed, translate_scoring_decision,
-    translate_turnover,
+    translate_recovery_interval_processed, translate_scoring_decision, translate_turnover,
 };
 use crate::match_decision::scoring::ScoringDecision;
 use crate::officiating::event_translation::{
@@ -29,7 +28,7 @@ use crate::psychology::event_translation::{
 };
 use crate::psychology::systems::critical::ImpulseCriticalReached as EngineImpulseCritical;
 use crate::psychology::systems::events::{ImpulseEvent, ImpulseShift};
-use crate::resolution::{AttributedDuelOutcome, DuelKind};
+use crate::resolution::AttributedDuelOutcome;
 use crate::world_state::match_state::availability::AvailabilityState;
 use crate::world_state::match_state::MatchState;
 use arlo_domain::KickFoulDecisionKind;
@@ -87,29 +86,8 @@ impl<'a, S: EventSink> EventPublisher<'a, S> {
 
     pub fn emit_duel_events(&mut self, duels: &[AttributedDuelOutcome], default_receiver_id: Uuid) {
         for duel in duels {
-            let duel_event = translate_duel_resolved(
-                duel.outcome(),
-                duel.attacker_ids().to_vec(),
-                duel.defender_ids().to_vec(),
-            );
-            self.publish(duel_event);
-
-            if matches!(
-                duel.outcome().kind(),
-                DuelKind::RouteContest | DuelKind::AerialDuel
-            ) {
-                let receiver_id = duel
-                    .attacker_ids()
-                    .first()
-                    .copied()
-                    .unwrap_or(default_receiver_id);
-                let reception_event = translate_reception_resolved(
-                    receiver_id,
-                    default_receiver_id,
-                    duel.outcome().attacker_won(),
-                    duel.outcome().kind() == DuelKind::AerialDuel,
-                );
-                self.publish(reception_event);
+            for event in translate_attributed_duel_events(duel, default_receiver_id) {
+                self.publish(event);
             }
         }
     }
