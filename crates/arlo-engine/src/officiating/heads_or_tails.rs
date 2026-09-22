@@ -9,6 +9,8 @@ use arlo_domain::sport_constants::{
 use arlo_domain::AttributeKey;
 use rand::Rng;
 
+const PEACE_REFEREE_INTERVENTION_THRESHOLD: f64 = 0.65;
+
 pub fn flip_officiating_coin<R: Rng + ?Sized>(rng: &mut R) -> bool {
     let context = DuelContext::neutral();
     let req = DuelResolutionRequest::for_contest(
@@ -27,6 +29,10 @@ pub fn resolve_peace_referee_review<R: Rng + ?Sized>(
     rng: &mut R,
 ) -> (bool, bool) {
     let original_call_correct = flip_officiating_coin(rng);
+
+    if stimulus < PEACE_REFEREE_INTERVENTION_THRESHOLD {
+        return (original_call_correct, false);
+    }
 
     let authority = peace_referee_table.get(AttributeKey::Authority);
     let stimulus_drive = stimulus.clamp(0.0, 1.0) * PEACE_REFEREE_BASE_SENSITIVITY * 10.0;

@@ -57,9 +57,9 @@ impl EnergyTuningProfile {
 impl Default for EnergyTuningProfile {
     fn default() -> Self {
         Self {
-            base_drain_per_live_second: 0.00010,
+            base_drain_per_live_second: 0.00045,
             participation_drain_bonus: 0.0035,
-            dead_ball_recovery_rate_per_second: 0.00012,
+            dead_ball_recovery_rate_per_second: 0.00008,
             time_call_recovery_multiplier: 1.6,
             tempo_drain_scale: 0.20,
             pressing_drain_scale: 0.20,
