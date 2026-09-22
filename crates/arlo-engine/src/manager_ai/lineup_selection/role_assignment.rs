@@ -81,10 +81,16 @@ fn assign_best_candidate_for_role(
                     let mut affinity_b = if is_role_eligible_for_position(role, pos_b) { 1.35 } else { 0.80 };
                     
                     if pos_a == Position::Artrine || pos_a == Position::Passer {
-                        affinity_a *= 0.05;
+                        affinity_a *= 0.01;
                     }
                     if pos_b == Position::Artrine || pos_b == Position::Passer {
-                        affinity_b *= 0.05;
+                        affinity_b *= 0.01;
+                    }
+                    if pos_a == Position::Goalguard {
+                        affinity_a *= 0.001;
+                    }
+                    if pos_b == Position::Goalguard {
+                        affinity_b *= 0.001;
                     }
 
                     let score_a = evaluate_candidate_suitability(a, role, attribute_keys) * affinity_a;
@@ -217,8 +223,19 @@ pub fn assign_roles(
         attribute_keys,
     );
 
-    let blocker_threshold = BLOCKER_ROLE_BASE_THRESHOLD
+    let mut total_blocking_score = 0.0;
+    let mut count = 0.0;
+    for (_, player) in assignments {
+        total_blocking_score += evaluate_candidate_suitability(player, SlotRole::Blocker, attribute_keys);
+        count += 1.0;
+    }
+    
+    let mean_blocking = if count > 0.0 { total_blocking_score / count } else { 10.0 };
+    let base_blocker_threshold = mean_blocking + (BLOCKER_ROLE_BASE_THRESHOLD - 10.0);
+    let blocker_threshold = base_blocker_threshold
         - (physicality_pref.clamp(0.0, 1.0) * BLOCKER_ROLE_PHYSICALITY_ADJUSTMENT);
+
+    let mut blocker_candidates = Vec::new();
 
     for (idx, player) in assignments {
         if roles.get(&player.id()) == Some(&SlotRole::Standard) {
@@ -231,22 +248,33 @@ pub fn assign_roles(
                 continue;
             }
 
-            let mut pos_mult = if is_role_eligible_for_position(SlotRole::Blocker, pos) {
-                1.25
-            } else {
-                0.75
-            };
+            let mut pos_mult = 1.25;
             
             if pos == Position::Artrine || pos == Position::Passer {
-                pos_mult *= 0.05;
+                pos_mult *= 0.01;
+            }
+            if pos == Position::Goalguard {
+                pos_mult *= 0.001;
             }
 
             let blocking_score =
                 evaluate_candidate_suitability(player, SlotRole::Blocker, attribute_keys) * pos_mult;
+                
             if blocking_score >= blocker_threshold {
-                roles.insert(player.id(), SlotRole::Blocker);
-                *role_counts.entry(SlotRole::Blocker).or_insert(0) += 1;
+                blocker_candidates.push((blocking_score, player.id()));
             }
+        }
+    }
+
+    blocker_candidates.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    
+    if let Some(max_blockers) = max_concurrent_count(SlotRole::Blocker) {
+        let current_blockers = *role_counts.entry(SlotRole::Blocker).or_insert(0);
+        let allowed = max_blockers.saturating_sub(current_blockers);
+        
+        for &(_, pid) in blocker_candidates.iter().take(allowed as usize) {
+            roles.insert(pid, SlotRole::Blocker);
+            *role_counts.entry(SlotRole::Blocker).or_insert(0) += 1;
         }
     }
 

@@ -6,7 +6,7 @@ pub fn max_concurrent_count(role: SlotRole) -> Option<u32> {
         SlotRole::Launcher => Some(1),
         SlotRole::Safeguard => Some(1),
         SlotRole::Kicker => Some(1),
-        SlotRole::Blocker => None,
+        SlotRole::Blocker => Some(3),
         SlotRole::Standard => None,
     }
 }
