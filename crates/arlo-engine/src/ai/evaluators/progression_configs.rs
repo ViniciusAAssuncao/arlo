@@ -1,5 +1,6 @@
 use crate::ai::evaluators::action_evalutors::{ActionEvaluationConfig, ActionKindConfig};
 use crate::ai::evaluators::context::DecisionEvaluationContext;
+use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::ArtrineDecisionKind;
 
 #[derive(Clone, Copy)]
@@ -19,14 +20,10 @@ pub fn carry_config() -> ActionEvaluationConfig {
             advance_fn: |ctx, skill_mult| {
                 let free_path = ctx.situation.expected_free_path;
                 let adv_mirim = free_path * skill_mult;
-                let estimated_drives = if ctx.situation.is_true_artrine && adv_mirim >= 0.5 {
-                    if adv_mirim >= 5.5 && skill_mult >= 1.2 {
-                        3
-                    } else if adv_mirim >= 2.5 && skill_mult >= 0.9 {
-                        2
-                    } else {
-                        1
-                    }
+                let rows_crossed = (adv_mirim / ARTRO_ROW_SPACING_MIRIM).floor() as u32;
+                let estimated_drives = if ctx.situation.is_true_artrine && rows_crossed > 0 {
+                    let prob = (0.50 + 0.10 * skill_mult).clamp(0.0, 1.0);
+                    ((rows_crossed as f64) * prob).round() as u32
                 } else {
                     0
                 };

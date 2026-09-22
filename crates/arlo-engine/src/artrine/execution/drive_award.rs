@@ -1,6 +1,7 @@
 use crate::artrine::execution::drive_profile::DriveAwardProfile;
 use crate::artrine::execution::drive_skill::calculate_artrine_drive_skill;
 use crate::attributes::PlayerAttributeTable;
+use arlo_domain::sport_constants::ARTRO_ROW_SPACING_MIRIM;
 use arlo_domain::ArtrineDecisionKind;
 use arlo_math::stats::contrast::logistic;
 use arlo_math::Probability;
@@ -19,41 +20,30 @@ pub fn award_drives_with_profile<R: Rng + ?Sized>(
     if !is_true_artrine
         || decision_kind != ArtrineDecisionKind::SelfCarry
         || !attacker_won
-        || mirins_advanced < profile.min_advance_p1()
+        || mirins_advanced <= 0.0
     {
+        return 0;
+    }
+
+    let rows_crossed = (mirins_advanced / ARTRO_ROW_SPACING_MIRIM).floor() as u32;
+    if rows_crossed == 0 {
         return 0;
     }
 
     let skill = calculate_artrine_drive_skill(table);
     let norm_skill = (skill - 10.0) / 10.0;
 
-    let p1_logit = profile.p1_base_logit()
-        + profile.p1_advantage_scale() * net_advantage
-        + profile.p1_skill_scale() * norm_skill;
-    let p1 = logistic(p1_logit).clamp(profile.p1_min_prob(), profile.p1_max_prob());
-    if !Probability::new_clamped(p1).sample(rng) {
-        return 0;
-    }
+    let logit = profile.base_logit()
+        + profile.advantage_scale() * net_advantage
+        + profile.skill_scale() * norm_skill;
+    
+    let prob = logistic(logit).clamp(profile.min_prob(), profile.max_prob());
+    let probability = Probability::new_clamped(prob);
 
-    let mut drives = 1;
-
-    if mirins_advanced >= profile.min_advance_p2() {
-        let p2_logit = profile.p2_base_logit()
-            + profile.p2_advantage_scale() * net_advantage
-            + profile.p2_skill_scale() * norm_skill;
-        let p2 = logistic(p2_logit).clamp(profile.p2_min_prob(), profile.p2_max_prob());
-        if Probability::new_clamped(p2).sample(rng) {
+    let mut drives = 0;
+    for _ in 0..rows_crossed {
+        if probability.sample(rng) {
             drives += 1;
-
-            if mirins_advanced >= profile.min_advance_p3() {
-                let p3_logit = profile.p3_base_logit()
-                    + profile.p3_advantage_scale() * net_advantage
-                    + profile.p3_skill_scale() * norm_skill;
-                let p3 = logistic(p3_logit).clamp(profile.p3_min_prob(), profile.p3_max_prob());
-                if Probability::new_clamped(p3).sample(rng) {
-                    drives += 1;
-                }
-            }
         }
     }
 
