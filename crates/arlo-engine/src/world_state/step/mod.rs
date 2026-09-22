@@ -12,7 +12,6 @@ pub use step_outcome::PlayStepOutcome;
 
 use crate::error::EngineResult;
 use crate::manager_ai::orchestrator::ManagerAiEngine;
-use crate::match_decision::event_translation::create_envelope;
 use crate::match_decision::play_outcome::DetailedPlayOutcome;
 use crate::match_decision::scoring::ScoringDecision;
 use crate::officiating::punishment::capture_play_reversal_snapshot;
@@ -103,95 +102,17 @@ pub fn step_call_to_action(
     let offense_players = context.offense_players();
     let defense_players = context.defense_players();
 
-    let down = state.possession().down();
-    let current_carrier_id = state.possession().current_carrier();
-
-    let pass_phase = if down == 1 || current_carrier_id.is_none() {
-        resolve_pass_phase(
-            state,
-            &offense_players,
-            &context.offense_pos_index,
-            &context.offense_role_index,
-            &defense_players,
-            context.is_home_offense,
-            context.offense_team_id,
-            context.defense_team_id,
-            sink,
-        )?
-    } else {
-        let passer = crate::lineup_runtime::find_player_by_position(&offense_players, arlo_domain::Position::Passer).unwrap_or(offense_players[0]);
-        let artrine = crate::lineup_runtime::find_player_by_position(&offense_players, arlo_domain::Position::Artrine).unwrap_or(offense_players[0]);
-        let goalguard = crate::lineup_runtime::find_player_by_position(&defense_players, arlo_domain::Position::Goalguard).unwrap_or(defense_players[0]);
-        let pass_rusher = crate::lineup_runtime::find_player_by_position(&defense_players, arlo_domain::Position::PassRusher).unwrap_or(defense_players[0]);
-
-        let req = crate::resolution::resolver::DuelResolutionRequest::for_contest(
-            crate::resolution::DuelKind::PassProtection,
-            10.0,
-            10.0,
-            &crate::resolution::DuelContext::neutral(),
-        );
-        let mut duel_rng = state
-            .rng_provider()
-            .indexed_rng_for(crate::rng::RngStream::DuelResolution, state.event_sequence());
-        let dummy_outcome = crate::resolution::resolver::resolve_duel(req, &mut duel_rng);
-
-        let pass_duel_outcome = crate::resolution::AttributedDuelOutcome::new(
-            dummy_outcome,
-            smallvec::smallvec![passer.id()],
-            smallvec::smallvec![pass_rusher.id()],
-        );
-
-        let pass_completed = dummy_outcome.attacker_won();
-
-        if pass_completed {
-            sink.record(create_envelope(
-                state.next_sequence(),
-                state.clock().to_instant(),
-                arlo_events::PassCompleted::new(passer.id(), artrine.id(), false, 5.0),
-            ));
-        }
-
-        let current_time = state.clock().seconds_in_period();
-        let pitch_length_mirim = state.pitch().length_mirim();
-        let scrimmage_x = state.possession().scrimmage_x_mirim();
-        let norm_prox = if context.is_home_offense {
-            (scrimmage_x / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
-        } else {
-            ((pitch_length_mirim - scrimmage_x) / pitch_length_mirim.max(1.0)).clamp(0.0, 1.0)
-        };
-        let zone = crate::possession::locate_zone(
-            norm_prox,
-            pitch_length_mirim,
-            arlo_domain::sport_constants::AWC_DEFAULT_SECOND_ZONE_DEPTH_MIRIM,
-        );
-        state.possession_mut().live_sequence_mut().record_touch(
-            passer.id(),
-            crate::possession::TouchActionType::InitialHandoff,
-            zone,
-            current_time,
-        );
-        state.possession_mut().live_sequence_mut().record_touch(
-            artrine.id(),
-            crate::possession::TouchActionType::Reception,
-            zone,
-            current_time,
-        );
-
-        crate::world_state::cta_pass::PassPhaseResult {
-            passer,
-            artrine,
-            pass_rusher,
-            goalguard,
-            pass_duel_outcome,
-            pass_completed,
-            is_aerial: false,
-            reception_x_mirim: state.possession().scrimmage_x_mirim(),
-            reception_y_mirim: state.pitch().width_mirim() * 0.5,
-            down_number: down as u32,
-            scrimmage_x_mirim: state.possession().scrimmage_x_mirim(),
-            duration_ledger: DurationLedger::new(),
-        }
-    };
+    let pass_phase = resolve_pass_phase(
+        state,
+        &offense_players,
+        &context.offense_pos_index,
+        &context.offense_role_index,
+        &defense_players,
+        context.is_home_offense,
+        context.offense_team_id,
+        context.defense_team_id,
+        sink,
+    )?;
 
     let carrier = pass_phase.artrine;
 

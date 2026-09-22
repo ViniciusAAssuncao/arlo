@@ -45,6 +45,7 @@ impl DetailedPlayOutcome {
             possession_control_seconds: self.possession_control_seconds,
             score_occurred: self.scoring_decision.is_scored(),
             is_goal_point: matches!(self.scoring_decision, ScoringDecision::GoalPoint { .. }),
+            pass_completed: self.pass_completed,
         }
     }
 }

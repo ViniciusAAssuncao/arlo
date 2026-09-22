@@ -20,6 +20,26 @@ pub struct PlayOutcome {
     pub possession_control_seconds: Option<f64>,
     pub score_occurred: bool,
     pub is_goal_point: bool,
+    pub pass_completed: bool,
+}
+
+impl Default for PlayOutcome {
+    fn default() -> Self {
+        Self {
+            turnover: None,
+            recovering_player_id: None,
+            receiver_id: None,
+            out_of_bounds: false,
+            arbitral_stoppage: false,
+            mirins_advanced: 0.0,
+            last_valid_x_mirim: 0.0,
+            last_valid_y_mirim: 0.0,
+            possession_control_seconds: None,
+            score_occurred: false,
+            is_goal_point: false,
+            pass_completed: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -123,14 +143,19 @@ pub fn transition(current: &PossessionSnapshot, outcome: &PlayOutcome) -> Transi
             updated_series.reset(next_scrimmage_x);
             *current.role()
         } else {
-            let is_immediate = outcome
-                .possession_control_seconds
-                .map(is_immediate_loss)
-                .unwrap_or(true);
-
-            if !is_immediate {
+            if !outcome.pass_completed {
                 updated_series.advance_down();
                 updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
+            } else {
+                let is_immediate = outcome
+                    .possession_control_seconds
+                    .map(is_immediate_loss)
+                    .unwrap_or(true);
+
+                if !is_immediate {
+                    updated_series.advance_down();
+                    updated_series.set_scrimmage_x_mirim(next_scrimmage_x);
+                }
             }
             *current.role()
         };
