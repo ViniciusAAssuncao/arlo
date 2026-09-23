@@ -1,6 +1,8 @@
 use super::artro::sample_artros;
 use super::bonus::resolve_bonus_segment;
+use super::context::validate_match_state;
 use super::down::emit_down_advanced;
+use super::kick_foul::resolve_kick_foul_segment;
 use super::model::sample_call;
 use super::open_play::resolve_open_play_segment;
 use super::ratings::RatingIndex;
@@ -25,14 +27,7 @@ pub fn resolve_next_segment(
     state: &mut MatchState,
     selected_play_call: Option<&PlayCall>,
 ) -> EngineResult<StepResult> {
-    if input.match_id() != state.match_id()
-        || input.home().team_id() != state.home().team_id()
-        || input.away().team_id() != state.away().team_id()
-    {
-        return Err(EngineError::InvalidInput(
-            "state and match input differ".into(),
-        ));
-    }
+    validate_match_state(input, state)?;
     if state.phase() == MatchPhase::Finished {
         return Ok(StepResult::finished(Vec::new()));
     }
@@ -49,6 +44,14 @@ pub fn resolve_next_segment(
             ));
         }
         return resolve_bonus_segment(input, state);
+    }
+    if state.phase() == MatchPhase::KickFoul {
+        if selected_play_call.is_some() {
+            return Err(EngineError::InvalidInput(
+                "Kick Foul does not accept an open-play Call-to-Action".into(),
+            ));
+        }
+        return resolve_kick_foul_segment(input, state, None, None);
     }
     if state.phase() == MatchPhase::Live {
         if selected_play_call.is_some() {

@@ -1,4 +1,5 @@
 use super::down::emit_down_advanced;
+use super::kicker::select_kicker;
 use super::ratings::RatingIndex;
 use super::shooting_model::sample_regular_shot;
 use crate::error::EngineResult;
@@ -22,11 +23,12 @@ pub(super) fn resolve_regular_attempt(
     events: &mut Vec<MatchEventEnvelope>,
 ) -> EngineResult<bool> {
     let team_id = offense.team_id();
-    let shooter_id = if is_home {
+    let artrine_id = if is_home {
         state.home().artrine_id()
     } else {
         state.away().artrine_id()
     };
+    let kicker_id = select_kicker(ratings, offense, selected_play_call)?;
     let drives = if is_home {
         state.home().drive_progress().completed_drives()
     } else {
@@ -43,6 +45,8 @@ pub(super) fn resolve_regular_attempt(
         ratings,
         offense,
         defense,
+        artrine_id,
+        kicker_id,
         selected_play_call,
         distance,
         pitch_length,
@@ -52,6 +56,7 @@ pub(super) fn resolve_regular_attempt(
     else {
         return Ok(false);
     };
+    let shooter_id = sample.shooter_id;
     if sample.converted {
         let pending = state.pending_call_outcome();
         let territory_advance = if state.series().team_id() == team_id {
@@ -68,7 +73,7 @@ pub(super) fn resolve_regular_attempt(
         state.apply_score(team_id, kind)?;
         let event = match sample.post {
             ScoringPost::Goalpost => MatchEvent::GoalPoint(GoalPointScored::new(
-                team_id, shooter_id, shooter_id, None, drives,
+                team_id, shooter_id, artrine_id, None, drives,
             )),
             ScoringPost::Fieldpost => MatchEvent::FieldPoint(FieldPointScored::new(
                 team_id,

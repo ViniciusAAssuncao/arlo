@@ -1,3 +1,4 @@
+use super::kicker::select_kicker;
 use super::ratings::RatingIndex;
 use super::shooting_model::sample_bonus_shot;
 use crate::error::{EngineError, EngineResult};
@@ -25,17 +26,14 @@ pub(super) fn resolve_bonus_segment(
     } else {
         (input.away(), input.home())
     };
-    let scorer_id = if is_home {
-        state.home().artrine_id()
-    } else {
-        state.away().artrine_id()
-    };
     let ratings = RatingIndex::new(input);
+    let scorer_id = select_kicker(&ratings, offense, None)?;
     let mut next = state.clone();
     let sample = sample_bonus_shot(
         &ratings,
         offense,
         defense,
+        scorer_id,
         input.pitch().length_mirim(),
         next.rng_mut(),
     )?;
@@ -48,19 +46,21 @@ pub(super) fn resolve_bonus_segment(
     if extension > 0.0 {
         let new_added = next.clock().added_seconds() + extension;
         next.grant_added_time(new_added)?;
-        events.push(
-            next.emit(MatchEvent::AddedTimeAwarded(AddedTimeAwarded::new(
-                next.clock().period(),
-                extension,
-                0,
-                0,
-                0,
-                0,
-                0,
-                1,
-                0.0,
-            )))?,
-        );
+        if next.clock().period() % 2 == 0 {
+            events.push(
+                next.emit(MatchEvent::AddedTimeAwarded(AddedTimeAwarded::new(
+                    next.clock().period(),
+                    extension,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0.0,
+                )))?,
+            );
+        }
     }
     next.advance_bonus_playing_time(duration)?;
     events.push(next.emit(MatchEvent::PossessionTimeRecorded(

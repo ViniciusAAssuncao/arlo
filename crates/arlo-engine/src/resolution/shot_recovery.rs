@@ -1,3 +1,4 @@
+use super::context::validate_match_state;
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
 use crate::state::MatchState;
@@ -14,14 +15,7 @@ pub fn resolve_missed_shot_recovery(
     recovering_team_id: Uuid,
     recovery_position_mirim: f64,
 ) -> EngineResult<StepResult> {
-    if input.match_id() != state.match_id()
-        || input.home().team_id() != state.home().team_id()
-        || input.away().team_id() != state.away().team_id()
-    {
-        return Err(EngineError::InvalidInput(
-            "state and match input differ".into(),
-        ));
-    }
+    validate_match_state(input, state)?;
     let shooting_team_id = state.possessor_team_id();
     let shooter_is_active = if shooting_team_id == input.home().team_id() {
         state.home().active_player_ids().contains(&shooter_id)

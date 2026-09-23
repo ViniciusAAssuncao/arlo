@@ -5,6 +5,36 @@ use arlo_domain::sport_constants::GOAL_POINT_REQUIRED_DRIVES;
 use uuid::Uuid;
 
 impl MatchState {
+    pub fn begin_kick_foul_attempt(&mut self) -> EngineResult<()> {
+        if self.phase != MatchPhase::KickFoul {
+            return Err(EngineError::InvalidTransition(
+                "no Kick Foul is ready".into(),
+            ));
+        }
+        self.clock = self.clock.start()?;
+        Ok(())
+    }
+
+    pub fn advance_kick_foul_time(&mut self, seconds: f64) -> EngineResult<()> {
+        if self.phase != MatchPhase::KickFoul {
+            return Err(EngineError::InvalidTransition(
+                "Kick Foul playing time requires a Kick Foul".into(),
+            ));
+        }
+        self.clock = self.clock.advance(seconds)?;
+        Ok(())
+    }
+
+    pub fn continue_after_kick_foul(&mut self) -> EngineResult<()> {
+        if self.phase != MatchPhase::KickFoul || !self.clock.is_running() {
+            return Err(EngineError::InvalidTransition(
+                "Kick Foul must be executed before live play continues".into(),
+            ));
+        }
+        self.phase = MatchPhase::Live;
+        Ok(())
+    }
+
     pub fn award_kick_foul(&mut self, kicker_team_id: Uuid) -> EngineResult<()> {
         if self.phase != MatchPhase::Live {
             return Err(EngineError::InvalidTransition(

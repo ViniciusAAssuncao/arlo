@@ -1,6 +1,9 @@
 mod artro;
 mod bonus;
+mod context;
 mod down;
+mod kick_foul;
+mod kicker;
 mod model;
 mod open_play;
 mod ratings;
@@ -12,6 +15,7 @@ mod step;
 mod time_call;
 mod tuning;
 
+pub use kick_foul::{award_kick_foul_segment, resolve_kick_foul_segment};
 pub use shot_recovery::resolve_missed_shot_recovery;
 pub use step::resolve_next_segment;
 pub use time_call::resolve_time_call_segment;

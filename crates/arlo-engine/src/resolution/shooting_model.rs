@@ -10,10 +10,12 @@ use arlo_events::ScoringPost;
 use arlo_tactics::PlayCall;
 use rand::Rng;
 use rand_chacha::ChaCha8Rng;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct ShotSample {
     pub post: ScoringPost,
+    pub shooter_id: Uuid,
     pub converted: bool,
     pub defense_recovers: bool,
     pub out_of_bounds: bool,
@@ -30,6 +32,7 @@ pub(super) fn sample_bonus_shot(
     ratings: &RatingIndex,
     offense: &TeamInput,
     defense: &TeamInput,
+    kicker_id: Uuid,
     pitch_length_mirim: f64,
     rng: &mut ChaCha8Rng,
 ) -> EngineResult<BonusShotSample> {
@@ -46,6 +49,7 @@ pub(super) fn sample_bonus_shot(
         ratings,
         offense,
         defense,
+        kicker_id,
         post,
         distance / pitch_length_mirim,
     )?;
@@ -61,6 +65,8 @@ pub(super) fn sample_regular_shot(
     ratings: &RatingIndex,
     offense: &TeamInput,
     defense: &TeamInput,
+    goalpost_shooter_id: Uuid,
+    fieldpost_shooter_id: Uuid,
     selected_play_call: Option<&PlayCall>,
     distance_to_goal_mirim: f64,
     pitch_length_mirim: f64,
@@ -86,15 +92,21 @@ pub(super) fn sample_regular_shot(
     } else {
         ScoringPost::Fieldpost
     };
+    let shooter_id = match post {
+        ScoringPost::Goalpost => goalpost_shooter_id,
+        ScoringPost::Fieldpost => fieldpost_shooter_id,
+    };
     let conversion_probability = conversion_probability(
         ratings,
         offense,
         defense,
+        shooter_id,
         post,
         distance_to_goal_mirim / pitch_length_mirim,
     )?;
     Ok(Some(ShotSample {
         post,
+        shooter_id,
         converted: rng.gen_range(0.0..1.0) < conversion_probability,
         defense_recovers: rng.gen_range(0.0..1.0) < DEFENSIVE_REBOUND_PROBABILITY,
         out_of_bounds: rng.gen_range(0.0..1.0) < MISSED_SHOT_OUT_PROBABILITY,
@@ -105,13 +117,13 @@ pub(super) fn conversion_probability(
     ratings: &RatingIndex,
     offense: &TeamInput,
     defense: &TeamInput,
+    shooter_id: Uuid,
     post: ScoringPost,
     distance_ratio: f64,
 ) -> EngineResult<f64> {
     let probability = match post {
         ScoringPost::Goalpost => {
-            let finishing =
-                ratings.specialist(offense, Position::Artrine, AttributeKey::Finishing)?;
+            let finishing = ratings.player_value(offense, shooter_id, AttributeKey::Finishing)?;
             let reflexes =
                 ratings.specialist(defense, Position::Goalguard, AttributeKey::Reflexes)?;
             BASE_GOALPOST_CONVERSION + finishing * FINISHING_CONVERSION_WEIGHT
@@ -119,10 +131,8 @@ pub(super) fn conversion_probability(
                 - distance_ratio * DISTANCE_CONVERSION_WEIGHT
         }
         ScoringPost::Fieldpost => {
-            let finishing =
-                ratings.specialist(offense, Position::Artrine, AttributeKey::Finishing)?;
-            let technique =
-                ratings.specialist(offense, Position::Artrine, AttributeKey::Technique)?;
+            let finishing = ratings.player_value(offense, shooter_id, AttributeKey::Finishing)?;
+            let technique = ratings.player_value(offense, shooter_id, AttributeKey::Technique)?;
             let blocking =
                 ratings.active_average(defense, AttributeKey::DefensiveContainment, false)?;
             BASE_FIELDPOST_CONVERSION + (finishing + technique) * 0.5 * KICKING_CONVERSION_WEIGHT
