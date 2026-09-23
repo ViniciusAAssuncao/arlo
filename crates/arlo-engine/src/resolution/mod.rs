@@ -1,7 +1,10 @@
+mod actors;
 mod artro;
 mod bonus;
 mod context;
+mod contest;
 mod down;
+mod exchange;
 mod kick_foul;
 mod kicker;
 mod model;

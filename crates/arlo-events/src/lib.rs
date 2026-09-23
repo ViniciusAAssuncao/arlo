@@ -13,7 +13,7 @@ pub mod scoring;
 pub mod sink;
 
 pub use action::{
-    ActionEvent, ArtrineDecisionMade, CallToActionStarted, DistributionCompleted, DriveRecorded,
+    ActionEvent, ArtrineDecisionMade, CallToActionStarted, CarryResolved, DistributionCompleted, DriveRecorded,
     DriveRegistered, DuelKind, DuelResolved, EventArtroPlacement, PassCompleted, ReceptionResolved,
 };
 pub use arlo_domain::pitch::ArtroPlacement;
@@ -45,6 +45,7 @@ use serde::{Deserialize, Serialize};
 pub enum MatchEvent {
     CallToActionStarted(CallToActionStarted),
     PassCompleted(PassCompleted),
+    CarryResolved(CarryResolved),
     DistributionCompleted(DistributionCompleted),
     ReceptionResolved(ReceptionResolved),
     ArtrineDecisionMade(ArtrineDecisionMade),
@@ -82,6 +83,7 @@ impl MatchEvent {
             self,
             Self::CallToActionStarted(_)
                 | Self::PassCompleted(_)
+                | Self::CarryResolved(_)
                 | Self::DistributionCompleted(_)
                 | Self::ReceptionResolved(_)
                 | Self::ArtrineDecisionMade(_)
@@ -164,6 +166,7 @@ impl MatchEvent {
         match self {
             Self::CallToActionStarted(_) => "CallToActionStarted",
             Self::PassCompleted(_) => "PassCompleted",
+            Self::CarryResolved(_) => "CarryResolved",
             Self::DistributionCompleted(_) => "DistributionCompleted",
             Self::ReceptionResolved(_) => "ReceptionResolved",
             Self::ArtrineDecisionMade(_) => "ArtrineDecisionMade",
@@ -206,6 +209,12 @@ impl From<CallToActionStarted> for MatchEvent {
 impl From<PassCompleted> for MatchEvent {
     fn from(ev: PassCompleted) -> Self {
         Self::PassCompleted(ev)
+    }
+}
+
+impl From<CarryResolved> for MatchEvent {
+    fn from(ev: CarryResolved) -> Self {
+        Self::CarryResolved(ev)
     }
 }
 
@@ -406,6 +415,7 @@ impl From<ActionEvent> for MatchEvent {
         match ev {
             ActionEvent::CallToActionStarted(e) => Self::CallToActionStarted(e),
             ActionEvent::PassCompleted(e) => Self::PassCompleted(e),
+            ActionEvent::CarryResolved(e) => Self::CarryResolved(e),
             ActionEvent::DistributionCompleted(e) => Self::DistributionCompleted(e),
             ActionEvent::ReceptionResolved(e) => Self::ReceptionResolved(e),
             ActionEvent::ArtrineDecisionMade(e) => Self::ArtrineDecisionMade(e),

@@ -1,7 +1,10 @@
+use super::actors::{select_actor, ActorRole};
 use super::artro::sample_artros;
 use super::bonus::resolve_bonus_segment;
 use super::context::validate_match_state;
+use super::contest::{emit_carry_contest, emit_route_contest};
 use super::down::emit_down_advanced;
+use super::exchange::resolve_exchange;
 use super::kick_foul::resolve_kick_foul_segment;
 use super::model::sample_call;
 use super::open_play::resolve_open_play_segment;
@@ -15,7 +18,7 @@ use crate::state::{MatchPhase, MatchState, PendingCallOutcome, SeriesAdvance};
 use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_events::{
-    CallToActionStarted, DriveRecorded, MatchEvent, OutOfBounds, PassCompleted,
+    CallToActionStarted, CarryResolved, DriveRecorded, MatchEvent, OutOfBounds, PassCompleted,
     PossessionTimeRecorded, ReceptionResolved,
 };
 use arlo_manager_control::RequiredManagerDecision;
@@ -129,16 +132,42 @@ pub fn resolve_next_segment(
         (next.away().passer_id(), next.away().artrine_id())
     };
     let remaining_time = next.clock().period_limit_seconds() - next.clock().seconds_in_period();
+    let carry_defender_id = select_actor(
+        &ratings,
+        defense,
+        ActorRole::Defender,
+        None,
+        next.rng_mut(),
+    )?;
     let sample = sample_call(
+        &ratings,
         offense,
+        defense,
         offense_rating,
         defense_rating,
+        artrine_id,
+        carry_defender_id,
         is_home,
         selected_play_call,
         next.rng_mut(),
-    );
+    )?;
     let duration = sample.duration_seconds.min(remaining_time);
-    let reception = sample_reception(&ratings, offense, defense, next.rng_mut())?;
+    let defender_id = select_actor(
+        &ratings,
+        defense,
+        ActorRole::Defender,
+        None,
+        next.rng_mut(),
+    )?;
+    let reception = sample_reception(
+        &ratings,
+        offense,
+        defense,
+        passer_id,
+        artrine_id,
+        defender_id,
+        next.rng_mut(),
+    )?;
     let controlled_reception = reception.caught && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS;
     let artros = if controlled_reception {
         sample_artros(
@@ -185,7 +214,16 @@ pub fn resolve_next_segment(
             false,
         )))?,
     );
+    emit_route_contest(
+        &mut next,
+        &mut events,
+        artrine_id,
+        defender_id,
+        reception,
+        controlled_reception,
+    )?;
     if controlled_reception {
+        next.set_carrier(artrine_id)?;
         events.push(next.emit(MatchEvent::PassCompleted(PassCompleted::new(
             passer_id,
             artrine_id,
@@ -194,6 +232,13 @@ pub fn resolve_next_segment(
         )))?);
     }
     next.advance_playing_time(duration - reception_time)?;
+    if controlled_reception {
+        events.push(next.emit(MatchEvent::CarryResolved(CarryResolved::new(
+            artrine_id,
+            gain_mirim,
+        )))?);
+        emit_carry_contest(&mut next, &mut events, artrine_id, carry_defender_id, sample, gain_mirim)?;
+    }
     for placement in artros {
         if let Some(drives_in_series) = next.record_artro(offense_id, artrine_id, duration)? {
             events.push(next.emit(MatchEvent::DriveRecorded(DriveRecorded::new(
@@ -203,6 +248,20 @@ pub fn resolve_next_segment(
             )))?);
         }
     }
+    let holder_id = if controlled_reception {
+        resolve_exchange(
+            &ratings,
+            offense,
+            defense,
+            selected_play_call,
+            artrine_id,
+            duration - reception_time,
+            &mut next,
+            &mut events,
+        )?
+    } else {
+        artrine_id
+    };
     let advance = next.record_valid_advance(gain_mirim, end_mirim)?;
     let first_down = matches!(advance, SeriesAdvance::FirstDown);
     let call_outcome = PendingCallOutcome {
@@ -222,6 +281,7 @@ pub fn resolve_next_segment(
             offense,
             defense,
             is_home,
+            holder_id,
             selected_play_call,
             &mut next,
             &mut events,

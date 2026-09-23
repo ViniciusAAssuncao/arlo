@@ -88,6 +88,10 @@ impl MatchState {
     pub fn next_call_team_id(&self) -> Uuid {
         self.possession.next_call_team_id()
     }
+
+    pub fn carrier_id(&self) -> Option<Uuid> {
+        self.possession.carrier_id()
+    }
     pub fn series(&self) -> SeriesState {
         self.series
     }
@@ -100,6 +104,21 @@ impl MatchState {
 
     pub(crate) fn rng_mut(&mut self) -> &mut ChaCha8Rng {
         &mut self.rng
+    }
+
+    pub(crate) fn set_carrier(&mut self, player_id: Uuid) -> EngineResult<()> {
+        if self.phase != MatchPhase::Live
+            || !self
+                .team(self.possessor_team_id())?
+                .active_player_ids()
+                .contains(&player_id)
+        {
+            return Err(EngineError::InvalidTransition(
+                "ball carrier must be active for the possessing team".into(),
+            ));
+        }
+        self.possession = self.possession.with_carrier(player_id);
+        Ok(())
     }
 
     pub(crate) fn pending_call_outcome(&self) -> Option<PendingCallOutcome> {

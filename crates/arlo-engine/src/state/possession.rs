@@ -6,6 +6,7 @@ pub struct PossessionState {
     possessor_team_id: Uuid,
     next_call_team_id: Uuid,
     ball_position_mirim: f64,
+    carrier_id: Option<Uuid>,
 }
 
 impl PossessionState {
@@ -19,6 +20,7 @@ impl PossessionState {
             possessor_team_id: team_id,
             next_call_team_id: team_id,
             ball_position_mirim,
+            carrier_id: None,
         })
     }
 
@@ -32,6 +34,24 @@ impl PossessionState {
         self.ball_position_mirim
     }
 
+    pub fn carrier_id(&self) -> Option<Uuid> {
+        self.carrier_id
+    }
+
+    pub(crate) fn with_carrier(self, carrier_id: Uuid) -> Self {
+        Self {
+            carrier_id: Some(carrier_id),
+            ..self
+        }
+    }
+
+    pub(crate) fn without_carrier(self) -> Self {
+        Self {
+            carrier_id: None,
+            ..self
+        }
+    }
+
     pub fn turnover(self, team_id: Uuid) -> EngineResult<Self> {
         if team_id == self.possessor_team_id {
             return Err(EngineError::InvalidTransition(
@@ -40,6 +60,7 @@ impl PossessionState {
         }
         Ok(Self {
             possessor_team_id: team_id,
+            carrier_id: None,
             ..self
         })
     }
@@ -47,6 +68,11 @@ impl PossessionState {
     pub fn with_possessor(self, team_id: Uuid) -> Self {
         Self {
             possessor_team_id: team_id,
+            carrier_id: if team_id == self.possessor_team_id {
+                self.carrier_id
+            } else {
+                None
+            },
             ..self
         }
     }
@@ -74,6 +100,7 @@ impl PossessionState {
             possessor_team_id: team_id,
             next_call_team_id: team_id,
             ball_position_mirim: position_mirim,
+            carrier_id: None,
         })
     }
 

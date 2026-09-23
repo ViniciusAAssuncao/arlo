@@ -325,6 +325,7 @@ def participation_summary(connection):
             )
             for player in starters
         ),
+        "zero_touches": sum(player["touches"] == 0 for player in starters),
         "positions": {name: dict(counts) for name, counts in sorted(by_position.items())},
         "mean_largest_touch_share_per_team": (
             sum(touch_shares) / len(touch_shares) if touch_shares else None
@@ -352,6 +353,11 @@ def audit(path):
         duel_count = connection.execute(
             "SELECT COALESCE(SUM(total_duels), 0) FROM match_player_duels"
         ).fetchone()[0]
+        duel_kinds = rows(
+            connection,
+            "SELECT duel_kind, SUM(total) AS participations "
+            "FROM match_player_duels_by_kind GROUP BY duel_kind ORDER BY duel_kind",
+        )
         scoring_by_position = rows(
             connection,
             "SELECT COALESCE(slot.position, 'Unknown') AS position, "
@@ -384,6 +390,7 @@ def audit(path):
                 "total_touches": touches["total_touches"] or 0,
                 "duels": duel_count,
             },
+            "duel_kinds": [dict(row) for row in duel_kinds],
             "turnovers": {
                 "total": turnover["total"],
                 "without_named_recoverer": turnover["unnamed"] or 0,

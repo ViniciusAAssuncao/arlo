@@ -1,3 +1,5 @@
+mod carry;
+
 use arlo_domain::pitch::ArtroPlacement;
 use arlo_domain::ArtrineDecisionKind;
 use arlo_math::Probability;
@@ -5,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub use arlo_domain::pitch::ArtroPlacement as EventArtroPlacement;
+pub use carry::CarryResolved;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DuelKind {
@@ -391,6 +394,7 @@ impl DuelResolved {
 pub enum ActionEvent {
     CallToActionStarted(CallToActionStarted),
     PassCompleted(PassCompleted),
+    CarryResolved(CarryResolved),
     DistributionCompleted(DistributionCompleted),
     ReceptionResolved(ReceptionResolved),
     ArtrineDecisionMade(ArtrineDecisionMade),
@@ -407,6 +411,12 @@ impl From<CallToActionStarted> for ActionEvent {
 impl From<PassCompleted> for ActionEvent {
     fn from(ev: PassCompleted) -> Self {
         Self::PassCompleted(ev)
+    }
+}
+
+impl From<CarryResolved> for ActionEvent {
+    fn from(ev: CarryResolved) -> Self {
+        Self::CarryResolved(ev)
     }
 }
 

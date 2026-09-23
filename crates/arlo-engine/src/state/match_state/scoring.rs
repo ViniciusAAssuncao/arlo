@@ -52,7 +52,7 @@ impl MatchState {
             });
             self.series = self.series.suspend_after_turnover();
         }
-        self.possession = self.possession.with_possessor(kicker_team_id);
+        self.possession = self.possession.without_carrier().with_possessor(kicker_team_id);
         self.clock = self.clock.stop();
         self.phase = MatchPhase::KickFoul;
         Ok(())
@@ -101,6 +101,7 @@ impl MatchState {
         self.home.reset_drives();
         self.away.reset_drives();
         self.pending_call_outcome = None;
+        self.possession = self.possession.without_carrier();
         if !bonus_phase {
             self.clock = self.clock.stop();
         }

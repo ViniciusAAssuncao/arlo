@@ -65,8 +65,7 @@ pub(super) fn sample_regular_shot(
     ratings: &RatingIndex,
     offense: &TeamInput,
     defense: &TeamInput,
-    goalpost_shooter_id: Uuid,
-    fieldpost_shooter_id: Uuid,
+    shooter_id: Uuid,
     selected_play_call: Option<&PlayCall>,
     distance_to_goal_mirim: f64,
     pitch_length_mirim: f64,
@@ -91,10 +90,6 @@ pub(super) fn sample_regular_shot(
         ScoringPost::Goalpost
     } else {
         ScoringPost::Fieldpost
-    };
-    let shooter_id = match post {
-        ScoringPost::Goalpost => goalpost_shooter_id,
-        ScoringPost::Fieldpost => fieldpost_shooter_id,
     };
     let conversion_probability = conversion_probability(
         ratings,

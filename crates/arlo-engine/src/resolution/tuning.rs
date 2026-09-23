@@ -1,5 +1,6 @@
 pub(super) const BASE_SUCCESS_PROBABILITY: f64 = 0.50;
 pub(super) const ATTRIBUTE_DIFFERENCE_WEIGHT: f64 = 0.025;
+pub(super) const INDIVIDUAL_CARRY_WEIGHT: f64 = 0.012;
 pub(super) const HOME_ADVANTAGE: f64 = 0.025;
 pub(super) const MENTALITY_WEIGHT: f64 = 0.05;
 pub(super) const CARRY_EMPHASIS_WEIGHT: f64 = 0.04;

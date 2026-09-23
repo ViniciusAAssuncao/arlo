@@ -280,6 +280,7 @@ fn resolve_launch(
     let end = (position + direction * distance_mirim).clamp(0.0, pitch_length);
     state.move_live_ball(end)?;
     if caught {
+        state.set_carrier(receiver_id)?;
         events.push(state.emit(MatchEvent::PassCompleted(PassCompleted::new(
             taker_id,
             receiver_id,

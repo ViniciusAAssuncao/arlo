@@ -1,5 +1,4 @@
 use super::down::emit_down_advanced;
-use super::kicker::select_kicker;
 use super::ratings::RatingIndex;
 use super::shooting_model::sample_regular_shot;
 use crate::error::EngineResult;
@@ -11,6 +10,7 @@ use arlo_events::{
     ScoringAttemptMissed, ScoringPost, Turnover,
 };
 use arlo_tactics::PlayCall;
+use uuid::Uuid;
 
 pub(super) fn resolve_regular_attempt(
     input: &MatchInput,
@@ -18,6 +18,7 @@ pub(super) fn resolve_regular_attempt(
     offense: &TeamInput,
     defense: &TeamInput,
     is_home: bool,
+    holder_id: Uuid,
     selected_play_call: Option<&PlayCall>,
     state: &mut MatchState,
     events: &mut Vec<MatchEventEnvelope>,
@@ -28,7 +29,6 @@ pub(super) fn resolve_regular_attempt(
     } else {
         state.away().artrine_id()
     };
-    let kicker_id = select_kicker(ratings, offense, selected_play_call)?;
     let drives = if is_home {
         state.home().drive_progress().completed_drives()
     } else {
@@ -45,8 +45,7 @@ pub(super) fn resolve_regular_attempt(
         ratings,
         offense,
         defense,
-        artrine_id,
-        kicker_id,
+        holder_id,
         selected_play_call,
         distance,
         pitch_length,
@@ -105,7 +104,7 @@ pub(super) fn resolve_regular_attempt(
             team_id,
             defense.team_id(),
             None,
-            None,
+            Some(shooter_id),
             false,
         )))?);
         if let Some(outcome) = pending {
@@ -137,11 +136,14 @@ pub(super) fn resolve_regular_attempt(
                 .iter()
                 .find(|assignment| assignment.position() == Position::Goalguard)
                 .map(|assignment| assignment.player_id());
+            if let Some(player_id) = recovering_goalguard_id {
+                state.set_carrier(player_id)?;
+            }
             events.push(state.emit(MatchEvent::Turnover(Turnover::new(
                 team_id,
                 recovery_team_id,
                 recovering_goalguard_id,
-                None,
+                Some(shooter_id),
                 true,
             )))?);
         }

@@ -14,6 +14,7 @@ impl MatchState {
             ));
         }
         self.clock = self.clock.start()?;
+        self.possession = self.possession.without_carrier();
         self.pending_call_outcome = None;
         self.phase = MatchPhase::Live;
         Ok(())
@@ -102,7 +103,9 @@ impl MatchState {
         if recovering_team_id != shooting_team_id {
             self.turnover(recovering_team_id)?;
         }
-        self.possession = possession.with_possessor(recovering_team_id);
+        self.possession = possession
+            .without_carrier()
+            .with_possessor(recovering_team_id);
         Ok(())
     }
 

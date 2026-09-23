@@ -1,5 +1,8 @@
+use super::actors::{select_actor, ActorRole};
 use super::artro::sample_artros;
+use super::contest::emit_carry_contest;
 use super::down::emit_down_advanced;
+use super::exchange::resolve_exchange;
 use super::model::sample_call;
 use super::ratings::RatingIndex;
 use super::shooting::resolve_regular_attempt;
@@ -9,7 +12,7 @@ use crate::input::MatchInput;
 use crate::state::{MatchPhase, MatchState};
 use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
-use arlo_events::{DriveRecorded, MatchEvent, OutOfBounds, PossessionTimeRecorded, Turnover};
+use arlo_events::{CarryResolved, DriveRecorded, MatchEvent, OutOfBounds, PossessionTimeRecorded, Turnover};
 use rand::Rng;
 
 pub(super) fn resolve_open_play_segment(
@@ -32,19 +35,46 @@ pub(super) fn resolve_open_play_segment(
     let offense_rating = ratings.team_ratings(offense)?;
     let defense_rating = ratings.team_ratings(defense)?;
     let mut next = state.clone();
+    let carrier_id = match next.carrier_id() {
+        Some(player_id) => player_id,
+        None => select_actor(
+            &ratings,
+            offense,
+            ActorRole::Carrier,
+            None,
+            next.rng_mut(),
+        )?,
+    };
+    next.set_carrier(carrier_id)?;
+    let carry_defender_id = select_actor(
+        &ratings,
+        defense,
+        ActorRole::Defender,
+        None,
+        next.rng_mut(),
+    )?;
     let pending = next.pending_call_outcome();
     let start_mirim = next.possession().ball_position_mirim();
     let remaining_time = next.clock().period_limit_seconds() - next.clock().seconds_in_period();
     let sample = sample_call(
+        &ratings,
         offense,
+        defense,
         offense_rating,
         defense_rating,
+        carrier_id,
+        carry_defender_id,
         is_home,
         None,
         next.rng_mut(),
-    );
+    )?;
     let duration = sample.duration_seconds.min(remaining_time);
-    let artros = if duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS {
+    let artrine_id = if is_home {
+        next.home().artrine_id()
+    } else {
+        next.away().artrine_id()
+    };
+    let artros = if carrier_id == artrine_id && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS {
         sample_artros(&ratings, offense, defense, None, duration, next.rng_mut())?
     } else {
         Vec::new()
@@ -62,11 +92,18 @@ pub(super) fn resolve_open_play_segment(
     let mut events = vec![next.emit(MatchEvent::PossessionTimeRecorded(
         PossessionTimeRecorded::new(possessor_id, duration),
     ))?];
-    let artrine_id = if is_home {
-        next.home().artrine_id()
-    } else {
-        next.away().artrine_id()
-    };
+    events.push(next.emit(MatchEvent::CarryResolved(CarryResolved::new(
+        carrier_id,
+        direction * (end_mirim - start_mirim),
+    )))?);
+    emit_carry_contest(
+        &mut next,
+        &mut events,
+        carrier_id,
+        carry_defender_id,
+        sample,
+        direction * (end_mirim - start_mirim),
+    )?;
     for placement in artros {
         if let Some(drives_in_series) = next.record_artro(possessor_id, artrine_id, duration)? {
             events.push(next.emit(MatchEvent::DriveRecorded(DriveRecorded::new(
@@ -76,12 +113,23 @@ pub(super) fn resolve_open_play_segment(
             )))?);
         }
     }
+    let holder_id = resolve_exchange(
+        &ratings,
+        offense,
+        defense,
+        None,
+        carrier_id,
+        duration,
+        &mut next,
+        &mut events,
+    )?;
     if resolve_regular_attempt(
         input,
         &ratings,
         offense,
         defense,
         is_home,
+        holder_id,
         None,
         &mut next,
         &mut events,
@@ -90,12 +138,20 @@ pub(super) fn resolve_open_play_segment(
         return Ok(StepResult::resolved(events));
     }
     if turnover {
+        let recovering_id = select_actor(
+            &ratings,
+            defense,
+            ActorRole::Defender,
+            None,
+            next.rng_mut(),
+        )?;
         next.turnover(defense.team_id())?;
+        next.set_carrier(recovering_id)?;
         events.push(next.emit(MatchEvent::Turnover(Turnover::new(
             possessor_id,
             defense.team_id(),
-            None,
-            None,
+            Some(recovering_id),
+            Some(holder_id),
             true,
         )))?);
     }
