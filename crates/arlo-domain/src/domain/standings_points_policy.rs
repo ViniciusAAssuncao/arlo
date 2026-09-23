@@ -35,26 +35,32 @@ impl StandingsPointsPolicy {
                 match rule.rule_key() {
                     "points_for_win" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<i32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "points_for_win".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<i32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "points_for_win".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         policy.points_for_win = parsed;
                     }
                     "points_for_draw" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<i32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "points_for_draw".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<i32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "points_for_draw".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         policy.points_for_draw = parsed;
                     }
                     "points_for_loss" => {
                         let val = rule.value().trim();
-                        let parsed = val.parse::<i32>().map_err(|_| DomainError::InvalidInvariant {
-                            field: "points_for_loss".to_string(),
-                            violation: InvariantViolation::UnexpectedValue,
-                        })?;
+                        let parsed =
+                            val.parse::<i32>()
+                                .map_err(|_| DomainError::InvalidInvariant {
+                                    field: "points_for_loss".to_string(),
+                                    violation: InvariantViolation::UnexpectedValue,
+                                })?;
                         policy.points_for_loss = parsed;
                     }
                     _ => {}

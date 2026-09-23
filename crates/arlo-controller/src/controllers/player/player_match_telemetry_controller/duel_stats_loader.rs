@@ -8,19 +8,17 @@ pub async fn load_duel_stats(
     match_id: Uuid,
     player_id: Uuid,
 ) -> ControllerResult<PlayerDuelStatsDto> {
-    let duel_row = arlo_persistence::repositories::match_player_duels::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let duel_row =
+        arlo_persistence::repositories::match_player_duels::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
-    let duel_kinds_rows = arlo_persistence::repositories::match_player_duels::list_by_kind_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let duel_kinds_rows =
+        arlo_persistence::repositories::match_player_duels::list_by_kind_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     let mut saves_attempted = 0u32;
     let mut saves_made = 0u32;

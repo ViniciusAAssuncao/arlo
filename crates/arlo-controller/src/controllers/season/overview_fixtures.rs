@@ -45,10 +45,8 @@ pub async fn build_overview_fixtures(
             .cloned()
             .unwrap_or_else(|| "Visitante".to_string());
 
-        let fixture_cal_date = CalendarDate::new(
-            row.scheduled_year,
-            row.scheduled_day_of_year as u32,
-        );
+        let fixture_cal_date =
+            CalendarDate::new(row.scheduled_year, row.scheduled_day_of_year as u32);
 
         let resolved_date = date_resolver::resolve(calendar, &fixture_cal_date);
 

@@ -28,13 +28,12 @@ pub fn calculate_daily_fatigue_recovery_rates(
 
     let energy_attr_contrib = (norm_stamina * tuning.energy_stamina_weight)
         + (norm_natural_fitness * tuning.energy_natural_fitness_weight);
-    let energy_rate = (tuning.energy_base_daily_recovery + energy_attr_contrib)
-        * age_factor
-        * cond_mult;
+    let energy_rate =
+        (tuning.energy_base_daily_recovery + energy_attr_contrib) * age_factor * cond_mult;
 
     let anaerobic_attr_contrib = norm_natural_fitness * tuning.anaerobic_natural_fitness_weight;
-    let anaerobic_rate = (tuning.anaerobic_base_daily_recovery + anaerobic_attr_contrib)
-        * cond_mult;
+    let anaerobic_rate =
+        (tuning.anaerobic_base_daily_recovery + anaerobic_attr_contrib) * cond_mult;
 
     DailyFatigueRecoveryRates {
         energy_rate: energy_rate.clamp(0.05, 0.95),

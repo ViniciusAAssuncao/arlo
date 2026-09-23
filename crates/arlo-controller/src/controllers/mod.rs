@@ -19,6 +19,6 @@ pub use player::*;
 pub use promotion_relegation_controller::*;
 pub use r#match::*;
 pub use save_calendar_controller::*;
-pub use season::*;
 pub use season as season_controller;
+pub use season::*;
 pub use team::*;

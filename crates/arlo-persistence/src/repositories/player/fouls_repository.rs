@@ -14,13 +14,7 @@ const FOUL_COLUMNS: &[&str] = &[
     "incorrect_calls_committed",
 ];
 
-const FOUL_BY_ORIGIN_COLUMNS: &[&str] = &[
-    "id",
-    "match_id",
-    "player_id",
-    "origin",
-    "fouls_count",
-];
+const FOUL_BY_ORIGIN_COLUMNS: &[&str] = &["id", "match_id", "player_id", "origin", "fouls_count"];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,

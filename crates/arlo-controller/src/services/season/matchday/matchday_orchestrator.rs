@@ -31,8 +31,14 @@ pub async fn run_due_matches(
                 prepared_matches.push(prep);
             }
             Err(err) => {
-                eprintln!("build_matchday_setup failed for fixture {}: {}", fixture.id, err);
-                if walkover_resolver::handle_walkover(pool, &fixture).await.is_ok() {
+                eprintln!(
+                    "build_matchday_setup failed for fixture {}: {}",
+                    fixture.id, err
+                );
+                if walkover_resolver::handle_walkover(pool, &fixture)
+                    .await
+                    .is_ok()
+                {
                     matches_played_count += 1;
                 }
             }
@@ -68,17 +74,15 @@ pub async fn run_due_matches(
 
     for sim_result in simulation_results {
         match sim_result {
-            Ok(simulation) => {
-                match persist_completed_simulation(&mut tx, &simulation).await {
-                    Ok(_) => {
-                        matches_played_count += 1;
-                        persisted_simulations.push(simulation);
-                    }
-                    Err(err) => {
-                        eprintln!("Failed to persist match simulation result: {}", err);
-                    }
+            Ok(simulation) => match persist_completed_simulation(&mut tx, &simulation).await {
+                Ok(_) => {
+                    matches_played_count += 1;
+                    persisted_simulations.push(simulation);
                 }
-            }
+                Err(err) => {
+                    eprintln!("Failed to persist match simulation result: {}", err);
+                }
+            },
             Err(err) => {
                 eprintln!("Match simulation failed: {}", err);
             }

@@ -6,10 +6,7 @@ use crate::services::season::conflict::team_fixture_window_loader::{
 use arlo_domain::{GamesPerWeekPolicy, RestGapPolicy};
 use uuid::Uuid;
 
-pub fn is_in_blackout(
-    date: &CalendarDate,
-    blackout_windows: &[BlackoutWindow],
-) -> bool {
+pub fn is_in_blackout(date: &CalendarDate, blackout_windows: &[BlackoutWindow]) -> bool {
     blackout_windows.iter().any(|window| window.contains(date))
 }
 
@@ -24,10 +21,11 @@ pub fn is_valid_candidate_date_for_team(
     rest_gap_policy: &RestGapPolicy,
     competition_stage_ids: &[Uuid],
 ) -> bool {
-    let candidate_week = match calculate_fixture_week_index(calendar, season_start_date, candidate_date) {
-        Some(w) => w,
-        None => return false,
-    };
+    let candidate_week =
+        match calculate_fixture_week_index(calendar, season_start_date, candidate_date) {
+            Some(w) => w,
+            None => return false,
+        };
 
     if games_per_week_policy.max_games_per_team_per_week() > 0 {
         let max_allowed = games_per_week_policy.max_games_per_team_per_week() as usize;

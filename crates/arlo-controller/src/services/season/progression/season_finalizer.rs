@@ -27,10 +27,7 @@ pub async fn finalize_season(
     )
     .await?
     .ok_or_else(|| {
-        ControllerError::NotFound(format!(
-            "Season instance {} not found",
-            season_instance_id
-        ))
+        ControllerError::NotFound(format!("Season instance {} not found", season_instance_id))
     })?;
 
     let reference_year = season_row.reference_year;
@@ -39,7 +36,8 @@ pub async fn finalize_season(
         resolve_and_apply_promotion_relegation(pool, competition_id, season_instance_id).await?;
     finalize_season_instance(pool, season_instance_id).await?;
     let title =
-        resolve_season_champion(pool, competition_id, season_instance_id, knockout_champion).await?;
+        resolve_season_champion(pool, competition_id, season_instance_id, knockout_champion)
+            .await?;
     arlo_db::repositories::title::insert(pool, &title)
         .await
         .map_err(|e| crate::error::ControllerError::InvalidData(e.to_string()))?;

@@ -152,12 +152,7 @@ pub struct PassCompleted {
 }
 
 impl PassCompleted {
-    pub fn new(
-        passer_id: Uuid,
-        receiver_id: Uuid,
-        is_aerial: bool,
-        distance_mirim: f64,
-    ) -> Self {
+    pub fn new(passer_id: Uuid, receiver_id: Uuid, is_aerial: bool, distance_mirim: f64) -> Self {
         Self {
             passer_id,
             receiver_id,
@@ -285,11 +280,7 @@ pub struct DriveRecorded {
 }
 
 impl DriveRecorded {
-    pub fn new(
-        artrine_id: Uuid,
-        drives_in_series: u32,
-        placement: ArtroPlacement,
-    ) -> Self {
+    pub fn new(artrine_id: Uuid, drives_in_series: u32, placement: ArtroPlacement) -> Self {
         Self {
             artrine_id,
             drives_in_series,

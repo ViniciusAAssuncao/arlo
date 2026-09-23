@@ -150,7 +150,10 @@ impl MatchEvent {
     }
 
     pub fn is_kick_foul(&self) -> bool {
-        matches!(self, Self::KickFoulAwarded(_) | Self::KickFoulDecisionMade(_))
+        matches!(
+            self,
+            Self::KickFoulAwarded(_) | Self::KickFoulDecisionMade(_)
+        )
     }
 
     pub fn is_injury(&self) -> bool {

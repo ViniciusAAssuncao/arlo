@@ -40,12 +40,10 @@ pub fn build_month_view(
         let resolved = date_resolver::resolve(calendar, &encoded);
 
         let week_day_order_index = match resolved {
-            ResolvedCalendarDate::RegularDay {
-                week_day_index, ..
-            } => week_day_index,
-            ResolvedCalendarDate::IntercalaryDay {
-                week_day_index, ..
-            } => week_day_index.unwrap_or(0),
+            ResolvedCalendarDate::RegularDay { week_day_index, .. } => week_day_index,
+            ResolvedCalendarDate::IntercalaryDay { week_day_index, .. } => {
+                week_day_index.unwrap_or(0)
+            }
         };
 
         days.push(CalendarMonthDayDto {

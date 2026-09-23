@@ -16,8 +16,7 @@ impl SaveCalendarStateRow {
     pub fn to_domain(&self) -> ControllerResult<SaveCalendarState> {
         let save_uuid = Uuid::parse_str(&self.save_uuid)?;
         let calendar_system_id = Uuid::parse_str(&self.calendar_system_id)?;
-        let current_date =
-            CalendarDate::new(self.current_year, self.current_day_of_year as u32);
+        let current_date = CalendarDate::new(self.current_year, self.current_day_of_year as u32);
 
         Ok(SaveCalendarState::new(
             save_uuid,

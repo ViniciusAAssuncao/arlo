@@ -1,11 +1,7 @@
 use crate::domain::season::{HomeAwayRecord, StandingsEntry};
 use arlo_domain::QtaWeightingPolicy;
 
-pub fn calculate_qta(
-    home_away: &HomeAwayRecord,
-    played: u32,
-    policy: &QtaWeightingPolicy,
-) -> f64 {
+pub fn calculate_qta(home_away: &HomeAwayRecord, played: u32, policy: &QtaWeightingPolicy) -> f64 {
     if played == 0 {
         return 0.0;
     }
@@ -20,10 +16,7 @@ pub fn calculate_qta(
     score / played as f64
 }
 
-pub fn apply_qta_to_standings(
-    entries: &mut [StandingsEntry],
-    policy: &QtaWeightingPolicy,
-) {
+pub fn apply_qta_to_standings(entries: &mut [StandingsEntry], policy: &QtaWeightingPolicy) {
     for entry in entries.iter_mut() {
         let qta = calculate_qta(&entry.home_away(), entry.played(), policy);
         *entry = entry.with_qta(qta);

@@ -1,10 +1,7 @@
 use crate::domain::season::{SpaMetrics, StandingsEntry};
 use arlo_domain::SpaScoringPolicy;
 
-pub fn calculate_spa_metrics(
-    entry: &StandingsEntry,
-    policy: &SpaScoringPolicy,
-) -> SpaMetrics {
+pub fn calculate_spa_metrics(entry: &StandingsEntry, policy: &SpaScoringPolicy) -> SpaMetrics {
     if entry.played() == 0 {
         return SpaMetrics::default();
     }
@@ -22,10 +19,7 @@ pub fn calculate_spa_metrics(
     SpaMetrics::new(pb, feo, ispa)
 }
 
-pub fn apply_spa_metrics_to_standings(
-    entries: &mut [StandingsEntry],
-    policy: &SpaScoringPolicy,
-) {
+pub fn apply_spa_metrics_to_standings(entries: &mut [StandingsEntry], policy: &SpaScoringPolicy) {
     for entry in entries.iter_mut() {
         let metrics = calculate_spa_metrics(entry, policy);
         *entry = entry.with_spa_metrics(metrics);

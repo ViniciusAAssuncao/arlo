@@ -1,4 +1,4 @@
-use crate::error::{ ControllerError, ControllerResult };
+use crate::error::{ControllerError, ControllerResult};
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
@@ -11,7 +11,7 @@ pub struct SimulationLoopHandle {
 impl SimulationLoopHandle {
     pub fn new(
         stop_tx: watch::Sender<bool>,
-        join_handle: JoinHandle<ControllerResult<()>>
+        join_handle: JoinHandle<ControllerResult<()>>,
     ) -> Self {
         Self {
             stop_tx,
@@ -34,12 +34,10 @@ impl SimulationLoopHandle {
     pub async fn join(self) -> ControllerResult<()> {
         match self.join_handle.await {
             Ok(result) => result,
-            Err(join_err) =>
-                Err(
-                    ControllerError::InvalidData(
-                        format!("Simulation loop task join error: {}", join_err)
-                    )
-                ),
+            Err(join_err) => Err(ControllerError::InvalidData(format!(
+                "Simulation loop task join error: {}",
+                join_err
+            ))),
         }
     }
 

@@ -39,7 +39,12 @@ pub async fn list_team_titles(
         let (competition_name, competition_kind) = competition_map
             .get(&title.competition_id())
             .cloned()
-            .unwrap_or_else(|| ("Competição Desconhecida".to_string(), "Desconhecido".to_string()));
+            .unwrap_or_else(|| {
+                (
+                    "Competição Desconhecida".to_string(),
+                    "Desconhecido".to_string(),
+                )
+            });
 
         dtos.push(TeamTitleDto {
             id: title.id().to_string(),

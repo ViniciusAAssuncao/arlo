@@ -43,20 +43,14 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerAvailabilityRow],
 ) -> PersistenceResult<()> {
-    execute_batch_insert(
-        tx,
-        "match_player_availability",
-        COLUMNS,
-        rows,
-        |b, row| {
-            b.push_bind(&row.id);
-            b.push_bind(&row.match_id);
-            b.push_bind(&row.player_id);
-            b.push_bind(row.total_suspended_seconds);
-            b.push_bind(row.expulsion_count);
-            b.push_bind(row.is_currently_expelled);
-        },
-    )
+    execute_batch_insert(tx, "match_player_availability", COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(&row.player_id);
+        b.push_bind(row.total_suspended_seconds);
+        b.push_bind(row.expulsion_count);
+        b.push_bind(row.is_currently_expelled);
+    })
     .await
 }
 

@@ -48,12 +48,10 @@ pub fn assign_dates(
         let base_resolved = date_resolver::resolve(calendar, &week_base_date);
 
         let base_weekday = match base_resolved {
-            ResolvedCalendarDate::RegularDay {
-                week_day_index, ..
-            } => week_day_index,
-            ResolvedCalendarDate::IntercalaryDay {
-                week_day_index, ..
-            } => week_day_index.unwrap_or(0),
+            ResolvedCalendarDate::RegularDay { week_day_index, .. } => week_day_index,
+            ResolvedCalendarDate::IntercalaryDay { week_day_index, .. } => {
+                week_day_index.unwrap_or(0)
+            }
         };
 
         let target_weekday = if !allowed_weekdays.is_empty() {

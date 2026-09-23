@@ -57,10 +57,7 @@ pub async fn run_day_advancement(
     let calendar_system_id = Uuid::parse_str(&row.calendar_system_id)?;
     let catalog = get_or_load_calendar_catalog(pool).await?;
     let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
-        ControllerError::NotFound(format!(
-            "Calendar system {} not found",
-            calendar_system_id
-        ))
+        ControllerError::NotFound(format!("Calendar system {} not found", calendar_system_id))
     })?;
 
     let previous_date = CalendarDate::new(row.current_year, row.current_day_of_year as u32);

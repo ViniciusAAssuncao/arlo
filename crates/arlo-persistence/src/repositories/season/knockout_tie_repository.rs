@@ -70,10 +70,7 @@ pub async fn update_winner(
     Ok(())
 }
 
-pub async fn get_by_id(
-    pool: &SqlitePool,
-    id: Uuid,
-) -> PersistenceResult<Option<KnockoutTieRow>> {
+pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> PersistenceResult<Option<KnockoutTieRow>> {
     let row = sqlx::query_as::<_, KnockoutTieRow>(
         "SELECT id, season_stage_id, round_index, tie_index, high_seed_team_id, high_seed_number, low_seed_team_id, low_seed_number, leg_one_fixture_id, leg_two_fixture_id, aggregate_winner_team_id FROM knockout_ties WHERE id = ?",
     )

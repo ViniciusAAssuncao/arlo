@@ -8,9 +8,7 @@ pub fn parse_stage_type(code: &str) -> DbResult<StageType> {
         "GroupedCompetitionTable" | "grouped_competition_table" => {
             Ok(StageType::GroupedCompetitionTable)
         }
-        _ => Err(DbError::InvalidEnum(format!(
-            "Invalid stage type: {code}"
-        ))),
+        _ => Err(DbError::InvalidEnum(format!("Invalid stage type: {code}"))),
     }
 }
 

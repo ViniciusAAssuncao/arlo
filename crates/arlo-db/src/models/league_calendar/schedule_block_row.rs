@@ -61,10 +61,7 @@ impl ScheduleBlockRow {
                 let rounds_count = self.rounds_count.ok_or_else(|| {
                     DbError::InvalidData("RandomPoolRounds requires rounds_count".to_string())
                 })? as u32;
-                Ok(ScheduleBlock::RandomPoolRounds {
-                    pool,
-                    rounds_count,
-                })
+                Ok(ScheduleBlock::RandomPoolRounds { pool, rounds_count })
             }
         }
     }

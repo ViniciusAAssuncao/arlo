@@ -30,7 +30,11 @@ pub async fn resolve_team_lineup(
         .unwrap_or_default();
 
     for lineup in existing_lineups {
-        if let Some(formation) = formations.iter().find(|f| f.id() == lineup.formation_id()).cloned() {
+        if let Some(formation) = formations
+            .iter()
+            .find(|f| f.id() == lineup.formation_id())
+            .cloned()
+        {
             let slots_count = formation.slots().len();
             let assignments = lineup.assignments();
 

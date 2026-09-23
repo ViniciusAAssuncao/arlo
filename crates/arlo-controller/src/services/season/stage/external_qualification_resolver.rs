@@ -15,15 +15,16 @@ pub async fn resolve_external_winners(
                 continue;
             }
 
-            let title = arlo_db::repositories::title::get_latest_by_competition_id(pool, *competition_id)
-                .await
-                .map_err(|e| ControllerError::InvalidData(e.to_string()))?
-                .ok_or_else(|| {
-                    ControllerError::NotFound(format!(
-                        "No title found for external competition {}",
-                        competition_id
-                    ))
-                })?;
+            let title =
+                arlo_db::repositories::title::get_latest_by_competition_id(pool, *competition_id)
+                    .await
+                    .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+                    .ok_or_else(|| {
+                        ControllerError::NotFound(format!(
+                            "No title found for external competition {}",
+                            competition_id
+                        ))
+                    })?;
 
             match title.winner() {
                 TitleWinner::Team(team_id) => {

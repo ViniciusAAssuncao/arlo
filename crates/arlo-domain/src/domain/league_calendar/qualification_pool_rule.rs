@@ -4,13 +4,25 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum QualificationPoolRule {
     AllTeams,
-    TopN { count: u32 },
-    BottomN { count: u32 },
+    TopN {
+        count: u32,
+    },
+    BottomN {
+        count: u32,
+    },
     GroupWinners,
     GroupRunnersUp,
-    BestAtGroupPosition { position_index: u32, count: u32 },
-    PositionRange { start_position: u32, end_position: u32 },
-    ExternalCompetitionWinner { competition_id: Uuid },
+    BestAtGroupPosition {
+        position_index: u32,
+        count: u32,
+    },
+    PositionRange {
+        start_position: u32,
+        end_position: u32,
+    },
+    ExternalCompetitionWinner {
+        competition_id: Uuid,
+    },
 }
 
 impl QualificationPoolRule {

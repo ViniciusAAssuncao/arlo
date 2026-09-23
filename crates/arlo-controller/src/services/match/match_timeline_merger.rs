@@ -75,7 +75,8 @@ pub fn merge_match_timeline(
     for row in incidents.scoring_plays {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -88,7 +89,8 @@ pub fn merge_match_timeline(
     for row in incidents.fouls {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -101,7 +103,8 @@ pub fn merge_match_timeline(
     for row in incidents.injuries {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -114,7 +117,8 @@ pub fn merge_match_timeline(
     for row in incidents.substitutions {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -127,7 +131,8 @@ pub fn merge_match_timeline(
     for row in incidents.turnovers {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -140,7 +145,8 @@ pub fn merge_match_timeline(
     for row in incidents.kick_foul_awards {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -153,7 +159,8 @@ pub fn merge_match_timeline(
     for row in incidents.kick_foul_decisions {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -166,7 +173,8 @@ pub fn merge_match_timeline(
     for row in incidents.time_calls {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -179,7 +187,8 @@ pub fn merge_match_timeline(
     for row in incidents.challenges {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -192,7 +201,8 @@ pub fn merge_match_timeline(
     for row in incidents.tactical_profile_activations {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -205,7 +215,8 @@ pub fn merge_match_timeline(
     for row in incidents.play_call_selections {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -218,7 +229,8 @@ pub fn merge_match_timeline(
     for row in incidents.availability_changes {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -231,7 +243,8 @@ pub fn merge_match_timeline(
     for row in incidents.impulse_critical_events {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,
@@ -244,7 +257,8 @@ pub fn merge_match_timeline(
     for row in incidents.added_time_awards {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
-        let total_elapsed = calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
+        let total_elapsed =
+            calculate_total_elapsed_seconds(clock_config, period, seconds_in_period);
         items.push(MatchTimelineItem {
             sequence_number: row.sequence_number.max(0) as u64,
             period,

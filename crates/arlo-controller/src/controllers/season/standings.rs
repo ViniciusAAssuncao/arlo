@@ -22,17 +22,19 @@ pub async fn get_group_ranked_standings(
 ) -> ControllerResult<Vec<GroupRankedStandingsEntry>> {
     let standings = get_standings(pool, stage_id).await?;
     if groups.is_empty() {
-        let stage_row = arlo_persistence::repositories::season::season_stages::get_by_id(pool, stage_id)
-            .await?
-            .ok_or_else(|| {
-                ControllerError::NotFound(format!("Stage {} not found", stage_id))
-            })?;
+        let stage_row =
+            arlo_persistence::repositories::season::season_stages::get_by_id(pool, stage_id)
+                .await?
+                .ok_or_else(|| {
+                    ControllerError::NotFound(format!("Stage {} not found", stage_id))
+                })?;
         let season_id = Uuid::parse_str(&stage_row.season_instance_id)?;
-        let season_row = arlo_persistence::repositories::season::season_instances::get_by_id(pool, season_id)
-            .await?
-            .ok_or_else(|| {
-                ControllerError::NotFound(format!("Season instance {} not found", season_id))
-            })?;
+        let season_row =
+            arlo_persistence::repositories::season::season_instances::get_by_id(pool, season_id)
+                .await?
+                .ok_or_else(|| {
+                    ControllerError::NotFound(format!("Season instance {} not found", season_id))
+                })?;
         let comp_id = Uuid::parse_str(&season_row.competition_id)?;
         let config = get_or_load_league_calendar_config(pool, comp_id)
             .await?
@@ -48,8 +50,7 @@ pub async fn get_group_ranked_standings(
         ))
     } else {
         Ok(group_rank_annotator::annotate_group_ranks(
-            &standings,
-            groups,
+            &standings, groups,
         ))
     }
 }

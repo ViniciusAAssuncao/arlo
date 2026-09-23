@@ -67,7 +67,14 @@ async fn resolve_and_ensure_available_players(
     let mut available = filter_available_players(pool, raw_players).await?;
 
     if available.len() < 14 {
-        ensure_minimum_roster(pool, team_id, fallback_formation, available.len(), existing_count).await?;
+        ensure_minimum_roster(
+            pool,
+            team_id,
+            fallback_formation,
+            available.len(),
+            existing_count,
+        )
+        .await?;
         let refreshed = arlo_db::repositories::player::list_by_team_id(pool, team_id)
             .await
             .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
@@ -92,12 +99,16 @@ pub async fn build_matchday_setup(
     let home_team = arlo_db::repositories::team::get_by_id(pool, home_team_id)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?
-        .ok_or_else(|| ControllerError::NotFound(format!("Home team {} not found", home_team_id)))?;
+        .ok_or_else(|| {
+            ControllerError::NotFound(format!("Home team {} not found", home_team_id))
+        })?;
 
     let _away_team = arlo_db::repositories::team::get_by_id(pool, away_team_id)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?
-        .ok_or_else(|| ControllerError::NotFound(format!("Away team {} not found", away_team_id)))?;
+        .ok_or_else(|| {
+            ControllerError::NotFound(format!("Away team {} not found", away_team_id))
+        })?;
 
     let formations = get_or_load_formations(pool).await?;
     if formations.is_empty() {
@@ -106,8 +117,10 @@ pub async fn build_matchday_setup(
         ));
     }
 
-    let home_players = resolve_and_ensure_available_players(pool, home_team_id, &formations[0]).await?;
-    let away_players = resolve_and_ensure_available_players(pool, away_team_id, &formations[0]).await?;
+    let home_players =
+        resolve_and_ensure_available_players(pool, home_team_id, &formations[0]).await?;
+    let away_players =
+        resolve_and_ensure_available_players(pool, away_team_id, &formations[0]).await?;
 
     let (home_lineup, home_formation) =
         resolve_team_lineup(pool, home_team_id, &home_players, &formations).await?;
@@ -118,26 +131,29 @@ pub async fn build_matchday_setup(
     all_player_ids.extend(home_players.iter().map(|p| p.id()));
     all_player_ids.extend(away_players.iter().map(|p| p.id()));
 
-    let initial_conditions = arlo_recovery::orchestration::match_condition_bridge::load_conditions_for_players(
-        pool,
-        &all_player_ids,
-    )
-    .await
-    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let initial_conditions =
+        arlo_recovery::orchestration::match_condition_bridge::load_conditions_for_players(
+            pool,
+            &all_player_ids,
+        )
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let manager_defs = get_or_load_manager_attribute_definitions(pool).await?;
 
-    let home_managers = arlo_db::repositories::manager::list_by_team_id(pool, home_team_id, &manager_defs)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let home_managers =
+        arlo_db::repositories::manager::list_by_team_id(pool, home_team_id, &manager_defs)
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let home_manager = home_managers.into_iter().next().ok_or_else(|| {
         ControllerError::NotFound(format!("Manager for home team {} not found", home_team_id))
     })?;
 
-    let away_managers = arlo_db::repositories::manager::list_by_team_id(pool, away_team_id, &manager_defs)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let away_managers =
+        arlo_db::repositories::manager::list_by_team_id(pool, away_team_id, &manager_defs)
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let away_manager = away_managers.into_iter().next().ok_or_else(|| {
         ControllerError::NotFound(format!("Manager for away team {} not found", away_team_id))
@@ -182,8 +198,7 @@ pub async fn build_matchday_setup(
                 .map_err(|e| ControllerError::InvalidData(e.to_string()))?,
         }
     } else {
-        Pitch::from_mirim(145.0, 85.0)
-            .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+        Pitch::from_mirim(145.0, 85.0).map_err(|e| ControllerError::InvalidData(e.to_string()))?
     };
 
     let format_rules = MatchFormatRules::default_ruleset();

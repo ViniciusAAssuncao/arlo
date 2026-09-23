@@ -4,12 +4,7 @@ use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-const COLUMNS: &[&str] = &[
-    "id",
-    "match_id",
-    "player_id",
-    "goalpoint_assists",
-];
+const COLUMNS: &[&str] = &["id", "match_id", "player_id", "goalpoint_assists"];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,

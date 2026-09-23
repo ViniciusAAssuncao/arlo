@@ -95,9 +95,8 @@ impl LeagueCalendarConfig {
             }
         }
 
-        let stage_order_indices_exist = |target_index: u32| {
-            stages.iter().any(|s| s.stage_order_index() == target_index)
-        };
+        let stage_order_indices_exist =
+            |target_index: u32| stages.iter().any(|s| s.stage_order_index() == target_index);
 
         if !stage_order_indices_exist(promotion_relegation_policy.standings_stage_order_index()) {
             return Err(DomainError::InvalidInvariant {
@@ -106,23 +105,27 @@ impl LeagueCalendarConfig {
             });
         }
 
-        if let LeagueMovementRule::PlayoffStage { stage_order_index, .. } =
-            promotion_relegation_policy.promotion_rule()
+        if let LeagueMovementRule::PlayoffStage {
+            stage_order_index, ..
+        } = promotion_relegation_policy.promotion_rule()
         {
             if !stage_order_indices_exist(stage_order_index) {
                 return Err(DomainError::InvalidInvariant {
-                    field: "promotion_relegation_policy.promotion_rule.stage_order_index".to_string(),
+                    field: "promotion_relegation_policy.promotion_rule.stage_order_index"
+                        .to_string(),
                     violation: InvariantViolation::UnexpectedValue,
                 });
             }
         }
 
-        if let LeagueMovementRule::PlayoffStage { stage_order_index, .. } =
-            promotion_relegation_policy.relegation_rule()
+        if let LeagueMovementRule::PlayoffStage {
+            stage_order_index, ..
+        } = promotion_relegation_policy.relegation_rule()
         {
             if !stage_order_indices_exist(stage_order_index) {
                 return Err(DomainError::InvalidInvariant {
-                    field: "promotion_relegation_policy.relegation_rule.stage_order_index".to_string(),
+                    field: "promotion_relegation_policy.relegation_rule.stage_order_index"
+                        .to_string(),
                     violation: InvariantViolation::UnexpectedValue,
                 });
             }

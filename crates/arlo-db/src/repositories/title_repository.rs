@@ -71,10 +71,7 @@ pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<T
     list_by_winner_team_id(pool, team_id).await
 }
 
-pub async fn list_by_winner_team_id(
-    pool: &SqlitePool,
-    team_id: Uuid,
-) -> DbResult<Vec<Title>> {
+pub async fn list_by_winner_team_id(pool: &SqlitePool, team_id: Uuid) -> DbResult<Vec<Title>> {
     let rows = fetch_all_by_param::<TitleRow>(
         pool,
         "SELECT id, competition_id, season_label, winner_team_id, winner_federation_id, created_at_unix_seconds FROM titles WHERE winner_team_id = ? ORDER BY created_at_unix_seconds DESC, rowid DESC",

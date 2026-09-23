@@ -42,8 +42,7 @@ pub async fn load_all_match_incidents(
         arlo_persistence::repositories::match_substitutions::list_by_match_id(pool, match_id)
             .await?;
     let turnovers =
-        arlo_persistence::repositories::match_turnovers::list_by_match_id(pool, match_id)
-            .await?;
+        arlo_persistence::repositories::match_turnovers::list_by_match_id(pool, match_id).await?;
     let kick_foul_awards =
         arlo_persistence::repositories::match_kick_fouls::list_awards_by_match_id(pool, match_id)
             .await?;

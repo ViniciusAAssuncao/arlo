@@ -32,10 +32,7 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<CollectiveAgreement>> {
     Ok(results)
 }
 
-pub async fn list_by_ids(
-    pool: &SqlitePool,
-    ids: &[Uuid],
-) -> DbResult<Vec<CollectiveAgreement>> {
+pub async fn list_by_ids(pool: &SqlitePool, ids: &[Uuid]) -> DbResult<Vec<CollectiveAgreement>> {
     let mut results = Vec::with_capacity(ids.len());
     for &id in ids {
         if let Some(agreement) = get_by_id(pool, id).await? {

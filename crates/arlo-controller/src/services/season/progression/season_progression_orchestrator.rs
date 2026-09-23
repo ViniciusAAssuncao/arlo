@@ -87,8 +87,9 @@ pub async fn progress_season(
     };
 
     let current_stage_id = Uuid::parse_str(&current_stage_row.id)?;
-    let stage_type = arlo_db::models::league_calendar::parse_stage_type(&current_stage_row.stage_type)
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let stage_type =
+        arlo_db::models::league_calendar::parse_stage_type(&current_stage_row.stage_type)
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
     let stage_status = match current_stage_row.status.as_str() {
         "Pending" => StageStatus::Pending,
         "Active" => StageStatus::Active,
@@ -117,17 +118,12 @@ pub async fn progress_season(
 
     let catalog = get_or_load_calendar_catalog(pool).await?;
     let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
-        ControllerError::NotFound(format!(
-            "Calendar system {} not found",
-            calendar_system_id
-        ))
+        ControllerError::NotFound(format!("Calendar system {} not found", calendar_system_id))
     })?;
 
-    let fixture_rows = arlo_persistence::repositories::season::fixtures::list_by_stage_id(
-        pool,
-        current_stage_id,
-    )
-    .await?;
+    let fixture_rows =
+        arlo_persistence::repositories::season::fixtures::list_by_stage_id(pool, current_stage_id)
+            .await?;
 
     let mut domain_fixtures = Vec::with_capacity(fixture_rows.len());
     for row in &fixture_rows {
@@ -258,8 +254,6 @@ pub async fn progress_season(
             trigger_store,
         )
         .await?;
-        Ok(ProgressionOutcome::SeasonFinalized {
-            season_instance_id,
-        })
+        Ok(ProgressionOutcome::SeasonFinalized { season_instance_id })
     }
 }

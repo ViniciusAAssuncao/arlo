@@ -15,12 +15,11 @@ pub async fn get_team_recent_form(
     team_id: Uuid,
     limit: u32,
 ) -> ControllerResult<Vec<TeamFormEntryDto>> {
-    let fixture_rows = arlo_persistence::repositories::season::fixtures::list_completed_by_team_id_desc(
-        pool,
-        team_id,
-        limit,
-    )
-    .await?;
+    let fixture_rows =
+        arlo_persistence::repositories::season::fixtures::list_completed_by_team_id_desc(
+            pool, team_id, limit,
+        )
+        .await?;
 
     if fixture_rows.is_empty() {
         return Ok(Vec::new());
@@ -92,10 +91,8 @@ pub async fn get_team_recent_form(
             MatchOutcome::Loss => "D".to_string(),
         };
 
-        let fixture_cal_date = CalendarDate::new(
-            row.scheduled_year,
-            row.scheduled_day_of_year as u32,
-        );
+        let fixture_cal_date =
+            CalendarDate::new(row.scheduled_year, row.scheduled_day_of_year as u32);
         let resolved_date = date_resolver::resolve(calendar, &fixture_cal_date);
 
         let (scheduled_month_name, scheduled_day_of_month, scheduled_week_day_name) =
@@ -190,7 +187,11 @@ pub async fn get_team_standings_entry(
     }
 
     let team_id_str = team_id.to_string();
-    let position_idx = match overview.standings.iter().position(|e| e.team_id == team_id_str) {
+    let position_idx = match overview
+        .standings
+        .iter()
+        .position(|e| e.team_id == team_id_str)
+    {
         Some(idx) => idx,
         None => return Ok(None),
     };

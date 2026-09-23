@@ -162,10 +162,7 @@ pub async fn load_conditions_for_players(
     Ok(conditions)
 }
 
-pub fn seed_match_state(
-    state: &mut MatchState,
-    conditions: &HashMap<Uuid, PlayerCondition>,
-) {
+pub fn seed_match_state(state: &mut MatchState, conditions: &HashMap<Uuid, PlayerCondition>) {
     let home_player_ids: Vec<Uuid> = state
         .home_lineup()
         .assignments()
@@ -186,27 +183,20 @@ pub fn seed_match_state(
         if let Some(cond) = conditions.get(&player_id) {
             let assessment = calculate_match_readiness(cond, None, &tuning);
             let w_prime = if assessment.score < tuning.fully_fit_threshold {
-                let deficit = (tuning.fully_fit_threshold - assessment.score)
-                    / tuning.fully_fit_threshold;
+                let deficit =
+                    (tuning.fully_fit_threshold - assessment.score) / tuning.fully_fit_threshold;
                 let penalty = deficit * tuning.max_anaerobic_caution_reduction;
                 (cond.fatigue().w_prime() * (1.0 - penalty)).clamp(0.05, 1.0)
             } else {
                 cond.fatigue().w_prime()
             };
 
-            let fatigue_state = FatigueState::new(
-                cond.fatigue().energy(),
-                w_prime,
-            );
+            let fatigue_state = FatigueState::new(cond.fatigue().energy(), w_prime);
             state.set_player_fatigue(player_id, fatigue_state);
 
             let baseline = cond.impulse().baseline();
             let floor = impulse_floor_for_baseline(baseline);
-            let impulse_state = ImpulseState::new(
-                cond.impulse().current(),
-                baseline,
-                floor,
-            );
+            let impulse_state = ImpulseState::new(cond.impulse().current(), baseline, floor);
             state.set_player_impulse(player_id, impulse_state);
         }
     }

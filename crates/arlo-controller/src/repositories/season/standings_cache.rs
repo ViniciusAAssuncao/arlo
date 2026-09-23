@@ -1,5 +1,5 @@
-use crate::domain::season::StandingsEntry;
 use crate::domain::season::Fixture;
+use crate::domain::season::StandingsEntry;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
 use crate::services::season::persistence::map_row_to_fixture;

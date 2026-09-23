@@ -18,11 +18,11 @@ pub async fn get_player_medical_condition(
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?
         .ok_or_else(|| ControllerError::NotFound(format!("Player {} not found", player_id)))?;
 
-    let condition_row = arlo_persistence::repositories::condition::player_condition::get_by_player_id(
-        pool,
-        player_id,
-    )
-    .await?;
+    let condition_row =
+        arlo_persistence::repositories::condition::player_condition::get_by_player_id(
+            pool, player_id,
+        )
+        .await?;
 
     let medical_status = resolve_player_status(pool, player_id)
         .await
@@ -52,20 +52,18 @@ pub async fn get_player_medical_condition(
     };
 
     let readiness_tuning = ReadinessTuningProfile::default();
-    let readiness = resolve_player_readiness(
-        pool,
-        player_id,
-        current_unix_seconds,
-        &readiness_tuning,
-    )
-    .await
-    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let readiness =
+        resolve_player_readiness(pool, player_id, current_unix_seconds, &readiness_tuning)
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let readiness_score = readiness.score;
     let readiness_level = readiness.level.as_str().to_string();
     let caution_recommended = matches!(
         readiness.level,
-        ReadinessLevel::RecentReturn | ReadinessLevel::CautionRecommended | ReadinessLevel::HighRisk
+        ReadinessLevel::RecentReturn
+            | ReadinessLevel::CautionRecommended
+            | ReadinessLevel::HighRisk
     );
 
     let (energy_level, anaerobic_reserve, impulse_value, impulse_baseline, conditioning_score) =

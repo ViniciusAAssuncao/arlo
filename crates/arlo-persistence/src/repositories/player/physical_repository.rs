@@ -141,7 +141,10 @@ pub async fn list_latest_by_player_ids(
         return Ok(Vec::new());
     }
 
-    let placeholders = std::iter::repeat("?").take(player_ids.len()).collect::<Vec<_>>().join(", ");
+    let placeholders = std::iter::repeat("?")
+        .take(player_ids.len())
+        .collect::<Vec<_>>()
+        .join(", ");
 
     let sql = format!(
         r#"SELECT

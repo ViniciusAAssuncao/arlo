@@ -42,7 +42,10 @@ pub async fn get_team_profile(
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
     let (manager_id, manager_name) = match managers.into_iter().next() {
-        Some(m) => (Some(m.id().to_string()), Some(m.person().name().to_string())),
+        Some(m) => (
+            Some(m.id().to_string()),
+            Some(m.person().name().to_string()),
+        ),
         None => (None, None),
     };
 

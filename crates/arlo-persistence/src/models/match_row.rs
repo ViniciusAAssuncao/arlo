@@ -58,12 +58,11 @@ impl MatchRow {
             pitch_width_mirim,
             match_seed: encode_match_seed(match_seed),
             format_regulation_periods: format_regulation_periods as i32,
-            format_regulation_period_duration_seconds:
-                format_regulation_period_duration_seconds as i32,
+            format_regulation_period_duration_seconds: format_regulation_period_duration_seconds
+                as i32,
             format_allows_overtime,
             format_overtime_periods: format_overtime_periods as i32,
-            format_overtime_period_duration_seconds:
-                format_overtime_period_duration_seconds as i32,
+            format_overtime_period_duration_seconds: format_overtime_period_duration_seconds as i32,
             head_referee_id: head_referee_id.to_string(),
             peace_referee_id: peace_referee_id.to_string(),
             final_period: final_period as i32,

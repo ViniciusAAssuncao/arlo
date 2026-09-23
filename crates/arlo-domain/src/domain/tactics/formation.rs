@@ -5,9 +5,7 @@ use crate::domain::sport_constants::{
 };
 use crate::domain::tactics::formation_builder::FormationBuilder;
 use crate::domain::tactics::formation_slot::FormationSlot;
-use crate::domain::validation::{
-    validate_exact_count, validate_not_empty,
-};
+use crate::domain::validation::{validate_exact_count, validate_not_empty};
 use crate::error::DomainResult;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -20,11 +18,7 @@ pub struct Formation {
 }
 
 impl Formation {
-    pub fn new(
-        id: Uuid,
-        name: impl Into<String>,
-        slots: Vec<FormationSlot>,
-    ) -> DomainResult<Self> {
+    pub fn new(id: Uuid, name: impl Into<String>, slots: Vec<FormationSlot>) -> DomainResult<Self> {
         let name = name.into();
         validate_not_empty(&name, "name")?;
         validate_exact_count(&slots, |_| true, TOTAL_PLAYERS_PER_TEAM as usize, "slots")?;

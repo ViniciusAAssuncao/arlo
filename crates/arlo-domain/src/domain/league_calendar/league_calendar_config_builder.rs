@@ -81,10 +81,7 @@ impl LeagueCalendarConfigBuilder {
         self
     }
 
-    pub fn with_tie_break_criteria(
-        mut self,
-        tie_break_criteria: Vec<TieBreakCriterion>,
-    ) -> Self {
+    pub fn with_tie_break_criteria(mut self, tie_break_criteria: Vec<TieBreakCriterion>) -> Self {
         self.tie_break_criteria = tie_break_criteria;
         self
     }

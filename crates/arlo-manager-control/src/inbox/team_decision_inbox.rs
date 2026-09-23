@@ -24,10 +24,7 @@ impl TeamDecisionInbox {
         self.substitutions.push(intent);
     }
 
-    pub fn submit_substitutions(
-        &mut self,
-        intents: impl IntoIterator<Item = SubstitutionIntent>,
-    ) {
+    pub fn submit_substitutions(&mut self, intents: impl IntoIterator<Item = SubstitutionIntent>) {
         self.substitutions.extend(intents);
     }
 

@@ -23,13 +23,7 @@ impl ManagerRow {
             None => None,
         };
         let control_mode = parse_manager_control_mode(self.control_mode.as_deref());
-        Manager::new(
-            person,
-            team_id,
-            control_mode,
-            attributes,
-            tactical_profile,
-        )
-        .map_err(Into::into)
+        Manager::new(person, team_id, control_mode, attributes, tactical_profile)
+            .map_err(Into::into)
     }
 }

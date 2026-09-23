@@ -13,11 +13,13 @@ static ATTRIBUTE_KEY_INDEX: LazyLock<RwLock<Option<Arc<AttributeKeyIndex>>>> =
 static ATTRIBUTE_DEFINITIONS: LazyLock<RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>> =
     LazyLock::new(|| RwLock::new(None));
 
-static MANAGER_ATTRIBUTE_DEFINITIONS: LazyLock<RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>> =
-    LazyLock::new(|| RwLock::new(None));
+static MANAGER_ATTRIBUTE_DEFINITIONS: LazyLock<
+    RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>,
+> = LazyLock::new(|| RwLock::new(None));
 
-static REFEREE_ATTRIBUTE_DEFINITIONS: LazyLock<RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>> =
-    LazyLock::new(|| RwLock::new(None));
+static REFEREE_ATTRIBUTE_DEFINITIONS: LazyLock<
+    RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>,
+> = LazyLock::new(|| RwLock::new(None));
 
 pub async fn get_or_load_attribute_key_index(
     pool: &SqlitePool,

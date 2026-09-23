@@ -10,12 +10,11 @@ pub async fn load_availability_stats(
     final_availability_status: String,
     final_suspended_remaining_seconds: Option<f64>,
 ) -> ControllerResult<PlayerMatchAvailabilityDto> {
-    let availability_row = arlo_persistence::repositories::match_player_availability::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let availability_row =
+        arlo_persistence::repositories::match_player_availability::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     Ok(match availability_row {
         Some(a) => PlayerMatchAvailabilityDto {

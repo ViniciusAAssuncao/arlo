@@ -34,11 +34,9 @@ pub async fn load_match_context(
 
     let player_id_str = player_id.to_string();
 
-    let squad_rows = arlo_persistence::repositories::match_squad_selection::list_by_match_id(
-        pool,
-        match_id,
-    )
-    .await?;
+    let squad_rows =
+        arlo_persistence::repositories::match_squad_selection::list_by_match_id(pool, match_id)
+            .await?;
 
     let squad_row = squad_rows
         .iter()
@@ -74,17 +72,13 @@ pub async fn load_match_context(
         .map(|t| t.name().to_string())
         .unwrap_or_else(|| "Adversário".to_string());
 
-    let substitutions = arlo_persistence::repositories::match_substitutions::list_by_match_id(
-        pool,
-        match_id,
-    )
-    .await?;
+    let substitutions =
+        arlo_persistence::repositories::match_substitutions::list_by_match_id(pool, match_id)
+            .await?;
 
     let clock_config = MatchClockDurationConfig::from_match_row(&match_row);
-    let total_match_duration = calculate_total_match_duration_seconds(
-        &clock_config,
-        match_row.final_period.max(1) as u32,
-    );
+    let total_match_duration =
+        calculate_total_match_duration_seconds(&clock_config, match_row.final_period.max(1) as u32);
 
     let min_result = calculate_player_minutes_played(
         squad_row.was_starter,
@@ -99,11 +93,8 @@ pub async fn load_match_context(
     let entry_time_formatted = min_result.entry_instant_seconds.map(format_elapsed_time);
     let exit_time_formatted = min_result.exit_instant_seconds.map(format_elapsed_time);
 
-    let team_scores = arlo_persistence::repositories::match_team_score::list_by_match_id(
-        pool,
-        match_id,
-    )
-    .await?;
+    let team_scores =
+        arlo_persistence::repositories::match_team_score::list_by_match_id(pool, match_id).await?;
 
     let home_score = team_scores
         .iter()

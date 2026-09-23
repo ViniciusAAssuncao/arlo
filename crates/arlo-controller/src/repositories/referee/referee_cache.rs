@@ -8,9 +8,7 @@ use tokio::sync::RwLock;
 static REFEREES_CACHE: LazyLock<RwLock<Option<Arc<Vec<Referee>>>>> =
     LazyLock::new(|| RwLock::new(None));
 
-pub async fn get_or_load_referees(
-    pool: &SqlitePool,
-) -> ControllerResult<Arc<Vec<Referee>>> {
+pub async fn get_or_load_referees(pool: &SqlitePool) -> ControllerResult<Arc<Vec<Referee>>> {
     {
         let read_guard = REFEREES_CACHE.read().await;
         if let Some(referees) = read_guard.as_ref() {

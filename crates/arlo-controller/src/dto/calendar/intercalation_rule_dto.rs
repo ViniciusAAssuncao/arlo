@@ -14,11 +14,9 @@ impl From<&IntercalationPlacement> for IntercalationPlacementDto {
         match placement {
             IntercalationPlacement::BeforeFirstMonth => Self::BeforeFirstMonth,
             IntercalationPlacement::AfterLastMonth => Self::AfterLastMonth,
-            IntercalationPlacement::AppendToMonth { month_order_index } => {
-                Self::AppendToMonth {
-                    month_order_index: *month_order_index,
-                }
-            }
+            IntercalationPlacement::AppendToMonth { month_order_index } => Self::AppendToMonth {
+                month_order_index: *month_order_index,
+            },
         }
     }
 }

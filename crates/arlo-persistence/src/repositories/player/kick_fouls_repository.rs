@@ -4,12 +4,7 @@ use crate::repositories::batching::execute_batch_insert;
 use sqlx::{Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
-const KICK_FOUL_COLUMNS: &[&str] = &[
-    "id",
-    "match_id",
-    "player_id",
-    "kick_foul_takes",
-];
+const KICK_FOUL_COLUMNS: &[&str] = &["id", "match_id", "player_id", "kick_foul_takes"];
 
 const KICK_FOUL_BY_DECISION_COLUMNS: &[&str] = &[
     "id",

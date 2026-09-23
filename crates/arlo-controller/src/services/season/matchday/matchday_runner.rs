@@ -40,7 +40,10 @@ pub fn simulate_match(
         home_team_id: fixture_row.home_team_id,
         away_team_id: fixture_row.away_team_id,
         is_neutral_venue: fixture_row.is_neutral_venue,
-        venue_id: context.venue_id.map(|v| v.to_string()).or(fixture_row.venue_id),
+        venue_id: context
+            .venue_id
+            .map(|v| v.to_string())
+            .or(fixture_row.venue_id),
         scheduled_year: fixture_row.scheduled_year,
         scheduled_day_of_year: fixture_row.scheduled_day_of_year,
         status: "Completed".to_string(),

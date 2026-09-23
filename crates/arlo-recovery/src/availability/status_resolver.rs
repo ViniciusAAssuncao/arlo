@@ -42,9 +42,10 @@ impl PlayerMedicalStatus {
     pub fn active_days_remaining(&self) -> Option<u32> {
         match self.status {
             InjuryStatusKind::Injured => self.injury_record.as_ref().map(|r| r.days_remaining()),
-            InjuryStatusKind::Observation => {
-                self.injury_record.as_ref().map(|r| r.observation_days_remaining())
-            }
+            InjuryStatusKind::Observation => self
+                .injury_record
+                .as_ref()
+                .map(|r| r.observation_days_remaining()),
             InjuryStatusKind::Healthy => None,
         }
     }
@@ -56,11 +57,13 @@ impl PlayerMedicalStatus {
     }
 
     pub fn severity_grade_code(&self) -> Option<&'static str> {
-        self.injury_record.as_ref().map(|r| match r.severity_grade() {
-            InjurySeverityGrade::Grade1 => "Grade1",
-            InjurySeverityGrade::Grade2 => "Grade2",
-            InjurySeverityGrade::Grade3 => "Grade3",
-        })
+        self.injury_record
+            .as_ref()
+            .map(|r| match r.severity_grade() {
+                InjurySeverityGrade::Grade1 => "Grade1",
+                InjurySeverityGrade::Grade2 => "Grade2",
+                InjurySeverityGrade::Grade3 => "Grade3",
+            })
     }
 }
 
@@ -141,11 +144,11 @@ pub async fn resolve_player_status(
     pool: &SqlitePool,
     player_id: Uuid,
 ) -> RecoveryResult<PlayerMedicalStatus> {
-    let row = arlo_persistence::repositories::condition::player_injury_history::get_active_by_player_id(
-        pool,
-        player_id,
-    )
-    .await?;
+    let row =
+        arlo_persistence::repositories::condition::player_injury_history::get_active_by_player_id(
+            pool, player_id,
+        )
+        .await?;
 
     resolve_status_from_row(player_id, row.as_ref())
 }

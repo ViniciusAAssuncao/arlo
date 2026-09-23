@@ -138,11 +138,7 @@ impl IntoSnapshot for PlayerDrivesAggregator {
 impl StatAggregator for PlayerDrivesAggregator {
     fn handle_event(&mut self, event: &MatchEvent) {
         if let MatchEvent::DriveRecorded(e) = event {
-            self.record_drive(
-                e.artrine_id(),
-                e.placement(),
-                e.drives_in_series(),
-            );
+            self.record_drive(e.artrine_id(), e.placement(), e.drives_in_series());
         }
     }
 
