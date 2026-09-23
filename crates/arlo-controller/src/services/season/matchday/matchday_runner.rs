@@ -29,7 +29,7 @@ pub fn simulate_match(
         &mut state,
         registry,
         &mut rng,
-        arlo_match_runner::DEFAULT_MAX_ITERATIONS,
+        arlo_match_runner::DEFAULT_MAX_SEGMENTS,
     )
     .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 

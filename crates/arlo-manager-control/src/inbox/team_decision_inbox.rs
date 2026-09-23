@@ -1,6 +1,6 @@
 use crate::intents::{
-    ChallengeIntent, ForcedSubstitutionIntent, KickFoulRealignmentIntent, PlayCallIntent,
-    SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
+    ChallengeIntent, ForcedSubstitutionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
+    PlayCallIntent, SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
 };
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +12,7 @@ pub struct TeamDecisionInbox {
     challenge: Option<ChallengeIntent>,
     tactical_switch: Option<TacticalSwitchIntent>,
     play_call: Option<PlayCallIntent>,
+    kick_foul_decision: Option<KickFoulDecisionIntent>,
     kick_foul_realignment: Option<KickFoulRealignmentIntent>,
 }
 
@@ -55,6 +56,10 @@ impl TeamDecisionInbox {
         self.play_call = Some(intent);
     }
 
+    pub fn submit_kick_foul_decision(&mut self, intent: KickFoulDecisionIntent) {
+        self.kick_foul_decision = Some(intent);
+    }
+
     pub fn submit_kick_foul_realignment(&mut self, intent: KickFoulRealignmentIntent) {
         self.kick_foul_realignment = Some(intent);
     }
@@ -81,6 +86,10 @@ impl TeamDecisionInbox {
 
     pub fn take_play_call(&mut self) -> Option<PlayCallIntent> {
         self.play_call.take()
+    }
+
+    pub fn take_kick_foul_decision(&mut self) -> Option<KickFoulDecisionIntent> {
+        self.kick_foul_decision.take()
     }
 
     pub fn take_kick_foul_realignment(&mut self) -> Option<KickFoulRealignmentIntent> {
@@ -111,6 +120,10 @@ impl TeamDecisionInbox {
         self.play_call
     }
 
+    pub fn kick_foul_decision(&self) -> Option<KickFoulDecisionIntent> {
+        self.kick_foul_decision
+    }
+
     pub fn kick_foul_realignment(&self) -> Option<KickFoulRealignmentIntent> {
         self.kick_foul_realignment
     }
@@ -122,6 +135,7 @@ impl TeamDecisionInbox {
         self.challenge = None;
         self.tactical_switch = None;
         self.play_call = None;
+        self.kick_foul_decision = None;
         self.kick_foul_realignment = None;
     }
 }

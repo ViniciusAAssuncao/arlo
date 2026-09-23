@@ -117,7 +117,11 @@ impl MatchState {
             .ok_or_else(|| EngineError::InvalidTransition("event sequence overflow".into()))?;
         let envelope = MatchEventEnvelope::new(
             self.next_event_sequence,
-            MatchClockInstant::new(self.clock.period(), self.clock.seconds_in_period()),
+            MatchClockInstant::with_total_elapsed_seconds(
+                self.clock.period(),
+                self.clock.seconds_in_period(),
+                self.clock.total_elapsed_seconds(),
+            ),
             event,
         );
         self.next_event_sequence = next;
