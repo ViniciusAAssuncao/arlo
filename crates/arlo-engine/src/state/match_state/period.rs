@@ -14,6 +14,16 @@ impl MatchState {
         Ok(())
     }
 
+    pub fn advance_bonus_playing_time(&mut self, seconds: f64) -> EngineResult<()> {
+        if self.phase != MatchPhase::BonusPhase {
+            return Err(EngineError::InvalidTransition(
+                "bonus playing time requires a Bonus Phase".into(),
+            ));
+        }
+        self.clock = self.clock.advance(seconds)?;
+        Ok(())
+    }
+
     pub fn grant_added_time(&mut self, seconds: f64) -> EngineResult<()> {
         self.clock = self.clock.grant_added_time(seconds)?;
         Ok(())

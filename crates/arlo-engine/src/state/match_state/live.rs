@@ -153,7 +153,9 @@ impl MatchState {
             ));
         }
         self.team(requested_next_team_id)?;
-        let (next_team_id, series, result) = if requested_next_team_id == self.series.team_id() {
+        let (next_team_id, series, result) = if requested_next_team_id == self.series.team_id()
+            && requested_next_team_id == self.possession.possessor_team_id()
+        {
             let (continued, outcome) = self.series.advance_after_out();
             if outcome == SeriesOut::TurnoverOnDowns {
                 let opponent = self.opponent_id(requested_next_team_id)?;

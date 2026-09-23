@@ -44,6 +44,10 @@ impl ClockState {
         f64::from(PERIOD_DURATION_MINUTES) * 60.0 + self.added_seconds
     }
 
+    pub fn maximum_period_seconds(&self) -> f64 {
+        f64::from(PERIOD_DURATION_MINUTES) * 60.0 + MAX_ADDED_TIME_SECONDS
+    }
+
     pub fn start(self) -> EngineResult<Self> {
         if self.running || self.seconds_in_period >= self.period_limit_seconds() {
             return Err(EngineError::InvalidTransition(
@@ -83,13 +87,7 @@ impl ClockState {
     }
 
     pub fn grant_added_time(self, seconds: f64) -> EngineResult<Self> {
-        let regulation_seconds = f64::from(PERIOD_DURATION_MINUTES) * 60.0;
-        if !matches!(self.period, 2 | 4)
-            || self.seconds_in_period < regulation_seconds
-            || self.added_seconds > 0.0
-            || !seconds.is_finite()
-            || seconds <= 0.0
-            || seconds > MAX_ADDED_TIME_SECONDS
+        if !seconds.is_finite() || seconds <= self.added_seconds || seconds > MAX_ADDED_TIME_SECONDS
         {
             return Err(EngineError::InvalidTransition(
                 "invalid added playing time".into(),

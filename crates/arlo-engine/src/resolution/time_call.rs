@@ -1,8 +1,9 @@
+use super::down::emit_down_advanced;
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
 use crate::state::MatchState;
 use crate::step::StepResult;
-use arlo_events::{DownAdvanced, MatchEvent, TimeCallReason, TimeCallUsed};
+use arlo_events::{MatchEvent, TimeCallReason, TimeCallUsed};
 use uuid::Uuid;
 
 pub fn resolve_time_call_segment(
@@ -29,14 +30,7 @@ pub fn resolve_time_call_segment(
         TimeCallReason::Standard,
     )))?];
     if let Some(outcome) = pending {
-        events.push(next.emit(MatchEvent::DownAdvanced(DownAdvanced::new(
-            u32::from(outcome.prior_down),
-            u32::from(next.series().down()),
-            outcome.gain_mirim,
-            outcome.total_advance_mirim,
-            outcome.first_down,
-            position,
-        )))?);
+        emit_down_advanced(&mut next, &mut events, outcome, position)?;
     }
     *state = next;
     Ok(StepResult::resolved(events))

@@ -1,8 +1,11 @@
 use super::artro::sample_artros;
+use super::bonus::resolve_bonus_segment;
+use super::down::emit_down_advanced;
 use super::model::sample_call;
 use super::open_play::resolve_open_play_segment;
 use super::ratings::RatingIndex;
 use super::reception::sample_reception;
+use super::shooting::resolve_regular_attempt;
 use super::tuning::CTA_OUT_PROBABILITY;
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
@@ -10,7 +13,7 @@ use crate::state::{MatchPhase, MatchState, PendingCallOutcome, SeriesAdvance};
 use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_events::{
-    CallToActionStarted, DownAdvanced, DriveRecorded, MatchEvent, OutOfBounds, PassCompleted,
+    CallToActionStarted, DriveRecorded, MatchEvent, OutOfBounds, PassCompleted,
     PossessionTimeRecorded, ReceptionResolved,
 };
 use arlo_manager_control::RequiredManagerDecision;
@@ -38,6 +41,14 @@ pub fn resolve_next_segment(
         next.start_next_quarter()?;
         *state = next;
         return Ok(StepResult::resolved(Vec::new()));
+    }
+    if state.phase() == MatchPhase::BonusPhase {
+        if selected_play_call.is_some() {
+            return Err(EngineError::InvalidInput(
+                "Bonus Phase does not accept an open-play Call-to-Action".into(),
+            ));
+        }
+        return resolve_bonus_segment(input, state);
     }
     if state.phase() == MatchPhase::Live {
         if selected_play_call.is_some() {
@@ -191,15 +202,31 @@ pub fn resolve_next_segment(
     }
     let advance = next.record_valid_advance(gain_mirim, end_mirim)?;
     let first_down = matches!(advance, SeriesAdvance::FirstDown);
-    next.record_call_outcome(PendingCallOutcome {
+    let call_outcome = PendingCallOutcome {
         prior_down,
         gain_mirim,
         total_advance_mirim: prior_advance + gain_mirim,
         first_down,
-    });
+    };
+    next.record_call_outcome(call_outcome);
     events.push(next.emit(MatchEvent::PossessionTimeRecorded(
         PossessionTimeRecorded::new(offense_id, duration),
     ))?);
+    if controlled_reception
+        && resolve_regular_attempt(
+            input,
+            &ratings,
+            offense,
+            defense,
+            is_home,
+            selected_play_call,
+            &mut next,
+            &mut events,
+        )?
+    {
+        *state = next;
+        return Ok(StepResult::resolved(events));
+    }
     let ends_out =
         duration >= remaining_time || next.rng_mut().gen_range(0.0..1.0) < CTA_OUT_PROBABILITY;
     if ends_out {
@@ -207,14 +234,7 @@ pub fn resolve_next_segment(
         events.push(next.emit(MatchEvent::OutOfBounds(OutOfBounds::new(
             offense_id, None, false,
         )))?);
-        events.push(next.emit(MatchEvent::DownAdvanced(DownAdvanced::new(
-            u32::from(prior_down),
-            u32::from(next.series().down()),
-            gain_mirim,
-            prior_advance + gain_mirim,
-            first_down,
-            end_mirim,
-        )))?);
+        emit_down_advanced(&mut next, &mut events, call_outcome, end_mirim)?;
     }
 
     *state = next;

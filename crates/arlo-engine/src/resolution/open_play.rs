@@ -1,15 +1,15 @@
 use super::artro::sample_artros;
+use super::down::emit_down_advanced;
 use super::model::sample_call;
 use super::ratings::RatingIndex;
+use super::shooting::resolve_regular_attempt;
 use super::tuning::{OPEN_PLAY_OUT_PROBABILITY, OPEN_PLAY_TURNOVER_PROBABILITY};
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
 use crate::state::{MatchPhase, MatchState};
 use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
-use arlo_events::{
-    DownAdvanced, DriveRecorded, MatchEvent, OutOfBounds, PossessionTimeRecorded, Turnover,
-};
+use arlo_events::{DriveRecorded, MatchEvent, OutOfBounds, PossessionTimeRecorded, Turnover};
 use rand::Rng;
 
 pub(super) fn resolve_open_play_segment(
@@ -76,6 +76,19 @@ pub(super) fn resolve_open_play_segment(
             )))?);
         }
     }
+    if resolve_regular_attempt(
+        input,
+        &ratings,
+        offense,
+        defense,
+        is_home,
+        None,
+        &mut next,
+        &mut events,
+    )? {
+        *state = next;
+        return Ok(StepResult::resolved(events));
+    }
     if turnover {
         next.turnover(defense.team_id())?;
         events.push(next.emit(MatchEvent::Turnover(Turnover::new(
@@ -93,14 +106,7 @@ pub(super) fn resolve_open_play_segment(
             next_team, None, false,
         )))?);
         if let Some(outcome) = pending {
-            events.push(next.emit(MatchEvent::DownAdvanced(DownAdvanced::new(
-                u32::from(outcome.prior_down),
-                u32::from(next.series().down()),
-                outcome.gain_mirim,
-                outcome.total_advance_mirim,
-                outcome.first_down,
-                end_mirim,
-            )))?);
+            emit_down_advanced(&mut next, &mut events, outcome, end_mirim)?;
         }
     }
     *state = next;

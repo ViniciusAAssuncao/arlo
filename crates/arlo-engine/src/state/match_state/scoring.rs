@@ -58,7 +58,9 @@ impl MatchState {
             ));
         }
         let next_score = self.team(team_id)?.score().apply(kind)?;
-        let restart = if kind.opens_bonus_phase() {
+        let bonus_phase = kind.opens_bonus_phase()
+            && self.clock.seconds_in_period() < self.clock.maximum_period_seconds();
+        let restart = if bonus_phase {
             None
         } else {
             let recipient = self.opponent_id(team_id)?;
@@ -69,7 +71,9 @@ impl MatchState {
         self.home.reset_drives();
         self.away.reset_drives();
         self.pending_call_outcome = None;
-        self.clock = self.clock.stop();
+        if !bonus_phase {
+            self.clock = self.clock.stop();
+        }
         if let Some((possession, series)) = restart {
             self.possession = possession;
             self.series = series;
@@ -92,6 +96,7 @@ impl MatchState {
         self.possession = possession;
         self.series = series;
         self.suspended_restart = None;
+        self.clock = self.clock.stop();
         self.phase = MatchPhase::Stopped;
         Ok(())
     }

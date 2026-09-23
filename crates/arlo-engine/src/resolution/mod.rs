@@ -1,8 +1,12 @@
 mod artro;
+mod bonus;
+mod down;
 mod model;
 mod open_play;
 mod ratings;
 mod reception;
+mod shooting;
+mod shooting_model;
 mod shot_recovery;
 mod step;
 mod time_call;
