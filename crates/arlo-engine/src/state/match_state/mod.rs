@@ -5,6 +5,7 @@ mod scoring;
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
 use crate::state::{ClockState, MatchPhase, PossessionState, SeriesState, TeamState};
+use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use uuid::Uuid;
@@ -28,7 +29,7 @@ pub struct MatchState {
     suspended_restart: Option<SuspendedRestart>,
     pitch_length_mirim: f64,
     next_event_sequence: u64,
-    _rng: ChaCha8Rng,
+    rng: ChaCha8Rng,
 }
 
 impl MatchState {
@@ -49,7 +50,7 @@ impl MatchState {
             suspended_restart: None,
             pitch_length_mirim,
             next_event_sequence: 1,
-            _rng: ChaCha8Rng::seed_from_u64(input.seed()),
+            rng: ChaCha8Rng::seed_from_u64(input.seed()),
         }
     }
 
@@ -85,6 +86,24 @@ impl MatchState {
     }
     pub fn next_event_sequence(&self) -> u64 {
         self.next_event_sequence
+    }
+
+    pub(crate) fn rng_mut(&mut self) -> &mut ChaCha8Rng {
+        &mut self.rng
+    }
+
+    pub(crate) fn emit(&mut self, event: MatchEvent) -> EngineResult<MatchEventEnvelope> {
+        let next = self
+            .next_event_sequence
+            .checked_add(1)
+            .ok_or_else(|| EngineError::InvalidTransition("event sequence overflow".into()))?;
+        let envelope = MatchEventEnvelope::new(
+            self.next_event_sequence,
+            MatchClockInstant::new(self.clock.period(), self.clock.seconds_in_period()),
+            event,
+        );
+        self.next_event_sequence = next;
+        Ok(envelope)
     }
 
     fn team(&self, team_id: Uuid) -> EngineResult<&TeamState> {

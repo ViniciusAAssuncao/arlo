@@ -1,0 +1,14 @@
+pub(super) const BASE_SUCCESS_PROBABILITY: f64 = 0.50;
+pub(super) const ATTRIBUTE_DIFFERENCE_WEIGHT: f64 = 0.025;
+pub(super) const HOME_ADVANTAGE: f64 = 0.025;
+pub(super) const MENTALITY_WEIGHT: f64 = 0.05;
+pub(super) const CARRY_EMPHASIS_WEIGHT: f64 = 0.04;
+pub(super) const MIN_SUCCESS_PROBABILITY: f64 = 0.12;
+pub(super) const MAX_SUCCESS_PROBABILITY: f64 = 0.88;
+pub(super) const SUCCESS_GAIN_MIN_MIRIM: f64 = 2.0;
+pub(super) const SUCCESS_GAIN_RANGE_MIRIM: f64 = 12.0;
+pub(super) const FAILURE_GAIN_MIN_MIRIM: f64 = -3.0;
+pub(super) const FAILURE_GAIN_RANGE_MIRIM: f64 = 5.0;
+pub(super) const DURATION_MIN_SECONDS: f64 = 4.0;
+pub(super) const DURATION_RANGE_SECONDS: f64 = 12.0;
+pub(super) const TEMPO_DURATION_WEIGHT: f64 = 0.20;

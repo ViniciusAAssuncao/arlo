@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub struct TeamState {
     team_id: Uuid,
     artrine_id: Uuid,
+    passer_id: Uuid,
     active_player_ids: Vec<Uuid>,
     reserve_player_ids: Vec<Uuid>,
     drive_progress: DriveProgress,
@@ -35,9 +36,17 @@ impl TeamState {
             .find(|a| a.position() == Position::Artrine)
             .map(|a| a.player_id())
             .expect("validated lineup has an Artrine");
+        let passer_id = input
+            .lineup()
+            .assignments()
+            .iter()
+            .find(|a| a.position() == Position::Passer)
+            .map(|a| a.player_id())
+            .expect("validated lineup has a Passer");
         Self {
             team_id: input.team_id(),
             artrine_id,
+            passer_id,
             active_player_ids,
             reserve_player_ids,
             drive_progress: DriveProgress::default(),
@@ -50,6 +59,9 @@ impl TeamState {
     }
     pub fn artrine_id(&self) -> Uuid {
         self.artrine_id
+    }
+    pub fn passer_id(&self) -> Uuid {
+        self.passer_id
     }
     pub fn active_player_ids(&self) -> &[Uuid] {
         &self.active_player_ids

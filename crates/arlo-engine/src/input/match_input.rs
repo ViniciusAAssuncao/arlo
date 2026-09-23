@@ -1,6 +1,6 @@
 use crate::error::{EngineError, EngineResult};
 use crate::input::TeamInput;
-use arlo_domain::{MatchFormatRules, Pitch, Player, Referee};
+use arlo_domain::{AttributeDefinition, AttributeTarget, MatchFormatRules, Pitch, Player, Referee};
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -12,6 +12,7 @@ pub struct MatchInput {
     format: MatchFormatRules,
     pitch: Pitch,
     referees: Vec<Referee>,
+    player_attribute_definitions: Vec<AttributeDefinition>,
     seed: u64,
 }
 
@@ -23,6 +24,7 @@ impl MatchInput {
         format: MatchFormatRules,
         pitch: Pitch,
         referees: Vec<Referee>,
+        player_attribute_definitions: Vec<AttributeDefinition>,
         seed: u64,
     ) -> EngineResult<Self> {
         if home.team_id() == away.team_id() {
@@ -62,6 +64,18 @@ impl MatchInput {
                 "player appears on both rosters".into(),
             ));
         }
+        let mut attribute_ids = HashSet::new();
+        let mut attribute_keys = HashSet::new();
+        for definition in &player_attribute_definitions {
+            if definition.applies_to() != AttributeTarget::Player
+                || !attribute_ids.insert(definition.id())
+                || !attribute_keys.insert(definition.key())
+            {
+                return Err(EngineError::InvalidInput(
+                    "player attribute definitions must have unique IDs and keys".into(),
+                ));
+            }
+        }
         Ok(Self {
             match_id,
             home,
@@ -69,6 +83,7 @@ impl MatchInput {
             format,
             pitch,
             referees,
+            player_attribute_definitions,
             seed,
         })
     }
@@ -90,6 +105,9 @@ impl MatchInput {
     }
     pub fn referees(&self) -> &[Referee] {
         &self.referees
+    }
+    pub fn player_attribute_definitions(&self) -> &[AttributeDefinition] {
+        &self.player_attribute_definitions
     }
     pub fn seed(&self) -> u64 {
         self.seed
