@@ -6,7 +6,7 @@ use arlo_engine::{
 use arlo_manager_control::ManagerDecisionInbox;
 use arlo_tactics::PlayCall;
 
-pub(crate) fn resolve_segment(
+pub fn resolve_segment(
     input: &MatchInput,
     state: &mut MatchState,
     inbox: &ManagerDecisionInbox,

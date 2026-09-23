@@ -6,7 +6,6 @@ use crate::services::season::matchday::matchday_runner::{
 };
 use crate::services::season::matchday::matchday_setup_builder::build_matchday_setup;
 use crate::services::season::matchday::walkover_resolver;
-use arlo_engine::MatchState;
 use rayon::prelude::*;
 use sqlx::SqlitePool;
 
@@ -53,18 +52,12 @@ pub async fn run_due_matches(
         prepared_matches
             .into_par_iter()
             .map(|prep| {
-                let mut state = MatchState::new(prep.setup_params)
-                    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-                arlo_recovery::orchestration::match_condition_bridge::seed_match_state(
-                    &mut state,
-                    &prep.initial_conditions,
-                );
                 simulate_match(
-                    state,
+                    prep.input,
                     prep.persistence_context,
                     prep.fixture_row,
-                    prep.seed,
                     prep.stage_id,
+                    prep.initial_conditions,
                 )
             })
             .collect();
@@ -99,7 +92,8 @@ pub async fn run_due_matches(
 
         let _ = arlo_recovery::orchestration::capture_post_match_condition(
             pool,
-            &simulation.state,
+            &simulation.input,
+            &simulation.initial_conditions,
             simulation.run_result.raw_sink.events(),
             match_year,
             match_day,

@@ -6,6 +6,7 @@ pub mod match_run_result;
 pub mod match_run_status;
 
 pub use dual_sink::DualEventSink;
+pub use decision_dispatch::resolve_segment;
 pub use error::{MatchRunnerError, MatchRunnerResult};
 pub use loop_driver::{
     run_loop, run_loop_with_inbox, run_match, run_match_with_inbox, run_match_with_limit,

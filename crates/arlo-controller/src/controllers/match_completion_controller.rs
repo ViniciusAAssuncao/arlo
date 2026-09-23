@@ -1,6 +1,6 @@
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::season::standings_cache;
-use arlo_engine::MatchState;
+use arlo_engine::{MatchInput, MatchState};
 use arlo_match_runner::MatchRunResult;
 use arlo_persistence::models::season::FixtureRow;
 use arlo_persistence::persister::{MatchPersistenceContext, MatchPersister};
@@ -10,6 +10,7 @@ use uuid::Uuid;
 pub async fn complete_and_persist_match(
     pool: &SqlitePool,
     fixture_id: Uuid,
+    input: &MatchInput,
     state: &MatchState,
     run_result: &MatchRunResult,
     context: MatchPersistenceContext,
@@ -34,21 +35,21 @@ pub async fn complete_and_persist_match(
         scheduled_year: fixture_row.scheduled_year,
         scheduled_day_of_year: fixture_row.scheduled_day_of_year,
         status: "Completed".to_string(),
-        home_score: Some(state.home_score().total_points as i32),
-        away_score: Some(state.away_score().total_points as i32),
-        home_goal_points: Some(state.home_score().goal_points as i32),
-        away_goal_points: Some(state.away_score().goal_points as i32),
-        home_field_goals: Some(state.home_score().field_goals as i32),
-        away_field_goals: Some(state.away_score().field_goals as i32),
-        home_field_points: Some(state.home_score().field_points as i32),
-        away_field_points: Some(state.away_score().field_points as i32),
+        home_score: Some(state.home().score().total_points() as i32),
+        away_score: Some(state.away().score().total_points() as i32),
+        home_goal_points: Some(state.home().score().goal_points() as i32),
+        away_goal_points: Some(state.away().score().goal_points() as i32),
+        home_field_goals: Some(state.home().score().field_goals() as i32),
+        away_field_goals: Some(state.away().score().field_goals() as i32),
+        home_field_points: Some(state.home().score().field_points() as i32),
+        away_field_points: Some(state.away().score().field_points() as i32),
     };
 
     let context = context.with_completed_fixture(updated_fixture_row);
 
     let mut tx = pool.begin().await?;
     let match_id =
-        MatchPersister::persist_completed_match(&mut tx, state, run_result, &context).await?;
+        MatchPersister::persist_completed_match(&mut tx, input, state, run_result, &context).await?;
     tx.commit().await?;
 
     standings_cache::invalidate(&stage_id).await;

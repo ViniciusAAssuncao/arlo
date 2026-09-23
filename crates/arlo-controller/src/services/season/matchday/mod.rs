@@ -1,3 +1,4 @@
+mod automatic_lineup;
 pub mod due_fixture_finder;
 pub mod emergency_roster;
 pub mod matchday_catalog_cache;
