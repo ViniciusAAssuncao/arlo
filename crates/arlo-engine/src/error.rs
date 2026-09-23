@@ -1,47 +1,51 @@
+use arlo_domain::DomainError;
+use arlo_tactics::TacticsError;
 use uuid::Uuid;
 
 #[derive(thiserror::Error, Debug)]
 pub enum EngineError {
-    #[error(transparent)] Domain(#[from] arlo_domain::DomainError),
-    #[error(transparent)] Tactics(#[from] arlo_tactics::TacticsError),
-    #[error("Lineup must have exactly {expected} players, found {actual}")] InvalidLineupSize {
-        expected: usize,
-        actual: usize,
-    },
-    #[error("Duplicate player '{0}' in lineup")] DuplicatePlayer(Uuid),
-    #[error(
-        "Formation slot count mismatch: expected {expected}, found {actual}"
-    )] SlotCountMismatch {
-        expected: usize,
-        actual: usize,
-    },
-    #[error("Player '{0}' not found in lineup")] PlayerNotFound(Uuid),
-    #[error(
-        "Lineup conflict: player '{0}' is present in both home and away lineups"
-    )] LineupConflict(Uuid),
-    #[error("Venue '{0}' has no valid pitch dimensions")] MissingPitchDimensions(Uuid),
+    #[error(transparent)]
+    Domain(#[from] DomainError),
+    #[error(transparent)]
+    Tactics(#[from] TacticsError),
+    #[error("Lineup must have exactly {expected} players, found {actual}")]
+    InvalidLineupSize { expected: usize, actual: usize },
+    #[error("Duplicate player '{0}' in lineup")]
+    DuplicatePlayer(Uuid),
+    #[error("Formation slot count mismatch: expected {expected}, found {actual}")]
+    SlotCountMismatch { expected: usize, actual: usize },
+    #[error("Player '{0}' not found in lineup")]
+    PlayerNotFound(Uuid),
+    #[error("Lineup conflict: player '{0}' is present in both home and away lineups")]
+    LineupConflict(Uuid),
+    #[error("Venue '{0}' has no valid pitch dimensions")]
+    MissingPitchDimensions(Uuid),
     #[error("Invalid venue kind for match: expected MatchStadium")]
     InvalidVenueKind,
-    #[error(
-        "Total anchor count mismatch: expected {expected}, found {actual}"
-    )] AnchorCountMismatch {
-        expected: usize,
-        actual: usize,
-    },
-    #[error("Missing required position '{0}' in lineup")] MissingRequiredPosition(String),
+    #[error("Total anchor count mismatch: expected {expected}, found {actual}")]
+    AnchorCountMismatch { expected: usize, actual: usize },
+    #[error("Missing required position '{0}' in lineup")]
+    MissingRequiredPosition(String),
     #[error("Insufficient referee candidates to draw match officials")]
     InsufficientRefereeCandidates,
-    #[error("Cannot substitute expelled player '{0}'")] CannotSubstituteExpelledPlayer(Uuid),
+    #[error("Cannot substitute expelled player '{0}'")]
+    CannotSubstituteExpelledPlayer(Uuid),
     #[error("Simulation is already completed")]
     SimulationCompleted,
-    #[error(
-        "Simulation is paused waiting for manager decision from team '{0}'"
-    )] AwaitingManagerDecision(Uuid),
-    #[error("Invalid simulation configuration: {0}")] InvalidConfiguration(String),
-    #[error("Simulation step limit exceeded: {0}")] StepLimitExceeded(usize),
-    #[error("Simulation execution error: {0}")] SimulationExecution(String),
-    #[error("Team '{0}' not found in simulation")] TeamNotFound(Uuid),
-    #[error("Player '{0}' not found in match day roster")] PlayerNotInRoster(Uuid),
+    #[error("Simulation is paused waiting for manager decision from team '{0}'")]
+    AwaitingManagerDecision(Uuid),
+    #[error("Invalid simulation configuration: {0}")]
+    InvalidConfiguration(String),
+    #[error("Simulation step limit exceeded: {0}")]
+    StepLimitExceeded(usize),
+    #[error("Simulation execution error: {0}")]
+    SimulationExecution(String),
+    #[error("Team '{0}' not found in simulation")]
+    TeamNotFound(Uuid),
+    #[error("Player '{0}' not found in match day roster")]
+    PlayerNotInRoster(Uuid),
+    #[error("Feature not implemented: {0}")]
+    NotImplemented(&'static str),
 }
 
 pub type EngineResult<T> = Result<T, EngineError>;
