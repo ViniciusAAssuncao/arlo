@@ -17,6 +17,14 @@ struct SuspendedRestart {
     position_mirim: f64,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PendingCallOutcome {
+    pub prior_down: u8,
+    pub gain_mirim: f64,
+    pub total_advance_mirim: f64,
+    pub first_down: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct MatchState {
     match_id: Uuid,
@@ -27,6 +35,7 @@ pub struct MatchState {
     possession: PossessionState,
     series: SeriesState,
     suspended_restart: Option<SuspendedRestart>,
+    pending_call_outcome: Option<PendingCallOutcome>,
     pitch_length_mirim: f64,
     next_event_sequence: u64,
     rng: ChaCha8Rng,
@@ -48,6 +57,7 @@ impl MatchState {
             series: SeriesState::new(home_id, midfield, pitch_length_mirim)
                 .expect("validated pitch has a midfield"),
             suspended_restart: None,
+            pending_call_outcome: None,
             pitch_length_mirim,
             next_event_sequence: 1,
             rng: ChaCha8Rng::seed_from_u64(input.seed()),
@@ -90,6 +100,14 @@ impl MatchState {
 
     pub(crate) fn rng_mut(&mut self) -> &mut ChaCha8Rng {
         &mut self.rng
+    }
+
+    pub(crate) fn pending_call_outcome(&self) -> Option<PendingCallOutcome> {
+        self.pending_call_outcome
+    }
+
+    pub(crate) fn record_call_outcome(&mut self, outcome: PendingCallOutcome) {
+        self.pending_call_outcome = Some(outcome);
     }
 
     pub(crate) fn emit(&mut self, event: MatchEvent) -> EngineResult<MatchEventEnvelope> {

@@ -12,6 +12,8 @@ pub struct TeamState {
     active_player_ids: Vec<Uuid>,
     reserve_player_ids: Vec<Uuid>,
     drive_progress: DriveProgress,
+    drives_in_series: u32,
+    time_calls_used_in_period: u32,
     score: Score,
 }
 
@@ -50,6 +52,8 @@ impl TeamState {
             active_player_ids,
             reserve_player_ids,
             drive_progress: DriveProgress::default(),
+            drives_in_series: 0,
+            time_calls_used_in_period: 0,
             score: Score::default(),
         }
     }
@@ -72,6 +76,12 @@ impl TeamState {
     pub fn drive_progress(&self) -> DriveProgress {
         self.drive_progress
     }
+    pub fn drives_in_series(&self) -> u32 {
+        self.drives_in_series
+    }
+    pub fn time_calls_used_in_period(&self) -> u32 {
+        self.time_calls_used_in_period
+    }
     pub fn score(&self) -> Score {
         self.score
     }
@@ -80,7 +90,7 @@ impl TeamState {
         &mut self,
         player_id: Uuid,
         control_seconds: f64,
-    ) -> EngineResult<bool> {
+    ) -> EngineResult<Option<u32>> {
         if player_id != self.artrine_id
             || !control_seconds.is_finite()
             || control_seconds < IMMEDIATE_POSSESSION_CONTROL_SECONDS
@@ -90,8 +100,18 @@ impl TeamState {
             ));
         }
         let (progress, completed_drive) = self.drive_progress.record_artro()?;
+        let drives_in_series = if completed_drive {
+            Some(self.drives_in_series.checked_add(1).ok_or_else(|| {
+                EngineError::InvalidTransition("series drive count overflow".into())
+            })?)
+        } else {
+            None
+        };
         self.drive_progress = progress;
-        Ok(completed_drive)
+        if let Some(count) = drives_in_series {
+            self.drives_in_series = count;
+        }
+        Ok(drives_in_series)
     }
 
     pub(crate) fn replace_score(&mut self, score: Score) {
@@ -100,5 +120,18 @@ impl TeamState {
 
     pub(crate) fn reset_drives(&mut self) {
         self.drive_progress = self.drive_progress.reset();
+        self.drives_in_series = 0;
+    }
+
+    pub(crate) fn reset_series_drives(&mut self) {
+        self.drives_in_series = 0;
+    }
+
+    pub(crate) fn record_time_call(&mut self) {
+        self.time_calls_used_in_period += 1;
+    }
+
+    pub(crate) fn reset_time_calls(&mut self) {
+        self.time_calls_used_in_period = 0;
     }
 }

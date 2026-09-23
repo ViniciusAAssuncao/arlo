@@ -10,6 +10,7 @@ mod team;
 pub use clock::ClockState;
 pub use drive::DriveProgress;
 pub use match_state::MatchState;
+pub(crate) use match_state::PendingCallOutcome;
 pub use phase::MatchPhase;
 pub use possession::PossessionState;
 pub use score::{Score, ScoreKind};

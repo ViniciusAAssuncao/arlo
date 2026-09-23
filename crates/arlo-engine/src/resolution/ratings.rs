@@ -39,7 +39,7 @@ impl RatingIndex {
             .ok_or_else(|| EngineError::InvalidInput("active player is missing from roster".into()))
     }
 
-    fn specialist(
+    pub(super) fn specialist(
         &self,
         team: &TeamInput,
         position: Position,
@@ -55,7 +55,7 @@ impl RatingIndex {
         self.value(self.player(team, player_id)?, key)
     }
 
-    fn active_average(
+    pub(super) fn active_average(
         &self,
         team: &TeamInput,
         key: AttributeKey,

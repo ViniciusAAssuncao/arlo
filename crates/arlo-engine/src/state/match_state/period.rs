@@ -45,6 +45,8 @@ impl MatchState {
             ));
         }
         self.clock = self.clock.next_quarter()?;
+        self.home.reset_time_calls();
+        self.away.reset_time_calls();
         self.phase = MatchPhase::Ready;
         Ok(())
     }

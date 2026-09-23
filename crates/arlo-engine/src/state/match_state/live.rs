@@ -14,6 +14,7 @@ impl MatchState {
             ));
         }
         self.clock = self.clock.start()?;
+        self.pending_call_outcome = None;
         self.phase = MatchPhase::Live;
         Ok(())
     }
@@ -38,6 +39,9 @@ impl MatchState {
             .with_ball_position(end_mirim, self.pitch_length_mirim)?;
         self.series = series;
         self.possession = possession;
+        if matches!(result, SeriesAdvance::FirstDown) {
+            self.team_mut(self.series.team_id())?.reset_series_drives();
+        }
         Ok(result)
     }
 
@@ -46,7 +50,7 @@ impl MatchState {
         team_id: Uuid,
         player_id: Uuid,
         control_seconds: f64,
-    ) -> EngineResult<bool> {
+    ) -> EngineResult<Option<u32>> {
         if self.phase != MatchPhase::Live || self.possession.possessor_team_id() != team_id {
             return Err(EngineError::InvalidTransition(
                 "Artro requires live team possession".into(),
@@ -77,6 +81,65 @@ impl MatchState {
         }
         self.possession = possession;
         Ok(())
+    }
+
+    pub fn recover_missed_shot(
+        &mut self,
+        shooting_team_id: Uuid,
+        recovering_team_id: Uuid,
+        recovery_position_mirim: f64,
+    ) -> EngineResult<()> {
+        if self.phase != MatchPhase::Live || self.possession.possessor_team_id() != shooting_team_id
+        {
+            return Err(EngineError::InvalidTransition(
+                "missed shot requires live possession by the shooting team".into(),
+            ));
+        }
+        self.team(recovering_team_id)?;
+        let possession = self
+            .possession
+            .with_ball_position(recovery_position_mirim, self.pitch_length_mirim)?;
+        if recovering_team_id != shooting_team_id {
+            self.turnover(recovering_team_id)?;
+        }
+        self.possession = possession.with_possessor(recovering_team_id);
+        Ok(())
+    }
+
+    pub fn move_live_ball(&mut self, position_mirim: f64) -> EngineResult<()> {
+        if self.phase != MatchPhase::Live {
+            return Err(EngineError::InvalidTransition(
+                "ball movement requires live play".into(),
+            ));
+        }
+        self.possession = self
+            .possession
+            .with_ball_position(position_mirim, self.pitch_length_mirim)?;
+        Ok(())
+    }
+
+    pub fn resolve_time_call(
+        &mut self,
+        requesting_team_id: Uuid,
+        time_calls_per_period: u32,
+    ) -> EngineResult<(SeriesOut, u32)> {
+        if self.phase != MatchPhase::Live
+            || self.possession.possessor_team_id() != requesting_team_id
+        {
+            return Err(EngineError::InvalidTransition(
+                "Time Call requires live possession by the requesting team".into(),
+            ));
+        }
+        let used = self.team(requesting_team_id)?.time_calls_used_in_period();
+        if used >= time_calls_per_period {
+            return Err(EngineError::InvalidTransition(
+                "no Time Calls remain in this period".into(),
+            ));
+        }
+        let position = self.possession.ball_position_mirim();
+        let result = self.resolve_out(requesting_team_id, position)?;
+        self.team_mut(requesting_team_id)?.record_time_call();
+        Ok((result, time_calls_per_period - used - 1))
     }
 
     pub fn resolve_out(
@@ -114,7 +177,11 @@ impl MatchState {
                 .award_next_call(next_team_id, end_mirim, self.pitch_length_mirim)?;
         self.series = series;
         self.possession = possession;
+        if matches!(result, SeriesOut::NewSeries | SeriesOut::TurnoverOnDowns) {
+            self.team_mut(next_team_id)?.reset_series_drives();
+        }
         self.suspended_restart = None;
+        self.pending_call_outcome = None;
         self.clock = self.clock.stop();
         self.phase = MatchPhase::Stopped;
         Ok(result)

@@ -68,6 +68,7 @@ impl MatchState {
         self.team_mut(team_id)?.replace_score(next_score);
         self.home.reset_drives();
         self.away.reset_drives();
+        self.pending_call_outcome = None;
         self.clock = self.clock.stop();
         if let Some((possession, series)) = restart {
             self.possession = possession;

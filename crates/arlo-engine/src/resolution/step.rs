@@ -1,14 +1,21 @@
+use super::artro::sample_artros;
 use super::model::sample_call;
+use super::open_play::resolve_open_play_segment;
 use super::ratings::RatingIndex;
+use super::reception::sample_reception;
+use super::tuning::CTA_OUT_PROBABILITY;
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
-use crate::state::{MatchPhase, MatchState, SeriesAdvance};
+use crate::state::{MatchPhase, MatchState, PendingCallOutcome, SeriesAdvance};
 use crate::step::StepResult;
+use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_events::{
-    CallToActionStarted, DownAdvanced, MatchEvent, OutOfBounds, PossessionTimeRecorded,
+    CallToActionStarted, DownAdvanced, DriveRecorded, MatchEvent, OutOfBounds, PassCompleted,
+    PossessionTimeRecorded, ReceptionResolved,
 };
 use arlo_manager_control::RequiredManagerDecision;
 use arlo_tactics::{validate_play_call, PlayCall, PlayCallCategory};
+use rand::Rng;
 
 pub fn resolve_next_segment(
     input: &MatchInput,
@@ -31,6 +38,14 @@ pub fn resolve_next_segment(
         next.start_next_quarter()?;
         *state = next;
         return Ok(StepResult::resolved(Vec::new()));
+    }
+    if state.phase() == MatchPhase::Live {
+        if selected_play_call.is_some() {
+            return Err(EngineError::InvalidInput(
+                "open play cannot begin another Call-to-Action".into(),
+            ));
+        }
+        return resolve_open_play_segment(input, state);
     }
     if !matches!(state.phase(), MatchPhase::Ready | MatchPhase::Stopped) {
         return Err(EngineError::InvalidTransition(
@@ -109,13 +124,32 @@ pub fn resolve_next_segment(
         next.rng_mut(),
     );
     let duration = sample.duration_seconds.min(remaining_time);
+    let reception = sample_reception(&ratings, offense, defense, next.rng_mut())?;
+    let controlled_reception = reception.caught && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS;
+    let artros = if controlled_reception {
+        sample_artros(
+            &ratings,
+            offense,
+            defense,
+            selected_play_call,
+            duration,
+            next.rng_mut(),
+        )?
+    } else {
+        Vec::new()
+    };
     let direction = if is_home { 1.0 } else { -1.0 };
+    let sampled_gain = if controlled_reception {
+        sample.gain_mirim
+    } else {
+        0.0
+    };
     let end_mirim =
-        (start_mirim + direction * sample.gain_mirim).clamp(0.0, input.pitch().length_mirim());
+        (start_mirim + direction * sampled_gain).clamp(0.0, input.pitch().length_mirim());
     let gain_mirim = direction * (end_mirim - start_mirim);
 
     next.begin_call_to_action()?;
-    let mut events = Vec::with_capacity(4);
+    let mut events = Vec::with_capacity(7);
     events.push(
         next.emit(MatchEvent::CallToActionStarted(CallToActionStarted::new(
             offense_id,
@@ -127,24 +161,61 @@ pub fn resolve_next_segment(
             target_advance_mirim,
         )))?,
     );
-    next.advance_playing_time(duration)?;
+    let reception_time = duration.min(IMMEDIATE_POSSESSION_CONTROL_SECONDS);
+    next.advance_playing_time(reception_time)?;
+    events.push(
+        next.emit(MatchEvent::ReceptionResolved(ReceptionResolved::new(
+            artrine_id,
+            passer_id,
+            controlled_reception,
+            false,
+        )))?,
+    );
+    if controlled_reception {
+        events.push(next.emit(MatchEvent::PassCompleted(PassCompleted::new(
+            passer_id,
+            artrine_id,
+            false,
+            reception.distance_mirim,
+        )))?);
+    }
+    next.advance_playing_time(duration - reception_time)?;
+    for placement in artros {
+        if let Some(drives_in_series) = next.record_artro(offense_id, artrine_id, duration)? {
+            events.push(next.emit(MatchEvent::DriveRecorded(DriveRecorded::new(
+                artrine_id,
+                drives_in_series,
+                placement,
+            )))?);
+        }
+    }
     let advance = next.record_valid_advance(gain_mirim, end_mirim)?;
     let first_down = matches!(advance, SeriesAdvance::FirstDown);
-    next.resolve_out(offense_id, end_mirim)?;
+    next.record_call_outcome(PendingCallOutcome {
+        prior_down,
+        gain_mirim,
+        total_advance_mirim: prior_advance + gain_mirim,
+        first_down,
+    });
     events.push(next.emit(MatchEvent::PossessionTimeRecorded(
         PossessionTimeRecorded::new(offense_id, duration),
     ))?);
-    events.push(next.emit(MatchEvent::OutOfBounds(OutOfBounds::new(
-        offense_id, None, false,
-    )))?);
-    events.push(next.emit(MatchEvent::DownAdvanced(DownAdvanced::new(
-        u32::from(prior_down),
-        u32::from(next.series().down()),
-        gain_mirim,
-        prior_advance + gain_mirim,
-        first_down,
-        end_mirim,
-    )))?);
+    let ends_out =
+        duration >= remaining_time || next.rng_mut().gen_range(0.0..1.0) < CTA_OUT_PROBABILITY;
+    if ends_out {
+        next.resolve_out(offense_id, end_mirim)?;
+        events.push(next.emit(MatchEvent::OutOfBounds(OutOfBounds::new(
+            offense_id, None, false,
+        )))?);
+        events.push(next.emit(MatchEvent::DownAdvanced(DownAdvanced::new(
+            u32::from(prior_down),
+            u32::from(next.series().down()),
+            gain_mirim,
+            prior_advance + gain_mirim,
+            first_down,
+            end_mirim,
+        )))?);
+    }
 
     *state = next;
     Ok(StepResult::resolved(events))
