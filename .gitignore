@@ -9,3 +9,5 @@
 .DS_Store
 
 /crates/arlo_db_tool
+
+AGENTS.md
