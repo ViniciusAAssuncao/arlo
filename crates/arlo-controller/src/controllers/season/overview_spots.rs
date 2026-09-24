@@ -29,12 +29,19 @@ pub fn compute_stage_spots(
                 0
             };
             let qualification_spots = if !is_final {
-                if let Some(next_stage) = cfg.stages().iter().find(|s| s.stage_order_index() == current_stage_idx + 1) {
+                if let Some(next_stage) = cfg
+                    .stages()
+                    .iter()
+                    .find(|s| s.stage_order_index() == current_stage_idx + 1)
+                {
                     let mut count = 0;
                     for pool_rule in next_stage.entry_rule().pools() {
                         match pool_rule {
                             QualificationPoolRule::TopN { count: c } => count += *c,
-                            QualificationPoolRule::PositionRange { start_position, end_position } => {
+                            QualificationPoolRule::PositionRange {
+                                start_position,
+                                end_position,
+                            } => {
                                 if *end_position >= *start_position {
                                     count += *end_position - *start_position + 1;
                                 }

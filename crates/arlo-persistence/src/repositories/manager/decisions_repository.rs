@@ -17,21 +17,11 @@ const DECISION_COLUMNS: &[&str] = &[
     "tactical_profile_switches",
 ];
 
-const SUBSTITUTION_BY_REASON_COLUMNS: &[&str] = &[
-    "id",
-    "match_id",
-    "team_id",
-    "reason",
-    "substitutions_count",
-];
+const SUBSTITUTION_BY_REASON_COLUMNS: &[&str] =
+    &["id", "match_id", "team_id", "reason", "substitutions_count"];
 
-const PLAY_CALL_BY_CATEGORY_COLUMNS: &[&str] = &[
-    "id",
-    "match_id",
-    "team_id",
-    "category",
-    "play_calls_count",
-];
+const PLAY_CALL_BY_CATEGORY_COLUMNS: &[&str] =
+    &["id", "match_id", "team_id", "category", "play_calls_count"];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,

@@ -1,6 +1,6 @@
-use arlo_domain::LeagueCalendarConfig;
 use crate::error::ControllerResult;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
+use arlo_domain::LeagueCalendarConfig;
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use uuid::Uuid;

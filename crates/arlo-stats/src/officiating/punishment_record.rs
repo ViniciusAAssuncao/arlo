@@ -176,11 +176,7 @@ impl StatAggregator for PlayerPunishmentAggregator {
     fn handle_event(&mut self, event: &MatchEvent) {
         if let MatchEvent::FoulRaised(e) = event {
             if let Some(kind) = e.punishment_kind() {
-                self.record_punishment(
-                    e.offending_player_id(),
-                    kind,
-                    e.punishment_magnitude(),
-                );
+                self.record_punishment(e.offending_player_id(), kind, e.punishment_magnitude());
             }
         }
     }

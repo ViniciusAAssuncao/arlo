@@ -46,8 +46,7 @@ pub async fn advance_knockout_round(
 
     for tie in ties {
         if tie.aggregate_winner_team_id().is_none() {
-            if let Some(winner_id) =
-                resolve_tie_winner(&tie, fixtures, config.tie_break_criteria())
+            if let Some(winner_id) = resolve_tie_winner(&tie, fixtures, config.tie_break_criteria())
             {
                 arlo_persistence::repositories::season::knockout_ties::update_winner(
                     &mut tx,
@@ -78,18 +77,17 @@ pub async fn advance_knockout_round(
 
     tx.commit().await?;
 
-    let progress = detect_knockout_bracket_progress(
-        &updated_ties,
-        fixtures,
-        config.tie_break_criteria(),
-    );
+    let progress =
+        detect_knockout_bracket_progress(&updated_ties, fixtures, config.tie_break_criteria());
 
     match progress {
-        KnockoutBracketProgress::RoundCompleteNeedsNextRound {
-            winner_seeds, ..
-        } => {
+        KnockoutBracketProgress::RoundCompleteNeedsNextRound { winner_seeds, .. } => {
             let round_completion_date = calculate_stage_completion_date(calendar, fixtures)
-                .ok_or_else(|| ControllerError::Validation("No fixtures found to calculate completion date".to_string()))?;
+                .ok_or_else(|| {
+                    ControllerError::Validation(
+                        "No fixtures found to calculate completion date".to_string(),
+                    )
+                })?;
 
             let ca_catalog = get_or_load_collective_agreement_catalog(pool).await?;
             let mut blackout_windows = Vec::new();
@@ -97,16 +95,14 @@ pub async fn advance_knockout_round(
 
             for ca_id in config.collective_agreement_ids() {
                 if let Some(agreement) = ca_catalog.get(ca_id) {
-                    let windows = resolve_collective_agreement_windows(
-                        calendar,
-                        agreement,
-                        years.clone(),
-                    )?;
+                    let windows =
+                        resolve_collective_agreement_windows(calendar, agreement, years.clone())?;
                     blackout_windows.extend(windows);
                 }
             }
 
-            let anchor_date = skip_forward_past_blackout(calendar, &round_completion_date, &blackout_windows);
+            let anchor_date =
+                skip_forward_past_blackout(calendar, &round_completion_date, &blackout_windows);
 
             let generated = generate_next_knockout_round(
                 calendar,

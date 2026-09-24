@@ -11,8 +11,7 @@ pub async fn list_club_history(
     player_id: Uuid,
 ) -> ControllerResult<Vec<PlayerClubHistoryDto>> {
     let mut rows = arlo_persistence::repositories::player::player_club_history::list_by_player_id(
-        pool,
-        player_id,
+        pool, player_id,
     )
     .await?;
 
@@ -53,14 +52,8 @@ pub async fn list_club_history(
                 .unwrap_or(0);
 
             let new_id = Uuid::new_v4();
-            let new_row = PlayerClubHistoryRow::new(
-                new_id,
-                player_id,
-                team_id,
-                current_year,
-                None,
-                now,
-            );
+            let new_row =
+                PlayerClubHistoryRow::new(new_id, player_id, team_id, current_year, None, now);
 
             let inserted = sqlx::query(
                 "INSERT INTO player_club_history (id, player_id, team_id, joined_year, left_year, created_at_unix_seconds)
@@ -82,11 +75,11 @@ pub async fn list_club_history(
             if inserted.rows_affected() > 0 {
                 rows.push(new_row);
             } else {
-                rows = arlo_persistence::repositories::player::player_club_history::list_by_player_id(
-                    pool,
-                    player_id,
-                )
-                .await?;
+                rows =
+                    arlo_persistence::repositories::player::player_club_history::list_by_player_id(
+                        pool, player_id,
+                    )
+                    .await?;
             }
         }
     }

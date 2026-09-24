@@ -8,12 +8,11 @@ pub async fn load_kick_foul_stats(
     match_id: Uuid,
     player_id: Uuid,
 ) -> ControllerResult<PlayerKickFoulStatsDto> {
-    let kf_row = arlo_persistence::repositories::match_player_kick_fouls::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let kf_row =
+        arlo_persistence::repositories::match_player_kick_fouls::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     let kf_decision_rows = arlo_persistence::repositories::match_player_kick_fouls::list_by_decision_by_match_id_and_player_id(
         pool,

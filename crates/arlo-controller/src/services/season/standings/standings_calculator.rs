@@ -24,10 +24,7 @@ struct TeamRecord {
     away_lost: u32,
 }
 
-pub fn calculate_standings(
-    team_ids: &[Uuid],
-    fixtures: &[Fixture],
-) -> Vec<StandingsEntry> {
+pub fn calculate_standings(team_ids: &[Uuid], fixtures: &[Fixture]) -> Vec<StandingsEntry> {
     let mut records: HashMap<Uuid, TeamRecord> = HashMap::with_capacity(team_ids.len());
     for &team_id in team_ids {
         records.insert(team_id, TeamRecord::default());

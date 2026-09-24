@@ -59,10 +59,8 @@ pub async fn build_manager_report(
         .map(|m| m.person().name().to_string());
 
     let decisions =
-        arlo_persistence::repositories::match_manager_decisions::list_by_match_id(
-            pool, match_uuid,
-        )
-        .await?;
+        arlo_persistence::repositories::match_manager_decisions::list_by_match_id(pool, match_uuid)
+            .await?;
 
     let subs_by_reason =
         arlo_persistence::repositories::match_manager_decisions::list_substitutions_by_reason_by_match_id(
@@ -76,21 +74,26 @@ pub async fn build_manager_report(
         )
         .await?;
 
-    let outcomes =
-        arlo_persistence::repositories::match_play_call_outcomes::list_by_match_id(
-            pool, match_uuid,
-        )
-        .await?;
+    let outcomes = arlo_persistence::repositories::match_play_call_outcomes::list_by_match_id(
+        pool, match_uuid,
+    )
+    .await?;
 
-    let home_calls =
-        arlo_tactics::play_call::list_by_team_id(pool, home_team_uuid).await.unwrap_or_default();
-    let away_calls =
-        arlo_tactics::play_call::list_by_team_id(pool, away_team_uuid).await.unwrap_or_default();
+    let home_calls = arlo_tactics::play_call::list_by_team_id(pool, home_team_uuid)
+        .await
+        .unwrap_or_default();
+    let away_calls = arlo_tactics::play_call::list_by_team_id(pool, away_team_uuid)
+        .await
+        .unwrap_or_default();
 
-    let home_call_map: HashMap<Uuid, String> =
-        home_calls.into_iter().map(|c| (c.id(), c.name().to_string())).collect();
-    let away_call_map: HashMap<Uuid, String> =
-        away_calls.into_iter().map(|c| (c.id(), c.name().to_string())).collect();
+    let home_call_map: HashMap<Uuid, String> = home_calls
+        .into_iter()
+        .map(|c| (c.id(), c.name().to_string()))
+        .collect();
+    let away_call_map: HashMap<Uuid, String> = away_calls
+        .into_iter()
+        .map(|c| (c.id(), c.name().to_string()))
+        .collect();
 
     let home_manager = build_team_manager_summary(
         &match_row.home_team_id,

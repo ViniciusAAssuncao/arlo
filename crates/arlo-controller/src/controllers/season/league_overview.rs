@@ -32,12 +32,11 @@ pub async fn get_league_overview(
     };
 
     let season_instance_id = Uuid::parse_str(&active_season.id)?;
-    let stages =
-        arlo_persistence::repositories::season::season_stages::list_by_season_instance_id(
-            pool,
-            season_instance_id,
-        )
-        .await?;
+    let stages = arlo_persistence::repositories::season::season_stages::list_by_season_instance_id(
+        pool,
+        season_instance_id,
+    )
+    .await?;
 
     let current_stage = match stages
         .iter()
@@ -60,8 +59,7 @@ pub async fn get_league_overview(
     let stage_id = Uuid::parse_str(&current_stage.id)?;
     let standings_entries = get_standings(pool, stage_id).await?;
     let fixture_rows =
-        arlo_persistence::repositories::season::fixtures::list_by_stage_id(pool, stage_id)
-            .await?;
+        arlo_persistence::repositories::season::fixtures::list_by_stage_id(pool, stage_id).await?;
 
     let league_config = get_or_load_league_calendar_config(pool, competition_id).await?;
     let spots = compute_stage_spots(
@@ -81,10 +79,8 @@ pub async fn get_league_overview(
         .map(|t| (t.id(), t.name().to_string()))
         .collect();
 
-    let team_home_venue_map: HashMap<Uuid, Option<Uuid>> = teams
-        .iter()
-        .map(|t| (t.id(), t.home_venue_id()))
-        .collect();
+    let team_home_venue_map: HashMap<Uuid, Option<Uuid>> =
+        teams.iter().map(|t| (t.id(), t.home_venue_id())).collect();
 
     let all_venues = arlo_db::repositories::venue::list_all(pool)
         .await

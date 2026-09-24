@@ -6,7 +6,6 @@ use crate::services::season::matchday::matchday_runner::{
 };
 use crate::services::season::matchday::matchday_setup_builder::build_matchday_setup;
 use crate::services::season::matchday::walkover_resolver;
-use arlo_engine::MatchState;
 use rayon::prelude::*;
 use sqlx::SqlitePool;
 
@@ -31,8 +30,14 @@ pub async fn run_due_matches(
                 prepared_matches.push(prep);
             }
             Err(err) => {
-                eprintln!("build_matchday_setup failed for fixture {}: {}", fixture.id, err);
-                if walkover_resolver::handle_walkover(pool, &fixture).await.is_ok() {
+                eprintln!(
+                    "build_matchday_setup failed for fixture {}: {}",
+                    fixture.id, err
+                );
+                if walkover_resolver::handle_walkover(pool, &fixture)
+                    .await
+                    .is_ok()
+                {
                     matches_played_count += 1;
                 }
             }
@@ -47,18 +52,12 @@ pub async fn run_due_matches(
         prepared_matches
             .into_par_iter()
             .map(|prep| {
-                let mut state = MatchState::new(prep.setup_params)
-                    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-                arlo_recovery::orchestration::match_condition_bridge::seed_match_state(
-                    &mut state,
-                    &prep.initial_conditions,
-                );
                 simulate_match(
-                    state,
+                    prep.input,
                     prep.persistence_context,
                     prep.fixture_row,
-                    prep.seed,
                     prep.stage_id,
+                    prep.initial_conditions,
                 )
             })
             .collect();
@@ -68,17 +67,15 @@ pub async fn run_due_matches(
 
     for sim_result in simulation_results {
         match sim_result {
-            Ok(simulation) => {
-                match persist_completed_simulation(&mut tx, &simulation).await {
-                    Ok(_) => {
-                        matches_played_count += 1;
-                        persisted_simulations.push(simulation);
-                    }
-                    Err(err) => {
-                        eprintln!("Failed to persist match simulation result: {}", err);
-                    }
+            Ok(simulation) => match persist_completed_simulation(&mut tx, &simulation).await {
+                Ok(_) => {
+                    matches_played_count += 1;
+                    persisted_simulations.push(simulation);
                 }
-            }
+                Err(err) => {
+                    eprintln!("Failed to persist match simulation result: {}", err);
+                }
+            },
             Err(err) => {
                 eprintln!("Match simulation failed: {}", err);
             }
@@ -95,7 +92,8 @@ pub async fn run_due_matches(
 
         let _ = arlo_recovery::orchestration::capture_post_match_condition(
             pool,
-            &simulation.state,
+            &simulation.input,
+            &simulation.initial_conditions,
             simulation.run_result.raw_sink.events(),
             match_year,
             match_day,

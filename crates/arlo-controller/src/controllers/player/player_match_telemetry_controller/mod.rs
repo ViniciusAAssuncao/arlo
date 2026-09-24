@@ -47,8 +47,10 @@ pub async fn get_player_match_telemetry(
     let receiving = receiving_stats_loader::load_receiving_stats(pool, match_id, player_id).await?;
     let scoring = scoring_stats_loader::load_scoring_stats(pool, match_id, player_id).await?;
     let assists = assist_stats_loader::load_assist_stats(pool, match_id, player_id).await?;
-    let artrine_decisions = artrine_stats_loader::load_artrine_stats(pool, match_id, player_id).await?;
-    let punishment_result = punishment_stats_loader::load_punishment_stats(pool, match_id, player_id).await?;
+    let artrine_decisions =
+        artrine_stats_loader::load_artrine_stats(pool, match_id, player_id).await?;
+    let punishment_result =
+        punishment_stats_loader::load_punishment_stats(pool, match_id, player_id).await?;
     let fouls = foul_stats_loader::load_foul_stats(
         pool,
         match_id,
@@ -57,7 +59,8 @@ pub async fn get_player_match_telemetry(
         punishment_result.time_penalty_count,
     )
     .await?;
-    let kick_fouls = kick_foul_stats_loader::load_kick_foul_stats(pool, match_id, player_id).await?;
+    let kick_fouls =
+        kick_foul_stats_loader::load_kick_foul_stats(pool, match_id, player_id).await?;
     let impulse = impulse_stats_loader::load_impulse_stats(pool, match_id, player_id).await?;
     let physical = physical_stats_loader::load_physical_stats(pool, match_id, player_id).await?;
     let availability = availability_stats_loader::load_availability_stats(

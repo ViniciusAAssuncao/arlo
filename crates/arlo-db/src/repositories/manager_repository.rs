@@ -83,7 +83,8 @@ pub async fn list_all(
     pool: &SqlitePool,
     def_map: &HashMap<Uuid, AttributeDefinition>,
 ) -> DbResult<Vec<Manager>> {
-    let rows = fetch_all::<ManagerRow>(pool, "SELECT id, team_id, control_mode FROM managers").await?;
+    let rows =
+        fetch_all::<ManagerRow>(pool, "SELECT id, team_id, control_mode FROM managers").await?;
 
     let mut results = Vec::with_capacity(rows.len());
     for row in &rows {

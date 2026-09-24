@@ -1,9 +1,9 @@
 use super::player_stats::PlayerImpulseStats;
 use super::team_stats::TeamImpulseStats;
 use crate::aggregator::StatAggregator;
-use crate::snapshot::{ IntoSnapshot, PlayerImpulseSnapshot };
-use arlo_events::{ ImpulseEventKind, MatchEvent, MatchEventEnvelope };
-use serde::{ Deserialize, Serialize };
+use crate::snapshot::{IntoSnapshot, PlayerImpulseSnapshot};
+use arlo_events::{ImpulseEventKind, MatchEvent, MatchEventEnvelope};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -29,7 +29,8 @@ impl PlayerImpulseAggregator {
         if let Some(stats) = self.player_stats.get_mut(&player_id) {
             stats.baseline = baseline;
         } else {
-            self.player_stats.insert(player_id, PlayerImpulseStats::new(player_id, baseline));
+            self.player_stats
+                .insert(player_id, PlayerImpulseStats::new(player_id, baseline));
         }
     }
 
@@ -38,7 +39,8 @@ impl PlayerImpulseAggregator {
         if let Some(pstats) = self.player_stats.get_mut(&player_id) {
             pstats.team_id = Some(team_id);
         }
-        let team_entry = self.team_stats
+        let team_entry = self
+            .team_stats
             .entry(team_id)
             .or_insert_with(|| TeamImpulseStats::new(team_id, Vec::new(), 50.0));
         if !team_entry.player_ids.contains(&player_id) {
@@ -56,7 +58,7 @@ impl PlayerImpulseAggregator {
         }
         self.team_stats.insert(
             team_id,
-            TeamImpulseStats::new(team_id, player_ids, average_baseline)
+            TeamImpulseStats::new(team_id, player_ids, average_baseline),
         );
     }
 
@@ -131,7 +133,7 @@ impl PlayerImpulseAggregator {
         new_value: u8,
         event_kind: ImpulseEventKind,
         _surprisal: f64,
-        timestamp_seconds: f64
+        timestamp_seconds: f64,
     ) {
         self.update_time(timestamp_seconds);
 
@@ -154,7 +156,7 @@ impl PlayerImpulseAggregator {
         player_id: Uuid,
         _value: u8,
         _duration_seconds: f64,
-        timestamp_seconds: f64
+        timestamp_seconds: f64,
     ) {
         self.update_time(timestamp_seconds);
         let stats = self.get_mut_or_create(player_id);
@@ -204,7 +206,7 @@ impl PlayerImpulseAggregator {
                     e.new_value(),
                     e.event_kind(),
                     e.surprisal(),
-                    timestamp_seconds
+                    timestamp_seconds,
                 );
             }
             MatchEvent::ImpulseCriticalReached(e) => {
@@ -212,7 +214,7 @@ impl PlayerImpulseAggregator {
                     e.player_id(),
                     e.value(),
                     e.duration_seconds(),
-                    timestamp_seconds
+                    timestamp_seconds,
                 );
             }
             MatchEvent::CallToActionStarted(e) => {

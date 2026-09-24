@@ -4,7 +4,9 @@ use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::collective_agreement::collective_agreement_catalog_cache::get_or_load_collective_agreement_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
-use crate::services::calendar::{date_advancer, resolve_collective_agreement_windows, skip_forward_past_blackout};
+use crate::services::calendar::{
+    date_advancer, resolve_collective_agreement_windows, skip_forward_past_blackout,
+};
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::event_scheduling::stage_completion_date_calculator::calculate_stage_completion_date;
 use crate::services::season::persistence::persist_generated_stage_schedule;
@@ -44,10 +46,7 @@ pub async fn handle_stage_transition(
 
     let catalog = get_or_load_calendar_catalog(pool).await?;
     let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
-        ControllerError::NotFound(format!(
-            "Calendar system {} not found",
-            calendar_system_id
-        ))
+        ControllerError::NotFound(format!("Calendar system {} not found", calendar_system_id))
     })?;
 
     let target_stage_def = config_arc
@@ -61,8 +60,7 @@ pub async fn handle_stage_transition(
             ))
         })?;
 
-    let external_winners =
-        resolve_external_winners(pool, target_stage_def.entry_rule()).await?;
+    let external_winners = resolve_external_winners(pool, target_stage_def.entry_rule()).await?;
 
     let seed = seed_from_uuid(stage_instance_id);
     let sorted_standings = standings_pipeline::calculate_and_rank_standings(
@@ -81,8 +79,12 @@ pub async fn handle_stage_transition(
         &external_winners,
     )?;
 
-    let previous_stage_completion_date = calculate_stage_completion_date(calendar, completed_fixtures)
-        .ok_or_else(|| ControllerError::Validation("No completed fixtures found to calculate completion date".to_string()))?;
+    let previous_stage_completion_date =
+        calculate_stage_completion_date(calendar, completed_fixtures).ok_or_else(|| {
+            ControllerError::Validation(
+                "No completed fixtures found to calculate completion date".to_string(),
+            )
+        })?;
 
     let gapped_anchor = date_advancer::advance(
         calendar,
@@ -96,11 +98,7 @@ pub async fn handle_stage_transition(
 
     for ca_id in config_arc.collective_agreement_ids() {
         if let Some(agreement) = ca_catalog.get(ca_id) {
-            let windows = resolve_collective_agreement_windows(
-                calendar,
-                agreement,
-                years.clone(),
-            )?;
+            let windows = resolve_collective_agreement_windows(calendar, agreement, years.clone())?;
             blackout_windows.extend(windows);
         }
     }

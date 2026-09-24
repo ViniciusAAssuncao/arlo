@@ -8,12 +8,11 @@ pub async fn load_touch_stats(
     match_id: Uuid,
     player_id: Uuid,
 ) -> ControllerResult<PlayerTouchStatsDto> {
-    let touch_row = arlo_persistence::repositories::match_player_touches::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let touch_row =
+        arlo_persistence::repositories::match_player_touches::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     Ok(match touch_row {
         Some(r) => PlayerTouchStatsDto {

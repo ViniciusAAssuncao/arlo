@@ -1,10 +1,7 @@
 use crate::domain::season::{Fixture, FixtureResult, FixtureStatus};
 use crate::repositories::season::standings_cache;
 
-pub async fn record_fixture_result(
-    fixture: &Fixture,
-    result: FixtureResult,
-) -> Fixture {
+pub async fn record_fixture_result(fixture: &Fixture, result: FixtureResult) -> Fixture {
     standings_cache::invalidate(&fixture.season_stage_id()).await;
     Fixture::new(
         fixture.id(),

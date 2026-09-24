@@ -3,8 +3,9 @@ use crate::models::{
     MatchManagerDecisionRow, MatchManagerPlayCallByCategoryRow,
     MatchManagerSubstitutionByReasonRow, MatchPlayCallOutcomeRow, MatchRefereePerformanceRow,
 };
+use crate::persister::assigned_referees::assigned_referees;
 use crate::repositories;
-use arlo_engine::MatchState;
+use arlo_engine::MatchInput;
 use arlo_stats::{
     AggregatorRegistry, ManagerDecisionAggregator, PlayCallOutcomeAggregator,
     RefereeStatsAggregator,
@@ -75,21 +76,22 @@ pub async fn persist_manager_stats(
 pub async fn persist_referee_stats(
     tx: &mut Transaction<'_, Sqlite>,
     match_id: Uuid,
-    state: &MatchState,
+    input: &MatchInput,
     aggregators: &AggregatorRegistry,
 ) -> PersistenceResult<()> {
     if let Some(agg) = aggregators.get::<RefereeStatsAggregator>() {
         let stats = agg.stats();
+        let (head_referee, peace_referee) = assigned_referees(input)?;
         let head_row = MatchRefereePerformanceRow::for_head_referee(
             Uuid::new_v4(),
             match_id,
-            state.head_referee().id(),
+            head_referee.id(),
             &stats,
         );
         let peace_row = MatchRefereePerformanceRow::for_peace_referee(
             Uuid::new_v4(),
             match_id,
-            state.peace_referee().id(),
+            peace_referee.id(),
             &stats,
         );
         repositories::match_referee_performance::insert_batch(tx, &[head_row, peace_row]).await?;

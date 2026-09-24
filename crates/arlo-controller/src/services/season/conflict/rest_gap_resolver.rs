@@ -72,12 +72,8 @@ pub fn resolve_rest_gap_conflicts(
             }
         };
 
-        let target_week = calculate_fixture_week_index(
-            calendar,
-            season_start_date,
-            &new_date,
-        )
-        .unwrap_or(fixture.round_index());
+        let target_week = calculate_fixture_week_index(calendar, season_start_date, &new_date)
+            .unwrap_or(fixture.round_index());
 
         let record = PostponementRecord::new(
             Uuid::new_v4(),

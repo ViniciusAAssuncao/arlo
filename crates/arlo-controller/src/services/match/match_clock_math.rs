@@ -23,12 +23,10 @@ impl MatchClockDurationConfig {
     pub fn from_match_row(row: &MatchRow) -> Self {
         Self {
             regulation_periods: row.format_regulation_periods.max(0) as u32,
-            regulation_period_duration_seconds: row
-                .format_regulation_period_duration_seconds
-                .max(0) as f64,
-            overtime_period_duration_seconds: row
-                .format_overtime_period_duration_seconds
-                .max(0) as f64,
+            regulation_period_duration_seconds: row.format_regulation_period_duration_seconds.max(0)
+                as f64,
+            overtime_period_duration_seconds: row.format_overtime_period_duration_seconds.max(0)
+                as f64,
         }
     }
 }

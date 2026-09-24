@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 pub struct MatchClockInstant {
     period: u32,
     seconds_in_period: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    total_elapsed_seconds: Option<f64>,
 }
 
 impl MatchClockInstant {
@@ -12,6 +14,19 @@ impl MatchClockInstant {
         Self {
             period,
             seconds_in_period,
+            total_elapsed_seconds: None,
+        }
+    }
+
+    pub fn with_total_elapsed_seconds(
+        period: u32,
+        seconds_in_period: f64,
+        total_elapsed_seconds: f64,
+    ) -> Self {
+        Self {
+            period,
+            seconds_in_period,
+            total_elapsed_seconds: Some(total_elapsed_seconds),
         }
     }
 
@@ -19,6 +34,7 @@ impl MatchClockInstant {
         Self {
             period,
             seconds_in_period: (minutes as f64) * 60.0 + seconds,
+            total_elapsed_seconds: None,
         }
     }
 
@@ -26,6 +42,7 @@ impl MatchClockInstant {
         Self {
             period: 1,
             seconds_in_period: 0.0,
+            total_elapsed_seconds: None,
         }
     }
 
@@ -42,6 +59,9 @@ impl MatchClockInstant {
     }
 
     pub fn total_elapsed_seconds(&self) -> f64 {
+        if let Some(seconds) = self.total_elapsed_seconds {
+            return seconds;
+        }
         if self.period <= 1 {
             self.seconds_in_period
         } else if self.period <= 4 {

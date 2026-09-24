@@ -1,6 +1,4 @@
-use crate::domain::season::{
-    FixtureStatus, PostponementReason, SeasonInstanceStatus, StageStatus,
-};
+use crate::domain::season::{FixtureStatus, PostponementReason, SeasonInstanceStatus, StageStatus};
 use arlo_domain::StageType;
 
 pub fn fixture_status_to_code(status: FixtureStatus) -> &'static str {

@@ -1,53 +1,17 @@
-#![allow(ambiguous_glob_reexports)]
-
-pub mod ai;
-pub mod artrine;
-pub mod attributes;
-pub mod caching;
-pub mod current_ability;
 pub mod error;
-pub mod home_advantage;
-pub mod injury;
-pub mod kick_foul;
-pub mod lineup_runtime;
-pub mod manager_ai;
-pub mod match_decision;
-pub mod officiating;
-pub mod open_play;
-pub mod physical;
-pub mod play_resolution;
-pub mod playmaking;
-pub mod possession;
-pub mod possession_flow;
-pub mod psychology;
+pub mod input;
 pub mod resolution;
-pub mod rng;
-pub mod scoring_model;
-pub mod scoring_regime;
-pub mod set_piece;
-pub mod team_identity;
-pub mod team_strength;
-pub mod time;
-pub mod tuning;
-pub mod weighting;
-pub mod world_state;
+pub mod state;
+pub mod step;
 
-pub use attributes::*;
-pub use caching::*;
 pub use error::{EngineError, EngineResult};
-pub use home_advantage::*;
-pub use injury::*;
-pub use kick_foul::*;
-pub use officiating::*;
-pub use open_play::*;
-pub use play_resolution::*;
-pub use playmaking::*;
-pub use possession_flow::*;
-pub use psychology::*;
-pub use rng::{derive_sub_seed, derive_sub_seed_indexed, MatchSeed, RngProvider, RngStream};
-pub use scoring_model::*;
-pub use set_piece::*;
-pub use team_strength::*;
-pub use time::*;
-pub use tuning::*;
-pub use world_state::*;
+pub use input::{MatchInput, TeamInput};
+pub use resolution::{
+    award_kick_foul_segment, resolve_kick_foul_segment, resolve_missed_shot_recovery,
+    resolve_next_segment, resolve_time_call_segment,
+};
+pub use state::{
+    ClockState, DriveProgress, MatchPhase, MatchState, PossessionState, Score, ScoreKind,
+    SeriesAdvance, SeriesOut, SeriesState, TeamState,
+};
+pub use step::{StepOutcome, StepResult};

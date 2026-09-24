@@ -75,7 +75,8 @@ impl EntryRulePoolRow {
             QualificationPoolKind::ExternalCompetitionWinner => {
                 let comp_id_str = self.external_competition_id.as_deref().ok_or_else(|| {
                     DbError::InvalidData(
-                        "ExternalCompetitionWinner pool rule requires external_competition_id".to_string(),
+                        "ExternalCompetitionWinner pool rule requires external_competition_id"
+                            .to_string(),
                     )
                 })?;
                 let competition_id = Uuid::parse_str(comp_id_str)?;

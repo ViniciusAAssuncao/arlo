@@ -20,11 +20,8 @@ pub async fn get_match_detail(
         .await?
         .ok_or_else(|| ControllerError::NotFound(format!("Match {} not found", match_id)))?;
 
-    let team_scores = arlo_persistence::repositories::match_team_score::list_by_match_id(
-        pool,
-        match_id,
-    )
-    .await?;
+    let team_scores =
+        arlo_persistence::repositories::match_team_score::list_by_match_id(pool, match_id).await?;
 
     let incidents_bundle = load_all_match_incidents(pool, match_id).await?;
     let clock_config = MatchClockDurationConfig::from_match_row(&match_row);
@@ -42,8 +39,7 @@ pub async fn get_match_detail(
     let (home_lineup, away_lineup) =
         build_match_lineups(pool, &match_row, &incidents_bundle.substitutions).await?;
 
-    let officiating =
-        build_officiating_summary(pool, &match_row, &incidents_bundle.fouls).await?;
+    let officiating = build_officiating_summary(pool, &match_row, &incidents_bundle.fouls).await?;
 
     let team_stats = build_team_stats(pool, &match_row).await?;
 

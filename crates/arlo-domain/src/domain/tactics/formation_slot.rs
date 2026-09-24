@@ -61,13 +61,7 @@ impl FormationSlot {
         defensive_position: Position,
         role: SlotRole,
     ) -> Self {
-        Self::with_dual_positions(
-            offensive_position,
-            defensive_position,
-            role,
-            None,
-            None,
-        )
+        Self::with_dual_positions(offensive_position, defensive_position, role, None, None)
     }
 
     pub fn position(&self) -> Position {

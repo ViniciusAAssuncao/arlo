@@ -22,11 +22,9 @@ pub async fn get_match_lineups(
         .await?
         .ok_or_else(|| ControllerError::NotFound(format!("Match {} not found", match_id)))?;
 
-    let substitutions = arlo_persistence::repositories::match_substitutions::list_by_match_id(
-        pool,
-        match_id,
-    )
-    .await?;
+    let substitutions =
+        arlo_persistence::repositories::match_substitutions::list_by_match_id(pool, match_id)
+            .await?;
 
     build_match_lineups(pool, &match_row, &substitutions).await
 }
@@ -161,10 +159,8 @@ pub async fn build_match_lineups(
         .unwrap_or_else(|| "Visitante".to_string());
 
     let clock_config = MatchClockDurationConfig::from_match_row(match_row);
-    let total_match_duration = calculate_total_match_duration_seconds(
-        &clock_config,
-        match_row.final_period.max(1) as u32,
-    );
+    let total_match_duration =
+        calculate_total_match_duration_seconds(&clock_config, match_row.final_period.max(1) as u32);
 
     let home_formation = home_usage
         .and_then(|u| Uuid::parse_str(&u.formation_id).ok())
@@ -176,7 +172,9 @@ pub async fn build_match_lineups(
     let home_lineup = build_team_lineup_dto(
         &match_row.home_team_id,
         home_team_name,
-        home_usage.map(|u| u.formation_id.clone()).unwrap_or_default(),
+        home_usage
+            .map(|u| u.formation_id.clone())
+            .unwrap_or_default(),
         home_formation.as_ref(),
         home_usage.map(|u| u.manager_id.clone()).unwrap_or_default(),
         home_manager_name,
@@ -193,7 +191,9 @@ pub async fn build_match_lineups(
     let away_lineup = build_team_lineup_dto(
         &match_row.away_team_id,
         away_team_name,
-        away_usage.map(|u| u.formation_id.clone()).unwrap_or_default(),
+        away_usage
+            .map(|u| u.formation_id.clone())
+            .unwrap_or_default(),
         away_formation.as_ref(),
         away_usage.map(|u| u.manager_id.clone()).unwrap_or_default(),
         away_manager_name,
@@ -367,7 +367,13 @@ fn build_team_lineup_dto(
     }
 
     starters.sort_by_key(|s| s.formation_slot_index.unwrap_or(999));
-    bench.sort_by_key(|s| (!s.was_used, s.squad_number.unwrap_or(999), s.player_name.clone()));
+    bench.sort_by_key(|s| {
+        (
+            !s.was_used,
+            s.squad_number.unwrap_or(999),
+            s.player_name.clone(),
+        )
+    });
 
     MatchLineupDto {
         team_id: team_id.to_string(),

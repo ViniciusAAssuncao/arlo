@@ -8,12 +8,11 @@ pub async fn load_receiving_stats(
     match_id: Uuid,
     player_id: Uuid,
 ) -> ControllerResult<PlayerReceivingStatsDto> {
-    let receiving_row = arlo_persistence::repositories::match_player_receiving::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let receiving_row =
+        arlo_persistence::repositories::match_player_receiving::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     Ok(match receiving_row {
         Some(r) => PlayerReceivingStatsDto {

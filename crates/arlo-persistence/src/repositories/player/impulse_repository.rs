@@ -29,13 +29,7 @@ const IMPULSE_COLUMNS: &[&str] = &[
     "average_run_intensity",
 ];
 
-const SHIFT_COLUMNS: &[&str] = &[
-    "id",
-    "match_id",
-    "player_id",
-    "event_kind",
-    "shifts_count",
-];
+const SHIFT_COLUMNS: &[&str] = &["id", "match_id", "player_id", "event_kind", "shifts_count"];
 
 const RUN_COLUMNS: &[&str] = &[
     "id",
@@ -109,28 +103,34 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerImpulseRow],
 ) -> PersistenceResult<()> {
-    execute_batch_insert(tx, "match_player_impulse", IMPULSE_COLUMNS, rows, |b, row| {
-        b.push_bind(&row.id);
-        b.push_bind(&row.match_id);
-        b.push_bind(&row.player_id);
-        b.push_bind(row.baseline);
-        b.push_bind(row.current_value);
-        b.push_bind(row.initial_value);
-        b.push_bind(row.min_value);
-        b.push_bind(row.max_value);
-        b.push_bind(row.average_value);
-        b.push_bind(row.shifts_count);
-        b.push_bind(row.positive_shifts);
-        b.push_bind(row.negative_shifts);
-        b.push_bind(row.time_below_baseline_seconds);
-        b.push_bind(row.critical_reached_count);
-        b.push_bind(row.runs_count);
-        b.push_bind(row.longest_run_duration_seconds);
-        b.push_bind(row.peak_run_value);
-        b.push_bind(row.total_integrated_run_intensity);
-        b.push_bind(row.average_run_duration_seconds);
-        b.push_bind(row.average_run_intensity);
-    })
+    execute_batch_insert(
+        tx,
+        "match_player_impulse",
+        IMPULSE_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(&row.player_id);
+            b.push_bind(row.baseline);
+            b.push_bind(row.current_value);
+            b.push_bind(row.initial_value);
+            b.push_bind(row.min_value);
+            b.push_bind(row.max_value);
+            b.push_bind(row.average_value);
+            b.push_bind(row.shifts_count);
+            b.push_bind(row.positive_shifts);
+            b.push_bind(row.negative_shifts);
+            b.push_bind(row.time_below_baseline_seconds);
+            b.push_bind(row.critical_reached_count);
+            b.push_bind(row.runs_count);
+            b.push_bind(row.longest_run_duration_seconds);
+            b.push_bind(row.peak_run_value);
+            b.push_bind(row.total_integrated_run_intensity);
+            b.push_bind(row.average_run_duration_seconds);
+            b.push_bind(row.average_run_intensity);
+        },
+    )
     .await
 }
 
@@ -466,7 +466,10 @@ pub async fn list_latest_by_player_ids(
         return Ok(Vec::new());
     }
 
-    let placeholders = std::iter::repeat("?").take(player_ids.len()).collect::<Vec<_>>().join(", ");
+    let placeholders = std::iter::repeat("?")
+        .take(player_ids.len())
+        .collect::<Vec<_>>()
+        .join(", ");
 
     let sql = format!(
         r#"SELECT

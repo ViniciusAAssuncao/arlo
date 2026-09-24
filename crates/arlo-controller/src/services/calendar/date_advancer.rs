@@ -1,11 +1,7 @@
 use crate::domain::calendar::{CalendarDate, CalendarSystem};
 use crate::services::calendar::year_length_calculator::total_days_in_year;
 
-pub fn advance(
-    calendar: &CalendarSystem,
-    date: &CalendarDate,
-    delta_days: i64,
-) -> CalendarDate {
+pub fn advance(calendar: &CalendarSystem, date: &CalendarDate, delta_days: i64) -> CalendarDate {
     let mut year = date.year();
     let mut day = date.day_of_year() as i64 + delta_days;
 

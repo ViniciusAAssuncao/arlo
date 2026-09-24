@@ -15,7 +15,9 @@ pub async fn create_new_save() -> DbResult<(SqlitePool, SaveMetadata)> {
     create_new_save_from_template("arlo.db").await
 }
 
-pub async fn create_new_save_from_template(template_filename: &str) -> DbResult<(SqlitePool, SaveMetadata)> {
+pub async fn create_new_save_from_template(
+    template_filename: &str,
+) -> DbResult<(SqlitePool, SaveMetadata)> {
     let uuid = Uuid::new_v4();
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)

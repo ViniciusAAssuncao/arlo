@@ -3,10 +3,7 @@ use crate::repositories::referee::referee_cache::get_or_load_referees;
 use arlo_domain::Referee;
 use sqlx::SqlitePool;
 
-pub async fn select_referees(
-    pool: &SqlitePool,
-    seed: u64,
-) -> ControllerResult<(Referee, Referee)> {
+pub async fn select_referees(pool: &SqlitePool, seed: u64) -> ControllerResult<(Referee, Referee)> {
     let referees = get_or_load_referees(pool).await?;
 
     if referees.len() < 2 {

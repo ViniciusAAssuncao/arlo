@@ -1,11 +1,12 @@
 use crate::error::{ControllerError, ControllerResult};
-use arlo_domain::{AttributeDefinition, AttributeTarget};
-use arlo_engine::attributes::AttributeKeyIndex;
+use arlo_domain::{AttributeDefinition, AttributeKey, AttributeTarget};
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 use tokio::sync::RwLock;
 use uuid::Uuid;
+
+pub type AttributeKeyIndex = HashMap<Uuid, AttributeKey>;
 
 static ATTRIBUTE_KEY_INDEX: LazyLock<RwLock<Option<Arc<AttributeKeyIndex>>>> =
     LazyLock::new(|| RwLock::new(None));
@@ -13,11 +14,13 @@ static ATTRIBUTE_KEY_INDEX: LazyLock<RwLock<Option<Arc<AttributeKeyIndex>>>> =
 static ATTRIBUTE_DEFINITIONS: LazyLock<RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>> =
     LazyLock::new(|| RwLock::new(None));
 
-static MANAGER_ATTRIBUTE_DEFINITIONS: LazyLock<RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>> =
-    LazyLock::new(|| RwLock::new(None));
+static MANAGER_ATTRIBUTE_DEFINITIONS: LazyLock<
+    RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>,
+> = LazyLock::new(|| RwLock::new(None));
 
-static REFEREE_ATTRIBUTE_DEFINITIONS: LazyLock<RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>> =
-    LazyLock::new(|| RwLock::new(None));
+static REFEREE_ATTRIBUTE_DEFINITIONS: LazyLock<
+    RwLock<Option<Arc<HashMap<Uuid, AttributeDefinition>>>>,
+> = LazyLock::new(|| RwLock::new(None));
 
 pub async fn get_or_load_attribute_key_index(
     pool: &SqlitePool,
@@ -38,7 +41,7 @@ pub async fn get_or_load_attribute_key_index(
         keys_by_id.insert(def.id(), def.key());
     }
 
-    let index = Arc::new(AttributeKeyIndex::from_map(&keys_by_id));
+    let index = Arc::new(keys_by_id);
 
     let mut write_guard = ATTRIBUTE_KEY_INDEX.write().await;
     if let Some(existing) = write_guard.as_ref() {
@@ -169,7 +172,7 @@ pub async fn refresh(pool: &SqlitePool) -> ControllerResult<Arc<AttributeKeyInde
         defs_by_id.insert(def.id(), def);
     }
 
-    let index = Arc::new(AttributeKeyIndex::from_map(&keys_by_id));
+    let index = Arc::new(keys_by_id);
     let defs_map = Arc::new(defs_by_id);
     let manager_defs_map = Arc::new(manager_defs_by_id);
     let referee_defs_map = Arc::new(referee_defs_by_id);

@@ -1,7 +1,5 @@
 use crate::dto::player_match::{
-    PlayerMatchImpulseDto,
-    PlayerMatchImpulseRunDto,
-    PlayerMatchImpulseShiftByKindDto,
+    PlayerMatchImpulseDto, PlayerMatchImpulseRunDto, PlayerMatchImpulseShiftByKindDto,
 };
 use crate::error::ControllerResult;
 use sqlx::SqlitePool;
@@ -10,14 +8,13 @@ use uuid::Uuid;
 pub async fn load_impulse_stats(
     pool: &SqlitePool,
     match_id: Uuid,
-    player_id: Uuid
+    player_id: Uuid,
 ) -> ControllerResult<Option<PlayerMatchImpulseDto>> {
     let impulse_row =
         arlo_persistence::repositories::match_player_impulse::get_by_match_id_and_player_id(
-            pool,
-            match_id,
-            player_id
-        ).await?;
+            pool, match_id, player_id,
+        )
+        .await?;
 
     let impulse_shift_rows =
         arlo_persistence::repositories::match_player_impulse::list_shifts_by_match_id_and_player_id(
@@ -28,10 +25,9 @@ pub async fn load_impulse_stats(
 
     let impulse_run_rows =
         arlo_persistence::repositories::match_player_impulse::list_runs_by_match_id_and_player_id(
-            pool,
-            match_id,
-            player_id
-        ).await?;
+            pool, match_id, player_id,
+        )
+        .await?;
 
     Ok(match impulse_row {
         Some(imp) => {

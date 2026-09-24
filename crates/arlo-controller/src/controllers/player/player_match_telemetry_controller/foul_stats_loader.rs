@@ -10,12 +10,11 @@ pub async fn load_foul_stats(
     expulsions: u32,
     time_penalties: u32,
 ) -> ControllerResult<PlayerFoulStatsDto> {
-    let foul_row = arlo_persistence::repositories::match_player_fouls::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let foul_row =
+        arlo_persistence::repositories::match_player_fouls::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     let foul_origin_rows = arlo_persistence::repositories::match_player_fouls::list_by_origin_by_match_id_and_player_id(
         pool,

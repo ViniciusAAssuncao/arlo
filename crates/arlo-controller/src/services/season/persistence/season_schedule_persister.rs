@@ -15,7 +15,8 @@ pub async fn persist_generated_season(
 ) -> ControllerResult<()> {
     let (season_row, stage_row, fixture_rows) = map_generated_season_to_rows(generated_season);
 
-    SeasonPersister::persist_season_schedule(pool, &season_row, &[stage_row], &fixture_rows).await?;
+    SeasonPersister::persist_season_schedule(pool, &season_row, &[stage_row], &fixture_rows)
+        .await?;
 
     Ok(())
 }
@@ -24,8 +25,7 @@ pub async fn persist_generated_stage_schedule(
     pool: &SqlitePool,
     generated_stage: &GeneratedStageSchedule,
 ) -> ControllerResult<()> {
-    let (stage_row, fixture_rows, tie_rows) =
-        map_generated_stage_schedule_to_rows(generated_stage);
+    let (stage_row, fixture_rows, tie_rows) = map_generated_stage_schedule_to_rows(generated_stage);
 
     SeasonPersister::persist_stage_schedule(pool, &stage_row, &fixture_rows, &tie_rows).await?;
 

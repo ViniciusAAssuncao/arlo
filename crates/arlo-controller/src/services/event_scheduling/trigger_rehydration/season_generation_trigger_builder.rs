@@ -16,12 +16,13 @@ pub async fn build_season_generation_triggers(
     let mut triggers = Vec::new();
 
     for config in configs {
-        let existing = arlo_persistence::repositories::season::season_instances::get_by_competition_and_year(
-            pool,
-            config.league_id(),
-            reference_year,
-        )
-        .await?;
+        let existing =
+            arlo_persistence::repositories::season::season_instances::get_by_competition_and_year(
+                pool,
+                config.league_id(),
+                reference_year,
+            )
+            .await?;
 
         if existing.is_some() {
             continue;
@@ -36,8 +37,7 @@ pub async fn build_season_generation_triggers(
         };
 
         let start_date = date_encoder::encode(calendar, &start_resolved)?;
-        let season_gen_date =
-            date_offset_calculator::subtract_months(calendar, &start_date, 1)?;
+        let season_gen_date = date_offset_calculator::subtract_months(calendar, &start_date, 1)?;
 
         triggers.push(PendingTrigger::new(
             season_gen_date,

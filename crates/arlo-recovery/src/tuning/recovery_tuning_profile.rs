@@ -1,5 +1,5 @@
-use arlo_domain::{ BodyRegion, InjurySeverityGrade };
-use serde::{ Deserialize, Serialize };
+use arlo_domain::{BodyRegion, InjurySeverityGrade};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct RecoveryTuningProfile {
@@ -138,9 +138,8 @@ impl RecoveryTuningProfile {
     }
 
     pub fn calculate_observation_days(&self, injury_recovery_days: u32) -> u32 {
-        let calculated = (
-            (injury_recovery_days as f64) * self.observation_duration_fraction
-        ).round() as u32;
+        let calculated =
+            ((injury_recovery_days as f64) * self.observation_duration_fraction).round() as u32;
         calculated.clamp(self.observation_min_days, self.observation_max_days)
     }
 
@@ -154,9 +153,9 @@ impl RecoveryTuningProfile {
 
     pub fn conditioning_fatigue_multiplier(&self, conditioning_score: f64) -> f64 {
         let clamped = conditioning_score.clamp(0.0, 1.0);
-        self.conditioning_recovery_multiplier_min +
-            clamped *
-                (self.conditioning_recovery_multiplier_max -
-                    self.conditioning_recovery_multiplier_min)
+        self.conditioning_recovery_multiplier_min
+            + clamped
+                * (self.conditioning_recovery_multiplier_max
+                    - self.conditioning_recovery_multiplier_min)
     }
 }

@@ -91,8 +91,7 @@ pub async fn advance_all_players_one_day(
     }
 
     let attr_defs = arlo_db::repositories::attribute_definition::list_all(pool).await?;
-    let mut attr_keys_by_id: HashMap<Uuid, AttributeKey> =
-        HashMap::with_capacity(attr_defs.len());
+    let mut attr_keys_by_id: HashMap<Uuid, AttributeKey> = HashMap::with_capacity(attr_defs.len());
     for def in attr_defs {
         attr_keys_by_id.insert(def.id(), def.key());
     }
@@ -275,9 +274,7 @@ pub async fn advance_all_players_one_day(
                         }
                     }
                     InjuryProgressionOutcome::FullyRecovered => {
-                        injury_action = Some(InjuryAction::MarkResolved {
-                            id: record.id(),
-                        });
+                        injury_action = Some(InjuryAction::MarkResolved { id: record.id() });
                     }
                 }
             }
@@ -355,12 +352,8 @@ pub async fn advance_all_players_one_day(
                     resolved_id,
                     relapse_row,
                 } => {
-                    player_injury_history::mark_resolved_with_tx(
-                        &mut tx,
-                        resolved_id,
-                        now_seconds,
-                    )
-                    .await?;
+                    player_injury_history::mark_resolved_with_tx(&mut tx, resolved_id, now_seconds)
+                        .await?;
                     player_injury_history::insert_with_tx(&mut tx, &relapse_row).await?;
                 }
                 InjuryAction::MarkResolved { id } => {

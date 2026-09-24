@@ -32,12 +32,7 @@ impl SeasonTiming {
             validate_integer_range(weekday as i32, 0, 31, "allowed_weekdays")?;
         }
 
-        validate_no_duplicate_keys(
-            &allowed_weekdays,
-            |w| *w,
-            "allowed_weekdays",
-            "weekday",
-        )?;
+        validate_no_duplicate_keys(&allowed_weekdays, |w| *w, "allowed_weekdays", "weekday")?;
 
         Ok(Self {
             start_month_order_index,

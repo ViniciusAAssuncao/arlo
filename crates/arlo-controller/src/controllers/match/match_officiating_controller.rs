@@ -1,4 +1,6 @@
-use crate::dto::r#match::{FoulOriginSummaryDto, MatchOfficiatingDto, RefereePerformanceSummaryDto};
+use crate::dto::r#match::{
+    FoulOriginSummaryDto, MatchOfficiatingDto, RefereePerformanceSummaryDto,
+};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::attribute::attribute_definition_cache::get_or_load_referee_attribute_definitions;
 use arlo_persistence::models::incidents::MatchFoulRow;
@@ -15,8 +17,8 @@ pub async fn get_match_officiating(
         .await?
         .ok_or_else(|| ControllerError::NotFound(format!("Match {} not found", match_id)))?;
 
-    let fouls = arlo_persistence::repositories::match_fouls::list_by_match_id(pool, match_id)
-        .await?;
+    let fouls =
+        arlo_persistence::repositories::match_fouls::list_by_match_id(pool, match_id).await?;
 
     build_officiating_summary(pool, &match_row, &fouls).await
 }
@@ -27,11 +29,10 @@ pub async fn build_officiating_summary(
     fouls: &[MatchFoulRow],
 ) -> ControllerResult<MatchOfficiatingDto> {
     let match_uuid = Uuid::parse_str(&match_row.id)?;
-    let perf_rows =
-        arlo_persistence::repositories::match_referee_performance::list_by_match_id(
-            pool, match_uuid,
-        )
-        .await?;
+    let perf_rows = arlo_persistence::repositories::match_referee_performance::list_by_match_id(
+        pool, match_uuid,
+    )
+    .await?;
 
     let referee_defs = get_or_load_referee_attribute_definitions(pool).await?;
 
@@ -100,12 +101,14 @@ pub async fn build_officiating_summary(
 
     let mut fouls_by_origin: Vec<FoulOriginSummaryDto> = origin_counts
         .into_iter()
-        .map(|(origin, (count, correct_count, incorrect_count))| FoulOriginSummaryDto {
-            origin,
-            count,
-            correct_count,
-            incorrect_count,
-        })
+        .map(
+            |(origin, (count, correct_count, incorrect_count))| FoulOriginSummaryDto {
+                origin,
+                count,
+                correct_count,
+                incorrect_count,
+            },
+        )
         .collect();
 
     fouls_by_origin.sort_by(|a, b| b.count.cmp(&a.count));

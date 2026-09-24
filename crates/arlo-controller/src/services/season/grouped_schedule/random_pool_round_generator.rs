@@ -19,8 +19,7 @@ pub fn generate_random_pool_rounds(
 
     for r in 0..rounds_count {
         let current_round = start_round_index + r;
-        let round_matches =
-            pair_random_pool_round(team_ids, current_round, &mut tracker, &mut rng);
+        let round_matches = pair_random_pool_round(team_ids, current_round, &mut tracker, &mut rng);
         all_matches.extend(round_matches);
     }
 

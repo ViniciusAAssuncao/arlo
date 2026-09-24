@@ -11,7 +11,9 @@ pub fn resolve_tie_winner(
         return Some(winner);
     }
 
-    let leg1 = fixtures.iter().find(|f| f.id() == tie.leg_one_fixture_id())?;
+    let leg1 = fixtures
+        .iter()
+        .find(|f| f.id() == tie.leg_one_fixture_id())?;
 
     if let Some(leg2_id) = tie.leg_two_fixture_id() {
         let leg2 = fixtures.iter().find(|f| f.id() == leg2_id)?;

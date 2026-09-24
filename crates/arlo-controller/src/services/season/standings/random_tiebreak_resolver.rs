@@ -13,10 +13,7 @@ pub fn seed_from_uuid(id: Uuid) -> u64 {
     u64::from_le_bytes(b1) ^ u64::from_le_bytes(b2)
 }
 
-pub fn resolve_random(
-    tied_group: &[StandingsEntry],
-    seed: u64,
-) -> Vec<StandingsEntry> {
+pub fn resolve_random(tied_group: &[StandingsEntry], seed: u64) -> Vec<StandingsEntry> {
     if tied_group.len() <= 1 {
         return tied_group.to_vec();
     }

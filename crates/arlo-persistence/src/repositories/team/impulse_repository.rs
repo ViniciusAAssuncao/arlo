@@ -141,18 +141,24 @@ pub async fn insert_runs_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchTeamImpulseRunRow],
 ) -> PersistenceResult<()> {
-    execute_batch_insert(tx, "match_team_impulse_runs", RUN_COLUMNS, rows, |b, row| {
-        b.push_bind(&row.id);
-        b.push_bind(&row.match_id);
-        b.push_bind(&row.team_id);
-        b.push_bind(row.run_index);
-        b.push_bind(row.start_time_seconds);
-        b.push_bind(row.end_time_seconds);
-        b.push_bind(row.duration_seconds);
-        b.push_bind(row.peak_average_value);
-        b.push_bind(row.integrated_intensity);
-        b.push_bind(row.average_intensity);
-    })
+    execute_batch_insert(
+        tx,
+        "match_team_impulse_runs",
+        RUN_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(&row.team_id);
+            b.push_bind(row.run_index);
+            b.push_bind(row.start_time_seconds);
+            b.push_bind(row.end_time_seconds);
+            b.push_bind(row.duration_seconds);
+            b.push_bind(row.peak_average_value);
+            b.push_bind(row.integrated_intensity);
+            b.push_bind(row.average_intensity);
+        },
+    )
     .await
 }
 

@@ -4,19 +4,12 @@ use crate::error::{ControllerError, ControllerResult};
 use crate::services::season::grouped_schedule::cross_group_pairing_generator::generate_cross_group_pairings;
 use crate::services::season::grouped_schedule::random_pool_round_generator::generate_random_pool_rounds;
 use crate::services::season::round_robin::{
-    assign_dates,
-    expand_double_round_robin,
-    generate_single_round_robin,
-    resolve_neutral_opener,
+    assign_dates, expand_double_round_robin, generate_single_round_robin, resolve_neutral_opener,
     RoundRobinMatch,
 };
 use crate::services::season::stage::stage_schedule_generator::GeneratedStageSchedule;
 use arlo_domain::{
-    CompetitionGroup,
-    LeagueCalendarConfig,
-    ScheduleAlgorithmKind,
-    ScheduleBlock,
-    StageDefinition,
+    CompetitionGroup, LeagueCalendarConfig, ScheduleAlgorithmKind, ScheduleBlock, StageDefinition,
 };
 use uuid::Uuid;
 
@@ -29,20 +22,16 @@ pub fn generate_grouped_schedule(
     anchor_date: CalendarDate,
     start_round_index: u32,
 ) -> ControllerResult<GeneratedStageSchedule> {
-    let schedule_blocks = stage_def
-        .schedule_blocks()
-        .ok_or_else(|| {
-            ControllerError::Validation(
-                "StageDefinition must have schedule_blocks for GroupedCompetitionTable".to_string(),
-            )
-        })?;
+    let schedule_blocks = stage_def.schedule_blocks().ok_or_else(|| {
+        ControllerError::Validation(
+            "StageDefinition must have schedule_blocks for GroupedCompetitionTable".to_string(),
+        )
+    })?;
 
     if schedule_blocks.is_empty() {
-        return Err(
-            ControllerError::Validation(
-                "schedule_blocks must not be empty for GroupedCompetitionTable".to_string(),
-            ),
-        );
+        return Err(ControllerError::Validation(
+            "schedule_blocks must not be empty for GroupedCompetitionTable".to_string(),
+        ));
     }
 
     let find_group = |group_id: Uuid| -> ControllerResult<&CompetitionGroup> {
@@ -65,8 +54,10 @@ pub fn generate_grouped_schedule(
             ScheduleBlock::GroupRoundRobin { .. } => {
                 let mut max_rounds_in_batch = 0;
                 while i < schedule_blocks.len() {
-                    if let ScheduleBlock::GroupRoundRobin { group_id, algorithm } =
-                        &schedule_blocks[i]
+                    if let ScheduleBlock::GroupRoundRobin {
+                        group_id,
+                        algorithm,
+                    } = &schedule_blocks[i]
                     {
                         let group = find_group(*group_id)?;
                         let single_leg = generate_single_round_robin(group.team_ids());
@@ -105,7 +96,11 @@ pub fn generate_grouped_schedule(
                 }
                 current_round_index += max_rounds_in_batch;
             }
-            ScheduleBlock::CrossGroupPairing { group_a_id, group_b_id, mirrored } => {
+            ScheduleBlock::CrossGroupPairing {
+                group_a_id,
+                group_b_id,
+                mirrored,
+            } => {
                 let group_a = find_group(*group_a_id)?;
                 let group_b = find_group(*group_b_id)?;
                 let pairings = generate_cross_group_pairings(
@@ -121,11 +116,8 @@ pub fn generate_grouped_schedule(
             }
             ScheduleBlock::RandomPoolRounds { pool, rounds_count } => {
                 let team_ids = pool.resolve(config.groups());
-                let pool_matches = generate_random_pool_rounds(
-                    &team_ids,
-                    current_round_index,
-                    *rounds_count,
-                );
+                let pool_matches =
+                    generate_random_pool_rounds(&team_ids, current_round_index, *rounds_count);
                 current_round_index += *rounds_count;
                 all_matches.extend(pool_matches);
                 i += 1;
@@ -145,20 +137,18 @@ pub fn generate_grouped_schedule(
 
     let mut fixtures = Vec::with_capacity(scheduled_matches.len());
     for sm in scheduled_matches {
-        fixtures.push(
-            Fixture::new(
-                Uuid::new_v4(),
-                stage_instance_id,
-                sm.round_index,
-                sm.home_team_id,
-                sm.away_team_id,
-                sm.is_neutral_venue,
-                None,
-                sm.scheduled_date,
-                FixtureStatus::Scheduled,
-                None,
-            ),
-        );
+        fixtures.push(Fixture::new(
+            Uuid::new_v4(),
+            stage_instance_id,
+            sm.round_index,
+            sm.home_team_id,
+            sm.away_team_id,
+            sm.is_neutral_venue,
+            None,
+            sm.scheduled_date,
+            FixtureStatus::Scheduled,
+            None,
+        ));
     }
 
     let stage_instance = SeasonStageInstance::new(

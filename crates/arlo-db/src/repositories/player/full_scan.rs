@@ -7,9 +7,7 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-async fn load_positions_map(
-    pool: &SqlitePool,
-) -> DbResult<HashMap<Uuid, Vec<PlayerPosition>>> {
+async fn load_positions_map(pool: &SqlitePool) -> DbResult<HashMap<Uuid, Vec<PlayerPosition>>> {
     let pos_rows = fetch_all::<PlayerPositionRow>(
         pool,
         "SELECT player_id, position, proficiency FROM player_positions",

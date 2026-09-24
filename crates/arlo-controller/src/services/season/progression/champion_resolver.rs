@@ -22,10 +22,7 @@ pub async fn resolve_season_champion(
     )
     .await?
     .ok_or_else(|| {
-        ControllerError::NotFound(format!(
-            "Season instance {} not found",
-            season_instance_id
-        ))
+        ControllerError::NotFound(format!("Season instance {} not found", season_instance_id))
     })?;
 
     let reference_year = season_row.reference_year;
@@ -53,11 +50,12 @@ pub async fn resolve_season_champion(
                 ))
             })?;
 
-        let stages = arlo_persistence::repositories::season::season_stages::list_by_season_instance_id(
-            pool,
-            season_instance_id,
-        )
-        .await?;
+        let stages =
+            arlo_persistence::repositories::season::season_stages::list_by_season_instance_id(
+                pool,
+                season_instance_id,
+            )
+            .await?;
 
         let stage_row = stages
             .iter()
@@ -75,11 +73,11 @@ pub async fn resolve_season_champion(
         match last_stage_def.stage_type() {
             StageType::KnockoutBracket => {
                 let ties: Vec<KnockoutTie> = load_stage_knockout_ties(pool, stage_id).await?;
-                let fixture_rows = arlo_persistence::repositories::season::fixtures::list_by_stage_id(
-                    pool,
-                    stage_id,
-                )
-                .await?;
+                let fixture_rows =
+                    arlo_persistence::repositories::season::fixtures::list_by_stage_id(
+                        pool, stage_id,
+                    )
+                    .await?;
                 let mut fixtures = Vec::with_capacity(fixture_rows.len());
                 for row in &fixture_rows {
                     fixtures.push(map_row_to_fixture(row)?);

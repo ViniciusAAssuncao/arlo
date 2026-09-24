@@ -16,23 +16,15 @@ pub async fn get_match_summary(
         .await?
         .ok_or_else(|| ControllerError::NotFound(format!("Match {} not found", match_id)))?;
 
-    let team_scores = arlo_persistence::repositories::match_team_score::list_by_match_id(
-        pool,
-        match_id,
-    )
-    .await?;
+    let team_scores =
+        arlo_persistence::repositories::match_team_score::list_by_match_id(pool, match_id).await?;
 
-    let scoring_plays = arlo_persistence::repositories::match_scoring_plays::list_by_match_id(
-        pool,
-        match_id,
-    )
-    .await?;
+    let scoring_plays =
+        arlo_persistence::repositories::match_scoring_plays::list_by_match_id(pool, match_id)
+            .await?;
 
-    let added_time_records = arlo_persistence::repositories::match_added_time::list_by_match_id(
-        pool,
-        match_id,
-    )
-    .await?;
+    let added_time_records =
+        arlo_persistence::repositories::match_added_time::list_by_match_id(pool, match_id).await?;
 
     build_match_summary_with_incidents(
         pool,
@@ -109,16 +101,18 @@ pub async fn build_match_summary_with_incidents(
     let peace_referee_uuid = Uuid::parse_str(&match_row.peace_referee_id)?;
     let referee_defs = get_or_load_referee_attribute_definitions(pool).await?;
 
-    let head_ref = arlo_db::repositories::referee::get_by_id(pool, head_referee_uuid, &referee_defs)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let head_ref =
+        arlo_db::repositories::referee::get_by_id(pool, head_referee_uuid, &referee_defs)
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
     let head_referee_name = head_ref
         .map(|r| r.person().name().to_string())
         .unwrap_or_else(|| "Árbitro Principal".to_string());
 
-    let peace_ref = arlo_db::repositories::referee::get_by_id(pool, peace_referee_uuid, &referee_defs)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let peace_ref =
+        arlo_db::repositories::referee::get_by_id(pool, peace_referee_uuid, &referee_defs)
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
     let peace_referee_name = peace_ref
         .map(|r| r.person().name().to_string())
         .unwrap_or_else(|| "Árbitro de Paz".to_string());

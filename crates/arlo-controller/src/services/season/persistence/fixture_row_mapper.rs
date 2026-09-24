@@ -9,11 +9,7 @@ pub fn map_row_to_fixture(row: &FixtureRow) -> ControllerResult<Fixture> {
     let season_stage_id = Uuid::parse_str(&row.season_stage_id)?;
     let home_team_id = Uuid::parse_str(&row.home_team_id)?;
     let away_team_id = Uuid::parse_str(&row.away_team_id)?;
-    let venue_id = row
-        .venue_id
-        .as_deref()
-        .map(Uuid::parse_str)
-        .transpose()?;
+    let venue_id = row.venue_id.as_deref().map(Uuid::parse_str).transpose()?;
 
     let status = match row.status.as_str() {
         "Scheduled" => FixtureStatus::Scheduled,

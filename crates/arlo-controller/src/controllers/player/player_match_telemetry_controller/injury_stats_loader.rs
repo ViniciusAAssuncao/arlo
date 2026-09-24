@@ -8,12 +8,11 @@ pub async fn load_injury_stats(
     match_id: Uuid,
     player_id: Uuid,
 ) -> ControllerResult<PlayerMatchInjuryDto> {
-    let injury_row = arlo_persistence::repositories::match_player_injuries::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let injury_row =
+        arlo_persistence::repositories::match_player_injuries::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     let injury_body_region_rows = arlo_persistence::repositories::match_player_injuries::list_by_body_region_by_match_id_and_player_id(
         pool,

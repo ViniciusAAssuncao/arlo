@@ -8,12 +8,11 @@ pub async fn load_drive_stats(
     match_id: Uuid,
     player_id: Uuid,
 ) -> ControllerResult<PlayerDriveStatsDto> {
-    let drive_row = arlo_persistence::repositories::match_player_drives::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let drive_row =
+        arlo_persistence::repositories::match_player_drives::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     Ok(match drive_row {
         Some(r) => PlayerDriveStatsDto {

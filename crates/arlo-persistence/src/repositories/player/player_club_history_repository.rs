@@ -3,10 +3,7 @@ use crate::models::player::player_club_history_row::PlayerClubHistoryRow;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-pub async fn insert(
-    pool: &SqlitePool,
-    row: &PlayerClubHistoryRow,
-) -> PersistenceResult<()> {
+pub async fn insert(pool: &SqlitePool, row: &PlayerClubHistoryRow) -> PersistenceResult<()> {
     sqlx::query(
         "INSERT INTO player_club_history (id, player_id, team_id, joined_year, left_year, created_at_unix_seconds) VALUES (?, ?, ?, ?, ?, ?)",
     )

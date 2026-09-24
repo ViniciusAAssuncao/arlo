@@ -7,9 +7,7 @@ use tokio::sync::RwLock;
 static FORMATIONS_CACHE: LazyLock<RwLock<Option<Arc<Vec<Formation>>>>> =
     LazyLock::new(|| RwLock::new(None));
 
-pub async fn get_or_load_formations(
-    pool: &SqlitePool,
-) -> ControllerResult<Arc<Vec<Formation>>> {
+pub async fn get_or_load_formations(pool: &SqlitePool) -> ControllerResult<Arc<Vec<Formation>>> {
     {
         let read_guard = FORMATIONS_CACHE.read().await;
         if let Some(formations) = read_guard.as_ref() {

@@ -53,14 +53,9 @@ pub async fn resolve_lineup_candidates_with_caution(
 
     let player_ids: Vec<Uuid> = players.iter().map(|p| p.id()).collect();
     let tuning = ReadinessTuningProfile::default();
-    let readiness_map = resolve_batch_readiness(
-        pool,
-        &player_ids,
-        current_unix_seconds,
-        &tuning,
-    )
-    .await
-    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let readiness_map = resolve_batch_readiness(pool, &player_ids, current_unix_seconds, &tuning)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
 
     let key_index = get_or_load_attribute_key_index(pool).await?;
     let mut player_ca = HashMap::with_capacity(players.len());
@@ -86,7 +81,9 @@ pub async fn resolve_lineup_candidates_with_caution(
     cautious_player_ids.sort_by(|a, b| {
         let score_a = readiness_map.get(a).map_or(1.0, |r| r.score);
         let score_b = readiness_map.get(b).map_or(1.0, |r| r.score);
-        score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
+        score_a
+            .partial_cmp(&score_b)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     let mut available_candidates: Vec<Player> = players.to_vec();

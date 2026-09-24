@@ -14,12 +14,11 @@ pub async fn load_punishment_stats(
     match_id: Uuid,
     player_id: Uuid,
 ) -> ControllerResult<PunishmentStatsResult> {
-    let punishment_row = arlo_persistence::repositories::match_player_punishments::get_by_match_id_and_player_id(
-        pool,
-        match_id,
-        player_id,
-    )
-    .await?;
+    let punishment_row =
+        arlo_persistence::repositories::match_player_punishments::get_by_match_id_and_player_id(
+            pool, match_id, player_id,
+        )
+        .await?;
 
     let (expulsion_count, time_penalty_count) = match &punishment_row {
         Some(p) => (p.expulsion_count as u32, p.time_penalty_count as u32),

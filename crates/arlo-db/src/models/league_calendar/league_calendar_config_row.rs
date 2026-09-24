@@ -75,10 +75,8 @@ impl LeagueCalendarConfigRow {
             GamesPerWeekPolicy::new(self.max_games_per_team_per_week as u32, conflict_scope)?;
         let rest_gap_conflict_scope =
             parse_games_per_week_conflict_scope(&self.rest_gap_conflict_scope)?;
-        let rest_gap_policy = RestGapPolicy::new(
-            self.minimum_rest_gap_days as u32,
-            rest_gap_conflict_scope,
-        )?;
+        let rest_gap_policy =
+            RestGapPolicy::new(self.minimum_rest_gap_days as u32, rest_gap_conflict_scope)?;
         let postponement_strategy =
             parse_postponement_strategy_kind(&self.postponement_strategy_kind)?;
         let postponement = PostponementPolicy::new(postponement_strategy);
@@ -143,7 +141,9 @@ impl LeagueCalendarConfigRow {
             LeagueMovementRuleKind::None => LeagueMovementRule::None,
             LeagueMovementRuleKind::Automatic => {
                 let count = self.relegation_count.ok_or_else(|| {
-                    DbError::InvalidData("Automatic relegation requires relegation_count".to_string())
+                    DbError::InvalidData(
+                        "Automatic relegation requires relegation_count".to_string(),
+                    )
                 })?;
                 LeagueMovementRule::Automatic {
                     count: count as u32,

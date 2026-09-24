@@ -35,12 +35,10 @@ pub fn find_next_valid_date_for_fixture(
         if !allowed_weekdays.is_empty() {
             let resolved = date_resolver::resolve(calendar, &candidate_date);
             let weekday = match resolved {
-                ResolvedCalendarDate::RegularDay {
-                    week_day_index, ..
-                } => week_day_index,
-                ResolvedCalendarDate::IntercalaryDay {
-                    week_day_index, ..
-                } => week_day_index.unwrap_or(0),
+                ResolvedCalendarDate::RegularDay { week_day_index, .. } => week_day_index,
+                ResolvedCalendarDate::IntercalaryDay { week_day_index, .. } => {
+                    week_day_index.unwrap_or(0)
+                }
             };
             if !allowed_weekdays.contains(&weekday) {
                 continue;
@@ -94,12 +92,10 @@ pub fn find_next_valid_date_for_team(
         if !allowed_weekdays.is_empty() {
             let resolved = date_resolver::resolve(calendar, &candidate_date);
             let weekday = match resolved {
-                ResolvedCalendarDate::RegularDay {
-                    week_day_index, ..
-                } => week_day_index,
-                ResolvedCalendarDate::IntercalaryDay {
-                    week_day_index, ..
-                } => week_day_index.unwrap_or(0),
+                ResolvedCalendarDate::RegularDay { week_day_index, .. } => week_day_index,
+                ResolvedCalendarDate::IntercalaryDay { week_day_index, .. } => {
+                    week_day_index.unwrap_or(0)
+                }
             };
             if !allowed_weekdays.contains(&weekday) {
                 continue;

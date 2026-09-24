@@ -15,8 +15,7 @@ pub async fn get_calendar_system(
 
 pub async fn list_calendar_systems(pool: &SqlitePool) -> ControllerResult<Vec<CalendarSystemDto>> {
     let catalog = get_or_load_calendar_catalog(pool).await?;
-    let mut systems: Vec<CalendarSystemDto> =
-        catalog.all().map(CalendarSystemDto::from).collect();
+    let mut systems: Vec<CalendarSystemDto> = catalog.all().map(CalendarSystemDto::from).collect();
     systems.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(systems)
 }
@@ -29,10 +28,7 @@ pub async fn get_month_view(
 ) -> ControllerResult<CalendarMonthViewDto> {
     let catalog = get_or_load_calendar_catalog(pool).await?;
     let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
-        ControllerError::NotFound(format!(
-            "Calendar system {} not found",
-            calendar_system_id
-        ))
+        ControllerError::NotFound(format!("Calendar system {} not found", calendar_system_id))
     })?;
     build_month_view(calendar, year, month_order_index)
 }

@@ -3,7 +3,10 @@ use arlo_domain::CollectiveAgreement;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> ControllerResult<Option<CollectiveAgreement>> {
+pub async fn get_by_id(
+    pool: &SqlitePool,
+    id: Uuid,
+) -> ControllerResult<Option<CollectiveAgreement>> {
     arlo_db::repositories::collective_agreement::get_by_id(pool, id)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))

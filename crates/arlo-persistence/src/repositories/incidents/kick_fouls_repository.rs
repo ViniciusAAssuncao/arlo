@@ -59,16 +59,22 @@ pub async fn insert_awards_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchKickFoulAwardRow],
 ) -> PersistenceResult<()> {
-    execute_batch_insert(tx, "match_kick_foul_awards", AWARD_COLUMNS, rows, |b, row| {
-        b.push_bind(&row.id);
-        b.push_bind(&row.match_id);
-        b.push_bind(row.sequence_number);
-        b.push_bind(row.period);
-        b.push_bind(row.seconds_in_period);
-        b.push_bind(&row.awarded_team_id);
-        b.push_bind(&row.offending_team_id);
-        b.push_bind(&row.scoring_tier);
-    })
+    execute_batch_insert(
+        tx,
+        "match_kick_foul_awards",
+        AWARD_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(row.sequence_number);
+            b.push_bind(row.period);
+            b.push_bind(row.seconds_in_period);
+            b.push_bind(&row.awarded_team_id);
+            b.push_bind(&row.offending_team_id);
+            b.push_bind(&row.scoring_tier);
+        },
+    )
     .await
 }
 
