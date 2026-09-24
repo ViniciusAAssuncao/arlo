@@ -1,6 +1,6 @@
 use crate::error::{EngineError, EngineResult};
 use crate::input::{MatchInput, TeamInput};
-use arlo_domain::{AttributeKey, Player, Position};
+use arlo_domain::{AttributeKey, Player, Position, PositionLine};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -91,15 +91,39 @@ impl RatingIndex {
     }
 
     pub(super) fn team_ratings(&self, team: &TeamInput) -> EngineResult<TeamRatings> {
-        let offense = 0.25 * self.specialist(team, Position::Passer, AttributeKey::Passing)?
-            + 0.25 * self.specialist(team, Position::Passer, AttributeKey::Decisions)?
-            + 0.25 * self.specialist(team, Position::Artrine, AttributeKey::ArloControl)?
-            + 0.25 * self.active_average(team, AttributeKey::OffensiveBlocking, true)?;
+        let offense = 0.20 * self.specialist(team, Position::Passer, AttributeKey::Passing)?
+            + 0.20 * self.specialist(team, Position::Passer, AttributeKey::Decisions)?
+            + 0.20 * self.specialist(team, Position::Artrine, AttributeKey::ArloControl)?
+            + 0.20 * self.active_average(team, AttributeKey::OffensiveBlocking, true)?
+            + 0.20 * self.frontline_attack(team)?;
         let defense = 0.50
             * self.active_average(team, AttributeKey::DefensiveContainment, false)?
             + 0.25 * self.active_average(team, AttributeKey::PasserPressure, false)?
             + 0.25 * self.active_average(team, AttributeKey::Pace, false)?;
         Ok(TeamRatings { offense, defense })
+    }
+
+    fn frontline_attack(&self, team: &TeamInput) -> EngineResult<f64> {
+        let mut total = 0.0;
+        let mut count = 0u32;
+        for assignment in team.lineup().assignments() {
+            if assignment.position().line() != PositionLine::OffensiveLine {
+                continue;
+            }
+            let player_id = assignment.player_id();
+            total += 0.45 * self.player_value(team, player_id, AttributeKey::Finishing)?
+                + 0.30 * self.player_value(team, player_id, AttributeKey::Positioning)?
+                + 0.25 * self.player_value(team, player_id, AttributeKey::Anticipation)?;
+            count += 1;
+        }
+        if count == 0 {
+            return Ok(
+                0.45 * self.active_average(team, AttributeKey::Finishing, true)?
+                    + 0.30 * self.active_average(team, AttributeKey::Positioning, true)?
+                    + 0.25 * self.active_average(team, AttributeKey::Anticipation, true)?,
+            );
+        }
+        Ok(total / f64::from(count))
     }
 }
 

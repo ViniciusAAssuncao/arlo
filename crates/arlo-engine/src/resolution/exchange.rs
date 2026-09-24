@@ -47,6 +47,11 @@ pub(super) fn resolve_exchange(
         holder_id,
         previous_holder_id,
         selected_play_call,
+        if offense.team_id() == state.home().team_id() {
+            state.home().drive_progress().completed_drives() > 0
+        } else {
+            state.away().drive_progress().completed_drives() > 0
+        },
         state.rng_mut(),
     )?;
     let defender_id = select_actor(
@@ -98,6 +103,6 @@ pub(super) fn resolve_exchange(
         false,
         reception.distance_mirim,
     )))?);
-    state.set_carrier(receiver_id)?;
+    state.complete_pass(holder_id, receiver_id)?;
     Ok(ExchangeOutcome::Retained(receiver_id))
 }

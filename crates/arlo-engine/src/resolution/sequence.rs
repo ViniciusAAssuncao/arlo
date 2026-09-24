@@ -142,7 +142,12 @@ pub(super) fn resolve_sequence(
             }
         }
         end_mirim = next_mirim;
-        if action_index + 1 < action_count {
+        let has_drive = if context.is_home {
+            state.home().drive_progress().completed_drives() > 0
+        } else {
+            state.away().drive_progress().completed_drives() > 0
+        };
+        if action_index + 1 < action_count || has_drive {
             let exchange = resolve_exchange(
                 context.ratings,
                 context.offense,

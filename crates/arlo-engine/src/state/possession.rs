@@ -7,6 +7,7 @@ pub struct PossessionState {
     next_call_team_id: Uuid,
     ball_position_mirim: f64,
     carrier_id: Option<Uuid>,
+    last_passer_id: Option<Uuid>,
 }
 
 impl PossessionState {
@@ -21,6 +22,7 @@ impl PossessionState {
             next_call_team_id: team_id,
             ball_position_mirim,
             carrier_id: None,
+            last_passer_id: None,
         })
     }
 
@@ -38,9 +40,26 @@ impl PossessionState {
         self.carrier_id
     }
 
+    pub fn last_passer_id(&self) -> Option<Uuid> {
+        self.last_passer_id
+    }
+
     pub(crate) fn with_carrier(self, carrier_id: Uuid) -> Self {
         Self {
             carrier_id: Some(carrier_id),
+            last_passer_id: if self.carrier_id == Some(carrier_id) {
+                self.last_passer_id
+            } else {
+                None
+            },
+            ..self
+        }
+    }
+
+    pub(crate) fn with_completed_pass(self, passer_id: Uuid, receiver_id: Uuid) -> Self {
+        Self {
+            carrier_id: Some(receiver_id),
+            last_passer_id: Some(passer_id),
             ..self
         }
     }
@@ -48,6 +67,7 @@ impl PossessionState {
     pub(crate) fn without_carrier(self) -> Self {
         Self {
             carrier_id: None,
+            last_passer_id: None,
             ..self
         }
     }
@@ -61,6 +81,7 @@ impl PossessionState {
         Ok(Self {
             possessor_team_id: team_id,
             carrier_id: None,
+            last_passer_id: None,
             ..self
         })
     }
@@ -70,6 +91,11 @@ impl PossessionState {
             possessor_team_id: team_id,
             carrier_id: if team_id == self.possessor_team_id {
                 self.carrier_id
+            } else {
+                None
+            },
+            last_passer_id: if team_id == self.possessor_team_id {
+                self.last_passer_id
             } else {
                 None
             },
@@ -101,6 +127,7 @@ impl PossessionState {
             next_call_team_id: team_id,
             ball_position_mirim: position_mirim,
             carrier_id: None,
+            last_passer_id: None,
         })
     }
 

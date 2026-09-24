@@ -92,6 +92,9 @@ impl MatchState {
     pub fn carrier_id(&self) -> Option<Uuid> {
         self.possession.carrier_id()
     }
+    pub fn last_passer_id(&self) -> Option<Uuid> {
+        self.possession.last_passer_id()
+    }
     pub fn series(&self) -> SeriesState {
         self.series
     }
@@ -118,6 +121,22 @@ impl MatchState {
             ));
         }
         self.possession = self.possession.with_carrier(player_id);
+        Ok(())
+    }
+
+    pub(crate) fn complete_pass(&mut self, passer_id: Uuid, receiver_id: Uuid) -> EngineResult<()> {
+        let active = self.team(self.possessor_team_id())?.active_player_ids();
+        if self.phase != MatchPhase::Live
+            || passer_id == receiver_id
+            || self.carrier_id().is_some_and(|carrier_id| carrier_id != passer_id)
+            || !active.contains(&passer_id)
+            || !active.contains(&receiver_id)
+        {
+            return Err(EngineError::InvalidTransition(
+                "completed pass requires active teammates and the current carrier".into(),
+            ));
+        }
+        self.possession = self.possession.with_completed_pass(passer_id, receiver_id);
         Ok(())
     }
 

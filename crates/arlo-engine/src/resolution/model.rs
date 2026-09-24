@@ -45,9 +45,11 @@ pub(super) fn sample_call(
         .value();
     let contest_probability = (0.16 + pressing * 0.32 + carry_bias * 0.08).clamp(0.10, 0.55);
     let contested = rng.gen_range(0.0..1.0) < contest_probability;
-    let carrier_ability = (ratings.player_value(offense, carrier_id, AttributeKey::ArloControl)?
-        + ratings.player_value(offense, carrier_id, AttributeKey::Dribbling)?)
-        * 0.5;
+    let carrier_ability =
+        0.45 * ratings.player_value(offense, carrier_id, AttributeKey::ArloControl)?
+            + 0.35 * ratings.player_value(offense, carrier_id, AttributeKey::Dribbling)?
+            + 0.10 * ratings.player_value(offense, carrier_id, AttributeKey::Balance)?
+            + 0.10 * ratings.player_value(offense, carrier_id, AttributeKey::Acceleration)?;
     let defender_ability =
         (ratings.player_value(defense, defender_id, AttributeKey::DefensiveContainment)?
             + ratings.player_value(defense, defender_id, AttributeKey::Pace)?)

@@ -21,7 +21,7 @@ pub(super) fn select_actor(
     exclude: Option<Uuid>,
     rng: &mut ChaCha8Rng,
 ) -> EngineResult<Uuid> {
-    select_weighted_actor(ratings, team, role, exclude, rng, |_| 1.0)
+    select_weighted_actor(ratings, team, role, exclude, rng, |_| Ok(1.0))
 }
 
 pub(super) fn select_receiver(
@@ -30,6 +30,7 @@ pub(super) fn select_receiver(
     holder_id: Uuid,
     previous_holder_id: Option<Uuid>,
     selected_play_call: Option<&PlayCall>,
+    has_drive: bool,
     rng: &mut ChaCha8Rng,
 ) -> EngineResult<Uuid> {
     select_weighted_actor(
@@ -54,7 +55,22 @@ pub(super) fn select_receiver(
                         .map_or(0.6, |route| 1.0 + 2.0 * route.read_priority().value())
                 }
             });
-            return_weight * route_weight
+            let threat_weight = if has_drive && assignment.position().line() == PositionLine::OffensiveLine {
+                let finisher = 0.5
+                    * ratings.player_value(team, assignment.player_id(), AttributeKey::Finishing)?
+                    + 0.3
+                        * ratings.player_value(
+                            team,
+                            assignment.player_id(),
+                            AttributeKey::Anticipation,
+                        )?
+                    + 0.2
+                        * ratings.player_value(team, assignment.player_id(), AttributeKey::Composure)?;
+                (1.0 + (finisher - 10.0) * 0.025).clamp(0.75, 1.25)
+            } else {
+                1.0
+            };
+            Ok(return_weight * route_weight * threat_weight)
         },
     )
 }
@@ -65,7 +81,7 @@ fn select_weighted_actor(
     role: ActorRole,
     exclude: Option<Uuid>,
     rng: &mut ChaCha8Rng,
-    extra_weight: impl Fn(&SlotAssignment) -> f64,
+    extra_weight: impl Fn(&SlotAssignment) -> EngineResult<f64>,
 ) -> EngineResult<Uuid> {
     let mut candidates = Vec::with_capacity(team.lineup().assignments().len());
     let mut total_weight = 0.0;
@@ -82,9 +98,10 @@ fn select_weighted_actor(
                     * 0.5
             }
             ActorRole::Receiver => {
-                (ratings.player_value(team, player_id, AttributeKey::HandsReception)?
-                    + ratings.player_value(team, player_id, AttributeKey::Positioning)?)
-                    * 0.5
+                0.35 * ratings.player_value(team, player_id, AttributeKey::HandsReception)?
+                    + 0.30 * ratings.player_value(team, player_id, AttributeKey::Positioning)?
+                    + 0.20 * ratings.player_value(team, player_id, AttributeKey::Anticipation)?
+                    + 0.15 * ratings.player_value(team, player_id, AttributeKey::Acceleration)?
             }
             ActorRole::Defender => {
                 (ratings.player_value(team, player_id, AttributeKey::DefensiveContainment)?
@@ -134,7 +151,7 @@ fn select_weighted_actor(
             * specialist_weight
             * tactical_weight
             * (0.5 + aptitude.max(0.0) / 20.0)
-            * extra_weight(assignment);
+            * extra_weight(assignment)?;
         total_weight += weight;
         candidates.push((player_id, total_weight));
     }

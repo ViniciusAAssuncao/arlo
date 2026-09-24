@@ -56,6 +56,7 @@ pub(super) fn resolve_regular_attempt(
         return Ok(false);
     };
     let shooter_id = sample.shooter_id;
+    let assister_id = state.last_passer_id().filter(|passer_id| *passer_id != shooter_id);
     if sample.converted {
         let pending = state.pending_call_outcome();
         let territory_advance = if state.series().team_id() == team_id {
@@ -72,7 +73,7 @@ pub(super) fn resolve_regular_attempt(
         state.apply_score(team_id, kind)?;
         let event = match sample.post {
             ScoringPost::Goalpost => MatchEvent::GoalPoint(GoalPointScored::new(
-                team_id, shooter_id, artrine_id, None, drives,
+                team_id, shooter_id, artrine_id, assister_id, drives,
             )),
             ScoringPost::Fieldpost => MatchEvent::FieldPoint(FieldPointScored::new(
                 team_id,

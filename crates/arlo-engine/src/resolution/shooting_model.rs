@@ -75,18 +75,35 @@ pub(super) fn sample_regular_shot(
     let emphasis = selected_play_call
         .map(|call| *call.decision_emphasis())
         .unwrap_or_else(|| offense.tactics().instructions().default_decision_emphasis());
+    let finishing = ratings.player_value(offense, shooter_id, AttributeKey::Finishing)?;
+    let composure = ratings.player_value(offense, shooter_id, AttributeKey::Composure)?;
+    let anticipation = ratings.player_value(offense, shooter_id, AttributeKey::Anticipation)?;
+    let shooter_readiness =
+        ((0.50 * finishing + 0.30 * composure + 0.20 * anticipation - 10.0) / 10.0)
+            .clamp(-0.8, 1.0);
     let proximity = 1.0 - (distance_to_goal_mirim / pitch_length_mirim).clamp(0.0, 1.0);
+    let patience = offense
+        .tactics()
+        .instructions()
+        .in_possession()
+        .scoring_patience()
+        .value();
     let attempt_probability = (BASE_SHOT_ATTEMPT_PROBABILITY
         + emphasis.self_finish().value() * FINISH_EMPHASIS_SHOT_WEIGHT
+        + shooter_readiness * SHOOTER_READINESS_ATTEMPT_WEIGHT
         + proximity * TERRITORY_SHOT_WEIGHT)
-        .clamp(MIN_SHOT_ATTEMPT_PROBABILITY, MAX_SHOT_ATTEMPT_PROBABILITY);
+        .clamp(MIN_SHOT_ATTEMPT_PROBABILITY, MAX_SHOT_ATTEMPT_PROBABILITY)
+        * if has_drive { 1.0 } else { 1.0 - 0.5 * patience };
     if rng.gen_range(0.0..1.0) >= attempt_probability {
         return Ok(None);
     }
-    let post = if has_drive
-        && rng.gen_range(0.0..1.0)
-            < BASE_GOALPOST_CHOICE_PROBABILITY + proximity * TERRITORY_GOALPOST_CHOICE_WEIGHT
-    {
+    let goalpost_probability = (BASE_GOALPOST_CHOICE_PROBABILITY
+        + proximity * TERRITORY_GOALPOST_CHOICE_WEIGHT
+        + shooter_readiness * SHOOTER_READINESS_GOALPOST_WEIGHT
+        + (emphasis.self_finish().value() - 0.5) * TACTICAL_GOALPOST_CHOICE_WEIGHT
+        + (patience - 0.5) * TACTICAL_GOALPOST_CHOICE_WEIGHT)
+        .clamp(MIN_GOALPOST_CHOICE_PROBABILITY, MAX_GOALPOST_CHOICE_PROBABILITY);
+    let post = if has_drive && rng.gen_range(0.0..1.0) < goalpost_probability {
         ScoringPost::Goalpost
     } else {
         ScoringPost::Fieldpost
@@ -119,9 +136,11 @@ pub(super) fn conversion_probability(
     let probability = match post {
         ScoringPost::Goalpost => {
             let finishing = ratings.player_value(offense, shooter_id, AttributeKey::Finishing)?;
+            let composure = ratings.player_value(offense, shooter_id, AttributeKey::Composure)?;
             let reflexes =
                 ratings.specialist(defense, Position::Goalguard, AttributeKey::Reflexes)?;
             BASE_GOALPOST_CONVERSION + finishing * FINISHING_CONVERSION_WEIGHT
+                + (composure - 10.0) * COMPOSURE_GOALPOST_CONVERSION_WEIGHT
                 - reflexes * GOALGUARD_CONVERSION_WEIGHT
                 - distance_ratio * DISTANCE_CONVERSION_WEIGHT
         }

@@ -203,7 +203,7 @@ pub fn resolve_next_segment(
         controlled_reception,
     )?;
     if controlled_reception {
-        next.set_carrier(artrine_id)?;
+        next.complete_pass(passer_id, artrine_id)?;
         events.push(next.emit(MatchEvent::PassCompleted(PassCompleted::new(
             passer_id,
             artrine_id,
