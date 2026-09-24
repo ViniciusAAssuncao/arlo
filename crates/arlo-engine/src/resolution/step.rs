@@ -1,15 +1,14 @@
 use super::actors::{select_actor, ActorRole};
-use super::artro::sample_artros;
 use super::bonus::resolve_bonus_segment;
 use super::context::validate_match_state;
-use super::contest::{emit_carry_contest, emit_route_contest};
+use super::contest::emit_route_contest;
 use super::down::emit_down_advanced;
-use super::exchange::resolve_exchange;
 use super::kick_foul::resolve_kick_foul_segment;
 use super::model::sample_call;
 use super::open_play::resolve_open_play_segment;
 use super::ratings::RatingIndex;
 use super::reception::sample_reception;
+use super::sequence::{resolve_sequence, SequenceContext};
 use super::shooting::resolve_regular_attempt;
 use super::tuning::CTA_OUT_PROBABILITY;
 use crate::error::{EngineError, EngineResult};
@@ -18,8 +17,8 @@ use crate::state::{MatchPhase, MatchState, PendingCallOutcome, SeriesAdvance};
 use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_events::{
-    CallToActionStarted, CarryResolved, DriveRecorded, MatchEvent, OutOfBounds, PassCompleted,
-    PossessionTimeRecorded, ReceptionResolved,
+    CallToActionStarted, MatchEvent, OutOfBounds, PassCompleted, PossessionTimeRecorded,
+    ReceptionResolved, Turnover,
 };
 use arlo_manager_control::RequiredManagerDecision;
 use arlo_tactics::{validate_play_call, PlayCall, PlayCallCategory};
@@ -169,28 +168,6 @@ pub fn resolve_next_segment(
         next.rng_mut(),
     )?;
     let controlled_reception = reception.caught && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS;
-    let artros = if controlled_reception {
-        sample_artros(
-            &ratings,
-            offense,
-            defense,
-            selected_play_call,
-            duration,
-            next.rng_mut(),
-        )?
-    } else {
-        Vec::new()
-    };
-    let direction = if is_home { 1.0 } else { -1.0 };
-    let sampled_gain = if controlled_reception {
-        sample.gain_mirim
-    } else {
-        0.0
-    };
-    let end_mirim =
-        (start_mirim + direction * sampled_gain).clamp(0.0, input.pitch().length_mirim());
-    let gain_mirim = direction * (end_mirim - start_mirim);
-
     next.begin_call_to_action()?;
     let mut events = Vec::with_capacity(7);
     events.push(
@@ -206,6 +183,9 @@ pub fn resolve_next_segment(
     );
     let reception_time = duration.min(IMMEDIATE_POSSESSION_CONTROL_SECONDS);
     next.advance_playing_time(reception_time)?;
+    events.push(next.emit(MatchEvent::PossessionTimeRecorded(
+        PossessionTimeRecorded::new(offense_id, reception_time),
+    ))?);
     events.push(
         next.emit(MatchEvent::ReceptionResolved(ReceptionResolved::new(
             artrine_id,
@@ -231,36 +211,41 @@ pub fn resolve_next_segment(
             reception.distance_mirim,
         )))?);
     }
-    next.advance_playing_time(duration - reception_time)?;
-    if controlled_reception {
-        events.push(next.emit(MatchEvent::CarryResolved(CarryResolved::new(
-            artrine_id,
-            gain_mirim,
-        )))?);
-        emit_carry_contest(&mut next, &mut events, artrine_id, carry_defender_id, sample, gain_mirim)?;
-    }
-    for placement in artros {
-        if let Some(drives_in_series) = next.record_artro(offense_id, artrine_id, duration)? {
-            events.push(next.emit(MatchEvent::DriveRecorded(DriveRecorded::new(
+    let (holder_id, end_mirim, gain_mirim, interceptor_id) = if controlled_reception {
+        let outcome = resolve_sequence(
+            SequenceContext {
+                ratings: &ratings,
+                offense,
+                defense,
+                offense_rating,
+                defense_rating,
+                is_home,
+                selected_play_call,
                 artrine_id,
-                drives_in_series,
-                placement,
-            )))?);
-        }
-    }
-    let holder_id = if controlled_reception {
-        resolve_exchange(
-            &ratings,
-            offense,
-            defense,
-            selected_play_call,
+                pitch_length_mirim: input.pitch().length_mirim(),
+            },
             artrine_id,
+            carry_defender_id,
+            sample,
             duration - reception_time,
             &mut next,
             &mut events,
-        )?
+        )?;
+        (
+            outcome.holder_id,
+            outcome.end_mirim,
+            outcome.gain_mirim,
+            outcome.interceptor_id,
+        )
     } else {
-        artrine_id
+        let remaining_duration = duration - reception_time;
+        if remaining_duration > 0.0 {
+            next.advance_playing_time(remaining_duration)?;
+            events.push(next.emit(MatchEvent::PossessionTimeRecorded(
+                PossessionTimeRecorded::new(offense_id, remaining_duration),
+            ))?);
+        }
+        (artrine_id, start_mirim, 0.0, None)
     };
     let advance = next.record_valid_advance(gain_mirim, end_mirim)?;
     let first_down = matches!(advance, SeriesAdvance::FirstDown);
@@ -271,9 +256,19 @@ pub fn resolve_next_segment(
         first_down,
     };
     next.record_call_outcome(call_outcome);
-    events.push(next.emit(MatchEvent::PossessionTimeRecorded(
-        PossessionTimeRecorded::new(offense_id, duration),
-    ))?);
+    if let Some(interceptor_id) = interceptor_id {
+        next.turnover(defense.team_id())?;
+        next.set_carrier(interceptor_id)?;
+        events.push(next.emit(MatchEvent::Turnover(Turnover::new(
+            offense_id,
+            defense.team_id(),
+            Some(interceptor_id),
+            Some(holder_id),
+            true,
+        )))?);
+        *state = next;
+        return Ok(StepResult::resolved(events));
+    }
     if controlled_reception
         && resolve_regular_attempt(
             input,

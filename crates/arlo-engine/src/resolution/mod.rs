@@ -11,6 +11,7 @@ mod model;
 mod open_play;
 mod ratings;
 mod reception;
+mod sequence;
 mod shooting;
 mod shooting_model;
 mod shot_recovery;

@@ -2,6 +2,7 @@ use super::ratings::RatingIndex;
 use crate::error::{EngineError, EngineResult};
 use crate::input::TeamInput;
 use arlo_domain::{AttributeKey, Position, PositionLine};
+use arlo_tactics::{PlayCall, SlotAssignment};
 use rand::Rng;
 use rand_chacha::ChaCha8Rng;
 use uuid::Uuid;
@@ -19,6 +20,52 @@ pub(super) fn select_actor(
     role: ActorRole,
     exclude: Option<Uuid>,
     rng: &mut ChaCha8Rng,
+) -> EngineResult<Uuid> {
+    select_weighted_actor(ratings, team, role, exclude, rng, |_| 1.0)
+}
+
+pub(super) fn select_receiver(
+    ratings: &RatingIndex,
+    team: &TeamInput,
+    holder_id: Uuid,
+    previous_holder_id: Option<Uuid>,
+    selected_play_call: Option<&PlayCall>,
+    rng: &mut ChaCha8Rng,
+) -> EngineResult<Uuid> {
+    select_weighted_actor(
+        ratings,
+        team,
+        ActorRole::Receiver,
+        Some(holder_id),
+        rng,
+        |assignment| {
+            let return_weight = if Some(assignment.player_id()) == previous_holder_id {
+                0.45
+            } else {
+                1.0
+            };
+            let route_weight = selected_play_call.map_or(1.0, |call| {
+                if call.routes().is_empty() {
+                    1.0
+                } else {
+                    call.routes()
+                        .iter()
+                        .find(|route| route.slot_index() == assignment.formation_slot_index())
+                        .map_or(0.6, |route| 1.0 + 2.0 * route.read_priority().value())
+                }
+            });
+            return_weight * route_weight
+        },
+    )
+}
+
+fn select_weighted_actor(
+    ratings: &RatingIndex,
+    team: &TeamInput,
+    role: ActorRole,
+    exclude: Option<Uuid>,
+    rng: &mut ChaCha8Rng,
+    extra_weight: impl Fn(&SlotAssignment) -> f64,
 ) -> EngineResult<Uuid> {
     let mut candidates = Vec::with_capacity(team.lineup().assignments().len());
     let mut total_weight = 0.0;
@@ -86,7 +133,8 @@ pub(super) fn select_actor(
         let weight = position_weight
             * specialist_weight
             * tactical_weight
-            * (0.5 + aptitude.max(0.0) / 20.0);
+            * (0.5 + aptitude.max(0.0) / 20.0)
+            * extra_weight(assignment);
         total_weight += weight;
         candidates.push((player_id, total_weight));
     }

@@ -1,18 +1,15 @@
 use super::actors::{select_actor, ActorRole};
-use super::artro::sample_artros;
-use super::contest::emit_carry_contest;
 use super::down::emit_down_advanced;
-use super::exchange::resolve_exchange;
 use super::model::sample_call;
 use super::ratings::RatingIndex;
+use super::sequence::{resolve_sequence, SequenceContext};
 use super::shooting::resolve_regular_attempt;
 use super::tuning::{OPEN_PLAY_OUT_PROBABILITY, OPEN_PLAY_TURNOVER_PROBABILITY};
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
 use crate::state::{MatchPhase, MatchState};
 use crate::step::StepResult;
-use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
-use arlo_events::{CarryResolved, DriveRecorded, MatchEvent, OutOfBounds, PossessionTimeRecorded, Turnover};
+use arlo_events::{MatchEvent, OutOfBounds, Turnover};
 use rand::Rng;
 
 pub(super) fn resolve_open_play_segment(
@@ -54,7 +51,6 @@ pub(super) fn resolve_open_play_segment(
         next.rng_mut(),
     )?;
     let pending = next.pending_call_outcome();
-    let start_mirim = next.possession().ball_position_mirim();
     let remaining_time = next.clock().period_limit_seconds() - next.clock().seconds_in_period();
     let sample = sample_call(
         &ratings,
@@ -74,55 +70,46 @@ pub(super) fn resolve_open_play_segment(
     } else {
         next.away().artrine_id()
     };
-    let artros = if carrier_id == artrine_id && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS {
-        sample_artros(&ratings, offense, defense, None, duration, next.rng_mut())?
-    } else {
-        Vec::new()
-    };
-    let direction = if is_home { 1.0 } else { -1.0 };
-    let end_mirim =
-        (start_mirim + direction * sample.gain_mirim).clamp(0.0, input.pitch().length_mirim());
     let turnover = duration < remaining_time
         && next.rng_mut().gen_range(0.0..1.0) < OPEN_PLAY_TURNOVER_PROBABILITY;
     let ends_out = !turnover
         && (duration >= remaining_time
             || next.rng_mut().gen_range(0.0..1.0) < OPEN_PLAY_OUT_PROBABILITY);
-    next.advance_playing_time(duration)?;
-    next.move_live_ball(end_mirim)?;
-    let mut events = vec![next.emit(MatchEvent::PossessionTimeRecorded(
-        PossessionTimeRecorded::new(possessor_id, duration),
-    ))?];
-    events.push(next.emit(MatchEvent::CarryResolved(CarryResolved::new(
-        carrier_id,
-        direction * (end_mirim - start_mirim),
-    )))?);
-    emit_carry_contest(
-        &mut next,
-        &mut events,
+    let mut events = Vec::new();
+    let outcome = resolve_sequence(
+        SequenceContext {
+            ratings: &ratings,
+            offense,
+            defense,
+            offense_rating,
+            defense_rating,
+            is_home,
+            selected_play_call: None,
+            artrine_id,
+            pitch_length_mirim: input.pitch().length_mirim(),
+        },
         carrier_id,
         carry_defender_id,
         sample,
-        direction * (end_mirim - start_mirim),
-    )?;
-    for placement in artros {
-        if let Some(drives_in_series) = next.record_artro(possessor_id, artrine_id, duration)? {
-            events.push(next.emit(MatchEvent::DriveRecorded(DriveRecorded::new(
-                artrine_id,
-                drives_in_series,
-                placement,
-            )))?);
-        }
-    }
-    let holder_id = resolve_exchange(
-        &ratings,
-        offense,
-        defense,
-        None,
-        carrier_id,
         duration,
         &mut next,
         &mut events,
     )?;
+    let holder_id = outcome.holder_id;
+    let end_mirim = outcome.end_mirim;
+    if let Some(interceptor_id) = outcome.interceptor_id {
+        next.turnover(defense.team_id())?;
+        next.set_carrier(interceptor_id)?;
+        events.push(next.emit(MatchEvent::Turnover(Turnover::new(
+            possessor_id,
+            defense.team_id(),
+            Some(interceptor_id),
+            Some(holder_id),
+            true,
+        )))?);
+        *state = next;
+        return Ok(StepResult::resolved(events));
+    }
     if resolve_regular_attempt(
         input,
         &ratings,
