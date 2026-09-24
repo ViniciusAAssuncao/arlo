@@ -132,6 +132,10 @@ impl PlayerTouchesAggregator {
         stats.total_touches += 1;
     }
 
+    pub fn record_carry(&mut self, player_id: Uuid) {
+        self.get_mut_or_create(player_id).total_touches += 1;
+    }
+
     pub fn record_recovery(&mut self, player_id: Uuid) {
         let stats = self.get_mut_or_create(player_id);
         stats.recoveries += 1;
@@ -164,13 +168,17 @@ impl IntoSnapshot for PlayerTouchesAggregator {
 impl StatAggregator for PlayerTouchesAggregator {
     fn handle_event(&mut self, event: &MatchEvent) {
         match event {
-            MatchEvent::CallToActionStarted(e) => {
+            MatchEvent::ReceptionResolved(e) => {
                 self.record_pass_attempt(e.passer_id());
             }
             MatchEvent::PassCompleted(e) => {
                 self.record_pass_reception(e.receiver_id());
             }
+            MatchEvent::CarryResolved(e) => {
+                self.record_carry(e.carrier_id());
+            }
             MatchEvent::DistributionCompleted(e) => {
+                self.record_pass_attempt(e.passer_id());
                 if e.caught() {
                     self.record_pass_reception(e.receiver_id());
                 }

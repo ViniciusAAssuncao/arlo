@@ -1,4 +1,4 @@
-use crate::error::{ DbError, DbResult };
+use crate::error::{DbError, DbResult};
 use arlo_domain::TieBreakCriterion;
 
 pub fn parse_tie_break_criterion(code: &str) -> DbResult<TieBreakCriterion> {
@@ -9,7 +9,9 @@ pub fn parse_tie_break_criterion(code: &str) -> DbResult<TieBreakCriterion> {
         "GoalPointsTotal" | "goal_points_total" => Ok(TieBreakCriterion::GoalPointsTotal),
         "HeadToHead" | "head_to_head" => Ok(TieBreakCriterion::HeadToHead),
         "Random" | "random" => Ok(TieBreakCriterion::Random),
-        _ => Err(DbError::InvalidEnum(format!("Invalid tie break criterion: {code}"))),
+        _ => Err(DbError::InvalidEnum(format!(
+            "Invalid tie break criterion: {code}"
+        ))),
     }
 }
 

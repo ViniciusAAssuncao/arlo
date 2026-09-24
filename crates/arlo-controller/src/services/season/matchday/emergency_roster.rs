@@ -9,17 +9,15 @@ pub async fn ensure_minimum_roster(
     pool: &SqlitePool,
     team_id: Uuid,
     formation: &Formation,
+    available_player_count: usize,
+    existing_players_count: usize,
 ) -> ControllerResult<()> {
-    let existing_players = arlo_db::repositories::player::list_by_team_id(pool, team_id)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
     let required_count = formation.slots().len().max(14);
-    if existing_players.len() >= required_count {
+    if available_player_count >= required_count {
         return Ok(());
     }
 
-    let needed_count = required_count - existing_players.len();
+    let needed_count = required_count - available_player_count;
 
     let team = arlo_db::repositories::team::get_by_id(pool, team_id)
         .await
@@ -71,12 +69,14 @@ pub async fn ensure_minimum_roster(
         .await
         .unwrap_or_default();
 
+    let mut tx = pool.begin().await?;
+
     for i in 0..needed_count {
         let player_id = Uuid::new_v4();
         let first_name = "Jogador";
-        let last_name = format!("Emergencial {}", existing_players.len() + i + 1);
+        let last_name = format!("Emergencial {}", existing_players_count + i + 1);
 
-        let slot_idx = (existing_players.len() + i) % formation.slots().len();
+        let slot_idx = (existing_players_count + i) % formation.slots().len();
         let slot = &formation.slots()[slot_idx];
         let target_pos = if slot.defensive_position() == Position::Goalguard
             || slot.position() == Position::Goalguard
@@ -205,7 +205,7 @@ pub async fn ensure_minimum_roster(
                     _ => {}
                 }
             }
-            query.execute(pool).await?;
+            query.execute(&mut *tx).await?;
         }
 
         if !pos_col_names.is_empty() {
@@ -245,7 +245,7 @@ pub async fn ensure_minimum_roster(
                     _ => {}
                 }
             }
-            let _ = query.execute(pool).await;
+            let _ = query.execute(&mut *tx).await;
         }
 
         if !attr_col_names.is_empty() && !attr_defs.is_empty() {
@@ -257,7 +257,7 @@ pub async fn ensure_minimum_roster(
                         .bind(player_id.to_string())
                         .bind(def.id().to_string())
                         .bind(1i32)
-                        .execute(pool)
+                        .execute(&mut *tx)
                         .await;
                 } else {
                     let sql = "INSERT OR IGNORE INTO player_attributes (player_id, attribute_definition_id, value) VALUES (?, ?, ?)";
@@ -265,12 +265,14 @@ pub async fn ensure_minimum_roster(
                         .bind(player_id.to_string())
                         .bind(def.id().to_string())
                         .bind(1i32)
-                        .execute(pool)
+                        .execute(&mut *tx)
                         .await;
                 }
             }
         }
     }
+
+    tx.commit().await?;
 
     Ok(())
 }

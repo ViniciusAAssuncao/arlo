@@ -32,9 +32,7 @@ pub async fn get_or_load_venues_for_country(
     Ok(arc_venues)
 }
 
-pub async fn get_or_load_all_venues(
-    pool: &SqlitePool,
-) -> ControllerResult<Arc<Vec<Venue>>> {
+pub async fn get_or_load_all_venues(pool: &SqlitePool) -> ControllerResult<Arc<Vec<Venue>>> {
     {
         let read_guard = ALL_VENUES_CACHE.read().await;
         if let Some(venues) = read_guard.as_ref() {

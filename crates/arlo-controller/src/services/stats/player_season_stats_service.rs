@@ -30,19 +30,20 @@ pub async fn build_player_season_stats(
         None => None,
     };
 
-    let (season_instance_id_opt, competition_id_opt, competition_name_opt, season_label_opt) = match active_season_opt {
-        Some(s) => {
-            let s_id = Uuid::parse_str(&s.id)?;
-            let c_id = Uuid::parse_str(&s.competition_id)?;
-            let comp = arlo_db::repositories::competition::get_by_id(pool, c_id)
-                .await
-                .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-            let c_name = comp.map(|c| c.name().to_string());
-            let label = s.reference_year.to_string();
-            (Some(s_id), Some(c_id.to_string()), c_name, Some(label))
-        }
-        None => (None, None, None, None),
-    };
+    let (season_instance_id_opt, competition_id_opt, competition_name_opt, season_label_opt) =
+        match active_season_opt {
+            Some(s) => {
+                let s_id = Uuid::parse_str(&s.id)?;
+                let c_id = Uuid::parse_str(&s.competition_id)?;
+                let comp = arlo_db::repositories::competition::get_by_id(pool, c_id)
+                    .await
+                    .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+                let c_name = comp.map(|c| c.name().to_string());
+                let label = s.reference_year.to_string();
+                (Some(s_id), Some(c_id.to_string()), c_name, Some(label))
+            }
+            None => (None, None, None, None),
+        };
 
     let season_id = match season_instance_id_opt {
         Some(id) => id,
@@ -68,68 +69,59 @@ pub async fn build_player_season_stats(
         }
     };
 
-    let appearances_row = arlo_persistence::repositories::season_stats::player_appearances::get_player_appearances(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let appearances_row =
+        arlo_persistence::repositories::season_stats::player_appearances::get_player_appearances(
+            pool, player_id, season_id,
+        )
+        .await?;
 
-    let scoring_row = arlo_persistence::repositories::season_stats::player_scoring::get_player_scoring_stats(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let scoring_row =
+        arlo_persistence::repositories::season_stats::player_scoring::get_player_scoring_stats(
+            pool, player_id, season_id,
+        )
+        .await?;
 
-    let assist_row = arlo_persistence::repositories::season_stats::player_assists::get_player_assist_stats(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let assist_row =
+        arlo_persistence::repositories::season_stats::player_assists::get_player_assist_stats(
+            pool, player_id, season_id,
+        )
+        .await?;
 
-    let touch_row = arlo_persistence::repositories::season_stats::player_touches::get_player_touch_stats(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let touch_row =
+        arlo_persistence::repositories::season_stats::player_touches::get_player_touch_stats(
+            pool, player_id, season_id,
+        )
+        .await?;
 
-    let duel_totals_row = arlo_persistence::repositories::season_stats::player_duels::get_player_duel_totals(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let duel_totals_row =
+        arlo_persistence::repositories::season_stats::player_duels::get_player_duel_totals(
+            pool, player_id, season_id,
+        )
+        .await?;
 
-    let duel_kinds_rows = arlo_persistence::repositories::season_stats::player_duels::list_player_duels_by_kind(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let duel_kinds_rows =
+        arlo_persistence::repositories::season_stats::player_duels::list_player_duels_by_kind(
+            pool, player_id, season_id,
+        )
+        .await?;
 
-    let receiving_row = arlo_persistence::repositories::season_stats::player_receiving::get_player_receiving_stats(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let receiving_row =
+        arlo_persistence::repositories::season_stats::player_receiving::get_player_receiving_stats(
+            pool, player_id, season_id,
+        )
+        .await?;
 
-    let drive_row = arlo_persistence::repositories::season_stats::player_drives::get_player_drive_stats(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let drive_row =
+        arlo_persistence::repositories::season_stats::player_drives::get_player_drive_stats(
+            pool, player_id, season_id,
+        )
+        .await?;
 
-    let foul_row = arlo_persistence::repositories::season_stats::player_fouls::get_player_foul_stats(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let foul_row =
+        arlo_persistence::repositories::season_stats::player_fouls::get_player_foul_stats(
+            pool, player_id, season_id,
+        )
+        .await?;
 
     let kick_foul_totals_row = arlo_persistence::repositories::season_stats::player_kick_fouls::get_player_kick_foul_totals(
         pool,
@@ -152,12 +144,11 @@ pub async fn build_player_season_stats(
     )
     .await?;
 
-    let primary_role = arlo_persistence::repositories::season_stats::player_roles::get_player_primary_role(
-        pool,
-        player_id,
-        season_id,
-    )
-    .await?;
+    let primary_role =
+        arlo_persistence::repositories::season_stats::player_roles::get_player_primary_role(
+            pool, player_id, season_id,
+        )
+        .await?;
 
     let appearances = PlayerAppearanceStatsDto {
         squad_selections: appearances_row.squad_selections as u32,
@@ -181,6 +172,7 @@ pub async fn build_player_season_stats(
         field_points_scored: scoring_row.field_points_scored as u32,
         field_goals_scored: scoring_row.field_goals_scored as u32,
         total_points_scored: scoring_row.total_points_scored as u32,
+        by_post: Vec::new(),
     };
 
     let assists = PlayerAssistStatsDto {
@@ -318,6 +310,7 @@ pub async fn build_player_season_stats(
         incorrect_calls_committed: foul_row.incorrect_calls_committed as u32,
         expulsions: foul_row.expulsions as u32,
         time_penalties: foul_row.time_penalties as u32,
+        by_origin: Vec::new(),
     };
 
     let by_decision: Vec<PlayerKickFoulDecisionStatsDto> = kick_foul_decisions_rows
@@ -355,6 +348,7 @@ pub async fn build_player_season_stats(
         goal_points_generated: artrine_row.goal_points_generated as u32,
         field_points_generated: artrine_row.field_points_generated as u32,
         field_goals_generated: artrine_row.field_goals_generated as u32,
+        by_kind: Vec::new(),
     };
 
     Ok(PlayerSeasonStatsDto {

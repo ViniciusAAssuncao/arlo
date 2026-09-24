@@ -80,46 +80,21 @@ pub fn qualification_pool_rule_to_codes(
     rule: &QualificationPoolRule,
 ) -> QualificationPoolRuleCodes {
     match rule {
-        QualificationPoolRule::AllTeams => QualificationPoolRuleCodes::new(
-            "AllTeams",
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-        QualificationPoolRule::TopN { count } => QualificationPoolRuleCodes::new(
-            "TopN",
-            Some(*count as i32),
-            None,
-            None,
-            None,
-            None,
-        ),
-        QualificationPoolRule::BottomN { count } => QualificationPoolRuleCodes::new(
-            "BottomN",
-            Some(*count as i32),
-            None,
-            None,
-            None,
-            None,
-        ),
-        QualificationPoolRule::GroupWinners => QualificationPoolRuleCodes::new(
-            "GroupWinners",
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
-        QualificationPoolRule::GroupRunnersUp => QualificationPoolRuleCodes::new(
-            "GroupRunnersUp",
-            None,
-            None,
-            None,
-            None,
-            None,
-        ),
+        QualificationPoolRule::AllTeams => {
+            QualificationPoolRuleCodes::new("AllTeams", None, None, None, None, None)
+        }
+        QualificationPoolRule::TopN { count } => {
+            QualificationPoolRuleCodes::new("TopN", Some(*count as i32), None, None, None, None)
+        }
+        QualificationPoolRule::BottomN { count } => {
+            QualificationPoolRuleCodes::new("BottomN", Some(*count as i32), None, None, None, None)
+        }
+        QualificationPoolRule::GroupWinners => {
+            QualificationPoolRuleCodes::new("GroupWinners", None, None, None, None, None)
+        }
+        QualificationPoolRule::GroupRunnersUp => {
+            QualificationPoolRuleCodes::new("GroupRunnersUp", None, None, None, None, None)
+        }
         QualificationPoolRule::BestAtGroupPosition {
             position_index,
             count,

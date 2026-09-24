@@ -7,8 +7,8 @@ use crate::services::calendar::resolve_collective_agreement_windows;
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::season::active_season_resolver::resolve_active_season;
 use crate::services::season::conflict::postponement_resolver::resolve_conflicts_and_postpone;
-use crate::services::season::persistence::{map_row_to_fixture, persist_conflict_scan_result};
 pub use crate::services::season::conflict::ConflictScanReport;
+use crate::services::season::persistence::{map_row_to_fixture, persist_conflict_scan_result};
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -96,11 +96,7 @@ pub async fn handle_conflict_scan(
     let mut blackout_windows = Vec::new();
     for ca_id in config_arc.collective_agreement_ids() {
         if let Some(agreement) = ca_catalog.get(ca_id) {
-            let windows = resolve_collective_agreement_windows(
-                calendar,
-                agreement,
-                years.clone(),
-            )?;
+            let windows = resolve_collective_agreement_windows(calendar, agreement, years.clone())?;
             blackout_windows.extend(windows);
         }
     }

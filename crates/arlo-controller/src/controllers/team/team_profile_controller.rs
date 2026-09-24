@@ -1,5 +1,6 @@
 use crate::dto::team::{TeamProfileDto, TeamVenueDto};
 use crate::error::{ControllerError, ControllerResult};
+use crate::repositories::attribute::attribute_definition_cache::get_or_load_manager_attribute_definitions;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -36,11 +37,15 @@ pub async fn get_team_profile(
         None => None,
     };
 
-    let managers = arlo_db::repositories::manager::list_by_team_id(pool, team_id)
+    let manager_defs = get_or_load_manager_attribute_definitions(pool).await?;
+    let managers = arlo_db::repositories::manager::list_by_team_id(pool, team_id, &manager_defs)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
     let (manager_id, manager_name) = match managers.into_iter().next() {
-        Some(m) => (Some(m.id().to_string()), Some(m.person().name().to_string())),
+        Some(m) => (
+            Some(m.id().to_string()),
+            Some(m.person().name().to_string()),
+        ),
         None => (None, None),
     };
 

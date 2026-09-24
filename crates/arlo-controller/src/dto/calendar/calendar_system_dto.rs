@@ -42,7 +42,11 @@ impl From<&CalendarSystem> for CalendarSystemDto {
             name: system.name().to_string(),
             description: system.description().map(str::to_string),
             months: system.months().iter().map(CalendarMonthDto::from).collect(),
-            week_days: system.week_days().iter().map(CalendarWeekDayDto::from).collect(),
+            week_days: system
+                .week_days()
+                .iter()
+                .map(CalendarWeekDayDto::from)
+                .collect(),
             intercalation_rule: IntercalationRuleDto::from(system.intercalation_rule()),
         }
     }

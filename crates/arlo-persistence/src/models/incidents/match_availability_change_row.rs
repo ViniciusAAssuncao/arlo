@@ -1,7 +1,10 @@
 use arlo_events::{AvailabilityStatus, MatchClockInstant, PlayerAvailabilityChanged};
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct MatchAvailabilityChangeRow {
     pub id: String,
     pub match_id: String,

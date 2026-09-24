@@ -37,9 +37,8 @@ pub async fn resolve_and_apply_promotion_relegation(
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
 
-    let mut result_rows = Vec::with_capacity(
-        outcome.promoted_team_ids().len() + outcome.relegated_team_ids().len(),
-    );
+    let mut result_rows =
+        Vec::with_capacity(outcome.promoted_team_ids().len() + outcome.relegated_team_ids().len());
 
     for (idx, &team_id) in outcome.promoted_team_ids().iter().enumerate() {
         result_rows.push(PromotionRelegationResultRow::new(

@@ -9,9 +9,7 @@ pub fn parse_slot_role(code: &str) -> DbResult<SlotRole> {
         "Safeguard" | "safeguard" => Ok(SlotRole::Safeguard),
         "Blocker" | "blocker" => Ok(SlotRole::Blocker),
         "Kicker" | "kicker" => Ok(SlotRole::Kicker),
-        _ => Err(DbError::InvalidEnum(format!(
-            "Invalid slot role: {code}"
-        ))),
+        _ => Err(DbError::InvalidEnum(format!("Invalid slot role: {code}"))),
     }
 }
 

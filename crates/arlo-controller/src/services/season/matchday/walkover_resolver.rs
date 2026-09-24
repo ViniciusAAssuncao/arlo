@@ -1,4 +1,6 @@
 use crate::error::ControllerResult;
+use crate::repositories::attribute::attribute_definition_cache::get_or_load_manager_attribute_definitions;
+use crate::repositories::formation::formation_cache::get_or_load_formations;
 use crate::repositories::season::standings_cache;
 use arlo_persistence::models::season::FixtureRow;
 use sqlx::SqlitePool;
@@ -8,15 +10,16 @@ pub fn apply_walkover(fixture: &FixtureRow, fault_team_id: Option<Uuid>) -> Fixt
     let home_team_id = Uuid::parse_str(&fixture.home_team_id).ok();
     let away_team_id = Uuid::parse_str(&fixture.away_team_id).ok();
 
-    let (home_score, away_score, home_gp, away_gp, home_fg, away_fg, home_fp, away_fp) = match fault_team_id {
-        Some(fault_id) if Some(fault_id) == home_team_id && Some(fault_id) != away_team_id => {
-            (0, 15, 0, 3, 0, 0, 0, 0)
-        }
-        Some(fault_id) if Some(fault_id) == away_team_id && Some(fault_id) != home_team_id => {
-            (15, 0, 3, 0, 0, 0, 0, 0)
-        }
-        _ => (0, 0, 0, 0, 0, 0, 0, 0),
-    };
+    let (home_score, away_score, home_gp, away_gp, home_fg, away_fg, home_fp, away_fp) =
+        match fault_team_id {
+            Some(fault_id) if Some(fault_id) == home_team_id && Some(fault_id) != away_team_id => {
+                (0, 15, 0, 3, 0, 0, 0, 0)
+            }
+            Some(fault_id) if Some(fault_id) == away_team_id && Some(fault_id) != home_team_id => {
+                (15, 0, 3, 0, 0, 0, 0, 0)
+            }
+            _ => (0, 0, 0, 0, 0, 0, 0, 0),
+        };
 
     FixtureRow {
         id: fixture.id.clone(),
@@ -99,14 +102,19 @@ async fn is_team_ready(pool: &SqlitePool, team_id: Uuid) -> bool {
         Ok(p) => p,
         Err(_) => return false,
     };
-    let managers = match arlo_db::repositories::manager::list_by_team_id(pool, team_id).await {
-        Ok(m) => m,
+    let manager_defs = match get_or_load_manager_attribute_definitions(pool).await {
+        Ok(defs) => defs,
         Err(_) => return false,
     };
+    let managers =
+        match arlo_db::repositories::manager::list_by_team_id(pool, team_id, &manager_defs).await {
+            Ok(m) => m,
+            Err(_) => return false,
+        };
     if managers.is_empty() || players.is_empty() {
         return false;
     }
-    let formations = match arlo_db::repositories::formation::list_all(pool).await {
+    let formations = match get_or_load_formations(pool).await {
         Ok(f) => f,
         Err(_) => return false,
     };

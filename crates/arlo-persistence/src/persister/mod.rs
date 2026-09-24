@@ -1,3 +1,4 @@
+mod assigned_referees;
 pub mod core_persister;
 pub mod incident_events_persister;
 pub mod manager_and_referee_persister;

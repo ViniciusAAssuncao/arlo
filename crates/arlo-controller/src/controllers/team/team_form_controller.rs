@@ -5,6 +5,7 @@ use crate::dto::team::{MatchOutcome, TeamFormEntryDto, TeamStandingsPositionDto}
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::services::calendar::date_resolver;
+use arlo_persistence::repositories::match_repository;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -14,16 +15,30 @@ pub async fn get_team_recent_form(
     team_id: Uuid,
     limit: u32,
 ) -> ControllerResult<Vec<TeamFormEntryDto>> {
-    let fixture_rows = arlo_persistence::repositories::season::fixtures::list_completed_by_team_id_desc(
-        pool,
-        team_id,
-        limit,
-    )
-    .await?;
+    let fixture_rows =
+        arlo_persistence::repositories::season::fixtures::list_completed_by_team_id_desc(
+            pool, team_id, limit,
+        )
+        .await?;
 
     if fixture_rows.is_empty() {
         return Ok(Vec::new());
     }
+
+    let fixture_uuids: Vec<Uuid> = fixture_rows
+        .iter()
+        .filter_map(|r| Uuid::parse_str(&r.id).ok())
+        .collect();
+
+    let match_id_map: HashMap<String, String> = if fixture_uuids.is_empty() {
+        HashMap::new()
+    } else {
+        let match_rows = match_repository::list_by_fixture_ids(pool, &fixture_uuids).await?;
+        match_rows
+            .into_iter()
+            .filter_map(|m| m.fixture_id.map(|fid| (fid, m.id)))
+            .collect()
+    };
 
     let catalog = get_or_load_calendar_catalog(pool).await?;
     let calendar = resolve_overview_calendar(pool, &catalog).await?;
@@ -76,10 +91,8 @@ pub async fn get_team_recent_form(
             MatchOutcome::Loss => "D".to_string(),
         };
 
-        let fixture_cal_date = CalendarDate::new(
-            row.scheduled_year,
-            row.scheduled_day_of_year as u32,
-        );
+        let fixture_cal_date =
+            CalendarDate::new(row.scheduled_year, row.scheduled_day_of_year as u32);
         let resolved_date = date_resolver::resolve(calendar, &fixture_cal_date);
 
         let (scheduled_month_name, scheduled_day_of_month, scheduled_week_day_name) =
@@ -129,9 +142,11 @@ pub async fn get_team_recent_form(
             .and_then(|vid| venue_name_map.get(&vid).cloned());
 
         let score_display = format!("{} - {}", team_score, opponent_score);
+        let match_id = match_id_map.get(&row.id).cloned();
 
         form_entries.push(TeamFormEntryDto {
             fixture_id: row.id,
+            match_id,
             opponent_id: opponent_id.to_string(),
             opponent_name,
             is_home,
@@ -172,7 +187,11 @@ pub async fn get_team_standings_entry(
     }
 
     let team_id_str = team_id.to_string();
-    let position_idx = match overview.standings.iter().position(|e| e.team_id == team_id_str) {
+    let position_idx = match overview
+        .standings
+        .iter()
+        .position(|e| e.team_id == team_id_str)
+    {
         Some(idx) => idx,
         None => return Ok(None),
     };

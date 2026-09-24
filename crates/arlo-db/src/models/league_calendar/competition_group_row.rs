@@ -14,12 +14,6 @@ pub struct CompetitionGroupRow {
 impl CompetitionGroupRow {
     pub fn to_domain(&self, team_ids: Vec<Uuid>) -> DbResult<CompetitionGroup> {
         let id = Uuid::parse_str(&self.id)?;
-        CompetitionGroup::new(
-            id,
-            self.order_index as u32,
-            &self.name,
-            team_ids,
-        )
-        .map_err(Into::into)
+        CompetitionGroup::new(id, self.order_index as u32, &self.name, team_ids).map_err(Into::into)
     }
 }

@@ -97,8 +97,7 @@ pub fn generate_season(
 
             resolve_neutral_opener(&mut matches, &config.neutral_opener());
 
-            let scheduled_matches =
-                assign_dates(calendar, config.timing(), anchor_date, &matches)?;
+            let scheduled_matches = assign_dates(calendar, config.timing(), anchor_date, &matches)?;
 
             let season_instance_id = Uuid::new_v4();
             let season_instance = SeasonInstance::new(
@@ -160,10 +159,7 @@ pub async fn generate_season_for_league(
 
     let catalog = get_or_load_calendar_catalog(pool).await?;
     let calendar = catalog.get(&calendar_system_id).ok_or_else(|| {
-        ControllerError::NotFound(format!(
-            "Calendar system {} not found",
-            calendar_system_id
-        ))
+        ControllerError::NotFound(format!("Calendar system {} not found", calendar_system_id))
     })?;
 
     let teams = arlo_db::repositories::team::list_by_league_id(pool, competition_id)

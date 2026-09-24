@@ -69,7 +69,11 @@ pub async fn persist_player_condition_stats(
         let mut kf_rows = Vec::new();
         let mut kf_by_decision_rows = Vec::new();
         for (pid, s) in agg.all_stats() {
-            kf_rows.push(MatchPlayerKickFoulRow::from_stats(Uuid::new_v4(), match_id, s));
+            kf_rows.push(MatchPlayerKickFoulRow::from_stats(
+                Uuid::new_v4(),
+                match_id,
+                s,
+            ));
             for (kind, &count) in s.decisions_by_kind() {
                 kf_by_decision_rows.push(MatchPlayerKickFoulByDecisionRow::from_stats(
                     Uuid::new_v4(),
@@ -81,18 +85,19 @@ pub async fn persist_player_condition_stats(
             }
         }
         repositories::match_player_kick_fouls::insert_batch(tx, &kf_rows).await?;
-        repositories::match_player_kick_fouls::insert_by_decision_batch(
-            tx,
-            &kf_by_decision_rows,
-        )
-        .await?;
+        repositories::match_player_kick_fouls::insert_by_decision_batch(tx, &kf_by_decision_rows)
+            .await?;
     }
 
     if let Some(agg) = aggregators.get::<PlayerInjuryAggregator>() {
         let mut inj_rows = Vec::new();
         let mut inj_by_body_region_rows = Vec::new();
         for (pid, s) in agg.all_stats() {
-            inj_rows.push(MatchPlayerInjuryRow::from_stats(Uuid::new_v4(), match_id, s));
+            inj_rows.push(MatchPlayerInjuryRow::from_stats(
+                Uuid::new_v4(),
+                match_id,
+                s,
+            ));
             for (region, &count) in s.by_body_region() {
                 inj_by_body_region_rows.push(MatchPlayerInjuryByBodyRegionRow::from_stats(
                     Uuid::new_v4(),
@@ -116,7 +121,11 @@ pub async fn persist_player_condition_stats(
         let mut impulse_shift_by_kind_rows = Vec::new();
         let mut impulse_run_rows = Vec::new();
         for (pid, s) in agg.all_player_stats() {
-            impulse_rows.push(MatchPlayerImpulseRow::from_stats(Uuid::new_v4(), match_id, s));
+            impulse_rows.push(MatchPlayerImpulseRow::from_stats(
+                Uuid::new_v4(),
+                match_id,
+                s,
+            ));
             for (kind, &count) in s.shifts_by_kind() {
                 impulse_shift_by_kind_rows.push(MatchPlayerImpulseShiftByKindRow::from_stats(
                     Uuid::new_v4(),

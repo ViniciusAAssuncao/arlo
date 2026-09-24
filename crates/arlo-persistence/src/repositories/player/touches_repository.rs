@@ -1,6 +1,21 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchPlayerTouchesRow;
-use sqlx::{Sqlite, Transaction};
+use crate::repositories::batching::execute_batch_insert;
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
+
+const COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "player_id",
+    "passes_attempted",
+    "passes_received",
+    "drives_recorded",
+    "recoveries",
+    "scoring_attempts",
+    "total_touches",
+    "turnovers_conceded",
+];
 
 pub async fn insert(
     tx: &mut Transaction<'_, Sqlite>,
@@ -40,8 +55,71 @@ pub async fn insert_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayerTouchesRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_player_touches", COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(&row.player_id);
+        b.push_bind(row.passes_attempted);
+        b.push_bind(row.passes_received);
+        b.push_bind(row.drives_recorded);
+        b.push_bind(row.recoveries);
+        b.push_bind(row.scoring_attempts);
+        b.push_bind(row.total_touches);
+        b.push_bind(row.turnovers_conceded);
+    })
+    .await
+}
+
+pub async fn list_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayerTouchesRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayerTouchesRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            passes_attempted,
+            passes_received,
+            drives_recorded,
+            recoveries,
+            scoring_attempts,
+            total_touches,
+            turnovers_conceded
+        FROM match_player_touches
+        WHERE match_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn get_by_match_id_and_player_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+    player_id: Uuid,
+) -> PersistenceResult<Option<MatchPlayerTouchesRow>> {
+    let row = sqlx::query_as::<_, MatchPlayerTouchesRow>(
+        r#"SELECT
+            id,
+            match_id,
+            player_id,
+            passes_attempted,
+            passes_received,
+            drives_recorded,
+            recoveries,
+            scoring_attempts,
+            total_touches,
+            turnovers_conceded
+        FROM match_player_touches
+        WHERE match_id = ? AND player_id = ?"#,
+    )
+    .bind(match_id.to_string())
+    .bind(player_id.to_string())
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
 }

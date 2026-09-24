@@ -34,9 +34,6 @@ pub async fn resolve_overview_calendar<'a>(
     };
 
     catalog.get(&calendar_system_id).ok_or_else(|| {
-        ControllerError::NotFound(format!(
-            "Calendar system {} not found",
-            calendar_system_id
-        ))
+        ControllerError::NotFound(format!("Calendar system {} not found", calendar_system_id))
     })
 }

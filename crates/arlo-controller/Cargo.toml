@@ -12,6 +12,7 @@ arlo-engine.workspace = true
 arlo-events.workspace = true
 arlo-match-runner.workspace = true
 arlo-persistence.workspace = true
+arlo-recovery.workspace = true
 arlo-stats.workspace = true
 arlo-tactics.workspace = true
 rand.workspace = true

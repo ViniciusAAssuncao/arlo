@@ -1,14 +1,10 @@
 use crate::error::{ControllerError, ControllerResult};
+use crate::repositories::referee::referee_cache::get_or_load_referees;
 use arlo_domain::Referee;
 use sqlx::SqlitePool;
 
-pub async fn select_referees(
-    pool: &SqlitePool,
-    seed: u64,
-) -> ControllerResult<(Referee, Referee)> {
-    let referees = arlo_db::repositories::referee::list_all(pool)
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+pub async fn select_referees(pool: &SqlitePool, seed: u64) -> ControllerResult<(Referee, Referee)> {
+    let referees = get_or_load_referees(pool).await?;
 
     if referees.len() < 2 {
         return Err(ControllerError::NotFound(

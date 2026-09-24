@@ -3,7 +3,55 @@ use crate::models::{
     MatchChallengeRow, MatchPlayCallSelectionRow, MatchTacticalProfileActivationRow,
     MatchTimeCallRow,
 };
-use sqlx::{Sqlite, Transaction};
+use crate::repositories::batching::execute_batch_insert;
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use uuid::Uuid;
+
+const TIME_CALL_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "sequence_number",
+    "period",
+    "seconds_in_period",
+    "team_id",
+    "remaining_time_calls_after",
+    "reason",
+];
+
+const CHALLENGE_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "sequence_number",
+    "period",
+    "seconds_in_period",
+    "team_id",
+    "call_kind",
+    "success",
+    "remaining_challenges_after",
+];
+
+const TACTICAL_PROFILE_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "sequence_number",
+    "period",
+    "seconds_in_period",
+    "team_id",
+    "profile_id",
+    "profile_name",
+];
+
+const PLAY_CALL_COLUMNS: &[&str] = &[
+    "id",
+    "match_id",
+    "sequence_number",
+    "period",
+    "seconds_in_period",
+    "team_id",
+    "play_call_id",
+    "play_call_name",
+    "category",
+];
 
 pub async fn insert_time_call(
     tx: &mut Transaction<'_, Sqlite>,
@@ -39,10 +87,17 @@ pub async fn insert_time_calls_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchTimeCallRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_time_call(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_time_calls", TIME_CALL_COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(row.sequence_number);
+        b.push_bind(row.period);
+        b.push_bind(row.seconds_in_period);
+        b.push_bind(&row.team_id);
+        b.push_bind(row.remaining_time_calls_after);
+        b.push_bind(&row.reason);
+    })
+    .await
 }
 
 pub async fn insert_challenge(
@@ -81,10 +136,18 @@ pub async fn insert_challenges_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchChallengeRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_challenge(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(tx, "match_challenges", CHALLENGE_COLUMNS, rows, |b, row| {
+        b.push_bind(&row.id);
+        b.push_bind(&row.match_id);
+        b.push_bind(row.sequence_number);
+        b.push_bind(row.period);
+        b.push_bind(row.seconds_in_period);
+        b.push_bind(&row.team_id);
+        b.push_bind(&row.call_kind);
+        b.push_bind(row.success);
+        b.push_bind(row.remaining_challenges_after);
+    })
+    .await
 }
 
 pub async fn insert_tactical_profile_activation(
@@ -121,10 +184,23 @@ pub async fn insert_tactical_profile_activations_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchTacticalProfileActivationRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_tactical_profile_activation(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(
+        tx,
+        "match_tactical_profile_activations",
+        TACTICAL_PROFILE_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(row.sequence_number);
+            b.push_bind(row.period);
+            b.push_bind(row.seconds_in_period);
+            b.push_bind(&row.team_id);
+            b.push_bind(&row.profile_id);
+            b.push_bind(&row.profile_name);
+        },
+    )
+    .await
 }
 
 pub async fn insert_play_call_selection(
@@ -163,8 +239,124 @@ pub async fn insert_play_call_selections_batch(
     tx: &mut Transaction<'_, Sqlite>,
     rows: &[MatchPlayCallSelectionRow],
 ) -> PersistenceResult<()> {
-    for row in rows {
-        insert_play_call_selection(tx, row).await?;
-    }
-    Ok(())
+    execute_batch_insert(
+        tx,
+        "match_play_call_selections",
+        PLAY_CALL_COLUMNS,
+        rows,
+        |b, row| {
+            b.push_bind(&row.id);
+            b.push_bind(&row.match_id);
+            b.push_bind(row.sequence_number);
+            b.push_bind(row.period);
+            b.push_bind(row.seconds_in_period);
+            b.push_bind(&row.team_id);
+            b.push_bind(&row.play_call_id);
+            b.push_bind(&row.play_call_name);
+            b.push_bind(&row.category);
+        },
+    )
+    .await
+}
+
+pub async fn list_time_calls_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchTimeCallRow>> {
+    let rows = sqlx::query_as::<_, MatchTimeCallRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            team_id,
+            remaining_time_calls_after,
+            reason
+        FROM match_time_calls
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_challenges_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchChallengeRow>> {
+    let rows = sqlx::query_as::<_, MatchChallengeRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            team_id,
+            call_kind,
+            success,
+            remaining_challenges_after
+        FROM match_challenges
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_tactical_profile_activations_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchTacticalProfileActivationRow>> {
+    let rows = sqlx::query_as::<_, MatchTacticalProfileActivationRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            team_id,
+            profile_id,
+            profile_name
+        FROM match_tactical_profile_activations
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
+}
+
+pub async fn list_play_call_selections_by_match_id(
+    pool: &SqlitePool,
+    match_id: Uuid,
+) -> PersistenceResult<Vec<MatchPlayCallSelectionRow>> {
+    let rows = sqlx::query_as::<_, MatchPlayCallSelectionRow>(
+        r#"SELECT
+            id,
+            match_id,
+            sequence_number,
+            period,
+            seconds_in_period,
+            team_id,
+            play_call_id,
+            play_call_name,
+            category
+        FROM match_play_call_selections
+        WHERE match_id = ?
+        ORDER BY sequence_number ASC"#,
+    )
+    .bind(match_id.to_string())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows)
 }

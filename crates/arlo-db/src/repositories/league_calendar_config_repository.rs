@@ -1,15 +1,9 @@
 use crate::error::DbResult;
 use crate::models::league_calendar::{
-    CompetitionGroupRow,
-    CompetitionGroupTeamRow,
-    EntryRulePoolRow,
-    LeagueCalendarCollectiveAgreementRow,
-    LeagueCalendarConfigRow,
-    LeagueCalendarMatchdayWeekdayRow,
-    LeagueCalendarStageDefinitionRow,
-    ScheduleBlockPoolGroupRow,
-    ScheduleBlockRow,
-    TieBreakCriterionRow,
+    CompetitionGroupRow, CompetitionGroupTeamRow, EntryRulePoolRow,
+    LeagueCalendarCollectiveAgreementRow, LeagueCalendarConfigRow,
+    LeagueCalendarMatchdayWeekdayRow, LeagueCalendarStageDefinitionRow, ScheduleBlockPoolGroupRow,
+    ScheduleBlockRow, TieBreakCriterionRow,
 };
 use crate::repositories::fetch::{fetch_all_by_param, fetch_optional_by_param};
 use arlo_domain::{LeagueCalendarConfig, QualificationPoolRule, ScheduleBlock, TieBreakCriterion};

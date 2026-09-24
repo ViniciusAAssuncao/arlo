@@ -33,8 +33,7 @@ pub async fn rehydrate_all_triggers(
         build_season_generation_triggers(pool, calendar, &configs, reference_year).await?;
     let stage_trans_triggers =
         rehydrate_stage_transition_triggers(pool, calendar, &configs).await?;
-    let conflict_scan_triggers =
-        rehydrate_conflict_scan_triggers(pool, &configs).await?;
+    let conflict_scan_triggers = rehydrate_conflict_scan_triggers(pool, &configs).await?;
 
     let mut index: BTreeMap<(i64, u32), Vec<PendingTrigger>> = BTreeMap::new();
 

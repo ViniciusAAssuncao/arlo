@@ -1,8 +1,9 @@
 use arlo_domain::ArtrineDecisionKind;
 use arlo_stats::DecisionKindStats;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchPlayerArtrineDecisionByKindRow {
     pub id: String,
     pub match_id: String,

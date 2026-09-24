@@ -24,10 +24,7 @@ pub fn compare_simple_criterion(
             Some(ord)
         }
         TieBreakCriterion::QtaScore => {
-            let ord = b
-                .qta()
-                .partial_cmp(&a.qta())
-                .unwrap_or(Ordering::Equal);
+            let ord = b.qta().partial_cmp(&a.qta()).unwrap_or(Ordering::Equal);
             Some(ord)
         }
         TieBreakCriterion::GoalDifference => {
@@ -35,9 +32,7 @@ pub fn compare_simple_criterion(
             let sg_b = b.goal_points_for() as i64 - b.goal_points_against() as i64;
             Some(sg_b.cmp(&sg_a))
         }
-        TieBreakCriterion::GoalPointsTotal => {
-            Some(b.goal_points_for().cmp(&a.goal_points_for()))
-        }
+        TieBreakCriterion::GoalPointsTotal => Some(b.goal_points_for().cmp(&a.goal_points_for())),
         TieBreakCriterion::HeadToHead | TieBreakCriterion::Random => None,
     }
 }
@@ -64,10 +59,7 @@ pub fn compare_simple_criteria(
     Ordering::Equal
 }
 
-pub fn sort_by_simple_criteria(
-    entries: &mut [StandingsEntry],
-    criteria: &[TieBreakCriterion],
-) {
+pub fn sort_by_simple_criteria(entries: &mut [StandingsEntry], criteria: &[TieBreakCriterion]) {
     entries.sort_by(|a, b| compare_simple_criteria(a, b, criteria));
 }
 

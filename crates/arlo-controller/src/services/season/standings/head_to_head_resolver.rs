@@ -18,10 +18,8 @@ pub fn resolve_head_to_head(
         return tied_group.to_vec();
     }
 
-    let original_map: HashMap<Uuid, StandingsEntry> = tied_group
-        .iter()
-        .map(|e| (e.team_id(), *e))
-        .collect();
+    let original_map: HashMap<Uuid, StandingsEntry> =
+        tied_group.iter().map(|e| (e.team_id(), *e)).collect();
 
     let team_ids_set: HashSet<Uuid> = tied_group.iter().map(|e| e.team_id()).collect();
     let team_ids: Vec<Uuid> = tied_group.iter().map(|e| e.team_id()).collect();

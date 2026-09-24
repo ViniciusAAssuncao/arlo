@@ -33,7 +33,8 @@ pub fn calculate_and_rank_standings(
         }
 
         if has_h2h {
-            let after_h2h = resolve_head_to_head(&group, fixtures, spa_policy, qta_policy, criteria);
+            let after_h2h =
+                resolve_head_to_head(&group, fixtures, spa_policy, qta_policy, criteria);
             let h2h_groups = partition_tied_groups(&after_h2h, criteria);
             for sub_group in h2h_groups {
                 if sub_group.len() > 1 && has_random {

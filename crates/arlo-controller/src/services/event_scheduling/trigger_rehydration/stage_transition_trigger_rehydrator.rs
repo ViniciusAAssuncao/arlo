@@ -49,19 +49,15 @@ pub async fn rehydrate_stage_transition_triggers(
 
             let stage_id = Uuid::parse_str(&current_stage.id)?;
             let fixture_rows =
-                arlo_persistence::repositories::season::fixtures::list_by_stage_id(
-                    pool, stage_id,
-                )
-                .await?;
+                arlo_persistence::repositories::season::fixtures::list_by_stage_id(pool, stage_id)
+                    .await?;
 
             let mut fixtures = Vec::with_capacity(fixture_rows.len());
             for row in &fixture_rows {
                 fixtures.push(map_row_to_fixture(row)?);
             }
 
-            if let Some(completion_date) =
-                calculate_stage_completion_date(calendar, &fixtures)
-            {
+            if let Some(completion_date) = calculate_stage_completion_date(calendar, &fixtures) {
                 triggers.push(PendingTrigger::new(
                     completion_date,
                     competition_id,

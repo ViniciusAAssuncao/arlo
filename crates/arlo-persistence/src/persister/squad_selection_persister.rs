@@ -1,129 +1,107 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchSquadSelectionRow;
 use crate::repositories;
-use arlo_engine::{AvailabilityState, MatchState};
-use arlo_events::MatchEvent;
+use arlo_engine::{MatchInput, TeamInput};
+use arlo_events::{AvailabilityStatus, MatchEvent};
 use arlo_match_runner::MatchRunResult;
 use sqlx::{Sqlite, Transaction};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
-fn map_availability_status(state: &MatchState, player_id: &Uuid) -> (&'static str, Option<f64>) {
-    match state.availability_for(player_id) {
-        AvailabilityState::Active => ("Active", None),
-        AvailabilityState::Suspended { remaining_seconds } => {
-            ("Suspended", Some(remaining_seconds))
-        }
-        AvailabilityState::Expelled => ("Expelled", None),
-        AvailabilityState::Injured => ("Injured", None),
+fn status_name(status: AvailabilityStatus) -> &'static str {
+    match status {
+        AvailabilityStatus::Active => "Active",
+        AvailabilityStatus::Suspended => "Suspended",
+        AvailabilityStatus::Expelled => "Expelled",
+        AvailabilityStatus::Injured => "Injured",
     }
 }
 
 fn build_team_squad_selections(
     match_id: Uuid,
-    team_id: Uuid,
-    is_home: bool,
-    state: &MatchState,
-    starters_from_subs: &HashSet<Uuid>,
-    ever_subbed_in: &HashSet<Uuid>,
-    ever_subbed_out: &HashSet<Uuid>,
+    team: &TeamInput,
+    used_player_ids: &HashSet<Uuid>,
+    final_statuses: &HashMap<Uuid, AvailabilityStatus>,
 ) -> Vec<MatchSquadSelectionRow> {
-    let mut rows = Vec::new();
-    let role_index = state.role_index_for_team(team_id);
-    let lineup = if is_home {
-        state.home_lineup()
-    } else {
-        state.away_lineup()
-    };
-    let squad = if is_home {
-        state.home_squad()
-    } else {
-        state.away_squad()
-    };
-
-    for (idx, assignment) in lineup.assignments().iter().enumerate() {
-        let pid = assignment.player().id();
-        let was_starter = !ever_subbed_in.contains(&pid) || starters_from_subs.contains(&pid);
-        let slot_role = role_index.get(&pid).map(|r| format!("{:?}", r));
-        let (status_str, rem_sec) = map_availability_status(state, &pid);
+    let starters: HashSet<Uuid> = team
+        .lineup()
+        .assignments()
+        .iter()
+        .map(|assignment| assignment.player_id())
+        .collect();
+    let mut rows = Vec::with_capacity(team.roster().len());
+    for assignment in team.lineup().assignments() {
+        let player_id = assignment.player_id();
+        let status = final_statuses
+            .get(&player_id)
+            .copied()
+            .unwrap_or(AvailabilityStatus::Active);
         rows.push(MatchSquadSelectionRow::new(
             Uuid::new_v4(),
             match_id,
-            team_id,
-            pid,
-            was_starter,
-            Some(idx as i32),
-            slot_role,
+            team.team_id(),
+            player_id,
             true,
-            status_str,
-            rem_sec,
+            Some(assignment.formation_slot_index() as i32),
+            Some(format!("{:?}", assignment.slot_role())),
+            true,
+            status_name(status),
+            None,
         ));
     }
-
-    for bench_p in squad.bench() {
-        let pid = bench_p.id();
-        let was_used = ever_subbed_in.contains(&pid) || ever_subbed_out.contains(&pid);
-        let was_starter = starters_from_subs.contains(&pid);
-        let (status_str, rem_sec) = map_availability_status(state, &pid);
+    for player in team.roster() {
+        let player_id = player.id();
+        if starters.contains(&player_id) {
+            continue;
+        }
+        let status = final_statuses
+            .get(&player_id)
+            .copied()
+            .unwrap_or(AvailabilityStatus::Active);
         rows.push(MatchSquadSelectionRow::new(
             Uuid::new_v4(),
             match_id,
-            team_id,
-            pid,
-            was_starter,
+            team.team_id(),
+            player_id,
+            false,
             None,
             None,
-            was_used,
-            status_str,
-            rem_sec,
+            used_player_ids.contains(&player_id),
+            status_name(status),
+            None,
         ));
     }
-
     rows
 }
 
 pub async fn persist_squad_selections(
     tx: &mut Transaction<'_, Sqlite>,
     match_id: Uuid,
-    state: &MatchState,
+    input: &MatchInput,
     run_result: &MatchRunResult,
 ) -> PersistenceResult<()> {
-    let mut starters_from_subs = HashSet::new();
-    let mut ever_subbed_in = HashSet::new();
-    let mut ever_subbed_out = HashSet::new();
-
-    for env in run_result.raw_sink.events() {
-        if let MatchEvent::SubstitutionMade(e) = env.event() {
-            if !ever_subbed_in.contains(&e.player_out()) {
-                starters_from_subs.insert(e.player_out());
+    let mut used_player_ids = HashSet::new();
+    let mut final_statuses = HashMap::new();
+    for envelope in run_result.raw_sink.events() {
+        match envelope.event() {
+            MatchEvent::SubstitutionMade(event) => {
+                used_player_ids.insert(event.player_out());
+                used_player_ids.insert(event.player_in());
             }
-            ever_subbed_out.insert(e.player_out());
-            ever_subbed_in.insert(e.player_in());
+            MatchEvent::PlayerAvailabilityChanged(event) => {
+                final_statuses.insert(event.player_id(), event.new_status());
+            }
+            _ => {}
         }
     }
-
-    let mut rows = build_team_squad_selections(
+    let mut rows =
+        build_team_squad_selections(match_id, input.home(), &used_player_ids, &final_statuses);
+    rows.extend(build_team_squad_selections(
         match_id,
-        state.home_team_id(),
-        true,
-        state,
-        &starters_from_subs,
-        &ever_subbed_in,
-        &ever_subbed_out,
-    );
-
-    let away_rows = build_team_squad_selections(
-        match_id,
-        state.away_team_id(),
-        false,
-        state,
-        &starters_from_subs,
-        &ever_subbed_in,
-        &ever_subbed_out,
-    );
-
-    rows.extend(away_rows);
+        input.away(),
+        &used_player_ids,
+        &final_statuses,
+    ));
     repositories::match_squad_selection::insert_batch(tx, &rows).await?;
-
     Ok(())
 }

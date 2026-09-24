@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct FixtureSummaryDto {
     pub id: String,
+    pub match_id: Option<String>,
     pub round_index: u32,
     pub home_team_id: String,
     pub away_team_id: String,

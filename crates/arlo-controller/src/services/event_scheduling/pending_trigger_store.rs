@@ -47,10 +47,7 @@ impl PendingTriggerStore {
         let current_key = (current_date.year(), current_date.day_of_year());
         let mut guard = self.triggers.write().await;
 
-        let due_keys: Vec<(i64, u32)> = guard
-            .range(..=current_key)
-            .map(|(k, _)| *k)
-            .collect();
+        let due_keys: Vec<(i64, u32)> = guard.range(..=current_key).map(|(k, _)| *k).collect();
 
         let mut due_triggers = Vec::new();
         for key in due_keys {

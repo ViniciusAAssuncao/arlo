@@ -64,12 +64,8 @@ pub fn generate_stage_schedule(
                 matches
             };
 
-            let scheduled_matches = assign_dates(
-                calendar,
-                config.timing(),
-                anchor_date,
-                &matches_with_offset,
-            )?;
+            let scheduled_matches =
+                assign_dates(calendar, config.timing(), anchor_date, &matches_with_offset)?;
 
             let mut fixtures = Vec::with_capacity(scheduled_matches.len());
             for sm in scheduled_matches {

@@ -30,12 +30,7 @@ pub fn validate_group_order_indices_sequential(groups: &[CompetitionGroup]) -> D
         return Ok(());
     }
 
-    validate_no_duplicate_keys(
-        groups,
-        |g| g.order_index(),
-        "groups",
-        "order_index",
-    )?;
+    validate_no_duplicate_keys(groups, |g| g.order_index(), "groups", "order_index")?;
 
     let mut sorted_indices: Vec<u32> = groups.iter().map(|g| g.order_index()).collect();
     sorted_indices.sort_unstable();

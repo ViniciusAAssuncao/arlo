@@ -1,7 +1,8 @@
 use arlo_stats::ManagerDecisionLog;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, FromRow)]
 pub struct MatchManagerDecisionRow {
     pub id: String,
     pub match_id: String,

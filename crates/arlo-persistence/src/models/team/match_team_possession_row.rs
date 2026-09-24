@@ -1,7 +1,8 @@
 use arlo_stats::TeamPossessionStats;
+use sqlx::FromRow;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, FromRow)]
 pub struct MatchTeamPossessionRow {
     pub id: String,
     pub match_id: String,
@@ -10,12 +11,7 @@ pub struct MatchTeamPossessionRow {
 }
 
 impl MatchTeamPossessionRow {
-    pub fn new(
-        id: Uuid,
-        match_id: Uuid,
-        team_id: Uuid,
-        total_possession_seconds: f64,
-    ) -> Self {
+    pub fn new(id: Uuid, match_id: Uuid, team_id: Uuid, total_possession_seconds: f64) -> Self {
         Self {
             id: id.to_string(),
             match_id: match_id.to_string(),

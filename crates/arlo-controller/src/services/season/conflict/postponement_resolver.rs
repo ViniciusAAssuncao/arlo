@@ -8,7 +8,9 @@ use crate::services::season::conflict::games_per_week_conflict_detector::detect_
 use crate::services::season::conflict::next_valid_date_locator::find_next_valid_date_for_fixture;
 use crate::services::season::conflict::rest_gap_conflict_detector::detect_rest_gap_conflicts_for_teams;
 use crate::services::season::conflict::team_fixture_window_loader::calculate_fixture_week_index;
-use arlo_domain::{GamesPerWeekPolicy, PostponementPolicy, PostponementStrategyKind, RestGapPolicy, SeasonTiming};
+use arlo_domain::{
+    GamesPerWeekPolicy, PostponementPolicy, PostponementStrategyKind, RestGapPolicy, SeasonTiming,
+};
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -51,11 +53,8 @@ pub fn resolve_conflicts_and_postpone(
         competition_stage_ids,
     );
 
-    let blackout_conflicts = detect_blackout_conflicts(
-        fixtures,
-        blackout_windows,
-        competition_stage_ids,
-    );
+    let blackout_conflicts =
+        detect_blackout_conflicts(fixtures, blackout_windows, competition_stage_ids);
 
     if gpw_conflicts.is_empty() && rest_gap_conflicts.is_empty() && blackout_conflicts.is_empty() {
         return Ok(ConflictScanReport::empty(competition_id));
@@ -138,12 +137,9 @@ pub fn resolve_conflicts_and_postpone(
                     }
                 };
 
-                let target_week = calculate_fixture_week_index(
-                    calendar,
-                    &season_start_date,
-                    &new_date,
-                )
-                .unwrap_or(fixture.round_index());
+                let target_week =
+                    calculate_fixture_week_index(calendar, &season_start_date, &new_date)
+                        .unwrap_or(fixture.round_index());
 
                 let record = PostponementRecord::new(
                     Uuid::new_v4(),

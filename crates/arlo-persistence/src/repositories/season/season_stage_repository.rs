@@ -37,10 +37,7 @@ pub async fn insert_batch(
     Ok(())
 }
 
-pub async fn get_by_id(
-    pool: &SqlitePool,
-    id: Uuid,
-) -> PersistenceResult<Option<SeasonStageRow>> {
+pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> PersistenceResult<Option<SeasonStageRow>> {
     let row = sqlx::query_as::<_, SeasonStageRow>(
         "SELECT id, season_instance_id, stage_order_index, stage_type, status FROM season_stages WHERE id = ?",
     )
@@ -64,4 +61,3 @@ pub async fn list_by_season_instance_id(
 
     Ok(rows)
 }
-

@@ -18,7 +18,9 @@ impl LeagueMovementRule {
 
     pub fn stage_order_index(&self) -> Option<u32> {
         match self {
-            Self::PlayoffStage { stage_order_index, .. } => Some(*stage_order_index),
+            Self::PlayoffStage {
+                stage_order_index, ..
+            } => Some(*stage_order_index),
             _ => None,
         }
     }

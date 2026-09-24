@@ -16,9 +16,7 @@ pub fn parse_body_region(code: &str) -> DbResult<BodyRegion> {
         "Calf" | "calf" => Ok(BodyRegion::Calf),
         "Ankle" | "ankle" => Ok(BodyRegion::Ankle),
         "Foot" | "foot" => Ok(BodyRegion::Foot),
-        _ => Err(DbError::InvalidEnum(format!(
-            "Invalid body region: {code}"
-        ))),
+        _ => Err(DbError::InvalidEnum(format!("Invalid body region: {code}"))),
     }
 }
 

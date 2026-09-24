@@ -2,10 +2,7 @@ use crate::services::season::round_robin::circle_method_generator::RoundRobinMat
 use arlo_domain::{NeutralOpenerPolicy, NeutralOpenerSelectionStrategy};
 use rand::seq::SliceRandom;
 
-pub fn resolve_neutral_opener(
-    matches: &mut [RoundRobinMatch],
-    policy: &NeutralOpenerPolicy,
-) {
+pub fn resolve_neutral_opener(matches: &mut [RoundRobinMatch], policy: &NeutralOpenerPolicy) {
     if !policy.enabled() {
         return;
     }

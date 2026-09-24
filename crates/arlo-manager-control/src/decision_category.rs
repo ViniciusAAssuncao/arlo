@@ -9,4 +9,5 @@ pub enum ManagerDecisionCategory {
     TacticalSwitch,
     PlayCall,
     KickFoulRealignment,
+    KickFoulDecision,
 }

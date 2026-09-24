@@ -21,20 +21,24 @@ pub async fn get_player_profile(
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?
         .ok_or_else(|| ControllerError::NotFound(format!("Player {} not found", player_id)))?;
 
-    let nationality_name = match arlo_db::repositories::country::get_by_id(pool, player.nationality_id())
-        .await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?
-    {
-        Some(country) => country.name().to_string(),
-        None => String::new(),
-    };
+    let nationality_name =
+        match arlo_db::repositories::country::get_by_id(pool, player.nationality_id())
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+        {
+            Some(country) => country.name().to_string(),
+            None => String::new(),
+        };
 
     let (team_id, team_name) = match player.team_id() {
         Some(tid) => {
             let team_opt = arlo_db::repositories::team::get_by_id(pool, tid)
                 .await
                 .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-            (Some(tid.to_string()), team_opt.map(|t| t.name().to_string()))
+            (
+                Some(tid.to_string()),
+                team_opt.map(|t| t.name().to_string()),
+            )
         }
         None => (None, None),
     };

@@ -19,18 +19,12 @@ fn compute_leg_scheduled_date(
     week_len: i64,
     allowed_weekdays: &[u32],
 ) -> CalendarDate {
-    let week_base_date = date_advancer::advance(
-        calendar,
-        anchor_date,
-        week_offset * week_len,
-    );
+    let week_base_date = date_advancer::advance(calendar, anchor_date, week_offset * week_len);
     let base_resolved = date_resolver::resolve(calendar, &week_base_date);
 
     let base_weekday = match base_resolved {
         ResolvedCalendarDate::RegularDay { week_day_index, .. } => week_day_index,
-        ResolvedCalendarDate::IntercalaryDay { week_day_index, .. } => {
-            week_day_index.unwrap_or(0)
-        }
+        ResolvedCalendarDate::IntercalaryDay { week_day_index, .. } => week_day_index.unwrap_or(0),
     };
 
     let target_weekday = if !allowed_weekdays.is_empty() {

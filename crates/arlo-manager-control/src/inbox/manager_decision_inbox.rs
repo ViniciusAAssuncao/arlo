@@ -1,7 +1,7 @@
 use crate::inbox::team_decision_inbox::TeamDecisionInbox;
 use crate::intents::{
-    ChallengeIntent, ForcedSubstitutionIntent, KickFoulRealignmentIntent, PlayCallIntent,
-    SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
+    ChallengeIntent, ForcedSubstitutionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
+    PlayCallIntent, SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -21,7 +21,10 @@ impl ManagerDecisionInbox {
 
     pub fn submit_substitution(&self, team_id: Uuid, intent: SubstitutionIntent) {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
-        teams.entry(team_id).or_default().submit_substitution(intent);
+        teams
+            .entry(team_id)
+            .or_default()
+            .submit_substitution(intent);
     }
 
     pub fn submit_substitutions(
@@ -30,7 +33,10 @@ impl ManagerDecisionInbox {
         intents: impl IntoIterator<Item = SubstitutionIntent>,
     ) {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
-        teams.entry(team_id).or_default().submit_substitutions(intents);
+        teams
+            .entry(team_id)
+            .or_default()
+            .submit_substitutions(intents);
     }
 
     pub fn submit_forced_substitution(&self, team_id: Uuid, intent: ForcedSubstitutionIntent) {
@@ -65,7 +71,10 @@ impl ManagerDecisionInbox {
 
     pub fn submit_tactical_switch(&self, team_id: Uuid, intent: TacticalSwitchIntent) {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
-        teams.entry(team_id).or_default().submit_tactical_switch(intent);
+        teams
+            .entry(team_id)
+            .or_default()
+            .submit_tactical_switch(intent);
     }
 
     pub fn submit_play_call(&self, team_id: Uuid, intent: PlayCallIntent) {
@@ -73,11 +82,15 @@ impl ManagerDecisionInbox {
         teams.entry(team_id).or_default().submit_play_call(intent);
     }
 
-    pub fn submit_kick_foul_realignment(
-        &self,
-        team_id: Uuid,
-        intent: KickFoulRealignmentIntent,
-    ) {
+    pub fn submit_kick_foul_decision(&self, team_id: Uuid, intent: KickFoulDecisionIntent) {
+        let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams
+            .entry(team_id)
+            .or_default()
+            .submit_kick_foul_decision(intent);
+    }
+
+    pub fn submit_kick_foul_realignment(&self, team_id: Uuid, intent: KickFoulRealignmentIntent) {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
         teams
             .entry(team_id)
@@ -92,7 +105,10 @@ impl ManagerDecisionInbox {
 
     pub fn take_forced_substitutions(&self, team_id: Uuid) -> Vec<ForcedSubstitutionIntent> {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
-        teams.entry(team_id).or_default().take_forced_substitutions()
+        teams
+            .entry(team_id)
+            .or_default()
+            .take_forced_substitutions()
     }
 
     pub fn take_time_call(&self, team_id: Uuid) -> Option<TimeCallIntent> {
@@ -115,11 +131,33 @@ impl ManagerDecisionInbox {
         teams.entry(team_id).or_default().take_play_call()
     }
 
-    pub fn take_kick_foul_realignment(
-        &self,
-        team_id: Uuid,
-    ) -> Option<KickFoulRealignmentIntent> {
+    pub fn take_kick_foul_decision(&self, team_id: Uuid) -> Option<KickFoulDecisionIntent> {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
-        teams.entry(team_id).or_default().take_kick_foul_realignment()
+        teams.entry(team_id).or_default().take_kick_foul_decision()
+    }
+
+    pub fn kick_foul_decision(&self, team_id: Uuid) -> Option<KickFoulDecisionIntent> {
+        let teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams
+            .get(&team_id)
+            .and_then(TeamDecisionInbox::kick_foul_decision)
+    }
+
+    pub fn play_call(&self, team_id: Uuid) -> Option<PlayCallIntent> {
+        let teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.get(&team_id).and_then(TeamDecisionInbox::play_call)
+    }
+
+    pub fn time_call(&self, team_id: Uuid) -> Option<TimeCallIntent> {
+        let teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.get(&team_id).and_then(TeamDecisionInbox::time_call)
+    }
+
+    pub fn take_kick_foul_realignment(&self, team_id: Uuid) -> Option<KickFoulRealignmentIntent> {
+        let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams
+            .entry(team_id)
+            .or_default()
+            .take_kick_foul_realignment()
     }
 }

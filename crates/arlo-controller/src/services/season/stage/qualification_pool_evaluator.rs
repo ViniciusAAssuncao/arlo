@@ -11,9 +11,7 @@ pub fn evaluate_pool(
     external_winners: &HashMap<Uuid, Uuid>,
 ) -> ControllerResult<Vec<Uuid>> {
     match pool {
-        QualificationPoolRule::AllTeams => {
-            Ok(global_sorted.iter().map(|e| e.team_id()).collect())
-        }
+        QualificationPoolRule::AllTeams => Ok(global_sorted.iter().map(|e| e.team_id()).collect()),
         QualificationPoolRule::TopN { count } => {
             let count = *count as usize;
             if global_sorted.len() < count {
@@ -85,15 +83,21 @@ pub fn evaluate_pool(
                     end
                 )));
             }
-            Ok(global_sorted[(start - 1)..end].iter().map(|e| e.team_id()).collect())
+            Ok(global_sorted[(start - 1)..end]
+                .iter()
+                .map(|e| e.team_id())
+                .collect())
         }
         QualificationPoolRule::ExternalCompetitionWinner { competition_id } => {
-            let winner = external_winners.get(competition_id).copied().ok_or_else(|| {
-                ControllerError::Validation(format!(
-                    "External winner for competition {} not found",
-                    competition_id
-                ))
-            })?;
+            let winner = external_winners
+                .get(competition_id)
+                .copied()
+                .ok_or_else(|| {
+                    ControllerError::Validation(format!(
+                        "External winner for competition {} not found",
+                        competition_id
+                    ))
+                })?;
             Ok(vec![winner])
         }
     }
