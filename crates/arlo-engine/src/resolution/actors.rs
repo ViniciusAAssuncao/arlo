@@ -12,6 +12,7 @@ pub(super) enum ActorRole {
     Carrier,
     Receiver,
     Defender,
+    Shooter,
 }
 
 pub(super) fn select_actor(
@@ -45,16 +46,7 @@ pub(super) fn select_receiver(
             } else {
                 1.0
             };
-            let route_weight = selected_play_call.map_or(1.0, |call| {
-                if call.routes().is_empty() {
-                    1.0
-                } else {
-                    call.routes()
-                        .iter()
-                        .find(|route| route.slot_index() == assignment.formation_slot_index())
-                        .map_or(0.6, |route| 1.0 + 2.0 * route.read_priority().value())
-                }
-            });
+            let route_weight = route_weight(selected_play_call, assignment);
             let threat_weight = if has_drive && assignment.position().line() == PositionLine::OffensiveLine {
                 let finisher = 0.5
                     * ratings.player_value(team, assignment.player_id(), AttributeKey::Finishing)?
@@ -73,6 +65,53 @@ pub(super) fn select_receiver(
             Ok(return_weight * route_weight * threat_weight)
         },
     )
+}
+
+pub(super) fn select_shooter(
+    ratings: &RatingIndex,
+    team: &TeamInput,
+    holder_id: Uuid,
+    selected_play_call: Option<&PlayCall>,
+    rng: &mut ChaCha8Rng,
+) -> EngineResult<Uuid> {
+    let emphasis = selected_play_call
+        .map(|call| *call.decision_emphasis())
+        .unwrap_or_else(|| team.tactics().instructions().default_decision_emphasis());
+    select_weighted_actor(ratings, team, ActorRole::Shooter, None, rng, |assignment| {
+        let depth = team
+            .formation()
+            .slots()
+            .get(assignment.formation_slot_index())
+            .and_then(|slot| slot.pitch_length_ratio())
+            .unwrap_or(match assignment.position().line() {
+                PositionLine::OffensiveLine => 0.7,
+                PositionLine::BackLine => 0.45,
+                PositionLine::DefenseLine => 0.2,
+                PositionLine::Goalguard => 0.05,
+            })
+            .clamp(0.0, 1.0);
+        let holder_weight = if assignment.player_id() == holder_id {
+            0.75 + 1.5 * emphasis.self_finish().value()
+        } else {
+            1.0
+        };
+        Ok((0.25 + depth).powi(3)
+            * holder_weight
+            * route_weight(selected_play_call, assignment))
+    })
+}
+
+fn route_weight(selected_play_call: Option<&PlayCall>, assignment: &SlotAssignment) -> f64 {
+    selected_play_call.map_or(1.0, |call| {
+        if call.routes().is_empty() {
+            1.0
+        } else {
+            call.routes()
+                .iter()
+                .find(|route| route.slot_index() == assignment.formation_slot_index())
+                .map_or(0.6, |route| 1.0 + 2.0 * route.read_priority().value())
+        }
+    })
 }
 
 fn select_weighted_actor(
@@ -108,6 +147,12 @@ fn select_weighted_actor(
                     + ratings.player_value(team, player_id, AttributeKey::Anticipation)?)
                     * 0.5
             }
+            ActorRole::Shooter => {
+                0.50 * ratings.player_value(team, player_id, AttributeKey::Finishing)?
+                    + 0.25 * ratings.player_value(team, player_id, AttributeKey::Positioning)?
+                    + 0.15 * ratings.player_value(team, player_id, AttributeKey::Anticipation)?
+                    + 0.10 * ratings.player_value(team, player_id, AttributeKey::Composure)?
+            }
         };
         let position_weight = match (role, position.line()) {
             (ActorRole::Carrier, PositionLine::OffensiveLine) => 1.5,
@@ -119,6 +164,7 @@ fn select_weighted_actor(
             (ActorRole::Defender, PositionLine::DefenseLine) => 2.0,
             (ActorRole::Defender, PositionLine::BackLine) => 1.0,
             (ActorRole::Defender, PositionLine::OffensiveLine) => 0.5,
+            (ActorRole::Shooter, _) => 1.0,
             (_, PositionLine::Goalguard) => 0.12,
         };
         let specialist_weight = match (role, position) {

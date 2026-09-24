@@ -1,13 +1,16 @@
+use super::actors::select_shooter;
 use super::down::emit_down_advanced;
+use super::exchange::{resolve_targeted_pass, ExchangeOutcome};
 use super::ratings::RatingIndex;
 use super::shooting_model::sample_regular_shot;
 use crate::error::EngineResult;
 use crate::input::{MatchInput, TeamInput};
 use crate::state::{MatchState, ScoreKind};
+use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_domain::Position;
 use arlo_events::{
     FieldPointScored, GoalPointScored, MatchEvent, MatchEventEnvelope, OutOfBounds,
-    ScoringAttemptMissed, ScoringPost, Turnover,
+    PossessionTimeRecorded, ScoringAttemptMissed, ScoringPost, Turnover,
 };
 use arlo_tactics::PlayCall;
 use uuid::Uuid;
@@ -41,11 +44,18 @@ pub(super) fn resolve_regular_attempt(
     } else {
         position
     };
+    let can_pass = state.clock().period_limit_seconds() - state.clock().seconds_in_period()
+        >= IMMEDIATE_POSSESSION_CONTROL_SECONDS;
+    let shooter_id = if can_pass {
+        select_shooter(ratings, offense, holder_id, selected_play_call, state.rng_mut())?
+    } else {
+        holder_id
+    };
     let Some(sample) = sample_regular_shot(
         ratings,
         offense,
         defense,
-        holder_id,
+        shooter_id,
         selected_play_call,
         distance,
         pitch_length,
@@ -55,6 +65,32 @@ pub(super) fn resolve_regular_attempt(
     else {
         return Ok(false);
     };
+    if shooter_id != holder_id {
+        state.advance_playing_time(IMMEDIATE_POSSESSION_CONTROL_SECONDS)?;
+        events.push(state.emit(MatchEvent::PossessionTimeRecorded(
+            PossessionTimeRecorded::new(team_id, IMMEDIATE_POSSESSION_CONTROL_SECONDS),
+        ))?);
+        match resolve_targeted_pass(
+            ratings, offense, defense, holder_id, shooter_id, state, events,
+        )? {
+            ExchangeOutcome::Retained(receiver_id) if receiver_id != shooter_id => {
+                return Ok(true);
+            }
+            ExchangeOutcome::Retained(_) => {}
+            ExchangeOutcome::Intercepted(interceptor_id) => {
+                state.turnover(defense.team_id())?;
+                state.set_carrier(interceptor_id)?;
+                events.push(state.emit(MatchEvent::Turnover(Turnover::new(
+                    team_id,
+                    defense.team_id(),
+                    Some(interceptor_id),
+                    Some(holder_id),
+                    true,
+                )))?);
+                return Ok(true);
+            }
+        }
+    }
     let shooter_id = sample.shooter_id;
     let assister_id = state.last_passer_id().filter(|passer_id| *passer_id != shooter_id);
     if sample.converted {

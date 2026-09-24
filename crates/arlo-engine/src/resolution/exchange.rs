@@ -54,6 +54,18 @@ pub(super) fn resolve_exchange(
         },
         state.rng_mut(),
     )?;
+    resolve_targeted_pass(ratings, offense, defense, holder_id, receiver_id, state, events)
+}
+
+pub(super) fn resolve_targeted_pass(
+    ratings: &RatingIndex,
+    offense: &TeamInput,
+    defense: &TeamInput,
+    holder_id: Uuid,
+    receiver_id: Uuid,
+    state: &mut MatchState,
+    events: &mut Vec<MatchEventEnvelope>,
+) -> EngineResult<ExchangeOutcome> {
     let defender_id = select_actor(
         ratings,
         defense,
