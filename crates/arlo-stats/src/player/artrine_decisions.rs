@@ -193,17 +193,13 @@ impl IntoSnapshot for PlayerArtrineDecisionStats {
 struct PendingDecisionPlay {
     artrine_id: Uuid,
     decision_kind: ArtrineDecisionKind,
-    down_number: u32,
-    all_duels_won: bool,
-    had_duel: bool,
-    turnover: bool,
-    points_in_play: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PlayerArtrineDecisionAggregator {
     stats: HashMap<Uuid, PlayerArtrineDecisionStats>,
     current_play: Option<PendingDecisionPlay>,
+    scoring_carrier_id: Option<Uuid>,
 }
 
 impl PlayerArtrineDecisionAggregator {
@@ -211,6 +207,7 @@ impl PlayerArtrineDecisionAggregator {
         Self {
             stats: HashMap::new(),
             current_play: None,
+            scoring_carrier_id: None,
         }
     }
 
@@ -237,19 +234,63 @@ impl PlayerArtrineDecisionAggregator {
 
     fn finalize_pending_play(&mut self) {
         if let Some(play) = self.current_play.take() {
-            let successful = !play.turnover
-                && (play.points_in_play > 0 || (play.had_duel && play.all_duels_won));
             let stats = self.get_mut_or_create(play.artrine_id);
             let kind_stats = stats.by_kind.entry(play.decision_kind).or_default();
-            if successful {
-                stats.total_successful_decisions += 1;
-                kind_stats.successful += 1;
-            } else {
-                stats.total_failed_decisions += 1;
-                kind_stats.failed += 1;
-            }
+            stats.total_failed_decisions += 1;
+            kind_stats.failed += 1;
         }
     }
+
+    fn record_carry(&mut self, carrier_id: Uuid, gain_mirim: f64) {
+        let Some(play) = self.current_play.take() else {
+            if self.scoring_carrier_id != Some(carrier_id) {
+                self.scoring_carrier_id = None;
+            }
+            return;
+        };
+        if play.artrine_id != carrier_id || play.decision_kind != ArtrineDecisionKind::SelfCarry {
+            self.current_play = Some(play);
+            self.scoring_carrier_id = None;
+            return;
+        }
+        let advance = gain_mirim.max(0.0);
+        let stats = self.get_mut_or_create(carrier_id);
+        let kind_stats = stats.by_kind.entry(play.decision_kind).or_default();
+        stats.total_mirins_advanced += advance;
+        kind_stats.mirins_advanced += advance;
+        if advance > 0.0 {
+            stats.total_successful_decisions += 1;
+            kind_stats.successful += 1;
+            self.scoring_carrier_id = Some(carrier_id);
+        } else {
+            stats.total_failed_decisions += 1;
+            kind_stats.failed += 1;
+            self.scoring_carrier_id = None;
+        }
+    }
+
+    fn record_score(&mut self, scorer_id: Uuid, points: u32, score_kind: ScoreKind) {
+        let scorer_is_carrier = self.scoring_carrier_id.take() == Some(scorer_id);
+        if !scorer_is_carrier {
+            return;
+        }
+        let stats = self.get_mut_or_create(scorer_id);
+        stats.total_points_generated += points;
+        stats.by_kind
+            .entry(ArtrineDecisionKind::SelfCarry)
+            .or_default()
+            .points_generated += points;
+        match score_kind {
+            ScoreKind::GoalPoint => stats.goal_points_generated += 1,
+            ScoreKind::FieldPoint => stats.field_points_generated += 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ScoreKind {
+    GoalPoint,
+    FieldPoint,
 }
 
 impl IntoSnapshot for PlayerArtrineDecisionAggregator {
@@ -268,9 +309,11 @@ impl StatAggregator for PlayerArtrineDecisionAggregator {
         match event {
             MatchEvent::CallToActionStarted(_) => {
                 self.finalize_pending_play();
+                self.scoring_carrier_id = None;
             }
             MatchEvent::ArtrineDecisionMade(e) => {
                 self.finalize_pending_play();
+                self.scoring_carrier_id = None;
 
                 let stats = self.get_mut_or_create(e.artrine_id());
                 stats.total_decisions += 1;
@@ -280,92 +323,23 @@ impl StatAggregator for PlayerArtrineDecisionAggregator {
                 self.current_play = Some(PendingDecisionPlay {
                     artrine_id: e.artrine_id(),
                     decision_kind: e.decision_kind(),
-                    down_number: e.down_number(),
-                    all_duels_won: true,
-                    had_duel: false,
-                    turnover: false,
-                    points_in_play: 0,
                 });
             }
-            MatchEvent::DuelResolved(e) => {
-                if let Some(play) = &mut self.current_play {
-                    play.had_duel = true;
-                    if !e.attacker_won() {
-                        play.all_duels_won = false;
-                    }
-                }
-            }
+            MatchEvent::CarryResolved(e) => self.record_carry(e.carrier_id(), e.gain_mirim()),
             MatchEvent::GoalPoint(e) => {
-                let maybe_info = if let Some(play) = &mut self.current_play {
-                    play.points_in_play += e.points();
-                    Some((play.artrine_id, play.decision_kind))
-                } else {
-                    None
-                };
-                if let Some((artrine_id, decision_kind)) = maybe_info {
-                    let stats = self.get_mut_or_create(artrine_id);
-                    stats.goal_points_generated += 1;
-                    stats.total_points_generated += e.points();
-                    let kind_stats = stats.by_kind.entry(decision_kind).or_default();
-                    kind_stats.points_generated += e.points();
-                }
+                self.record_score(e.scorer_id(), e.points(), ScoreKind::GoalPoint);
             }
             MatchEvent::FieldPoint(e) => {
-                let maybe_info = if let Some(play) = &mut self.current_play {
-                    play.points_in_play += e.points();
-                    Some((play.artrine_id, play.decision_kind))
-                } else {
-                    None
-                };
-                if let Some((artrine_id, decision_kind)) = maybe_info {
-                    let stats = self.get_mut_or_create(artrine_id);
-                    stats.field_points_generated += 1;
-                    stats.total_points_generated += e.points();
-                    let kind_stats = stats.by_kind.entry(decision_kind).or_default();
-                    kind_stats.points_generated += e.points();
-                }
+                self.record_score(e.scorer_id(), e.points(), ScoreKind::FieldPoint);
             }
-            MatchEvent::FieldGoal(e) => {
-                let maybe_info = if let Some(play) = &mut self.current_play {
-                    play.points_in_play += e.points();
-                    Some((play.artrine_id, play.decision_kind))
-                } else {
-                    None
-                };
-                if let Some((artrine_id, decision_kind)) = maybe_info {
-                    let stats = self.get_mut_or_create(artrine_id);
-                    stats.field_goals_generated += 1;
-                    stats.total_points_generated += e.points();
-                    let kind_stats = stats.by_kind.entry(decision_kind).or_default();
-                    kind_stats.points_generated += e.points();
-                }
-            }
-            MatchEvent::Turnover(_) => {
-                if let Some(play) = &mut self.current_play {
-                    play.turnover = true;
-                }
-            }
-            MatchEvent::DownAdvanced(e) => {
-                if let Some(play) = self.current_play.take() {
-                    let mirins = e.mirins_advanced_this_down();
-                    let successful = !play.turnover
-                        && (play.points_in_play > 0
-                            || (play.all_duels_won && (mirins > 0.0 || e.first_down_achieved())));
-
-                    let stats = self.get_mut_or_create(play.artrine_id);
-                    stats.total_mirins_advanced += mirins;
-                    let kind_stats = stats.by_kind.entry(play.decision_kind).or_default();
-                    kind_stats.mirins_advanced += mirins;
-
-                    if successful {
-                        stats.total_successful_decisions += 1;
-                        kind_stats.successful += 1;
-                    } else {
-                        stats.total_failed_decisions += 1;
-                        kind_stats.failed += 1;
-                    }
-                }
-            }
+            MatchEvent::PassCompleted(_)
+            | MatchEvent::DistributionCompleted(_)
+            | MatchEvent::Turnover(_)
+            | MatchEvent::OutOfBounds(_)
+            | MatchEvent::ScoringAttemptMissed(_)
+            | MatchEvent::TimeCallUsed(_)
+            | MatchEvent::KickFoulAwarded(_)
+            | MatchEvent::FieldGoal(_) => self.scoring_carrier_id = None,
             _ => {}
         }
     }
@@ -373,5 +347,6 @@ impl StatAggregator for PlayerArtrineDecisionAggregator {
     fn reset(&mut self) {
         self.stats.clear();
         self.current_play = None;
+        self.scoring_carrier_id = None;
     }
 }

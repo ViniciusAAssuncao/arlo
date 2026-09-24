@@ -8,9 +8,12 @@ use crate::error::EngineResult;
 use crate::input::TeamInput;
 use crate::state::MatchState;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
+use arlo_domain::ArtrineDecisionKind;
 use arlo_events::{
-    CarryResolved, DriveRecorded, MatchEvent, MatchEventEnvelope, PossessionTimeRecorded,
+    ArtrineDecisionMade, CarryResolved, DriveRecorded, MatchEvent, MatchEventEnvelope,
+    PossessionTimeRecorded,
 };
+use arlo_math::Probability;
 use arlo_tactics::PlayCall;
 use uuid::Uuid;
 
@@ -103,6 +106,19 @@ pub(super) fn resolve_sequence(
         events.push(state.emit(MatchEvent::PossessionTimeRecorded(
             PossessionTimeRecorded::new(context.offense.team_id(), action_duration),
         ))?);
+        if action_index == 0
+            && current_holder_id == context.artrine_id
+            && state.series().team_id() == context.offense.team_id()
+        {
+            events.push(state.emit(MatchEvent::ArtrineDecisionMade(
+                ArtrineDecisionMade::new(
+                    context.artrine_id,
+                    ArtrineDecisionKind::SelfCarry,
+                    u32::from(state.series().down()),
+                    Probability::new_clamped(sample.success_probability),
+                ),
+            ))?);
+        }
         state.move_live_ball(next_mirim)?;
         events.push(state.emit(MatchEvent::CarryResolved(CarryResolved::new(
             current_holder_id,
