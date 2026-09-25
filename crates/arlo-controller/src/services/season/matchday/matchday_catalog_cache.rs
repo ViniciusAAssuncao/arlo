@@ -52,7 +52,7 @@ pub async fn get_or_load_matchday_catalogs(
     let fault_catalog = Arc::new(FaultCatalog::new(fault_defs, all_options).with_activations(activations));
 
     let injury_defs: Vec<InjuryDefinition> =
-        arlo_db::repositories::injury_definition::list_all(pool)
+        arlo_db::repositories::injury_definition::list_match_eligible(pool)
             .await
             .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
     let withdrawal_rows = sqlx::query(

@@ -47,6 +47,15 @@ pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<InjuryDefinition>> {
     Ok(results)
 }
 
+pub async fn list_match_eligible(pool: &SqlitePool) -> DbResult<Vec<InjuryDefinition>> {
+    let rows = fetch_all::<InjuryDefinitionRow>(
+        pool,
+        "SELECT id, code, description, mechanism, body_region, relative_frequency FROM injury_definitions WHERE id NOT IN (SELECT injury_definition_id FROM outside_match_injury_definitions)",
+    )
+    .await?;
+    rows.iter().map(InjuryDefinitionRow::to_domain).collect()
+}
+
 pub async fn list_by_mechanism(
     pool: &SqlitePool,
     mechanism: InjuryMechanism,

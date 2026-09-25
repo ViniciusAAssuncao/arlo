@@ -1,5 +1,6 @@
 pub mod daily_injury_progression;
 pub mod injury_registration;
+pub mod outside_match;
 pub mod recovery_duration_estimator;
 pub mod recovery_profile;
 pub mod reinjury_risk_model;

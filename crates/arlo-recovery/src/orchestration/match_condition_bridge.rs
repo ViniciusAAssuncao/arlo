@@ -43,7 +43,7 @@ pub async fn load_conditions_for_players(
         }
     }
 
-    let condition_rows = player_condition::list_all(pool).await?;
+    let condition_rows = player_condition::list_by_player_ids(pool, player_ids).await?;
     let mut condition_rows_by_player: HashMap<Uuid, PlayerConditionRow> =
         HashMap::with_capacity(condition_rows.len());
     for cond in condition_rows {

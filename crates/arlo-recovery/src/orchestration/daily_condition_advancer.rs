@@ -4,11 +4,13 @@ use crate::error::{RecoveryError, RecoveryResult};
 use crate::fatigue_recovery::{calculate_fatigue_recovery, calculate_player_age_years};
 use crate::impulse_recovery::calculate_impulse_recovery;
 use crate::injury_recovery::{
-    advance_injury_days, evaluate_reinjury_risk, load_recovery_profiles,
+    advance_injury_days, evaluate_reinjury_risk, load_recovery_profiles, register_injury,
     InjuryProgressionOutcome,
 };
+use crate::injury_recovery::outside_match::OutsideMatchCatalog;
+use crate::injury_recovery::recovery_profile::profile_for;
 use crate::tuning::RecoveryTuningProfile;
-use arlo_domain::{AttributeKey, BodyRegion, InjurySeverityGrade, Player};
+use arlo_domain::{BodyRegion, InjurySeverityGrade};
 use arlo_persistence::models::condition::{PlayerConditionRow, PlayerInjuryHistoryRow};
 use arlo_persistence::repositories::condition::{player_condition, player_injury_history};
 use rayon::prelude::*;
@@ -30,6 +32,9 @@ enum InjuryAction {
     },
     MarkResolved {
         id: Uuid,
+    },
+    Register {
+        row: PlayerInjuryHistoryRow,
     },
 }
 
@@ -66,35 +71,14 @@ fn body_region_to_str(region: BodyRegion) -> &'static str {
     arlo_db::models::body_region_code::body_region_to_code(region)
 }
 
-fn get_player_attribute(
-    player: &Player,
-    target_key: AttributeKey,
-    key_by_def_id: &HashMap<Uuid, AttributeKey>,
-) -> f64 {
-    for attr in player.attributes() {
-        if let Some(&key) = key_by_def_id.get(&attr.attribute_definition_id()) {
-            if key == target_key {
-                return attr.value() as f64;
-            }
-        }
-    }
-    10.0
-}
-
 pub async fn advance_all_players_one_day(
     pool: &SqlitePool,
     current_year: i64,
     current_day_of_year: u32,
 ) -> RecoveryResult<()> {
-    let players = arlo_db::repositories::player::list_all_with_team(pool).await?;
+    let players = arlo_db::repositories::player::list_daily_recovery_inputs(pool).await?;
     if players.is_empty() {
         return Ok(());
-    }
-
-    let attr_defs = arlo_db::repositories::attribute_definition::list_all(pool).await?;
-    let mut attr_keys_by_id: HashMap<Uuid, AttributeKey> = HashMap::with_capacity(attr_defs.len());
-    for def in attr_defs {
-        attr_keys_by_id.insert(def.id(), def.key());
     }
 
     let active_injuries = player_injury_history::list_all_active(pool).await?;
@@ -125,22 +109,21 @@ pub async fn advance_all_players_one_day(
 
     let tuning = RecoveryTuningProfile::default();
     let recovery_profiles = load_recovery_profiles(pool).await?;
+    let outside_match_catalog = OutsideMatchCatalog::load(pool).await?;
 
     let plans: Vec<PlayerDailyPlan> = players
         .par_iter()
         .map(|p| -> RecoveryResult<PlayerDailyPlan> {
-            let player_id = p.id();
+            let player_id = p.id;
 
-            let stamina = get_player_attribute(p, AttributeKey::Stamina, &attr_keys_by_id);
-            let natural_fitness =
-                get_player_attribute(p, AttributeKey::NaturalFitness, &attr_keys_by_id);
-            let determination =
-                get_player_attribute(p, AttributeKey::Determination, &attr_keys_by_id);
-            let composure = get_player_attribute(p, AttributeKey::Composure, &attr_keys_by_id);
-            let consistency = get_player_attribute(p, AttributeKey::Consistency, &attr_keys_by_id);
+            let stamina = p.stamina;
+            let natural_fitness = p.natural_fitness;
+            let determination = p.determination;
+            let composure = p.composure;
+            let consistency = p.consistency;
 
             let age_years =
-                calculate_player_age_years(p.birthdate_unix_seconds(), current_date_unix_seconds);
+                calculate_player_age_years(p.birthdate_unix_seconds, current_date_unix_seconds);
 
             let (
                 current_energy,
@@ -284,6 +267,30 @@ pub async fn advance_all_players_one_day(
                 }
             }
 
+            if !injuries_by_player.contains_key(&player_id) {
+                if let Some(condition) = outside_match_catalog.sample(tuning.outside_match_daily_incident_probability) {
+                    let (record, treatment) = register_injury(
+                        Uuid::new_v4(), condition.definition_id, condition.body_region,
+                        condition.severity_grade, natural_fitness, age_years, &tuning,
+                        &recovery_profiles,
+                    )?;
+                    let injury_extent = profile_for(
+                        &recovery_profiles, condition.definition_id,
+                        condition.severity_grade, treatment,
+                    ).and_then(|profile| profile.injury_extent.clone());
+                    let row = PlayerInjuryHistoryRow::new(
+                        record.id(), player_id, condition.definition_id,
+                        body_region_to_str(condition.body_region),
+                        severity_grade_to_str(condition.severity_grade), injury_extent,
+                        treatment.as_str(), current_year, current_day_of_year,
+                        record.days_remaining(), record.days_remaining(), 0,
+                        "Injured", false, None, None, now_seconds,
+                    );
+                    injury_action = Some(InjuryAction::Register { row });
+                    is_injured_today = true;
+                }
+            }
+
             let new_conditioning = advance_conditioning(
                 conditioning_score,
                 was_active_today,
@@ -334,6 +341,7 @@ pub async fn advance_all_players_one_day(
         .collect::<RecoveryResult<Vec<_>>>()?;
 
     let mut tx = pool.begin().await?;
+    let mut condition_updates = Vec::with_capacity(plans.len());
 
     for plan in plans {
         if let Some(action) = plan.injury_action {
@@ -364,11 +372,16 @@ pub async fn advance_all_players_one_day(
                 InjuryAction::MarkResolved { id } => {
                     player_injury_history::mark_resolved_with_tx(&mut tx, id, now_seconds).await?;
                 }
+                InjuryAction::Register { row } => {
+                    player_injury_history::insert_with_tx(&mut tx, &row).await?;
+                }
             }
         }
 
-        player_condition::upsert_with_tx(&mut tx, &plan.condition_row).await?;
+        condition_updates.push(plan.condition_row);
     }
+
+    player_condition::upsert_many_with_tx(&mut tx, &condition_updates).await?;
 
     tx.commit().await?;
 

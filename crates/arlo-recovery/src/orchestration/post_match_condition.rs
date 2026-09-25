@@ -87,6 +87,7 @@ pub async fn capture_post_match_condition(
             _ => {}
         }
     }
+    let mut condition_rows = Vec::with_capacity(participating_ids.len());
     for player_id in participating_ids {
         let condition = initial_conditions.get(&player_id).ok_or_else(|| {
             RecoveryError::InvalidData(format!("Missing initial condition for {player_id}"))
@@ -113,8 +114,11 @@ pub async fn capture_post_match_condition(
             Some(match_year),
             Some(match_day_of_year),
         );
-        player_condition::upsert(pool, &condition_row).await?;
+        condition_rows.push(condition_row);
     }
+    let mut condition_tx = pool.begin().await?;
+    player_condition::upsert_many_with_tx(&mut condition_tx, &condition_rows).await?;
+    condition_tx.commit().await?;
     let now_seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs() as i64)

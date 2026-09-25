@@ -52,6 +52,7 @@ pub struct RecoveryTuningProfile {
     pub relapse_grade_1_multiplier: f64,
     pub relapse_grade_2_multiplier: f64,
     pub relapse_grade_3_multiplier: f64,
+    pub outside_match_daily_incident_probability: f64,
 }
 
 impl Default for RecoveryTuningProfile {
@@ -106,6 +107,7 @@ impl Default for RecoveryTuningProfile {
             relapse_grade_1_multiplier: 0.8,
             relapse_grade_2_multiplier: 1.8,
             relapse_grade_3_multiplier: 3.5,
+            outside_match_daily_incident_probability: 0.00025,
         }
     }
 }

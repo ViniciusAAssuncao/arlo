@@ -4,7 +4,11 @@
 
 When manager AI and human manager injury controls are implemented, an injury that permits continued play must present a keep-or-withdraw decision. An incapacitating injury, including a complete ACL rupture, removes the player immediately. The medical model must distinguish partial from complete ACL rupture and record the chosen treatment path; a reconstruction case cannot inherit only the generic grade-and-body-region recovery duration.
 
-The initial treatment choice is statistical because the game has no clinical assessment or medical staff decision yet. Revisit treatment choice, return-to-play criteria, and injury-specific recovery profiles when medical staff and manager controls are added. Review which catalog diagnoses can arise from a match action after the injury system has matured; the first event generator currently samples the catalog by contact or non-contact mechanism.
+The initial treatment choice is statistical because the game has no clinical assessment or medical staff decision yet. Revisit treatment choice, return-to-play criteria, and injury-specific recovery profiles when medical staff and manager controls are added. The outside-match catalog separates common illness onset from match actions. Entries with zero daily weight are excluded from match incidents but do not yet receive spontaneous diagnoses; revisit those diagnoses when their medical paths are defined.
+
+## Day advancement consistency
+
+The save calendar is persisted before daily recovery, scheduled events, and matches. A later failure can leave the calendar ahead of some work, making a retry unsafe. Introduce a durable day-progress checkpoint or a coordinated transaction before relying on retries for interrupted day advancement.
 
 ## Manager challenges and peace-referee review
 
