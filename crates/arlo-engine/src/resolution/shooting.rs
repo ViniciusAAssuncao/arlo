@@ -1,4 +1,4 @@
-use super::actors::select_shooter;
+use super::actors::{select_actor, select_shooter, ActorRole};
 use super::down::emit_down_advanced;
 use super::exchange::{resolve_targeted_pass, ExchangeOutcome};
 use super::ratings::RatingIndex;
@@ -171,15 +171,17 @@ pub(super) fn resolve_regular_attempt(
                 .lineup()
                 .assignments()
                 .iter()
-                .find(|assignment| assignment.position() == Position::Goalguard)
+                .find(|assignment| assignment.position() == Position::Goalguard && ratings.is_active(defense, assignment.player_id()))
                 .map(|assignment| assignment.player_id());
-            if let Some(player_id) = recovering_goalguard_id {
-                state.set_carrier(player_id)?;
-            }
+            let recovering_id = match recovering_goalguard_id {
+                Some(player_id) => player_id,
+                None => select_actor(ratings, defense, ActorRole::Defender, None, state.rng_mut())?,
+            };
+            state.set_carrier(recovering_id)?;
             events.push(state.emit(MatchEvent::Turnover(Turnover::new(
                 team_id,
                 recovery_team_id,
-                recovering_goalguard_id,
+                Some(recovering_id),
                 Some(shooter_id),
                 true,
             )))?);

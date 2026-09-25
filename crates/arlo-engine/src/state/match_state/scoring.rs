@@ -36,9 +36,9 @@ impl MatchState {
     }
 
     pub fn award_kick_foul(&mut self, kicker_team_id: Uuid) -> EngineResult<()> {
-        if self.phase != MatchPhase::Live {
+        if !matches!(self.phase, MatchPhase::Live | MatchPhase::Stopped) {
             return Err(EngineError::InvalidTransition(
-                "Kick Foul requires live play".into(),
+                "Kick Foul requires a live or just-concluded play".into(),
             ));
         }
         self.team(kicker_team_id)?;
@@ -108,6 +108,7 @@ impl MatchState {
         if let Some((possession, series)) = restart {
             self.possession = possession;
             self.series = series;
+            self.apply_deferred_series_penalties()?;
             self.suspended_restart = None;
             self.phase = MatchPhase::Stopped;
         } else {
@@ -126,6 +127,7 @@ impl MatchState {
         let (possession, series) = self.restart_for(recipient)?;
         self.possession = possession;
         self.series = series;
+        self.apply_deferred_series_penalties()?;
         self.suspended_restart = None;
         self.clock = self.clock.stop();
         self.phase = MatchPhase::Stopped;

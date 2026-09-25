@@ -1,21 +1,31 @@
 use crate::error::{EngineError, EngineResult};
 use crate::input::{MatchInput, TeamInput};
+use crate::state::MatchState;
 use arlo_domain::{AttributeKey, Player, Position, PositionLine};
 use std::collections::HashMap;
 use uuid::Uuid;
 
 pub(super) struct RatingIndex {
     attribute_ids: HashMap<AttributeKey, Uuid>,
+    active_by_team: HashMap<Uuid, Vec<Uuid>>,
 }
 
 impl RatingIndex {
-    pub(super) fn new(input: &MatchInput) -> Self {
+    pub(super) fn new(input: &MatchInput, state: &MatchState) -> Self {
         let attribute_ids = input
             .player_attribute_definitions()
             .iter()
             .map(|definition| (definition.key(), definition.id()))
             .collect();
-        Self { attribute_ids }
+        let active_by_team = HashMap::from([
+            (state.home().team_id(), state.home().active_player_ids().to_vec()),
+            (state.away().team_id(), state.away().active_player_ids().to_vec()),
+        ]);
+        Self { attribute_ids, active_by_team }
+    }
+
+    pub(super) fn is_active(&self, team: &TeamInput, player_id: Uuid) -> bool {
+        self.active_by_team.get(&team.team_id()).is_some_and(|ids| ids.contains(&player_id))
     }
 
     fn value(&self, player: &Player, key: AttributeKey) -> EngineResult<f64> {
@@ -58,7 +68,8 @@ impl RatingIndex {
             .lineup()
             .assignments()
             .iter()
-            .find(|assignment| assignment.position() == position)
+            .find(|assignment| assignment.position() == position && self.is_active(team, assignment.player_id()))
+            .or_else(|| team.lineup().assignments().iter().find(|assignment| self.is_active(team, assignment.player_id())))
             .ok_or_else(|| EngineError::InvalidInput("lineup lacks a required specialist".into()))?
             .player_id();
         self.value(self.player(team, player_id)?, key)
@@ -73,7 +84,7 @@ impl RatingIndex {
         let mut total = 0.0;
         let mut count = 0u32;
         for assignment in team.lineup().assignments() {
-            if assignment.position() == Position::Goalguard
+            if !self.is_active(team, assignment.player_id()) || assignment.position() == Position::Goalguard
                 || (exclude_specialists
                     && matches!(assignment.position(), Position::Artrine | Position::Passer))
             {
@@ -107,7 +118,7 @@ impl RatingIndex {
         let mut total = 0.0;
         let mut count = 0u32;
         for assignment in team.lineup().assignments() {
-            if assignment.position().line() != PositionLine::OffensiveLine {
+            if !self.is_active(team, assignment.player_id()) || assignment.position().line() != PositionLine::OffensiveLine {
                 continue;
             }
             let player_id = assignment.player_id();

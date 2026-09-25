@@ -23,6 +23,16 @@ pub fn resolve_kick_foul_segment(
     selected_decision: Option<KickFoulDecisionKind>,
     selected_taker_id: Option<Uuid>,
 ) -> EngineResult<StepResult> {
+    let result = resolve_kick_foul_segment_inner(input, state, selected_decision, selected_taker_id)?;
+    super::super::officiating::resolve_officiating(input, state, result, None)
+}
+
+pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
+    input: &MatchInput,
+    state: &mut MatchState,
+    selected_decision: Option<KickFoulDecisionKind>,
+    selected_taker_id: Option<Uuid>,
+) -> EngineResult<StepResult> {
     validate_match_state(input, state)?;
     if state.phase() != MatchPhase::KickFoul {
         return Err(EngineError::InvalidTransition(
@@ -41,7 +51,7 @@ pub fn resolve_kick_foul_segment(
             RequiredManagerDecision::KickFoulDecision { team_id },
         ]));
     }
-    let ratings = RatingIndex::new(input);
+    let ratings = RatingIndex::new(input, state);
     let active_players = if is_home {
         state.home().active_player_ids()
     } else {
@@ -68,7 +78,7 @@ pub fn resolve_kick_foul_segment(
             .lineup()
             .assignments()
             .iter()
-            .find(|assignment| assignment.player_id() != taker_id)
+            .find(|assignment| assignment.player_id() != taker_id && active_players.contains(&assignment.player_id()))
             .map(|assignment| assignment.player_id())
             .ok_or_else(|| EngineError::InvalidInput("Kick Foul has no receiver".into()))?
     };

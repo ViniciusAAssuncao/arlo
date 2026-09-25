@@ -8,6 +8,7 @@ mod exchange;
 mod kick_foul;
 mod kicker;
 mod model;
+mod officiating;
 mod open_play;
 mod ratings;
 mod reception;

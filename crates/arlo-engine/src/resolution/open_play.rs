@@ -28,7 +28,7 @@ pub(super) fn resolve_open_play_segment(
     } else {
         (input.away(), input.home())
     };
-    let ratings = RatingIndex::new(input);
+    let ratings = RatingIndex::new(input, state);
     let offense_rating = ratings.team_ratings(offense)?;
     let defense_rating = ratings.team_ratings(defense)?;
     let mut next = state.clone();

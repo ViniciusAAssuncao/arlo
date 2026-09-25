@@ -5,4 +5,8 @@ use serde::{Deserialize, Serialize};
 pub enum FoulOrigin {
     ContactDuel(DuelKind),
     LineFault,
+    CallToAction,
+    Drive,
+    ShotAttempt,
+    OutOfBounds,
 }

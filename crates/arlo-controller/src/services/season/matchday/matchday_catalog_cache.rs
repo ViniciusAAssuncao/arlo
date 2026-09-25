@@ -45,7 +45,10 @@ pub async fn get_or_load_matchday_catalogs(
         all_options.extend(options);
     }
 
-    let fault_catalog = Arc::new(FaultCatalog::new(fault_defs, all_options));
+    let activations = arlo_db::repositories::fault_activation::list_all(pool)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let fault_catalog = Arc::new(FaultCatalog::new(fault_defs, all_options).with_activations(activations));
 
     let injury_defs: Vec<InjuryDefinition> =
         arlo_db::repositories::injury_definition::list_all(pool)

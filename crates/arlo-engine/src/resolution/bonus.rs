@@ -26,7 +26,7 @@ pub(super) fn resolve_bonus_segment(
     } else {
         (input.away(), input.home())
     };
-    let ratings = RatingIndex::new(input);
+    let ratings = RatingIndex::new(input, state);
     let scorer_id = select_kicker(&ratings, offense, None)?;
     let mut next = state.clone();
     let sample = sample_bonus_shot(

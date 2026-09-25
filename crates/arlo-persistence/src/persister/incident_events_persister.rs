@@ -30,6 +30,8 @@ pub async fn persist_incident_events(
     let mut availability_changes = Vec::new();
     let mut impulse_critical_events = Vec::new();
     let mut added_time_awards = Vec::new();
+    let mut referee_decisions = Vec::new();
+    let mut foul_punishments = Vec::new();
 
     for envelope in run_result.raw_sink.events() {
         let seq = envelope.sequence_number();
@@ -79,6 +81,26 @@ pub async fn persist_incident_events(
                     clock,
                     e,
                 ));
+            }
+            MatchEvent::RefereeDecisionResolved(e) => {
+                let origin = match e.origin() {
+                    arlo_events::FoulOrigin::ContactDuel(kind) => format!("ContactDuel:{}", kind.as_str()),
+                    arlo_events::FoulOrigin::LineFault => "LineFault".to_owned(),
+                    arlo_events::FoulOrigin::CallToAction => "CallToAction".to_owned(),
+                    arlo_events::FoulOrigin::Drive => "Drive".to_owned(),
+                    arlo_events::FoulOrigin::ShotAttempt => "ShotAttempt".to_owned(),
+                    arlo_events::FoulOrigin::OutOfBounds => "OutOfBounds".to_owned(),
+                };
+                referee_decisions.push((seq as i64, clock.period() as i32, clock.seconds_in_period(),
+                    e.offending_player_id().to_string(), e.offending_team_id().to_string(),
+                    e.opposing_player_id().to_string(), e.opposing_team_id().to_string(), origin,
+                    e.fault_definition_id().map(|id| id.to_string()), e.factual_foul(), e.original_call(),
+                    e.peace_referee_intervened(), e.final_call()));
+            }
+            MatchEvent::PunishmentApplied(e) => {
+                foul_punishments.push((seq as i64, clock.period() as i32, clock.seconds_in_period(),
+                    e.offending_player_id().to_string(), e.offending_team_id().to_string(),
+                    e.fault_definition_id().map(|id| id.to_string()), format!("{:?}", e.kind()), e.magnitude()));
             }
             MatchEvent::InjuryIncidentRecorded(e) => {
                 injuries.push(MatchInjuryRow::from_event(
@@ -214,6 +236,17 @@ pub async fn persist_incident_events(
     repositories::match_availability_changes::insert_batch(tx, &availability_changes).await?;
     repositories::match_impulse_critical_events::insert_batch(tx, &impulse_critical_events).await?;
     repositories::match_added_time::insert_batch(tx, &added_time_awards).await?;
+    for (seq, period, seconds, offender, team, opposing, opposing_team, origin, definition, factual, original, intervened, final_call) in referee_decisions {
+        sqlx::query("INSERT INTO match_referee_decisions (match_id, sequence_number, period, seconds_in_period, offending_player_id, offending_team_id, opposing_player_id, opposing_team_id, origin, fault_definition_id, factual_foul, original_call, peace_referee_intervened, final_call) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(match_id.to_string()).bind(seq).bind(period).bind(seconds).bind(offender).bind(team)
+            .bind(opposing).bind(opposing_team).bind(origin).bind(definition).bind(factual)
+            .bind(original).bind(intervened).bind(final_call).execute(&mut **tx).await?;
+    }
+    for (seq, period, seconds, offender, team, definition, kind, magnitude) in foul_punishments {
+        sqlx::query("INSERT INTO match_foul_punishments (match_id, sequence_number, period, seconds_in_period, offending_player_id, offending_team_id, fault_definition_id, kind, magnitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(match_id.to_string()).bind(seq).bind(period).bind(seconds).bind(offender).bind(team)
+            .bind(definition).bind(kind).bind(magnitude).execute(&mut **tx).await?;
+    }
 
     Ok(())
 }

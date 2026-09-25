@@ -1,7 +1,8 @@
 use crate::error::{EngineError, EngineResult};
 use crate::input::TeamInput;
-use arlo_domain::{AttributeDefinition, AttributeTarget, MatchFormatRules, Pitch, Player, Referee};
-use std::collections::HashSet;
+use arlo_domain::{AttributeDefinition, AttributeKey, AttributeTarget, FaultCatalog, MatchFormatRules, Pitch, Player, Referee};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -12,6 +13,8 @@ pub struct MatchInput {
     format: MatchFormatRules,
     pitch: Pitch,
     referees: Vec<Referee>,
+    referee_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
+    fault_catalog: Arc<FaultCatalog>,
     player_attribute_definitions: Vec<AttributeDefinition>,
     seed: u64,
 }
@@ -24,6 +27,8 @@ impl MatchInput {
         format: MatchFormatRules,
         pitch: Pitch,
         referees: Vec<Referee>,
+        referee_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
+        fault_catalog: Arc<FaultCatalog>,
         player_attribute_definitions: Vec<AttributeDefinition>,
         seed: u64,
     ) -> EngineResult<Self> {
@@ -40,9 +45,9 @@ impl MatchInput {
                 "engine currently supports four 30-minute quarters without tie overtime".into(),
             ));
         }
-        if referees.is_empty() {
+        if referees.len() != 2 {
             return Err(EngineError::InvalidInput(
-                "match requires at least one referee".into(),
+                "match requires a head referee and a peace referee".into(),
             ));
         }
         let mut referee_ids = HashSet::new();
@@ -83,6 +88,8 @@ impl MatchInput {
             format,
             pitch,
             referees,
+            referee_attribute_keys,
+            fault_catalog,
             player_attribute_definitions,
             seed,
         })
@@ -105,6 +112,12 @@ impl MatchInput {
     }
     pub fn referees(&self) -> &[Referee] {
         &self.referees
+    }
+    pub fn referee_attribute_keys(&self) -> &HashMap<Uuid, AttributeKey> {
+        &self.referee_attribute_keys
+    }
+    pub fn fault_catalog(&self) -> &FaultCatalog {
+        &self.fault_catalog
     }
     pub fn player_attribute_definitions(&self) -> &[AttributeDefinition] {
         &self.player_attribute_definitions

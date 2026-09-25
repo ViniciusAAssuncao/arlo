@@ -3,8 +3,9 @@ use super::bonus::resolve_bonus_segment;
 use super::context::validate_match_state;
 use super::contest::emit_route_contest;
 use super::down::emit_down_advanced;
-use super::kick_foul::resolve_kick_foul_segment;
+use super::kick_foul::resolve_kick_foul_segment_inner;
 use super::model::sample_call;
+use super::officiating::resolve_officiating;
 use super::open_play::resolve_open_play_segment;
 use super::ratings::RatingIndex;
 use super::reception::sample_reception;
@@ -25,6 +26,16 @@ use arlo_tactics::{validate_play_call, PlayCall, PlayCallCategory};
 use rand::Rng;
 
 pub fn resolve_next_segment(
+    input: &MatchInput,
+    state: &mut MatchState,
+    selected_play_call: Option<&PlayCall>,
+) -> EngineResult<StepResult> {
+    let prior = state.clone();
+    let result = resolve_next_segment_inner(input, state, selected_play_call)?;
+    resolve_officiating(input, state, result, Some(&prior))
+}
+
+fn resolve_next_segment_inner(
     input: &MatchInput,
     state: &mut MatchState,
     selected_play_call: Option<&PlayCall>,
@@ -53,7 +64,7 @@ pub fn resolve_next_segment(
                 "Kick Foul does not accept an open-play Call-to-Action".into(),
             ));
         }
-        return resolve_kick_foul_segment(input, state, None, None);
+        return resolve_kick_foul_segment_inner(input, state, None, None);
     }
     if state.phase() == MatchPhase::Live {
         if selected_play_call.is_some() {
@@ -117,7 +128,7 @@ pub fn resolve_next_segment(
         .map_err(|error| EngineError::InvalidInput(error.to_string()))?;
     }
 
-    let ratings = RatingIndex::new(input);
+    let ratings = RatingIndex::new(input, state);
     let offense_rating = ratings.team_ratings(offense)?;
     let defense_rating = ratings.team_ratings(defense)?;
     let mut next = state.clone();

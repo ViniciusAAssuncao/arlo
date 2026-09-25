@@ -1,4 +1,5 @@
 mod live;
+mod officiating;
 mod period;
 mod scoring;
 
@@ -6,6 +7,9 @@ use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
 use crate::state::{ClockState, MatchPhase, PossessionState, SeriesState, TeamState};
 use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
+use arlo_events::RefereeDecisionResolved;
+use arlo_events::PlayerAvailabilityChanged;
+use arlo_domain::PunishmentKind;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use uuid::Uuid;
@@ -36,6 +40,9 @@ pub struct MatchState {
     series: SeriesState,
     suspended_restart: Option<SuspendedRestart>,
     pending_call_outcome: Option<PendingCallOutcome>,
+    pending_referee_decisions: Vec<RefereeDecisionResolved>,
+    pending_availability_events: Vec<PlayerAvailabilityChanged>,
+    deferred_series_penalties: Vec<(Uuid, PunishmentKind, i32)>,
     pitch_length_mirim: f64,
     next_event_sequence: u64,
     rng: ChaCha8Rng,
@@ -58,6 +65,9 @@ impl MatchState {
                 .expect("validated pitch has a midfield"),
             suspended_restart: None,
             pending_call_outcome: None,
+            pending_referee_decisions: Vec::new(),
+            pending_availability_events: Vec::new(),
+            deferred_series_penalties: Vec::new(),
             pitch_length_mirim,
             next_event_sequence: 1,
             rng: ChaCha8Rng::seed_from_u64(input.seed()),

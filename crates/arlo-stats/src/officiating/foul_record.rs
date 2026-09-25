@@ -138,8 +138,10 @@ impl IntoSnapshot for PlayerFoulAggregator {
 impl StatAggregator for PlayerFoulAggregator {
     fn handle_event(&mut self, event: &MatchEvent) {
         if let MatchEvent::FoulRaised(e) = event {
-            self.record_foul_committed(e.offending_player_id(), e.origin(), e.final_call_correct());
-            self.record_foul_drawn(e.opposing_player_id());
+            if e.final_call_correct() {
+                self.record_foul_committed(e.offending_player_id(), e.origin(), true);
+                self.record_foul_drawn(e.opposing_player_id());
+            }
         }
     }
 

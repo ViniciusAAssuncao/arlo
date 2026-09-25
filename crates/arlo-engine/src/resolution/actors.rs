@@ -125,7 +125,7 @@ fn select_weighted_actor(
     let mut candidates = Vec::with_capacity(team.lineup().assignments().len());
     let mut total_weight = 0.0;
     for assignment in team.lineup().assignments() {
-        if Some(assignment.player_id()) == exclude {
+        if Some(assignment.player_id()) == exclude || !ratings.is_active(team, assignment.player_id()) {
             continue;
         }
         let position = assignment.position();

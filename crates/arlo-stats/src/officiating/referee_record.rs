@@ -91,8 +91,8 @@ impl IntoSnapshot for RefereeStatsAggregator {
 
 impl StatAggregator for RefereeStatsAggregator {
     fn handle_event(&mut self, event: &MatchEvent) {
-        if let MatchEvent::FoulRaised(e) = event {
-            self.record_call(e.final_call_correct(), e.peace_referee_intervened());
+        if let MatchEvent::RefereeDecisionResolved(e) = event {
+            self.record_call(e.original_call_correct(), e.peace_referee_intervened());
         }
     }
 

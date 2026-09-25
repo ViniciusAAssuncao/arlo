@@ -24,7 +24,7 @@ pub use events::manager::*;
 pub use in_memory_sink::InMemorySink;
 pub use injury::InjuryIncidentRecorded;
 pub use kick_foul::{KickFoulAwarded, KickFoulDecisionMade, KickFoulEvent};
-pub use officiating::{AddedTimeAwarded, FoulOrigin, FoulRaised, OfficiatingEvent};
+pub use officiating::{AddedTimeAwarded, FoulOrigin, FoulRaised, OfficiatingEvent, PunishmentApplied, RefereeDecisionResolved};
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
     CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent,
@@ -70,6 +70,8 @@ pub enum MatchEvent {
     TacticalProfileActivated(TacticalProfileActivated),
     PlayCallSelected(PlayCallSelected),
     FoulRaised(FoulRaised),
+    RefereeDecisionResolved(RefereeDecisionResolved),
+    PunishmentApplied(PunishmentApplied),
     AddedTimeAwarded(AddedTimeAwarded),
     PlayerAvailabilityChanged(PlayerAvailabilityChanged),
     KickFoulAwarded(KickFoulAwarded),
@@ -143,7 +145,7 @@ impl MatchEvent {
     pub fn is_officiating(&self) -> bool {
         matches!(
             self,
-            Self::FoulRaised(_) | Self::KickFoulAwarded(_) | Self::AddedTimeAwarded(_)
+            Self::FoulRaised(_) | Self::RefereeDecisionResolved(_) | Self::PunishmentApplied(_) | Self::KickFoulAwarded(_) | Self::AddedTimeAwarded(_)
         )
     }
 
@@ -191,6 +193,8 @@ impl MatchEvent {
             Self::TacticalProfileActivated(_) => "TacticalProfileActivated",
             Self::PlayCallSelected(_) => "PlayCallSelected",
             Self::FoulRaised(_) => "FoulRaised",
+            Self::RefereeDecisionResolved(_) => "RefereeDecisionResolved",
+            Self::PunishmentApplied(_) => "PunishmentApplied",
             Self::AddedTimeAwarded(_) => "AddedTimeAwarded",
             Self::PlayerAvailabilityChanged(_) => "PlayerAvailabilityChanged",
             Self::KickFoulAwarded(_) => "KickFoulAwarded",
@@ -464,6 +468,8 @@ impl From<OfficiatingEvent> for MatchEvent {
     fn from(ev: OfficiatingEvent) -> Self {
         match ev {
             OfficiatingEvent::FoulRaised(e) => Self::FoulRaised(e),
+            OfficiatingEvent::RefereeDecisionResolved(e) => Self::RefereeDecisionResolved(e),
+            OfficiatingEvent::PunishmentApplied(e) => Self::PunishmentApplied(e),
             OfficiatingEvent::AddedTimeAwarded(e) => Self::AddedTimeAwarded(e),
         }
     }
