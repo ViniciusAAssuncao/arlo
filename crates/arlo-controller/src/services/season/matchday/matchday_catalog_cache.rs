@@ -75,7 +75,34 @@ pub async fn get_or_load_matchday_catalogs(
         };
         withdrawal_rules.insert((Uuid::parse_str(&id).map_err(|error| ControllerError::InvalidData(error.to_string()))?, grade));
     }
-    let injury_catalog = Arc::new(InjuryCatalog::new(injury_defs).with_mandatory_withdrawals(withdrawal_rules));
+    let grade_rows = sqlx::query(
+        "SELECT injury_definition_id, minimum_grade FROM match_injury_grade_floors",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let mut minimum_grades = HashMap::with_capacity(grade_rows.len());
+    for row in grade_rows {
+        let id: String = row.try_get("injury_definition_id")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade: String = row.try_get("minimum_grade")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade = match grade.as_str() {
+            "Grade1" => InjurySeverityGrade::Grade1,
+            "Grade2" => InjurySeverityGrade::Grade2,
+            "Grade3" => InjurySeverityGrade::Grade3,
+            _ => return Err(ControllerError::InvalidData(format!("Invalid injury grade {grade}"))),
+        };
+        minimum_grades.insert(
+            Uuid::parse_str(&id).map_err(|error| ControllerError::InvalidData(error.to_string()))?,
+            grade,
+        );
+    }
+    let injury_catalog = Arc::new(
+        InjuryCatalog::new(injury_defs)
+            .with_mandatory_withdrawals(withdrawal_rules)
+            .with_minimum_grades(minimum_grades),
+    );
 
     let attr_defs = arlo_db::repositories::attribute_definition::list_all(pool)
         .await

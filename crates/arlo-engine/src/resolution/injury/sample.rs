@@ -77,6 +77,13 @@ pub(super) fn sample_injury(
         draw < 0.0
     }).or_else(|| candidates.last())?;
     let grade = sample_grade(definition.code(), state);
+    let grade = match input.injury_catalog().minimum_grade(definition.id()) {
+        Some(InjurySeverityGrade::Grade3) => InjurySeverityGrade::Grade3,
+        Some(InjurySeverityGrade::Grade2) if grade == InjurySeverityGrade::Grade1 => {
+            InjurySeverityGrade::Grade2
+        }
+        _ => grade,
+    };
     Some(InjuryIncidentRecorded::new(
         exposure.player_id,
         team.team_id(),

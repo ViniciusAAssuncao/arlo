@@ -10,6 +10,7 @@ pub struct InjuryCatalog {
     definitions_by_id: HashMap<Uuid, InjuryDefinition>,
     definitions_by_mechanism: HashMap<InjuryMechanism, Vec<Uuid>>,
     mandatory_withdrawals: HashSet<(Uuid, InjurySeverityGrade)>,
+    minimum_grades: HashMap<Uuid, InjurySeverityGrade>,
 }
 
 impl InjuryCatalog {
@@ -28,6 +29,7 @@ impl InjuryCatalog {
             definitions_by_id,
             definitions_by_mechanism,
             mandatory_withdrawals: HashSet::new(),
+            minimum_grades: HashMap::new(),
         }
     }
 
@@ -41,6 +43,15 @@ impl InjuryCatalog {
 
     pub fn requires_withdrawal(&self, id: Uuid, grade: InjurySeverityGrade) -> bool {
         self.mandatory_withdrawals.contains(&(id, grade))
+    }
+
+    pub fn with_minimum_grades(mut self, rules: HashMap<Uuid, InjurySeverityGrade>) -> Self {
+        self.minimum_grades = rules;
+        self
+    }
+
+    pub fn minimum_grade(&self, id: Uuid) -> Option<InjurySeverityGrade> {
+        self.minimum_grades.get(&id).copied()
     }
 
     pub fn definition(&self, id: &Uuid) -> Option<&InjuryDefinition> {
