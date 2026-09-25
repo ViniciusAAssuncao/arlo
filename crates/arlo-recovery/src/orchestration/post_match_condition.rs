@@ -162,7 +162,17 @@ pub async fn capture_post_match_condition(
                 None,
                 now_seconds,
             );
-            player_injury_history::insert(pool, &injury_row).await?;
+            let active = player_injury_history::get_active_by_player_id(pool, event.player_id()).await?;
+            let mut tx = pool.begin().await?;
+            if let Some(active) = active {
+                if active.status == "Observation" && active.days_remaining == 0 {
+                    let active_id = Uuid::parse_str(&active.id)
+                        .map_err(|error| RecoveryError::InvalidData(error.to_string()))?;
+                    player_injury_history::mark_resolved_with_tx(&mut tx, active_id, now_seconds).await?;
+                }
+            }
+            player_injury_history::insert_with_tx(&mut tx, &injury_row).await?;
+            tx.commit().await?;
         }
     }
     Ok(())

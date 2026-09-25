@@ -107,10 +107,18 @@ pub fn sample_profile_days(
     age_years: f64,
     natural_fitness: f64,
 ) -> u32 {
+    profile_days_for_roll(profile, age_years, natural_fitness, rand::thread_rng().gen())
+}
+
+fn profile_days_for_roll(
+    profile: &RecoveryProfile,
+    age_years: f64,
+    natural_fitness: f64,
+    roll: f64,
+) -> u32 {
     let min = profile.minimum_days.max(1) as f64;
     let mode = profile.typical_days.max(profile.minimum_days) as f64;
     let max = profile.maximum_days.max(profile.typical_days) as f64;
-    let roll: f64 = rand::thread_rng().gen();
     let split = (mode - min) / (max - min).max(1.0);
     let sampled = if roll < split {
         min + (roll * (max - min) * (mode - min)).sqrt()
@@ -122,4 +130,45 @@ pub fn sample_profile_days(
     (sampled * (1.0 + fitness_adjustment + age_adjustment))
         .round()
         .clamp(min, max) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::injury_recovery::register_injury;
+    use crate::tuning::RecoveryTuningProfile;
+    use arlo_domain::{BodyRegion, InjurySeverityGrade};
+
+    #[tokio::test]
+    async fn forced_grade_three_acl_respects_profile_and_athlete_condition() {
+        let definition_id = Uuid::new_v4();
+        let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1)
+            .connect("sqlite::memory:").await.unwrap();
+        sqlx::query("CREATE TABLE injury_definitions (id TEXT PRIMARY KEY, code TEXT NOT NULL)")
+            .execute(&pool).await.unwrap();
+        sqlx::query("INSERT INTO injury_definitions (id, code) VALUES (?, 'KNEE_ACL_TEAR_CONTACT')")
+            .bind(definition_id.to_string()).execute(&pool).await.unwrap();
+        sqlx::raw_sql(include_str!("../../../../migrations/0100_create_injury_recovery_profiles.sql"))
+            .execute(&pool).await.unwrap();
+        let profiles = load_recovery_profiles(&pool).await.unwrap();
+        let profile = profile_for(&profiles, definition_id, InjurySeverityGrade::Grade3, TreatmentKind::Surgical).unwrap();
+        assert!(profile.mandatory_withdrawal);
+        assert_eq!(profile.injury_extent.as_deref(), Some("Complete"));
+        let tuning = RecoveryTuningProfile::default();
+        for (age, fitness) in [(22.0, 19.0), (35.0, 3.0)] {
+            let (injury, treatment) = register_injury(
+                Uuid::new_v4(), definition_id, BodyRegion::Knee,
+                InjurySeverityGrade::Grade3, fitness, age, &tuning, &profiles,
+            ).unwrap();
+            assert_eq!(injury.severity_grade(), InjurySeverityGrade::Grade3);
+            let selected = profile_for(&profiles, definition_id, InjurySeverityGrade::Grade3, treatment).unwrap();
+            assert!((selected.minimum_days as u32..=selected.maximum_days as u32).contains(&injury.days_remaining()));
+        }
+        let fit = profile_days_for_roll(profile, 26.0, 19.0, 0.5);
+        let less_fit = profile_days_for_roll(profile, 26.0, 3.0, 0.5);
+        let older = profile_days_for_roll(profile, 35.0, 19.0, 0.5);
+        assert!(fit < less_fit);
+        assert!(fit < older);
+        println!("Grade 3 ACL, same surgical profile and draw: age 26 fitness 19 = {fit} days; age 26 fitness 3 = {less_fit} days; age 35 fitness 19 = {older} days");
+    }
 }

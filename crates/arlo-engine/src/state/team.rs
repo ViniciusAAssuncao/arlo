@@ -221,3 +221,53 @@ impl TeamState {
         returning.into_iter().filter(|id| self.active_player_ids.contains(id)).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn team_with_reserve() -> (TeamState, Uuid) {
+        let active_player_ids: Vec<_> = (0..14).map(|_| Uuid::new_v4()).collect();
+        let reserve_id = Uuid::new_v4();
+        let state = TeamState {
+            team_id: Uuid::new_v4(),
+            artrine_id: active_player_ids[0],
+            passer_id: active_player_ids[1],
+            goalguard_id: active_player_ids[2],
+            active_player_ids,
+            reserve_player_ids: vec![reserve_id],
+            suspended_players: Vec::new(),
+            expelled_players: Vec::new(),
+            injured_players: Vec::new(),
+            slot_replacements: HashMap::new(),
+            drive_progress: DriveProgress::default(),
+            drives_in_series: 0,
+            time_calls_used_in_period: 0,
+            score: Score::default(),
+        };
+        (state, reserve_id)
+    }
+
+    #[test]
+    fn mandatory_withdrawal_replaces_official_artrine() {
+        let (mut state, reserve) = team_with_reserve();
+        let original_artrine = state.artrine_id;
+        state.record_injury(original_artrine, true, Some(reserve));
+        assert_eq!(state.active_player_ids().len(), 14);
+        assert!(!state.active_player_ids().contains(&original_artrine));
+        assert_eq!(state.artrine_id(), reserve);
+        assert!(state.injured_player_ids().contains(&original_artrine));
+        assert!(!state.reserve_player_ids().contains(&reserve));
+    }
+
+    #[test]
+    fn mandatory_withdrawal_without_reserve_keeps_team_short() {
+        let (mut state, _) = team_with_reserve();
+        state.reserve_player_ids.clear();
+        let original_artrine = state.artrine_id;
+        state.record_injury(original_artrine, true, None);
+        assert_eq!(state.active_player_ids().len(), 13);
+        assert_ne!(state.artrine_id(), original_artrine);
+        assert!(state.active_player_ids().contains(&state.artrine_id()));
+    }
+}

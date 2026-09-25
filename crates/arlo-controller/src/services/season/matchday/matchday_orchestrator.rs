@@ -90,7 +90,7 @@ pub async fn run_due_matches(
             None => (0, 0),
         };
 
-        let _ = arlo_recovery::orchestration::capture_post_match_condition(
+        if let Err(error) = arlo_recovery::orchestration::capture_post_match_condition(
             pool,
             &simulation.input,
             &simulation.initial_conditions,
@@ -98,7 +98,9 @@ pub async fn run_due_matches(
             match_year,
             match_day,
         )
-        .await;
+        .await {
+            eprintln!("Failed to capture post-match condition for match {}: {}", simulation.input.match_id(), error);
+        }
 
         crate::repositories::season::standings_cache::invalidate(&simulation.stage_id).await;
     }
