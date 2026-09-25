@@ -125,7 +125,9 @@ pub(in crate::resolution) fn sample_line_fault(
 ) -> EngineResult<Option<RefereeDecisionResolved>> {
     let receiver_is_home = input.home().roster().iter().any(|player| player.id() == receiver_id);
     let (offense, defense) = if receiver_is_home { (input.home(), input.away()) } else { (input.away(), input.home()) };
-    let Some(assignment) = offense.lineup().assignments().iter().find(|a| a.player_id() == receiver_id) else { return Ok(None) };
+    let ratings = RatingIndex::new(input, state);
+    let Some(assignment) = offense.lineup().assignments().iter()
+        .find(|a| ratings.slot_player_id(offense, a.player_id()) == receiver_id) else { return Ok(None) };
     let depth = offense.formation().slots().get(assignment.formation_slot_index())
         .and_then(|slot| slot.pitch_length_ratio()).unwrap_or(match assignment.position().line() {
             PositionLine::OffensiveLine => 0.7,
@@ -133,7 +135,7 @@ pub(in crate::resolution) fn sample_line_fault(
             PositionLine::DefenseLine => 0.2,
             PositionLine::Goalguard => 0.05,
         });
-    let positioning = RatingIndex::new(input, state).player_value(offense, receiver_id, AttributeKey::Positioning)?;
+    let positioning = ratings.player_value(offense, receiver_id, AttributeKey::Positioning)?;
     let factual_probability = ((depth - 0.4).max(0.0) * 0.024 * (1.0 - (positioning - 10.0) * 0.015)).clamp(0.0, 0.014);
     let factual_foul = state.rng_mut().gen_range(0.0..1.0) < factual_probability;
     let head_consistency = referee_value(input, 0, AttributeKey::Consistency);

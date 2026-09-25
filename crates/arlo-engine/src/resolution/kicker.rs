@@ -11,7 +11,7 @@ pub(super) fn select_kicker(
     play_call: Option<&PlayCall>,
 ) -> EngineResult<Uuid> {
     if let Some(assignment) = team.lineup().assignments().iter().find(|assignment| {
-        if !ratings.is_active(team, assignment.player_id()) { return false; }
+        if !ratings.is_active_slot(team, assignment.player_id()) { return false; }
         let role = play_call
             .and_then(|call| {
                 call.role_overrides()
@@ -23,11 +23,11 @@ pub(super) fn select_kicker(
             .unwrap_or_else(|| assignment.slot_role());
         role == SlotRole::Kicker
     }) {
-        return Ok(assignment.player_id());
+        return Ok(ratings.slot_player_id(team, assignment.player_id()));
     }
     let mut best = None;
     for assignment in team.lineup().assignments() {
-        let player_id = assignment.player_id();
+        let player_id = ratings.slot_player_id(team, assignment.player_id());
         if !ratings.is_active(team, player_id) { continue; }
         let finishing = ratings.player_value(team, player_id, AttributeKey::Finishing)?;
         let technique = ratings.player_value(team, player_id, AttributeKey::Technique)?;

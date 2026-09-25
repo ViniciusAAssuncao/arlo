@@ -41,7 +41,8 @@ pub(super) fn select_receiver(
         Some(holder_id),
         rng,
         |assignment| {
-            let return_weight = if Some(assignment.player_id()) == previous_holder_id {
+            let actor_id = ratings.slot_player_id(team, assignment.player_id());
+            let return_weight = if Some(actor_id) == previous_holder_id {
                 0.45
             } else {
                 1.0
@@ -49,15 +50,15 @@ pub(super) fn select_receiver(
             let route_weight = route_weight(selected_play_call, assignment);
             let threat_weight = if has_drive && assignment.position().line() == PositionLine::OffensiveLine {
                 let finisher = 0.5
-                    * ratings.player_value(team, assignment.player_id(), AttributeKey::Finishing)?
+                    * ratings.player_value(team, actor_id, AttributeKey::Finishing)?
                     + 0.3
                         * ratings.player_value(
                             team,
-                            assignment.player_id(),
+                            actor_id,
                             AttributeKey::Anticipation,
                         )?
                     + 0.2
-                        * ratings.player_value(team, assignment.player_id(), AttributeKey::Composure)?;
+                        * ratings.player_value(team, actor_id, AttributeKey::Composure)?;
                 (1.0 + (finisher - 10.0) * 0.025).clamp(0.75, 1.25)
             } else {
                 1.0
@@ -90,7 +91,7 @@ pub(super) fn select_shooter(
                 PositionLine::Goalguard => 0.05,
             })
             .clamp(0.0, 1.0);
-        let holder_weight = if assignment.player_id() == holder_id {
+        let holder_weight = if ratings.slot_player_id(team, assignment.player_id()) == holder_id {
             0.75 + 1.5 * emphasis.self_finish().value()
         } else {
             1.0
@@ -125,11 +126,11 @@ fn select_weighted_actor(
     let mut candidates = Vec::with_capacity(team.lineup().assignments().len());
     let mut total_weight = 0.0;
     for assignment in team.lineup().assignments() {
-        if Some(assignment.player_id()) == exclude || !ratings.is_active(team, assignment.player_id()) {
+        let player_id = ratings.slot_player_id(team, assignment.player_id());
+        if Some(player_id) == exclude || !ratings.is_active(team, player_id) {
             continue;
         }
         let position = assignment.position();
-        let player_id = assignment.player_id();
         let aptitude = match role {
             ActorRole::Carrier => {
                 (ratings.player_value(team, player_id, AttributeKey::ArloControl)?

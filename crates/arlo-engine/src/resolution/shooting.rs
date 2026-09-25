@@ -171,8 +171,8 @@ pub(super) fn resolve_regular_attempt(
                 .lineup()
                 .assignments()
                 .iter()
-                .find(|assignment| assignment.position() == Position::Goalguard && ratings.is_active(defense, assignment.player_id()))
-                .map(|assignment| assignment.player_id());
+                .find(|assignment| assignment.position() == Position::Goalguard && ratings.is_active_slot(defense, assignment.player_id()))
+                .map(|assignment| ratings.slot_player_id(defense, assignment.player_id()));
             let recovering_id = match recovering_goalguard_id {
                 Some(player_id) => player_id,
                 None => select_actor(ratings, defense, ActorRole::Defender, None, state.rng_mut())?,

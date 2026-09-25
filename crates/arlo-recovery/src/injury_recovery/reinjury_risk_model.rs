@@ -1,8 +1,10 @@
 use crate::domain::InjuryRecord;
 use crate::injury_recovery::recovery_duration_estimator::estimate_injury_recovery_days;
+use crate::injury_recovery::recovery_profile::{
+    choose_treatment, profile_for, sample_profile_days, RecoveryProfiles, TreatmentKind,
+};
 use crate::tuning::RecoveryTuningProfile;
 use arlo_domain::error::DomainResult;
-use arlo_domain::InjurySeverityGrade;
 use rand::Rng;
 use uuid::Uuid;
 
@@ -30,7 +32,8 @@ pub fn evaluate_reinjury_risk(
     natural_fitness: f64,
     age_years: f64,
     tuning: &RecoveryTuningProfile,
-) -> DomainResult<Option<InjuryRecord>> {
+    profiles: &RecoveryProfiles,
+) -> DomainResult<Option<(InjuryRecord, TreatmentKind)>> {
     if observed_injury.days_remaining() > 0 || observed_injury.observation_days_remaining() == 0 {
         return Ok(None);
     }
@@ -44,19 +47,28 @@ pub fn evaluate_reinjury_risk(
 
     let roll: f64 = rand::thread_rng().gen();
     if roll < prob {
-        let relapse_grade = match observed_injury.severity_grade() {
-            InjurySeverityGrade::Grade3 => InjurySeverityGrade::Grade2,
-            InjurySeverityGrade::Grade2 => InjurySeverityGrade::Grade2,
-            InjurySeverityGrade::Grade1 => InjurySeverityGrade::Grade1,
-        };
-
-        let duration = estimate_injury_recovery_days(
+        let relapse_grade = observed_injury.severity_grade();
+        let treatment = choose_treatment(
+            profiles,
+            observed_injury.injury_definition_id(),
+            relapse_grade,
+            age_years,
+            natural_fitness,
+        );
+        let duration = profile_for(
+            profiles,
+            observed_injury.injury_definition_id(),
+            relapse_grade,
+            treatment,
+        )
+        .map(|profile| sample_profile_days(profile, age_years, natural_fitness))
+        .unwrap_or_else(|| estimate_injury_recovery_days(
             relapse_grade,
             observed_injury.body_region(),
             natural_fitness,
             age_years,
             tuning,
-        );
+        ));
 
         let original_id = observed_injury
             .original_injury_id()
@@ -73,7 +85,7 @@ pub fn evaluate_reinjury_risk(
             Some(original_id),
         )?;
 
-        Ok(Some(relapse))
+        Ok(Some((relapse, treatment)))
     } else {
         Ok(None)
     }

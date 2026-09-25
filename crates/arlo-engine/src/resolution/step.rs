@@ -4,6 +4,7 @@ use super::context::validate_match_state;
 use super::contest::emit_route_contest;
 use super::down::emit_down_advanced;
 use super::kick_foul::resolve_kick_foul_segment_inner;
+use super::injury::resolve_injuries;
 use super::model::sample_call;
 use super::officiating::resolve_officiating;
 use super::open_play::resolve_open_play_segment;
@@ -32,7 +33,8 @@ pub fn resolve_next_segment(
 ) -> EngineResult<StepResult> {
     let prior = state.clone();
     let result = resolve_next_segment_inner(input, state, selected_play_call)?;
-    resolve_officiating(input, state, result, Some(&prior))
+    let result = resolve_officiating(input, state, result, Some(&prior))?;
+    resolve_injuries(input, state, result)
 }
 
 fn resolve_next_segment_inner(

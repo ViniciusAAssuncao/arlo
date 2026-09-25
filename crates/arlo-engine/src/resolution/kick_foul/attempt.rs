@@ -24,7 +24,8 @@ pub fn resolve_kick_foul_segment(
     selected_taker_id: Option<Uuid>,
 ) -> EngineResult<StepResult> {
     let result = resolve_kick_foul_segment_inner(input, state, selected_decision, selected_taker_id)?;
-    super::super::officiating::resolve_officiating(input, state, result, None)
+    let result = super::super::officiating::resolve_officiating(input, state, result, None)?;
+    super::super::injury::resolve_injuries(input, state, result)
 }
 
 pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
@@ -78,8 +79,11 @@ pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
             .lineup()
             .assignments()
             .iter()
-            .find(|assignment| assignment.player_id() != taker_id && active_players.contains(&assignment.player_id()))
-            .map(|assignment| assignment.player_id())
+            .find(|assignment| {
+                let player_id = ratings.slot_player_id(offense, assignment.player_id());
+                player_id != taker_id && active_players.contains(&player_id)
+            })
+            .map(|assignment| ratings.slot_player_id(offense, assignment.player_id()))
             .ok_or_else(|| EngineError::InvalidInput("Kick Foul has no receiver".into()))?
     };
     let mut next = state.clone();

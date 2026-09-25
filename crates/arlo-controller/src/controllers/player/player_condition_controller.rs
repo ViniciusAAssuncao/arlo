@@ -27,6 +27,8 @@ pub async fn get_player_medical_condition(
     let medical_status = resolve_player_status(pool, player_id)
         .await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let active_injury = arlo_persistence::repositories::condition::player_injury_history
+        ::get_active_by_player_id(pool, player_id).await?;
 
     let metadata = arlo_db::repositories::save_metadata::get(pool)
         .await
@@ -92,6 +94,8 @@ pub async fn get_player_medical_condition(
         injury_name,
         body_region,
         severity_grade,
+        injury_extent,
+        treatment_kind,
         days_remaining,
         observation_days_remaining,
         expected_recovery_days,
@@ -105,6 +109,8 @@ pub async fn get_player_medical_condition(
                 name,
                 medical_status.body_region_code().map(str::to_string),
                 medical_status.severity_grade_code().map(str::to_string),
+                active_injury.as_ref().and_then(|row| row.injury_extent.clone()),
+                active_injury.as_ref().map(|row| row.treatment_kind.clone()),
                 Some(record.days_remaining()),
                 Some(record.observation_days_remaining()),
                 medical_status.expected_recovery_days,
@@ -114,6 +120,8 @@ pub async fn get_player_medical_condition(
         _ => (
             medical_status.display_status().to_string(),
             false,
+            None,
+            None,
             None,
             None,
             None,
@@ -136,6 +144,8 @@ pub async fn get_player_medical_condition(
         injury_name,
         body_region,
         severity_grade,
+        injury_extent,
+        treatment_kind,
         days_remaining,
         observation_days_remaining,
         expected_recovery_days,

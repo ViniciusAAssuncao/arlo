@@ -1,6 +1,6 @@
 use crate::error::{EngineError, EngineResult};
 use crate::input::TeamInput;
-use arlo_domain::{AttributeDefinition, AttributeKey, AttributeTarget, FaultCatalog, MatchFormatRules, Pitch, Player, Referee};
+use arlo_domain::{AttributeDefinition, AttributeKey, AttributeTarget, FaultCatalog, InjuryCatalog, MatchFormatRules, Pitch, Player, Referee};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -15,6 +15,7 @@ pub struct MatchInput {
     referees: Vec<Referee>,
     referee_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
     fault_catalog: Arc<FaultCatalog>,
+    injury_catalog: Arc<InjuryCatalog>,
     player_attribute_definitions: Vec<AttributeDefinition>,
     seed: u64,
 }
@@ -29,6 +30,7 @@ impl MatchInput {
         referees: Vec<Referee>,
         referee_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
         fault_catalog: Arc<FaultCatalog>,
+        injury_catalog: Arc<InjuryCatalog>,
         player_attribute_definitions: Vec<AttributeDefinition>,
         seed: u64,
     ) -> EngineResult<Self> {
@@ -90,6 +92,7 @@ impl MatchInput {
             referees,
             referee_attribute_keys,
             fault_catalog,
+            injury_catalog,
             player_attribute_definitions,
             seed,
         })
@@ -118,6 +121,9 @@ impl MatchInput {
     }
     pub fn fault_catalog(&self) -> &FaultCatalog {
         &self.fault_catalog
+    }
+    pub fn injury_catalog(&self) -> &InjuryCatalog {
+        &self.injury_catalog
     }
     pub fn player_attribute_definitions(&self) -> &[AttributeDefinition] {
         &self.player_attribute_definitions

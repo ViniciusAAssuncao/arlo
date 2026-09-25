@@ -1,4 +1,5 @@
 mod live;
+mod injury;
 mod officiating;
 mod period;
 mod scoring;

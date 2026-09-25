@@ -246,6 +246,7 @@ pub async fn build_matchday_setup(
         vec![head_referee, peace_referee],
         catalogs.attribute_keys_by_id.clone(),
         catalogs.fault_catalog.clone(),
+        catalogs.injury_catalog.clone(),
         player_attribute_definitions,
         seed
     ).map_err(|error| ControllerError::InvalidData(error.to_string()))?;

@@ -4,7 +4,8 @@ use crate::error::{RecoveryError, RecoveryResult};
 use crate::fatigue_recovery::{calculate_fatigue_recovery, calculate_player_age_years};
 use crate::impulse_recovery::calculate_impulse_recovery;
 use crate::injury_recovery::{
-    advance_injury_days, evaluate_reinjury_risk, InjuryProgressionOutcome,
+    advance_injury_days, evaluate_reinjury_risk, load_recovery_profiles,
+    InjuryProgressionOutcome,
 };
 use crate::tuning::RecoveryTuningProfile;
 use arlo_domain::{AttributeKey, BodyRegion, InjurySeverityGrade, Player};
@@ -123,6 +124,7 @@ pub async fn advance_all_players_one_day(
         (current_year - 1970) * 31_557_600 + (current_day_of_year as i64) * 86_400;
 
     let tuning = RecoveryTuningProfile::default();
+    let recovery_profiles = load_recovery_profiles(pool).await?;
 
     let plans: Vec<PlayerDailyPlan> = players
         .par_iter()
@@ -237,15 +239,18 @@ pub async fn advance_all_players_one_day(
                             natural_fitness,
                             age_years,
                             &tuning,
+                            &recovery_profiles,
                         )?;
 
-                        if let Some(relapse) = reinjury {
+                        if let Some((relapse, treatment)) = reinjury {
                             let relapse_row = PlayerInjuryHistoryRow::new(
                                 relapse.id(),
                                 player_id,
                                 relapse.injury_definition_id(),
                                 body_region_to_str(relapse.body_region()),
                                 severity_grade_to_str(relapse.severity_grade()),
+                                inj_row.injury_extent.clone(),
+                                treatment.as_str(),
                                 current_year,
                                 current_day_of_year,
                                 relapse.days_remaining(),

@@ -2,9 +2,10 @@ use crate::error::{ControllerError, ControllerResult};
 use arlo_domain::{
     AttributeDefinition, AttributeKey, FaultCatalog, FaultPunishmentOption, InjuryCatalog,
     InjuryDefinition,
+    InjurySeverityGrade,
 };
-use sqlx::SqlitePool;
-use std::collections::HashMap;
+use sqlx::{Row, SqlitePool};
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -54,7 +55,27 @@ pub async fn get_or_load_matchday_catalogs(
         arlo_db::repositories::injury_definition::list_all(pool)
             .await
             .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-    let injury_catalog = Arc::new(InjuryCatalog::new(injury_defs));
+    let withdrawal_rows = sqlx::query(
+        "SELECT injury_definition_id, severity_grade FROM injury_recovery_profiles GROUP BY injury_definition_id, severity_grade HAVING MIN(mandatory_withdrawal) = 1",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let mut withdrawal_rules = HashSet::new();
+    for row in withdrawal_rows {
+        let id: String = row.try_get("injury_definition_id")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade: String = row.try_get("severity_grade")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade = match grade.as_str() {
+            "Grade1" => InjurySeverityGrade::Grade1,
+            "Grade2" => InjurySeverityGrade::Grade2,
+            "Grade3" => InjurySeverityGrade::Grade3,
+            _ => return Err(ControllerError::InvalidData(format!("Invalid injury grade {grade}"))),
+        };
+        withdrawal_rules.insert((Uuid::parse_str(&id).map_err(|error| ControllerError::InvalidData(error.to_string()))?, grade));
+    }
+    let injury_catalog = Arc::new(InjuryCatalog::new(injury_defs).with_mandatory_withdrawals(withdrawal_rules));
 
     let attr_defs = arlo_db::repositories::attribute_definition::list_all(pool)
         .await

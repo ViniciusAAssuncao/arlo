@@ -1,5 +1,8 @@
 use crate::domain::InjuryRecord;
 use crate::injury_recovery::recovery_duration_estimator::estimate_injury_recovery_days;
+use crate::injury_recovery::recovery_profile::{
+    choose_treatment, profile_for, sample_profile_days, RecoveryProfiles, TreatmentKind,
+};
 use crate::tuning::RecoveryTuningProfile;
 use arlo_domain::error::DomainResult;
 use arlo_domain::{BodyRegion, InjurySeverityGrade};
@@ -13,16 +16,26 @@ pub fn register_injury(
     natural_fitness: f64,
     age_years: f64,
     tuning: &RecoveryTuningProfile,
-) -> DomainResult<InjuryRecord> {
-    let expected_days = estimate_injury_recovery_days(
+    profiles: &RecoveryProfiles,
+) -> DomainResult<(InjuryRecord, TreatmentKind)> {
+    let treatment = choose_treatment(
+        profiles,
+        injury_definition_id,
         severity_grade,
-        body_region,
-        natural_fitness,
         age_years,
-        tuning,
+        natural_fitness,
     );
+    let expected_days = profile_for(profiles, injury_definition_id, severity_grade, treatment)
+        .map(|profile| sample_profile_days(profile, age_years, natural_fitness))
+        .unwrap_or_else(|| estimate_injury_recovery_days(
+            severity_grade,
+            body_region,
+            natural_fitness,
+            age_years,
+            tuning,
+        ));
 
-    InjuryRecord::new(
+    let record = InjuryRecord::new(
         id,
         injury_definition_id,
         body_region,
@@ -31,5 +44,6 @@ pub fn register_injury(
         0,
         false,
         None,
-    )
+    )?;
+    Ok((record, treatment))
 }

@@ -4,6 +4,7 @@ use crate::state::{DriveProgress, Score};
 use arlo_domain::{sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS, Position};
 use arlo_events::AvailabilityStatus;
 use uuid::Uuid;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct TeamState {
@@ -15,6 +16,8 @@ pub struct TeamState {
     reserve_player_ids: Vec<Uuid>,
     suspended_players: Vec<(Uuid, f64)>,
     expelled_players: Vec<Uuid>,
+    injured_players: Vec<Uuid>,
+    slot_replacements: HashMap<Uuid, Uuid>,
     drive_progress: DriveProgress,
     drives_in_series: u32,
     time_calls_used_in_period: u32,
@@ -62,6 +65,8 @@ impl TeamState {
             reserve_player_ids,
             suspended_players: Vec::new(),
             expelled_players: Vec::new(),
+            injured_players: Vec::new(),
+            slot_replacements: HashMap::new(),
             drive_progress: DriveProgress::default(),
             drives_in_series: 0,
             time_calls_used_in_period: 0,
@@ -73,18 +78,42 @@ impl TeamState {
         self.team_id
     }
     pub fn artrine_id(&self) -> Uuid {
-        if self.active_player_ids.contains(&self.artrine_id) { self.artrine_id }
-        else { self.active_player_ids.iter().copied().find(|id| *id != self.passer_id && *id != self.goalguard_id)
-            .or_else(|| self.active_player_ids.iter().copied().find(|id| *id != self.goalguard_id))
+        let assigned = self.slot_player_id(self.artrine_id);
+        if self.active_player_ids.contains(&assigned) { assigned }
+        else { self.active_player_ids.iter().copied().find(|id| *id != self.slot_player_id(self.passer_id) && *id != self.slot_player_id(self.goalguard_id))
+            .or_else(|| self.active_player_ids.iter().copied().find(|id| *id != self.slot_player_id(self.goalguard_id)))
             .unwrap_or(self.artrine_id) }
     }
     pub fn passer_id(&self) -> Uuid {
-        if self.active_player_ids.contains(&self.passer_id) { self.passer_id }
-        else { self.active_player_ids.iter().copied().find(|id| *id != self.artrine_id() && *id != self.goalguard_id)
+        let assigned = self.slot_player_id(self.passer_id);
+        if self.active_player_ids.contains(&assigned) { assigned }
+        else { self.active_player_ids.iter().copied().find(|id| *id != self.artrine_id() && *id != self.slot_player_id(self.goalguard_id))
             .unwrap_or(self.passer_id) }
     }
     pub fn active_player_ids(&self) -> &[Uuid] {
         &self.active_player_ids
+    }
+    pub fn slot_player_id(&self, original_id: Uuid) -> Uuid {
+        self.slot_replacements.get(&original_id).copied().unwrap_or(original_id)
+    }
+    pub fn injured_player_ids(&self) -> &[Uuid] {
+        &self.injured_players
+    }
+    pub(crate) fn record_injury(&mut self, player_id: Uuid, withdraw: bool, replacement_id: Option<Uuid>) {
+        if self.injured_players.contains(&player_id) {
+            return;
+        }
+        self.injured_players.push(player_id);
+        if withdraw {
+            self.active_player_ids.retain(|id| *id != player_id);
+        }
+        if let Some(replacement_id) = replacement_id {
+            self.reserve_player_ids.retain(|id| *id != replacement_id);
+            self.active_player_ids.push(replacement_id);
+            let original = self.slot_replacements.iter().find(|(_, current)| **current == player_id)
+                .map(|(original, _)| *original).unwrap_or(player_id);
+            self.slot_replacements.insert(original, replacement_id);
+        }
     }
     pub fn reserve_player_ids(&self) -> &[Uuid] {
         &self.reserve_player_ids
@@ -105,6 +134,7 @@ impl TeamState {
     pub(crate) fn availability_status(&self, player_id: Uuid) -> Option<AvailabilityStatus> {
         if self.expelled_players.contains(&player_id) { Some(AvailabilityStatus::Expelled) }
         else if self.suspended_players.iter().any(|(id, _)| *id == player_id) { Some(AvailabilityStatus::Suspended) }
+        else if self.injured_players.contains(&player_id) && !self.active_player_ids.contains(&player_id) { Some(AvailabilityStatus::Injured) }
         else if self.active_player_ids.contains(&player_id) { Some(AvailabilityStatus::Active) }
         else { None }
     }

@@ -1,7 +1,7 @@
 use crate::domain::PlayerCondition;
 use crate::error::{RecoveryError, RecoveryResult};
 use crate::fatigue_recovery::calculate_player_age_years;
-use crate::injury_recovery::register_injury;
+use crate::injury_recovery::{load_recovery_profiles, register_injury};
 use crate::tuning::RecoveryTuningProfile;
 use arlo_domain::{AttributeKey, BodyRegion, InjurySeverityGrade, Player};
 use arlo_engine::MatchInput;
@@ -122,6 +122,7 @@ pub async fn capture_post_match_condition(
     let match_date_unix_seconds =
         (match_year - 1970) * 31_557_600 + i64::from(match_day_of_year) * 86_400;
     let tuning = RecoveryTuningProfile::default();
+    let recovery_profiles = load_recovery_profiles(pool).await?;
     for envelope in raw_events {
         if let MatchEvent::InjuryIncidentRecorded(event) = envelope.event() {
             let player = player_for(input, event.player_id())?;
@@ -129,7 +130,7 @@ pub async fn capture_post_match_condition(
                 player.birthdate_unix_seconds(),
                 match_date_unix_seconds,
             );
-            let record = register_injury(
+            let (record, treatment) = register_injury(
                 Uuid::new_v4(),
                 event.injury_definition_id(),
                 event.body_region(),
@@ -137,13 +138,19 @@ pub async fn capture_post_match_condition(
                 natural_fitness(input, player)?,
                 age_years,
                 &tuning,
+                &recovery_profiles,
             )?;
+            let injury_extent = recovery_profiles
+                .get(&(record.injury_definition_id(), severity_grade_to_str(record.severity_grade()).into(), treatment.as_str().into()))
+                .and_then(|profile| profile.injury_extent.clone());
             let injury_row = PlayerInjuryHistoryRow::new(
                 record.id(),
                 event.player_id(),
                 record.injury_definition_id(),
                 body_region_to_str(record.body_region()),
                 severity_grade_to_str(record.severity_grade()),
+                injury_extent,
+                treatment.as_str(),
                 match_year,
                 match_day_of_year,
                 record.days_remaining(),

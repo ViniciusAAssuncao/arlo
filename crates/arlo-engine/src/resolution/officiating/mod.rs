@@ -163,8 +163,10 @@ fn other_team(input: &MatchInput, team_id: Uuid) -> Uuid {
 fn pick_active(input: &MatchInput, state: &mut MatchState, team_id: Uuid) -> Option<Uuid> {
     let team = if team_id == input.home().team_id() { input.home() } else { input.away() };
     let active = if team_id == input.home().team_id() { state.home().active_player_ids() } else { state.away().active_player_ids() };
+    let team_state = if team_id == input.home().team_id() { state.home() } else { state.away() };
     let candidates: Vec<_> = team.lineup().assignments().iter()
-        .filter(|assignment| assignment.position().line() != arlo_domain::PositionLine::Goalguard && active.contains(&assignment.player_id()))
-        .map(|assignment| assignment.player_id()).collect();
+        .filter(|assignment| assignment.position().line() != arlo_domain::PositionLine::Goalguard
+            && active.contains(&team_state.slot_player_id(assignment.player_id())))
+        .map(|assignment| team_state.slot_player_id(assignment.player_id())).collect();
     if candidates.is_empty() { None } else { Some(candidates[state.rng_mut().gen_range(0..candidates.len())]) }
 }

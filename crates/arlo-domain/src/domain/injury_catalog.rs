@@ -1,13 +1,15 @@
 use crate::domain::injury_definition::InjuryDefinition;
 use crate::domain::injury_mechanism::InjuryMechanism;
+use crate::domain::injury_severity_grade::InjurySeverityGrade;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct InjuryCatalog {
     definitions_by_id: HashMap<Uuid, InjuryDefinition>,
     definitions_by_mechanism: HashMap<InjuryMechanism, Vec<Uuid>>,
+    mandatory_withdrawals: HashSet<(Uuid, InjurySeverityGrade)>,
 }
 
 impl InjuryCatalog {
@@ -25,7 +27,20 @@ impl InjuryCatalog {
         Self {
             definitions_by_id,
             definitions_by_mechanism,
+            mandatory_withdrawals: HashSet::new(),
         }
+    }
+
+    pub fn with_mandatory_withdrawals(
+        mut self,
+        rules: HashSet<(Uuid, InjurySeverityGrade)>,
+    ) -> Self {
+        self.mandatory_withdrawals = rules;
+        self
+    }
+
+    pub fn requires_withdrawal(&self, id: Uuid, grade: InjurySeverityGrade) -> bool {
+        self.mandatory_withdrawals.contains(&(id, grade))
     }
 
     pub fn definition(&self, id: &Uuid) -> Option<&InjuryDefinition> {

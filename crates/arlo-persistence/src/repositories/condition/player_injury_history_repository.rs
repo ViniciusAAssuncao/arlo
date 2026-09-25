@@ -11,6 +11,8 @@ pub async fn insert(pool: &SqlitePool, row: &PlayerInjuryHistoryRow) -> Persiste
             injury_definition_id,
             body_region,
             severity_grade,
+            injury_extent,
+            treatment_kind,
             onset_year,
             onset_day_of_year,
             expected_recovery_days,
@@ -21,13 +23,15 @@ pub async fn insert(pool: &SqlitePool, row: &PlayerInjuryHistoryRow) -> Persiste
             origin_record_id,
             resolved_at_unix_seconds,
             created_at_unix_seconds
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&row.id)
     .bind(&row.player_id)
     .bind(&row.injury_definition_id)
     .bind(&row.body_region)
     .bind(&row.severity_grade)
+    .bind(&row.injury_extent)
+    .bind(&row.treatment_kind)
     .bind(row.onset_year)
     .bind(row.onset_day_of_year)
     .bind(row.expected_recovery_days)
@@ -55,6 +59,8 @@ pub async fn insert_with_tx(
             injury_definition_id,
             body_region,
             severity_grade,
+            injury_extent,
+            treatment_kind,
             onset_year,
             onset_day_of_year,
             expected_recovery_days,
@@ -65,13 +71,15 @@ pub async fn insert_with_tx(
             origin_record_id,
             resolved_at_unix_seconds,
             created_at_unix_seconds
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
     )
     .bind(&row.id)
     .bind(&row.player_id)
     .bind(&row.injury_definition_id)
     .bind(&row.body_region)
     .bind(&row.severity_grade)
+    .bind(&row.injury_extent)
+    .bind(&row.treatment_kind)
     .bind(row.onset_year)
     .bind(row.onset_day_of_year)
     .bind(row.expected_recovery_days)
@@ -99,6 +107,8 @@ pub async fn get_active_by_player_id(
             injury_definition_id,
             body_region,
             severity_grade,
+            injury_extent,
+            treatment_kind,
             onset_year,
             onset_day_of_year,
             expected_recovery_days,
@@ -129,6 +139,8 @@ pub async fn list_all_active(pool: &SqlitePool) -> PersistenceResult<Vec<PlayerI
             injury_definition_id,
             body_region,
             severity_grade,
+            injury_extent,
+            treatment_kind,
             onset_year,
             onset_day_of_year,
             expected_recovery_days,
@@ -169,6 +181,8 @@ pub async fn list_active_by_player_ids(
             injury_definition_id,
             body_region,
             severity_grade,
+            injury_extent,
+            treatment_kind,
             onset_year,
             onset_day_of_year,
             expected_recovery_days,
@@ -206,6 +220,8 @@ pub async fn get_latest_resolved_by_player_id(
             injury_definition_id,
             body_region,
             severity_grade,
+            injury_extent,
+            treatment_kind,
             onset_year,
             onset_day_of_year,
             expected_recovery_days,
@@ -253,6 +269,8 @@ pub async fn list_latest_resolved_by_player_ids(
             injury_definition_id,
             body_region,
             severity_grade,
+            injury_extent,
+            treatment_kind,
             onset_year,
             onset_day_of_year,
             expected_recovery_days,

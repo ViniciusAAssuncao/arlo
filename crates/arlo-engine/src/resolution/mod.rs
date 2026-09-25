@@ -6,6 +6,7 @@ mod contest;
 mod down;
 mod exchange;
 mod kick_foul;
+mod injury;
 mod kicker;
 mod model;
 mod officiating;

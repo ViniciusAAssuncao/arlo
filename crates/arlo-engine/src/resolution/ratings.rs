@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub(super) struct RatingIndex {
     attribute_ids: HashMap<AttributeKey, Uuid>,
     active_by_team: HashMap<Uuid, Vec<Uuid>>,
+    slots_by_team: HashMap<Uuid, HashMap<Uuid, Uuid>>,
 }
 
 impl RatingIndex {
@@ -21,7 +22,22 @@ impl RatingIndex {
             (state.home().team_id(), state.home().active_player_ids().to_vec()),
             (state.away().team_id(), state.away().active_player_ids().to_vec()),
         ]);
-        Self { attribute_ids, active_by_team }
+        let slots_by_team = HashMap::from([
+            (input.home().team_id(), input.home().lineup().assignments().iter()
+                .map(|assignment| (assignment.player_id(), state.home().slot_player_id(assignment.player_id()))).collect()),
+            (input.away().team_id(), input.away().lineup().assignments().iter()
+                .map(|assignment| (assignment.player_id(), state.away().slot_player_id(assignment.player_id()))).collect()),
+        ]);
+        Self { attribute_ids, active_by_team, slots_by_team }
+    }
+
+    pub(super) fn slot_player_id(&self, team: &TeamInput, original_id: Uuid) -> Uuid {
+        self.slots_by_team.get(&team.team_id())
+            .and_then(|slots| slots.get(&original_id)).copied().unwrap_or(original_id)
+    }
+
+    pub(super) fn is_active_slot(&self, team: &TeamInput, original_id: Uuid) -> bool {
+        self.is_active(team, self.slot_player_id(team, original_id))
     }
 
     pub(super) fn is_active(&self, team: &TeamInput, player_id: Uuid) -> bool {
@@ -68,10 +84,11 @@ impl RatingIndex {
             .lineup()
             .assignments()
             .iter()
-            .find(|assignment| assignment.position() == position && self.is_active(team, assignment.player_id()))
-            .or_else(|| team.lineup().assignments().iter().find(|assignment| self.is_active(team, assignment.player_id())))
+            .find(|assignment| assignment.position() == position && self.is_active_slot(team, assignment.player_id()))
+            .or_else(|| team.lineup().assignments().iter().find(|assignment| self.is_active_slot(team, assignment.player_id())))
             .ok_or_else(|| EngineError::InvalidInput("lineup lacks a required specialist".into()))?
             .player_id();
+        let player_id = self.slot_player_id(team, player_id);
         self.value(self.player(team, player_id)?, key)
     }
 
@@ -84,13 +101,13 @@ impl RatingIndex {
         let mut total = 0.0;
         let mut count = 0u32;
         for assignment in team.lineup().assignments() {
-            if !self.is_active(team, assignment.player_id()) || assignment.position() == Position::Goalguard
+            if !self.is_active_slot(team, assignment.player_id()) || assignment.position() == Position::Goalguard
                 || (exclude_specialists
                     && matches!(assignment.position(), Position::Artrine | Position::Passer))
             {
                 continue;
             }
-            total += self.value(self.player(team, assignment.player_id())?, key)?;
+            total += self.value(self.player(team, self.slot_player_id(team, assignment.player_id()))?, key)?;
             count += 1;
         }
         if count == 0 {
@@ -118,10 +135,10 @@ impl RatingIndex {
         let mut total = 0.0;
         let mut count = 0u32;
         for assignment in team.lineup().assignments() {
-            if !self.is_active(team, assignment.player_id()) || assignment.position().line() != PositionLine::OffensiveLine {
+            if !self.is_active_slot(team, assignment.player_id()) || assignment.position().line() != PositionLine::OffensiveLine {
                 continue;
             }
-            let player_id = assignment.player_id();
+            let player_id = self.slot_player_id(team, assignment.player_id());
             total += 0.45 * self.player_value(team, player_id, AttributeKey::Finishing)?
                 + 0.30 * self.player_value(team, player_id, AttributeKey::Positioning)?
                 + 0.25 * self.player_value(team, player_id, AttributeKey::Anticipation)?;

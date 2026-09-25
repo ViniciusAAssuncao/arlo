@@ -14,6 +14,8 @@ pub struct PlayerMedicalConditionDto {
     pub injury_name: Option<String>,
     pub body_region: Option<String>,
     pub severity_grade: Option<String>,
+    pub injury_extent: Option<String>,
+    pub treatment_kind: Option<String>,
     pub days_remaining: Option<u32>,
     pub observation_days_remaining: Option<u32>,
     pub expected_recovery_days: Option<u32>,
