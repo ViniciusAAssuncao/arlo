@@ -1,4 +1,4 @@
-use crate::domain::season::{SeasonStageInstance, StageStatus};
+use crate::domain::season::{FixtureStatus, SeasonStageInstance, StageStatus};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
@@ -130,7 +130,7 @@ pub async fn progress_season(
         domain_fixtures.push(map_row_to_fixture(row)?);
     }
 
-    let domain_ties = load_stage_knockout_ties(pool, current_stage_id).await?;
+    let mut domain_ties = load_stage_knockout_ties(pool, current_stage_id).await?;
 
     if stage_type == StageType::KnockoutBracket {
         if let Some(schedule) = advance_knockout_round(
@@ -162,6 +162,8 @@ pub async fn progress_season(
                 schedule,
             });
         }
+        
+        domain_ties = load_stage_knockout_ties(pool, current_stage_id).await?;
     }
 
     if !is_stage_complete(
@@ -170,6 +172,20 @@ pub async fn progress_season(
         &domain_ties,
         config_arc.tie_break_criteria(),
     ) {
+        let latest_pending = domain_fixtures.iter()
+            .filter(|f| f.status() == FixtureStatus::Scheduled || f.status() == FixtureStatus::Postponed)
+            .map(|f| f.scheduled_date())
+            .max();
+
+        if let Some(latest_date) = latest_pending {
+            let next_check_date = crate::services::calendar::date_advancer::advance(calendar, &latest_date, 1);
+            trigger_store.insert(crate::domain::event_scheduling::PendingTrigger::new(
+                next_check_date,
+                competition_id,
+                crate::domain::event_scheduling::TriggerKind::StageTransitionCheckDue,
+            )).await;
+        }
+
         return Ok(ProgressionOutcome::StageNotComplete {
             stage_order_index: current_stage_order_index,
         });
