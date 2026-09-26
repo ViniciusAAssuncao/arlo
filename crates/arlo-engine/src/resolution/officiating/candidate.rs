@@ -55,7 +55,7 @@ pub(in crate::resolution) fn sample_context_decision(
     }
     let ratings = RatingIndex::new(input, state);
     let offender_team = if offender_is_defender { defense } else { offense };
-    let aggression = ratings.player_value(offender_team, offender_id, AttributeKey::ControlledAggression)?;
+    let aggression = ratings.player_value(offender_team, offender_id, AttributeKey::Aggressiveness)?;
     let factual_probability = (0.008 + (10.0 - aggression) * 0.00055).clamp(0.002, 0.02);
     let factual_foul = state.rng_mut().gen_range(0.0..1.0) < factual_probability;
     let head_rigor = referee_value(input, 0, AttributeKey::Rigor);
