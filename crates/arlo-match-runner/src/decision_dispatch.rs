@@ -22,8 +22,10 @@ pub fn resolve_segment(
             team_id, outgoing_player_ids: vec![player_id],
         }]));
     }
-    if matches!(state.phase(), MatchPhase::Ready | MatchPhase::Stopped | MatchPhase::PeriodBreak) {
-        if let Some(&(team_id, player_id)) = state.pending_injury_decisions().first().filter(|_| state.injury_decisions_ready()) {
+    if !matches!(state.phase(), MatchPhase::Live | MatchPhase::Finished) {
+        if let Some(pending) = state.pending_injury_decisions().first().filter(|_| state.injury_decisions_ready()) {
+            let team_id = pending.team_id();
+            let player_id = pending.player_id();
             if let Some(intent) = inbox.injury_decision(team_id, player_id) {
                 let result = resolve_injury_decision_segment(input, state, team_id, intent)?;
                 inbox.take_injury_decision(team_id, player_id);

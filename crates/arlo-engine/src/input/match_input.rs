@@ -17,6 +17,8 @@ pub struct MatchInput {
     fault_catalog: Arc<FaultCatalog>,
     injury_catalog: Arc<InjuryCatalog>,
     player_attribute_definitions: Vec<AttributeDefinition>,
+    manager_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
+    player_start_energy: Arc<HashMap<Uuid, f64>>,
     seed: u64,
 }
 
@@ -94,6 +96,8 @@ impl MatchInput {
             fault_catalog,
             injury_catalog,
             player_attribute_definitions,
+            manager_attribute_keys: Arc::new(HashMap::new()),
+            player_start_energy: Arc::new(HashMap::new()),
             seed,
         })
     }
@@ -130,5 +134,26 @@ impl MatchInput {
     }
     pub fn seed(&self) -> u64 {
         self.seed
+    }
+
+    pub fn with_manager_decision_context(
+        mut self,
+        manager_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
+        player_start_energy: HashMap<Uuid, f64>,
+    ) -> EngineResult<Self> {
+        if player_start_energy.values().any(|energy| !energy.is_finite() || !(0.0..=1.0).contains(energy)) {
+            return Err(EngineError::InvalidInput("player start energy must be between zero and one".into()));
+        }
+        self.manager_attribute_keys = manager_attribute_keys;
+        self.player_start_energy = Arc::new(player_start_energy);
+        Ok(self)
+    }
+
+    pub fn manager_attribute_keys(&self) -> &HashMap<Uuid, AttributeKey> {
+        &self.manager_attribute_keys
+    }
+
+    pub fn player_start_energy(&self, player_id: Uuid) -> f64 {
+        self.player_start_energy.get(&player_id).copied().unwrap_or(1.0)
     }
 }

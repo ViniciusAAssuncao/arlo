@@ -11,6 +11,7 @@ pub struct InjuryCatalog {
     definitions_by_mechanism: HashMap<InjuryMechanism, Vec<Uuid>>,
     mandatory_withdrawals: HashSet<(Uuid, InjurySeverityGrade)>,
     minimum_grades: HashMap<Uuid, InjurySeverityGrade>,
+    expected_recovery_days: HashMap<(Uuid, InjurySeverityGrade), f64>,
 }
 
 impl InjuryCatalog {
@@ -30,6 +31,7 @@ impl InjuryCatalog {
             definitions_by_mechanism,
             mandatory_withdrawals: HashSet::new(),
             minimum_grades: HashMap::new(),
+            expected_recovery_days: HashMap::new(),
         }
     }
 
@@ -52,6 +54,22 @@ impl InjuryCatalog {
 
     pub fn minimum_grade(&self, id: Uuid) -> Option<InjurySeverityGrade> {
         self.minimum_grades.get(&id).copied()
+    }
+
+    pub fn with_expected_recovery_days(
+        mut self,
+        days: HashMap<(Uuid, InjurySeverityGrade), f64>,
+    ) -> Self {
+        self.expected_recovery_days = days;
+        self
+    }
+
+    pub fn expected_recovery_days(&self, id: Uuid, grade: InjurySeverityGrade) -> Option<f64> {
+        self.expected_recovery_days.get(&(id, grade)).copied()
+    }
+
+    pub fn has_recovery_profile(&self, id: Uuid, grade: InjurySeverityGrade) -> bool {
+        self.expected_recovery_days.contains_key(&(id, grade))
     }
 
     pub fn definition(&self, id: &Uuid) -> Option<&InjuryDefinition> {

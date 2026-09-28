@@ -1,10 +1,12 @@
 use super::MatchState;
 use crate::error::EngineResult;
+use crate::state::PendingInjuryDecision;
+use arlo_domain::InjurySeverityGrade;
 use uuid::Uuid;
 
 impl MatchState {
-    pub(crate) fn queue_injury_decision(&mut self, team_id: Uuid, player_id: Uuid) {
-        self.pending_injury_decisions.push((team_id, player_id));
+    pub(crate) fn queue_injury_decision(&mut self, team_id: Uuid, player_id: Uuid, injury_definition_id: Uuid, severity_grade: InjurySeverityGrade) {
+        self.pending_injury_decisions.push(PendingInjuryDecision::new(team_id, player_id, injury_definition_id, severity_grade));
     }
 
     pub(crate) fn mark_injury_out(&mut self) {
@@ -20,7 +22,7 @@ impl MatchState {
     }
 
     pub(crate) fn clear_injury_decision(&mut self, team_id: Uuid, player_id: Uuid) {
-        self.pending_injury_decisions.retain(|pending| *pending != (team_id, player_id));
+        self.pending_injury_decisions.retain(|pending| pending.team_id() != team_id || pending.player_id() != player_id);
         if self.pending_injury_decisions.is_empty() {
             self.injury_decisions_ready = false;
         }

@@ -1,4 +1,5 @@
 mod decision;
+mod manager_ai;
 mod response;
 mod sample;
 
@@ -35,6 +36,17 @@ pub(super) fn resolve_injuries(
     }
     if events.iter().any(|envelope| matches!(envelope.event(), MatchEvent::OutOfBounds(_))) {
         state.mark_injury_out();
+        let pending: Vec<_> = state.pending_injury_decisions().iter().copied()
+            .filter(|pending| {
+                let team = if pending.team_id() == input.home().team_id() { input.home() } else { input.away() };
+                !team.manager().is_human_controlled()
+            })
+            .collect();
+        for injury in pending {
+            let intent = manager_ai::decide(input, state, injury)?;
+            let (decision_events, _) = decision::resolve_injury_decision_segment(input, state, injury.team_id(), intent)?.into_parts();
+            events.extend(decision_events);
+        }
     }
     Ok(match outcome {
         StepOutcome::Resolved => StepResult::resolved(events),

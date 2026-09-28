@@ -1,7 +1,7 @@
 use crate::input::MatchInput;
 use crate::resolution::ratings::RatingIndex;
 use crate::state::MatchState;
-use arlo_domain::{AttributeKey, InjuryMechanism, InjurySeverityGrade};
+use arlo_domain::{AttributeKey, InjuryCatalog, InjuryMechanism, InjurySeverityGrade};
 use arlo_events::{DuelResolved, InjuryIncidentRecorded};
 use arlo_math::Probability;
 use rand::Rng;
@@ -65,6 +65,7 @@ pub(super) fn sample_injury(
         .definitions_for_mechanism(exposure.mechanism)
         .iter()
         .filter_map(|id| input.injury_catalog().definition(id))
+        .filter(|definition| supported_grades(input.injury_catalog(), definition.id(), definition.code()).next().is_some())
         .collect();
     candidates.sort_by(|a, b| a.code().cmp(b.code()));
     let total_weight: f64 = candidates.iter().map(|definition| definition.relative_frequency()).sum();
@@ -76,14 +77,7 @@ pub(super) fn sample_injury(
         draw -= definition.relative_frequency();
         draw < 0.0
     }).or_else(|| candidates.last())?;
-    let grade = sample_grade(definition.code(), state);
-    let grade = match input.injury_catalog().minimum_grade(definition.id()) {
-        Some(InjurySeverityGrade::Grade3) => InjurySeverityGrade::Grade3,
-        Some(InjurySeverityGrade::Grade2) if grade == InjurySeverityGrade::Grade1 => {
-            InjurySeverityGrade::Grade2
-        }
-        _ => grade,
-    };
+    let grade = sample_grade(input.injury_catalog(), definition.id(), definition.code(), state)?;
     Some(InjuryIncidentRecorded::new(
         exposure.player_id,
         team.team_id(),
@@ -95,25 +89,66 @@ pub(super) fn sample_injury(
     ))
 }
 
-fn sample_grade(code: &str, state: &mut MatchState) -> InjurySeverityGrade {
-    if code.contains("_GRADE1") || code.contains("_MILD") {
-        return InjurySeverityGrade::Grade1;
+fn sample_grade(
+    catalog: &InjuryCatalog,
+    id: Uuid,
+    code: &str,
+    state: &mut MatchState,
+) -> Option<InjurySeverityGrade> {
+    let total: u32 = supported_grades(catalog, id, code).map(|(_, weight)| weight).sum();
+    let mut draw = state.rng_mut().gen_range(0..total);
+    for (grade, weight) in supported_grades(catalog, id, code) {
+        if draw < weight {
+            return Some(grade);
+        }
+        draw -= weight;
     }
-    if code.contains("_GRADE2") || code.contains("_MODERATE") {
-        return InjurySeverityGrade::Grade2;
-    }
-    if code.contains("_GRADE3") || code.contains("_SEVERE") {
-        return InjurySeverityGrade::Grade3;
-    }
-    let draw = state.rng_mut().gen_range(0.0..1.0);
-    if code.contains("ACL_TEAR") {
-        return if draw < 0.55 { InjurySeverityGrade::Grade2 } else { InjurySeverityGrade::Grade3 };
-    }
-    if draw < 0.77 {
-        InjurySeverityGrade::Grade1
-    } else if draw < 0.97 {
-        InjurySeverityGrade::Grade2
+    None
+}
+
+fn supported_grades<'a>(
+    catalog: &'a InjuryCatalog,
+    id: Uuid,
+    code: &'a str,
+) -> impl Iterator<Item = (InjurySeverityGrade, u32)> + 'a {
+    [InjurySeverityGrade::Grade1, InjurySeverityGrade::Grade2, InjurySeverityGrade::Grade3]
+        .into_iter()
+        .filter_map(move |grade| {
+            let minimum = catalog.minimum_grade(id);
+            let above_minimum = match (minimum, grade) {
+                (Some(InjurySeverityGrade::Grade3), InjurySeverityGrade::Grade1 | InjurySeverityGrade::Grade2) => false,
+                (Some(InjurySeverityGrade::Grade2), InjurySeverityGrade::Grade1) => false,
+                _ => true,
+            };
+            let weight = grade_weight(code, grade);
+            (above_minimum && weight > 0 && catalog.has_recovery_profile(id, grade))
+                .then_some((grade, weight))
+        })
+}
+
+fn grade_weight(code: &str, grade: InjurySeverityGrade) -> u32 {
+    let fixed = if code.contains("_GRADE1") || code.contains("_MILD") {
+        Some(InjurySeverityGrade::Grade1)
+    } else if code.contains("_GRADE2") || code.contains("_MODERATE") {
+        Some(InjurySeverityGrade::Grade2)
+    } else if code.contains("_GRADE3") || code.contains("_SEVERE") {
+        Some(InjurySeverityGrade::Grade3)
     } else {
-        InjurySeverityGrade::Grade3
+        None
+    };
+    if let Some(fixed) = fixed {
+        return u32::from(grade == fixed);
+    }
+    if code.contains("ACL_TEAR") {
+        return match grade {
+            InjurySeverityGrade::Grade1 => 0,
+            InjurySeverityGrade::Grade2 => 55,
+            InjurySeverityGrade::Grade3 => 45,
+        };
+    }
+    match grade {
+        InjurySeverityGrade::Grade1 => 77,
+        InjurySeverityGrade::Grade2 => 20,
+        InjurySeverityGrade::Grade3 => 3,
     }
 }

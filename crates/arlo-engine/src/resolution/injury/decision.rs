@@ -13,9 +13,9 @@ pub fn resolve_injury_decision_segment(
     intent: InjuryDecisionIntent,
 ) -> EngineResult<StepResult> {
     super::super::context::validate_match_state(input, state)?;
-    if !matches!(state.phase(), MatchPhase::Ready | MatchPhase::Stopped | MatchPhase::PeriodBreak)
+    if matches!(state.phase(), MatchPhase::Live | MatchPhase::Finished)
         || !state.injury_decisions_ready()
-        || !state.pending_injury_decisions().contains(&(team_id, intent.injured_player_id()))
+        || !state.pending_injury_decisions().iter().any(|pending| pending.team_id() == team_id && pending.player_id() == intent.injured_player_id())
     {
         return Err(EngineError::InvalidTransition("injury decision requires a pending player at a stoppage".into()));
     }

@@ -2,9 +2,11 @@
 
 ## Injury withdrawal decisions
 
-Substitutions have no per-match limit. Human-controlled managers now receive a keep-or-withdraw decision at the next Out for injuries that permit continued play. An incapacitating injury, including a complete ACL rupture, removes the player immediately; a human manager chooses the reserve during that injury interruption when one is available. Automated teams retain the current automatic replacement for mandatory withdrawals and keep players on the field after optional injuries. Manager AI still needs injury decisions. The medical model must distinguish partial from complete ACL rupture and record the chosen treatment path; a reconstruction case cannot inherit only the generic grade-and-body-region recovery duration.
+Substitutions have no per-match limit. Human-controlled managers receive a keep-or-withdraw decision at the next Out for injuries that permit continued play. An incapacitating injury, including a complete ACL rupture, removes the player immediately; a human manager chooses the reserve during that injury interruption when one is available. Automated managers choose whether to withdraw an athlete with a non-incapacitating injury at the next Out using diagnosis-specific recovery, athlete condition, reserve suitability, match context, and manager attributes. The medical model must distinguish partial from complete ACL rupture and record the chosen treatment path; a reconstruction case cannot inherit only the generic grade-and-body-region recovery duration.
 
 The initial treatment choice is statistical because the game has no clinical assessment or medical staff decision yet. Revisit treatment choice, return-to-play criteria, and injury-specific recovery profiles when medical staff and manager controls are added. The outside-match catalog separates common illness onset from match actions. Entries with zero daily weight are excluded from match incidents but do not yet receive spontaneous diagnoses; revisit those diagnoses when their medical paths are defined.
+
+Match incidents are eligible only when their diagnosis and sampled severity have a recovery profile. Catalog definitions without any profile remain unavailable for match sampling until their medical path is specified. Curate these definitions before expecting the full injury catalog to appear during matches.
 
 ## Day advancement consistency
 

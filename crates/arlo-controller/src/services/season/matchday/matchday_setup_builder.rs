@@ -237,6 +237,12 @@ pub async fn build_matchday_setup(
         .cloned()
         .collect();
     player_attribute_definitions.sort_by_key(|definition| definition.id());
+    let manager_attribute_keys = Arc::new(manager_defs.iter()
+        .map(|(id, definition)| (*id, definition.key()))
+        .collect());
+    let player_start_energy = initial_conditions.iter()
+        .map(|(id, condition)| (*id, condition.fatigue().energy()))
+        .collect();
     let input = MatchInput::new(
         Uuid::new_v4(),
         home_input,
@@ -249,7 +255,9 @@ pub async fn build_matchday_setup(
         catalogs.injury_catalog.clone(),
         player_attribute_definitions,
         seed
-    ).map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    ).map_err(|error| ControllerError::InvalidData(error.to_string()))?
+        .with_manager_decision_context(manager_attribute_keys, player_start_energy)
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
 
     let persistence_context = MatchPersistenceContext::new(
         home_lineup.id(),

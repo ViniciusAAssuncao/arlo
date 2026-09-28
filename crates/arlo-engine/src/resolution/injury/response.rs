@@ -1,11 +1,10 @@
 use crate::error::EngineResult;
-use crate::input::{MatchInput, TeamInput};
-use crate::state::{MatchState, TeamState};
+use crate::input::MatchInput;
+use crate::state::MatchState;
 use arlo_events::{
     AvailabilityStatus, InjuryIncidentRecorded, MatchClockInstant, MatchEvent,
     MatchEventEnvelope, PlayerAvailabilityChanged, SubstitutionMade, SubstitutionReason,
 };
-use uuid::Uuid;
 
 pub(super) fn apply_injury(
     input: &MatchInput,
@@ -26,14 +25,15 @@ pub(super) fn apply_injury(
     let pending_replacements = state.pending_forced_substitutions().iter()
         .filter(|(pending_team, _)| *pending_team == team_id).count();
     let replacement_id = if withdraw && !human_controlled {
-        select_replacement(team, team_state, incident.player_id())
+        super::manager_ai::best_reserve(input, team, team_state, incident.player_id())
+            .map(|(id, _)| id)
     } else {
         None
     };
     state.record_injury(team_id, incident.player_id(), withdraw, replacement_id)?;
     events.push(state.emit(MatchEvent::InjuryIncidentRecorded(incident.clone()))?);
-    if !withdraw && team.manager().is_human_controlled() && state.phase() != crate::state::MatchPhase::Finished {
-        state.queue_injury_decision(team_id, incident.player_id());
+    if !withdraw && state.phase() != crate::state::MatchPhase::Finished {
+        state.queue_injury_decision(team_id, incident.player_id(), incident.injury_definition_id(), incident.severity_grade());
     }
     if withdraw && human_controlled && pending_replacements < reserve_count
         && state.phase() != crate::state::MatchPhase::Finished {
@@ -58,20 +58,4 @@ pub(super) fn apply_injury(
         }
     }
     Ok(())
-}
-
-fn select_replacement(team: &TeamInput, state: &TeamState, injured_id: Uuid) -> Option<Uuid> {
-    let position = team.lineup().assignments().iter()
-        .find(|assignment| state.slot_player_id(assignment.player_id()) == injured_id)
-        .map(|assignment| assignment.position())?;
-    state.reserve_player_ids().iter().filter_map(|id| {
-        let player = team.roster().iter().find(|player| player.id() == *id)?;
-        let proficiency = player.positions().iter()
-            .find(|candidate| candidate.position() == position)
-            .map(|candidate| candidate.proficiency())
-            .unwrap_or(0);
-        Some((*id, proficiency))
-    })
-    .max_by_key(|(_, proficiency)| *proficiency)
-    .map(|(id, _)| id)
 }

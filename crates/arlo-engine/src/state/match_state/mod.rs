@@ -6,7 +6,7 @@ mod scoring;
 
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
-use crate::state::{ClockState, MatchPhase, PossessionState, SeriesState, TeamState};
+use crate::state::{ClockState, MatchPhase, PendingInjuryDecision, PossessionState, SeriesState, TeamState};
 use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
 use arlo_events::RefereeDecisionResolved;
 use arlo_events::PlayerAvailabilityChanged;
@@ -43,7 +43,7 @@ pub struct MatchState {
     pending_call_outcome: Option<PendingCallOutcome>,
     pending_referee_decisions: Vec<RefereeDecisionResolved>,
     pending_availability_events: Vec<PlayerAvailabilityChanged>,
-    pending_injury_decisions: Vec<(Uuid, Uuid)>,
+    pending_injury_decisions: Vec<PendingInjuryDecision>,
     injury_decisions_ready: bool,
     pending_forced_substitutions: Vec<(Uuid, Uuid)>,
     deferred_series_penalties: Vec<(Uuid, PunishmentKind, i32)>,
@@ -122,7 +122,7 @@ impl MatchState {
         self.next_event_sequence
     }
 
-    pub fn pending_injury_decisions(&self) -> &[(Uuid, Uuid)] {
+    pub fn pending_injury_decisions(&self) -> &[PendingInjuryDecision] {
         &self.pending_injury_decisions
     }
 
