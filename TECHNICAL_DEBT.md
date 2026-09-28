@@ -8,7 +8,7 @@ The initial treatment choice is statistical because the game has no clinical ass
 
 ## Day advancement consistency
 
-The save calendar is persisted before daily recovery, scheduled events, and matches. A later failure can leave the calendar ahead of some work, making a retry unsafe. Introduce a durable day-progress checkpoint or a coordinated transaction before relying on retries for interrupted day advancement.
+Day advancement now keeps the calendar on the previous date until recovery, scheduled events, and matches finish. Recovery and matchday persistence advance their durable checkpoints in the same transactions as their effects. Scheduled-event handlers still perform several independent writes and may add in-memory triggers. If interrupted while executing those handlers, the day remains in EventsRunning and automatic replay stops to avoid duplicate or skipped effects. Make each scheduled event transactional and replayable before enabling automatic recovery from that phase.
 
 ## Manager challenges and peace-referee review
 

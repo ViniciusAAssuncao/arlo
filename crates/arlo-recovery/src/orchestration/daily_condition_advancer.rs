@@ -14,7 +14,7 @@ use arlo_domain::{BodyRegion, InjurySeverityGrade};
 use arlo_persistence::models::condition::{PlayerConditionRow, PlayerInjuryHistoryRow};
 use arlo_persistence::repositories::condition::{player_condition, player_injury_history};
 use rayon::prelude::*;
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool, Transaction};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
@@ -41,6 +41,11 @@ enum InjuryAction {
 struct PlayerDailyPlan {
     condition_row: PlayerConditionRow,
     injury_action: Option<InjuryAction>,
+}
+
+pub struct DailyConditionPlan {
+    plans: Vec<PlayerDailyPlan>,
+    now_seconds: i64,
 }
 
 fn parse_severity_grade(code: &str) -> Result<InjurySeverityGrade, RecoveryError> {
@@ -76,9 +81,21 @@ pub async fn advance_all_players_one_day(
     current_year: i64,
     current_day_of_year: u32,
 ) -> RecoveryResult<()> {
+    let plan = prepare_all_players_one_day(pool, current_year, current_day_of_year).await?;
+    let mut tx = pool.begin().await?;
+    persist_daily_condition_plan(&mut tx, plan).await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+pub async fn prepare_all_players_one_day(
+    pool: &SqlitePool,
+    current_year: i64,
+    current_day_of_year: u32,
+) -> RecoveryResult<DailyConditionPlan> {
     let players = arlo_db::repositories::player::list_daily_recovery_inputs(pool).await?;
     if players.is_empty() {
-        return Ok(());
+        return Ok(DailyConditionPlan { plans: Vec::new(), now_seconds: 0 });
     }
 
     let active_injuries = player_injury_history::list_all_active(pool).await?;
@@ -340,7 +357,14 @@ pub async fn advance_all_players_one_day(
         })
         .collect::<RecoveryResult<Vec<_>>>()?;
 
-    let mut tx = pool.begin().await?;
+    Ok(DailyConditionPlan { plans, now_seconds })
+}
+
+pub async fn persist_daily_condition_plan(
+    tx: &mut Transaction<'_, Sqlite>,
+    plan: DailyConditionPlan,
+) -> RecoveryResult<()> {
+    let DailyConditionPlan { plans, now_seconds } = plan;
     let mut condition_updates = Vec::with_capacity(plans.len());
 
     for plan in plans {
@@ -353,7 +377,7 @@ pub async fn advance_all_players_one_day(
                     status,
                 } => {
                     player_injury_history::update_progress_with_tx(
-                        &mut tx,
+                        tx,
                         id,
                         days_remaining,
                         observation_days_remaining,
@@ -365,15 +389,15 @@ pub async fn advance_all_players_one_day(
                     resolved_id,
                     relapse_row,
                 } => {
-                    player_injury_history::mark_resolved_with_tx(&mut tx, resolved_id, now_seconds)
+                    player_injury_history::mark_resolved_with_tx(tx, resolved_id, now_seconds)
                         .await?;
-                    player_injury_history::insert_with_tx(&mut tx, &relapse_row).await?;
+                    player_injury_history::insert_with_tx(tx, &relapse_row).await?;
                 }
                 InjuryAction::MarkResolved { id } => {
-                    player_injury_history::mark_resolved_with_tx(&mut tx, id, now_seconds).await?;
+                    player_injury_history::mark_resolved_with_tx(tx, id, now_seconds).await?;
                 }
                 InjuryAction::Register { row } => {
-                    player_injury_history::insert_with_tx(&mut tx, &row).await?;
+                    player_injury_history::insert_with_tx(tx, &row).await?;
                 }
             }
         }
@@ -381,9 +405,7 @@ pub async fn advance_all_players_one_day(
         condition_updates.push(plan.condition_row);
     }
 
-    player_condition::upsert_many_with_tx(&mut tx, &condition_updates).await?;
-
-    tx.commit().await?;
+    player_condition::upsert_many_with_tx(tx, &condition_updates).await?;
 
     Ok(())
 }
