@@ -1,3 +1,4 @@
+use crate::error::RecoveryResult;
 use arlo_domain::InjurySeverityGrade;
 use rand::Rng;
 use sqlx::{FromRow, SqlitePool};
@@ -41,7 +42,8 @@ pub struct RecoveryProfile {
 
 pub type RecoveryProfiles = HashMap<(Uuid, String, String), RecoveryProfile>;
 
-pub async fn load_recovery_profiles(pool: &SqlitePool) -> Result<RecoveryProfiles, sqlx::Error> {
+pub async fn load_recovery_profiles(pool: &SqlitePool) -> RecoveryResult<RecoveryProfiles> {
+    arlo_db::repositories::injury_definition::validate_recovery_profile_coverage(pool).await?;
     let rows = sqlx::query_as::<_, RecoveryProfile>(
         "SELECT injury_definition_id, severity_grade, injury_extent, treatment_kind, minimum_days, typical_days, maximum_days, mandatory_withdrawal FROM injury_recovery_profiles",
     )
@@ -136,7 +138,6 @@ fn profile_days_for_roll(
 mod tests {
     use super::*;
     use crate::injury_recovery::register_injury;
-    use crate::tuning::RecoveryTuningProfile;
     use arlo_domain::{BodyRegion, InjurySeverityGrade};
 
     #[tokio::test]
@@ -154,11 +155,10 @@ mod tests {
         let profile = profile_for(&profiles, definition_id, InjurySeverityGrade::Grade3, TreatmentKind::Surgical).unwrap();
         assert!(profile.mandatory_withdrawal);
         assert_eq!(profile.injury_extent.as_deref(), Some("Complete"));
-        let tuning = RecoveryTuningProfile::default();
         for (age, fitness) in [(22.0, 19.0), (35.0, 3.0)] {
             let (injury, treatment) = register_injury(
                 Uuid::new_v4(), definition_id, BodyRegion::Knee,
-                InjurySeverityGrade::Grade3, fitness, age, &tuning, &profiles,
+                InjurySeverityGrade::Grade3, fitness, age, &profiles,
             ).unwrap();
             assert_eq!(injury.severity_grade(), InjurySeverityGrade::Grade3);
             let selected = profile_for(&profiles, definition_id, InjurySeverityGrade::Grade3, treatment).unwrap();

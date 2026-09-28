@@ -2,7 +2,6 @@ use crate::domain::PlayerCondition;
 use crate::error::{RecoveryError, RecoveryResult};
 use crate::fatigue_recovery::calculate_player_age_years;
 use crate::injury_recovery::{load_recovery_profiles, register_injury};
-use crate::tuning::RecoveryTuningProfile;
 use arlo_domain::{AttributeKey, BodyRegion, InjurySeverityGrade, Player};
 use arlo_engine::MatchInput;
 use arlo_events::{MatchEvent, MatchEventEnvelope};
@@ -128,7 +127,6 @@ pub async fn prepare_post_match_condition(
         .unwrap_or(0);
     let match_date_unix_seconds =
         (match_year - 1970) * 31_557_600 + i64::from(match_day_of_year) * 86_400;
-    let tuning = RecoveryTuningProfile::default();
     let recovery_profiles = load_recovery_profiles(pool).await?;
     let mut injuries = Vec::new();
     for envelope in raw_events {
@@ -145,7 +143,6 @@ pub async fn prepare_post_match_condition(
                 event.severity_grade(),
                 natural_fitness(input, player)?,
                 age_years,
-                &tuning,
                 &recovery_profiles,
             )?;
             let injury_extent = recovery_profiles

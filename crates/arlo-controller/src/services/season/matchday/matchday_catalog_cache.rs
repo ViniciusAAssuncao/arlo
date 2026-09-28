@@ -51,6 +51,10 @@ pub async fn get_or_load_matchday_catalogs(
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
     let fault_catalog = Arc::new(FaultCatalog::new(fault_defs, all_options).with_activations(activations));
 
+    arlo_db::repositories::injury_definition::validate_recovery_profile_coverage(pool)
+        .await
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+
     let injury_defs: Vec<InjuryDefinition> =
         arlo_db::repositories::injury_definition::list_match_eligible(pool)
             .await
@@ -76,7 +80,7 @@ pub async fn get_or_load_matchday_catalogs(
         withdrawal_rules.insert((Uuid::parse_str(&id).map_err(|error| ControllerError::InvalidData(error.to_string()))?, grade));
     }
     let recovery_rows = sqlx::query(
-        "SELECT injury_definition_id, severity_grade, AVG(typical_days) AS typical_days FROM injury_recovery_profiles WHERE treatment_kind = 'Conservative' GROUP BY injury_definition_id, severity_grade",
+        "SELECT injury_definition_id, severity_grade, AVG(typical_days) AS typical_days FROM injury_recovery_profiles GROUP BY injury_definition_id, severity_grade",
     )
     .fetch_all(pool)
     .await

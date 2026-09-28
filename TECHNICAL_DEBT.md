@@ -6,7 +6,7 @@ Substitutions have no per-match limit. Human-controlled managers receive a keep-
 
 The initial treatment choice is statistical because the game has no clinical assessment or medical staff decision yet. Revisit treatment choice, return-to-play criteria, and injury-specific recovery profiles when medical staff and manager controls are added. The outside-match catalog separates common illness onset from match actions. Entries with zero daily weight are excluded from match incidents but do not yet receive spontaneous diagnoses; revisit those diagnoses when their medical paths are defined.
 
-Match incidents are eligible only when their diagnosis and sampled severity have a recovery profile. Catalog definitions without any profile remain unavailable for match sampling until their medical path is specified. Curate these definitions before expecting the full injury catalog to appear during matches.
+Every current injury definition has a recovery profile, and outside-match conditions have a profile for their configured grade. Catalog loading rejects future definitions without one. Recovery for chronic diagnoses represents the current episode's return to play, not a cure of the underlying condition. Catastrophic diagnoses remain very rare emergencies with long absences; the game does not simulate death or permanent disability.
 
 ## Day advancement consistency
 

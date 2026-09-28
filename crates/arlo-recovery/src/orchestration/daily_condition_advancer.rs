@@ -288,7 +288,7 @@ pub async fn prepare_all_players_one_day(
                 if let Some(condition) = outside_match_catalog.sample(tuning.outside_match_daily_incident_probability) {
                     let (record, treatment) = register_injury(
                         Uuid::new_v4(), condition.definition_id, condition.body_region,
-                        condition.severity_grade, natural_fitness, age_years, &tuning,
+                        condition.severity_grade, natural_fitness, age_years,
                         &recovery_profiles,
                     )?;
                     let injury_extent = profile_for(

@@ -1,10 +1,8 @@
 use crate::domain::InjuryRecord;
-use crate::injury_recovery::recovery_duration_estimator::estimate_injury_recovery_days;
+use crate::error::{RecoveryError, RecoveryResult};
 use crate::injury_recovery::recovery_profile::{
     choose_treatment, profile_for, sample_profile_days, RecoveryProfiles, TreatmentKind,
 };
-use crate::tuning::RecoveryTuningProfile;
-use arlo_domain::error::DomainResult;
 use arlo_domain::{BodyRegion, InjurySeverityGrade};
 use uuid::Uuid;
 
@@ -15,9 +13,8 @@ pub fn register_injury(
     severity_grade: InjurySeverityGrade,
     natural_fitness: f64,
     age_years: f64,
-    tuning: &RecoveryTuningProfile,
     profiles: &RecoveryProfiles,
-) -> DomainResult<(InjuryRecord, TreatmentKind)> {
+) -> RecoveryResult<(InjuryRecord, TreatmentKind)> {
     let treatment = choose_treatment(
         profiles,
         injury_definition_id,
@@ -25,15 +22,12 @@ pub fn register_injury(
         age_years,
         natural_fitness,
     );
-    let expected_days = profile_for(profiles, injury_definition_id, severity_grade, treatment)
-        .map(|profile| sample_profile_days(profile, age_years, natural_fitness))
-        .unwrap_or_else(|| estimate_injury_recovery_days(
-            severity_grade,
-            body_region,
-            natural_fitness,
-            age_years,
-            tuning,
-        ));
+    let profile = profile_for(profiles, injury_definition_id, severity_grade, treatment)
+        .ok_or_else(|| RecoveryError::InvalidData(format!(
+            "Missing recovery profile for {injury_definition_id} {severity_grade:?} {}",
+            treatment.as_str(),
+        )))?;
+    let expected_days = sample_profile_days(profile, age_years, natural_fitness);
 
     let record = InjuryRecord::new(
         id,
