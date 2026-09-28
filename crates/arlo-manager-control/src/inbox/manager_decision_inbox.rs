@@ -1,6 +1,6 @@
 use crate::inbox::team_decision_inbox::TeamDecisionInbox;
 use crate::intents::{
-    ChallengeIntent, ForcedSubstitutionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
+    ChallengeIntent, ForcedSubstitutionIntent, InjuryDecisionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
     PlayCallIntent, SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
 };
 use std::collections::HashMap;
@@ -45,6 +45,21 @@ impl ManagerDecisionInbox {
             .entry(team_id)
             .or_default()
             .submit_forced_substitution(intent);
+    }
+
+    pub fn submit_injury_decision(&self, team_id: Uuid, intent: InjuryDecisionIntent) {
+        let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.entry(team_id).or_default().submit_injury_decision(intent);
+    }
+
+    pub fn injury_decision(&self, team_id: Uuid, player_id: Uuid) -> Option<InjuryDecisionIntent> {
+        let teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.get(&team_id).and_then(|team| team.injury_decision(player_id))
+    }
+
+    pub fn take_injury_decision(&self, team_id: Uuid, player_id: Uuid) -> Option<InjuryDecisionIntent> {
+        let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.entry(team_id).or_default().take_injury_decision(player_id)
     }
 
     pub fn submit_forced_substitutions(
@@ -109,6 +124,16 @@ impl ManagerDecisionInbox {
             .entry(team_id)
             .or_default()
             .take_forced_substitutions()
+    }
+
+    pub fn forced_substitution(&self, team_id: Uuid, player_id: Uuid) -> Option<ForcedSubstitutionIntent> {
+        let teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.get(&team_id).and_then(|team| team.forced_substitution(player_id))
+    }
+
+    pub fn take_forced_substitution(&self, team_id: Uuid, player_id: Uuid) -> Option<ForcedSubstitutionIntent> {
+        let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.entry(team_id).or_default().take_forced_substitution(player_id)
     }
 
     pub fn take_time_call(&self, team_id: Uuid) -> Option<TimeCallIntent> {

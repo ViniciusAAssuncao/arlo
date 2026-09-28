@@ -43,6 +43,9 @@ pub struct MatchState {
     pending_call_outcome: Option<PendingCallOutcome>,
     pending_referee_decisions: Vec<RefereeDecisionResolved>,
     pending_availability_events: Vec<PlayerAvailabilityChanged>,
+    pending_injury_decisions: Vec<(Uuid, Uuid)>,
+    injury_decisions_ready: bool,
+    pending_forced_substitutions: Vec<(Uuid, Uuid)>,
     deferred_series_penalties: Vec<(Uuid, PunishmentKind, i32)>,
     pitch_length_mirim: f64,
     next_event_sequence: u64,
@@ -68,6 +71,9 @@ impl MatchState {
             pending_call_outcome: None,
             pending_referee_decisions: Vec::new(),
             pending_availability_events: Vec::new(),
+            pending_injury_decisions: Vec::new(),
+            injury_decisions_ready: false,
+            pending_forced_substitutions: Vec::new(),
             deferred_series_penalties: Vec::new(),
             pitch_length_mirim,
             next_event_sequence: 1,
@@ -114,6 +120,18 @@ impl MatchState {
     }
     pub fn next_event_sequence(&self) -> u64 {
         self.next_event_sequence
+    }
+
+    pub fn pending_injury_decisions(&self) -> &[(Uuid, Uuid)] {
+        &self.pending_injury_decisions
+    }
+
+    pub fn injury_decisions_ready(&self) -> bool {
+        self.injury_decisions_ready
+    }
+
+    pub fn pending_forced_substitutions(&self) -> &[(Uuid, Uuid)] {
+        &self.pending_forced_substitutions
     }
 
     pub(crate) fn rng_mut(&mut self) -> &mut ChaCha8Rng {

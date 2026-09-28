@@ -21,13 +21,24 @@ pub(super) fn apply_injury(
     };
     let withdraw = input.injury_catalog()
         .requires_withdrawal(incident.injury_definition_id(), incident.severity_grade());
-    let replacement_id = if withdraw {
+    let human_controlled = team.manager().is_human_controlled();
+    let reserve_count = team_state.reserve_player_ids().len();
+    let pending_replacements = state.pending_forced_substitutions().iter()
+        .filter(|(pending_team, _)| *pending_team == team_id).count();
+    let replacement_id = if withdraw && !human_controlled {
         select_replacement(team, team_state, incident.player_id())
     } else {
         None
     };
     state.record_injury(team_id, incident.player_id(), withdraw, replacement_id)?;
     events.push(state.emit(MatchEvent::InjuryIncidentRecorded(incident.clone()))?);
+    if !withdraw && team.manager().is_human_controlled() && state.phase() != crate::state::MatchPhase::Finished {
+        state.queue_injury_decision(team_id, incident.player_id());
+    }
+    if withdraw && human_controlled && pending_replacements < reserve_count
+        && state.phase() != crate::state::MatchPhase::Finished {
+        state.queue_forced_substitution(team_id, incident.player_id());
+    }
     if withdraw {
         events.push(state.emit(MatchEvent::PlayerAvailabilityChanged(
             PlayerAvailabilityChanged::new(

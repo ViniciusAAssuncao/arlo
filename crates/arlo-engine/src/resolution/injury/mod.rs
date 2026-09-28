@@ -1,5 +1,8 @@
+mod decision;
 mod response;
 mod sample;
+
+pub use decision::{resolve_forced_substitution_segment, resolve_injury_decision_segment};
 
 use crate::error::EngineResult;
 use crate::input::MatchInput;
@@ -29,6 +32,9 @@ pub(super) fn resolve_injuries(
     });
     if let Some(incident) = sampled {
         response::apply_injury(input, state, &mut events, incident)?;
+    }
+    if events.iter().any(|envelope| matches!(envelope.event(), MatchEvent::OutOfBounds(_))) {
+        state.mark_injury_out();
     }
     Ok(match outcome {
         StepOutcome::Resolved => StepResult::resolved(events),

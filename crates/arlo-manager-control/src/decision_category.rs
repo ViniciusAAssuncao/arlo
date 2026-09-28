@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub enum ManagerDecisionCategory {
     VoluntarySubstitution,
     ForcedSubstitution,
+    InjuryResponse,
     TimeCall,
     Challenge,
     TacticalSwitch,

@@ -1,9 +1,9 @@
 use crate::error::{MatchRunnerError, MatchRunnerResult};
 use arlo_engine::{
-    resolve_kick_foul_segment, resolve_next_segment, resolve_time_call_segment, MatchInput,
+    resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_kick_foul_segment, resolve_next_segment, resolve_time_call_segment, MatchInput,
     MatchPhase, MatchState, StepOutcome, StepResult,
 };
-use arlo_manager_control::ManagerDecisionInbox;
+use arlo_manager_control::{ManagerDecisionInbox, RequiredManagerDecision};
 use arlo_tactics::PlayCall;
 
 pub fn resolve_segment(
@@ -12,6 +12,28 @@ pub fn resolve_segment(
     inbox: &ManagerDecisionInbox,
     play_calls: &[PlayCall],
 ) -> MatchRunnerResult<StepResult> {
+    if let Some(&(team_id, player_id)) = state.pending_forced_substitutions().first() {
+        if let Some(intent) = inbox.forced_substitution(team_id, player_id) {
+            let result = resolve_forced_substitution_segment(input, state, team_id, intent)?;
+            inbox.take_forced_substitution(team_id, player_id);
+            return Ok(result);
+        }
+        return Ok(StepResult::awaiting_decision(vec![RequiredManagerDecision::ForcedSubstitution {
+            team_id, outgoing_player_ids: vec![player_id],
+        }]));
+    }
+    if matches!(state.phase(), MatchPhase::Ready | MatchPhase::Stopped | MatchPhase::PeriodBreak) {
+        if let Some(&(team_id, player_id)) = state.pending_injury_decisions().first().filter(|_| state.injury_decisions_ready()) {
+            if let Some(intent) = inbox.injury_decision(team_id, player_id) {
+                let result = resolve_injury_decision_segment(input, state, team_id, intent)?;
+                inbox.take_injury_decision(team_id, player_id);
+                return Ok(result);
+            }
+            return Ok(StepResult::awaiting_decision(vec![RequiredManagerDecision::InjuryResponse {
+                team_id, injured_player_id: player_id,
+            }]));
+        }
+    }
     if state.phase() == MatchPhase::Live {
         let team_id = state.possessor_team_id();
         if inbox.time_call(team_id).is_some() {

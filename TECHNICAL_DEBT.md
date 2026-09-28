@@ -2,7 +2,7 @@
 
 ## Injury withdrawal decisions
 
-When manager AI and human manager injury controls are implemented, an injury that permits continued play must present a keep-or-withdraw decision. An incapacitating injury, including a complete ACL rupture, removes the player immediately. The medical model must distinguish partial from complete ACL rupture and record the chosen treatment path; a reconstruction case cannot inherit only the generic grade-and-body-region recovery duration.
+Substitutions have no per-match limit. Human-controlled managers now receive a keep-or-withdraw decision at the next Out for injuries that permit continued play. An incapacitating injury, including a complete ACL rupture, removes the player immediately; a human manager chooses the reserve during that injury interruption when one is available. Automated teams retain the current automatic replacement for mandatory withdrawals and keep players on the field after optional injuries. Manager AI still needs injury decisions. The medical model must distinguish partial from complete ACL rupture and record the chosen treatment path; a reconstruction case cannot inherit only the generic grade-and-body-region recovery duration.
 
 The initial treatment choice is statistical because the game has no clinical assessment or medical staff decision yet. Revisit treatment choice, return-to-play criteria, and injury-specific recovery profiles when medical staff and manager controls are added. The outside-match catalog separates common illness onset from match actions. Entries with zero daily weight are excluded from match incidents but do not yet receive spontaneous diagnoses; revisit those diagnoses when their medical paths are defined.
 
