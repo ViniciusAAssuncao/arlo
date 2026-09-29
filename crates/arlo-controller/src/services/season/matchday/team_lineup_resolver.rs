@@ -1,10 +1,13 @@
 use crate::error::{ControllerError, ControllerResult};
 use crate::services::season::matchday::automatic_lineup::select_lineup;
+use crate::services::season::matchday::manager_lineup::choose_lineup;
+use crate::services::season::matchday::manager_match_context::ManagerMatchContext;
 use crate::services::season::matchday::medical_caution_resolver::resolve_lineup_candidates_with_caution;
-use arlo_domain::{Formation, Player};
+use arlo_domain::{AttributeKey, Formation, Manager, Player};
+use arlo_recovery::PlayerCondition;
 use arlo_tactics::TacticalLineup;
 use sqlx::SqlitePool;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 pub async fn resolve_team_lineup(
@@ -12,6 +15,10 @@ pub async fn resolve_team_lineup(
     team_id: Uuid,
     available_players: &[Player],
     formations: &[Formation],
+    manager: &Manager,
+    attribute_keys: &HashMap<Uuid, AttributeKey>,
+    conditions: &HashMap<Uuid, PlayerCondition>,
+    context: &ManagerMatchContext,
 ) -> ControllerResult<(TacticalLineup, Formation)> {
     if formations.is_empty() {
         return Err(ControllerError::NotFound(
@@ -23,9 +30,30 @@ pub async fn resolve_team_lineup(
         resolve_lineup_candidates_with_caution(pool, available_players, formations).await?;
     let candidate_id_set: HashSet<Uuid> = candidate_players.iter().map(|p| p.id()).collect();
 
+    if !manager.is_human_controlled() {
+        let previous = arlo_tactics::tactical_lineup::get_latest_by_team_id(pool, team_id)
+            .await.map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let previous_formation_id = previous.as_ref().map(TacticalLineup::formation_id);
+        let (lineup, formation) = choose_lineup(
+            team_id, &candidate_players, formations, manager, attribute_keys, conditions, context,
+            previous_formation_id,
+        ).or_else(|_| choose_lineup(
+            team_id, available_players, formations, manager, attribute_keys, conditions, context,
+            previous_formation_id,
+        ))?;
+        if let Some(existing) = previous {
+            if existing.formation_id() == formation.id()
+                && existing.assignments() == lineup.assignments() {
+                return Ok((existing, formation));
+            }
+        }
+        arlo_tactics::tactical_lineup::insert(pool, &lineup).await
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        return Ok((lineup, formation));
+    }
+
     let existing_lineups = arlo_tactics::tactical_lineup::list_by_team_id(pool, team_id)
-        .await
-        .unwrap_or_default();
+        .await.unwrap_or_default();
 
     for lineup in existing_lineups {
         if let Some(formation) = formations

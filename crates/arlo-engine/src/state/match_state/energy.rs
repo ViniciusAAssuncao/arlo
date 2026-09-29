@@ -100,7 +100,10 @@ impl MatchState {
                     .out_of_possession()
                     .pressing_intensity()
                     .value();
-                let tactical_load = 0.78 + 0.24 * tempo + 0.20 * pressing;
+                let physicality = team.tactics().instructions().in_possession().physicality().value();
+                let counter_press = team.tactics().instructions().transition().counter_press_intensity().value();
+                let tactical_load = 0.72 + 0.24 * tempo + 0.16 * pressing
+                    + 0.07 * physicality + 0.06 * counter_press;
                 let role = match position {
                     Position::Goalguard => 0.30,
                     Position::CenterOffense => 0.85,

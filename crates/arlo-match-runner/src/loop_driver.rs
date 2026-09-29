@@ -69,6 +69,19 @@ pub fn run_match_with_registry(
     Ok(MatchRunResult::new(raw_sink, aggregators))
 }
 
+pub fn run_match_with_registry_and_play_calls(
+    input: &MatchInput,
+    state: &mut MatchState,
+    mut aggregators: AggregatorRegistry,
+    play_calls: &[PlayCall],
+    max_segments: usize,
+) -> MatchRunnerResult<MatchRunResult> {
+    let mut raw_sink = InMemorySink::new();
+    let inbox = ManagerDecisionInbox::new();
+    run_loop_with_inbox(input, state, &inbox, play_calls, &mut raw_sink, &mut aggregators, max_segments)?;
+    Ok(MatchRunResult::new(raw_sink, aggregators))
+}
+
 pub fn run_loop(
     input: &MatchInput,
     state: &mut MatchState,

@@ -54,6 +54,7 @@ pub async fn run_due_matches(
                     prep.fixture_row,
                     prep.stage_id,
                     prep.initial_conditions,
+                    prep.play_calls,
                 )
             })
             .collect();

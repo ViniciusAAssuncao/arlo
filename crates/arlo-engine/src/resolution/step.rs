@@ -20,7 +20,7 @@ use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_events::{
     CallToActionStarted, MatchEvent, OutOfBounds, PassCompleted, PossessionTimeRecorded,
-    ReceptionResolved, Turnover,
+    PlayCallSelected, ReceptionResolved, Turnover,
 };
 use arlo_manager_control::RequiredManagerDecision;
 use arlo_tactics::{validate_play_call, PlayCall, PlayCallCategory};
@@ -195,6 +195,11 @@ fn resolve_next_segment_inner(
     let controlled_reception = reception.caught && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS;
     next.begin_call_to_action()?;
     let mut events = Vec::with_capacity(7);
+    if let Some(call) = selected_play_call {
+        events.push(next.emit(MatchEvent::PlayCallSelected(PlayCallSelected::new(
+            offense_id, call.id(), call.name(), arlo_events::PlayCallCategory::OpenPlay,
+        )))?);
+    }
     events.push(
         next.emit(MatchEvent::CallToActionStarted(CallToActionStarted::new(
             offense_id,

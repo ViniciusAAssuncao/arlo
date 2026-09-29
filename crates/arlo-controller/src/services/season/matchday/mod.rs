@@ -1,4 +1,7 @@
 mod automatic_lineup;
+mod manager_preparation;
+mod manager_lineup;
+mod manager_match_context;
 pub mod due_fixture_finder;
 pub mod emergency_roster;
 pub mod matchday_catalog_cache;

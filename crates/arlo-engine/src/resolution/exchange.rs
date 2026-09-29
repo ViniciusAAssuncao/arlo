@@ -31,12 +31,16 @@ pub(super) fn resolve_exchange(
         .map(|call| *call.decision_emphasis())
         .unwrap_or_else(|| offense.tactics().instructions().default_decision_emphasis());
     let directness = offense.tactics().instructions().in_possession().directness().value();
+    let structure = offense.tactics().instructions().in_possession().structure().value();
+    let passing_range = offense.tactics().instructions().in_possession().passing_range().value();
     let probability = (0.55
         + (0.5 - emphasis.self_carry().value()) * 0.3
         + (emphasis.short_pass().value() - 0.5) * 0.20
         + (emphasis.long_launch().value() - 0.5) * 0.12
         + (emphasis.cross().value() - 0.5) * 0.12
-        - directness * 0.08)
+        - directness * 0.08
+        + structure * 0.025
+        - passing_range * 0.025)
         .clamp(0.2, 0.85);
     if duration_seconds < 1.4 || state.rng_mut().gen_range(0.0..1.0) >= probability {
         return Ok(ExchangeOutcome::Retained(holder_id));
@@ -100,6 +104,7 @@ pub(super) fn resolve_targeted_pass(
             ratings.player_value(defense, defender_id, AttributeKey::Anticipation)?;
         let interception_probability = (0.18
             + 0.30 * pressing
+            + 0.045 * defense.tactics().instructions().transition().counter_press_intensity().value()
             + 0.015 * (defender_ability - 10.0)
             + if reception.contested { 0.18 } else { 0.0 })
         .clamp(0.05, 0.80);

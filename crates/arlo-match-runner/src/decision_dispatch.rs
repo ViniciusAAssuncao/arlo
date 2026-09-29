@@ -1,4 +1,5 @@
 use crate::error::{MatchRunnerError, MatchRunnerResult};
+use crate::manager_play_call;
 use arlo_engine::{
     resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_kick_foul_segment, resolve_next_segment, resolve_time_call_segment, MatchInput,
     MatchPhase, MatchState, StepOutcome, StepResult,
@@ -84,5 +85,10 @@ pub fn resolve_segment(
             return Ok(result);
         }
     }
-    Ok(resolve_next_segment(input, state, None)?)
+    let call = if matches!(state.phase(), MatchPhase::Ready | MatchPhase::Stopped) {
+        manager_play_call::select(input, state, play_calls)
+    } else {
+        None
+    };
+    Ok(resolve_next_segment(input, state, call)?)
 }
