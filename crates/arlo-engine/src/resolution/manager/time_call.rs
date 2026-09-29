@@ -9,6 +9,9 @@ pub fn should_use_time_call(input: &MatchInput, state: &MatchState) -> bool {
     let Some((team, team_state)) = team_pair(input, state, team_id) else { return false };
     if team.manager().is_human_controlled() || team_state.time_calls_used_in_period() >= input.format().time_calls_per_period()
         || state.series().team_id() != team_id || state.series().down() >= 4 { return false; }
+    if team_state.last_time_call_at().is_some_and(|last| state.clock().total_elapsed_seconds() - last < 90.0) {
+        return false;
+    }
     let remaining = state.clock().period_limit_seconds() - state.clock().seconds_in_period();
     let opponent_score = if team_id == input.home().team_id() { state.away().score().total_points() }
         else { state.home().score().total_points() };

@@ -21,6 +21,7 @@ pub struct TeamState {
     drive_progress: DriveProgress,
     drives_in_series: u32,
     time_calls_used_in_period: u32,
+    last_time_call_at: Option<f64>,
     challenges_used: u32,
     last_voluntary_substitution_at: Option<f64>,
     score: Score,
@@ -72,6 +73,7 @@ impl TeamState {
             drive_progress: DriveProgress::default(),
             drives_in_series: 0,
             time_calls_used_in_period: 0,
+            last_time_call_at: None,
             challenges_used: 0,
             last_voluntary_substitution_at: None,
             score: Score::default(),
@@ -140,6 +142,9 @@ impl TeamState {
     pub fn time_calls_used_in_period(&self) -> u32 {
         self.time_calls_used_in_period
     }
+    pub fn last_time_call_at(&self) -> Option<f64> {
+        self.last_time_call_at
+    }
     pub fn challenges_used(&self) -> u32 {
         self.challenges_used
     }
@@ -204,8 +209,9 @@ impl TeamState {
         self.drives_in_series = self.drives_in_series.saturating_sub(count);
     }
 
-    pub(crate) fn record_time_call(&mut self) {
+    pub(crate) fn record_time_call(&mut self, elapsed: f64) {
         self.time_calls_used_in_period += 1;
+        self.last_time_call_at = Some(elapsed);
     }
 
     pub(crate) fn reset_time_calls(&mut self) {
@@ -281,6 +287,7 @@ mod tests {
             drive_progress: DriveProgress::default(),
             drives_in_series: 0,
             time_calls_used_in_period: 0,
+            last_time_call_at: None,
             challenges_used: 0,
             last_voluntary_substitution_at: None,
             score: Score::default(),

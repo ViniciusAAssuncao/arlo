@@ -141,7 +141,8 @@ impl MatchState {
         }
         let position = self.possession.ball_position_mirim();
         let result = self.resolve_out(requesting_team_id, position)?;
-        self.team_mut(requesting_team_id)?.record_time_call();
+        let elapsed = self.clock.total_elapsed_seconds();
+        self.team_mut(requesting_team_id)?.record_time_call(elapsed);
         Ok((result, time_calls_per_period - used - 1))
     }
 
