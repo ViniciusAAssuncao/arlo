@@ -5,6 +5,19 @@ use arlo_domain::InjurySeverityGrade;
 use uuid::Uuid;
 
 impl MatchState {
+    pub fn injury_decision_is_actionable(&self, pending: PendingInjuryDecision) -> bool {
+        self.team(pending.team_id()).is_ok_and(|team| {
+            team.active_player_ids().contains(&pending.player_id())
+                && team.injured_player_ids().contains(&pending.player_id())
+        })
+    }
+    pub(crate) fn match_injury(&self, player_id: Uuid) -> Option<(Uuid, InjurySeverityGrade)> {
+        self.injuries.get(&player_id).copied()
+    }
+
+    pub(crate) fn set_match_injury(&mut self, player_id: Uuid, definition_id: Uuid, grade: InjurySeverityGrade) {
+        self.injuries.insert(player_id, (definition_id, grade));
+    }
     pub(crate) fn queue_injury_decision(&mut self, team_id: Uuid, player_id: Uuid, injury_definition_id: Uuid, severity_grade: InjurySeverityGrade) {
         self.pending_injury_decisions.push(PendingInjuryDecision::new(team_id, player_id, injury_definition_id, severity_grade));
     }

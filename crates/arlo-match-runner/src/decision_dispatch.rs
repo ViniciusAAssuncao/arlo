@@ -23,7 +23,8 @@ pub fn resolve_segment(
         }]));
     }
     if !matches!(state.phase(), MatchPhase::Live | MatchPhase::Finished) {
-        if let Some(pending) = state.pending_injury_decisions().first().filter(|_| state.injury_decisions_ready()) {
+        if let Some(pending) = state.pending_injury_decisions().iter()
+            .find(|pending| state.injury_decisions_ready() && state.injury_decision_is_actionable(**pending)) {
             let team_id = pending.team_id();
             let player_id = pending.player_id();
             if let Some(intent) = inbox.injury_decision(team_id, player_id) {

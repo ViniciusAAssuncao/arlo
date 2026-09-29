@@ -39,7 +39,7 @@ pub(super) fn resolve_injuries(
         let pending: Vec<_> = state.pending_injury_decisions().iter().copied()
             .filter(|pending| {
                 let team = if pending.team_id() == input.home().team_id() { input.home() } else { input.away() };
-                !team.manager().is_human_controlled()
+                !team.manager().is_human_controlled() && state.injury_decision_is_actionable(*pending)
             })
             .collect();
         for injury in pending {

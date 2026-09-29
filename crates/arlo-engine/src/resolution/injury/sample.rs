@@ -46,9 +46,23 @@ pub(super) fn sample_injury(
     } else {
         (input.away(), state.away())
     };
-    if !team_state.active_player_ids().contains(&exposure.player_id)
-        || team_state.injured_player_ids().contains(&exposure.player_id)
-    {
+    if !team_state.active_player_ids().contains(&exposure.player_id) {
+        return None;
+    }
+    if let Some((definition_id, grade)) = state.match_injury(exposure.player_id) {
+        let fatigue = 1.0 - state.player_energy(exposure.player_id);
+        if grade != InjurySeverityGrade::Grade3
+            && input.injury_catalog().has_recovery_profile(definition_id, InjurySeverityGrade::Grade3)
+            && input.injury_catalog().requires_withdrawal(definition_id, InjurySeverityGrade::Grade3)
+            && state.rng_mut().gen_range(0.0..1.0) < 0.004 * (1.0 + 2.0 * fatigue)
+        {
+            let definition = input.injury_catalog().definition(&definition_id)?;
+            return Some(InjuryIncidentRecorded::new(
+                exposure.player_id, team.team_id(), exposure.mechanism,
+                definition.body_region(), InjurySeverityGrade::Grade3, definition_id,
+                Probability::new_clamped(0.004 * (1.0 + 2.0 * fatigue)),
+            ));
+        }
         return None;
     }
     let ratings = RatingIndex::new(input, state);
@@ -56,8 +70,10 @@ pub(super) fn sample_injury(
     let balance = ratings.player_value(team, exposure.player_id, AttributeKey::Balance).ok()?;
     let stamina = ratings.player_value(team, exposure.player_id, AttributeKey::Stamina).ok()?;
     let resilience = 0.45 * natural_fitness + 0.30 * balance + 0.25 * stamina;
-    let probability = (exposure.base_probability * (1.0 - (resilience - 10.0) * 0.025))
-        .clamp(exposure.base_probability * 0.65, exposure.base_probability * 1.35);
+    let energy = state.player_energy(exposure.player_id);
+    let fatigue_risk = 1.0 + 1.8 * (1.0 - energy).powi(2);
+    let probability = (exposure.base_probability * (1.0 - (resilience - 10.0) * 0.025) * fatigue_risk)
+        .clamp(exposure.base_probability * 0.65, exposure.base_probability * 3.5);
     if state.rng_mut().gen_range(0.0..1.0) >= probability {
         return None;
     }

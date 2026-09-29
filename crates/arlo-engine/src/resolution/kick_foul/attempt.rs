@@ -23,8 +23,19 @@ pub fn resolve_kick_foul_segment(
     selected_decision: Option<KickFoulDecisionKind>,
     selected_taker_id: Option<Uuid>,
 ) -> EngineResult<StepResult> {
+    let prior = state.clone();
     let result = resolve_kick_foul_segment_inner(input, state, selected_decision, selected_taker_id)?;
     let result = super::super::officiating::resolve_officiating(input, state, result, None)?;
+    let (mut events, outcome) = result.into_parts();
+    state.record_segment_energy(input, &prior, &mut events)?;
+    if matches!(outcome, crate::step::StepOutcome::Finished) {
+        state.record_final_energy(&mut events)?;
+    }
+    let result = match outcome {
+        crate::step::StepOutcome::Resolved => StepResult::resolved(events),
+        crate::step::StepOutcome::Finished => StepResult::finished(events),
+        crate::step::StepOutcome::AwaitingDecision(decisions) => StepResult::awaiting_decision(decisions),
+    };
     super::super::injury::resolve_injuries(input, state, result)
 }
 

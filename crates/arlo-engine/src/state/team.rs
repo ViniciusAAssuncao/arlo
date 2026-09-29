@@ -100,10 +100,9 @@ impl TeamState {
         &self.injured_players
     }
     pub(crate) fn record_injury(&mut self, player_id: Uuid, withdraw: bool, replacement_id: Option<Uuid>) {
-        if self.injured_players.contains(&player_id) {
-            return;
+        if !self.injured_players.contains(&player_id) {
+            self.injured_players.push(player_id);
         }
-        self.injured_players.push(player_id);
         if withdraw {
             self.active_player_ids.retain(|id| *id != player_id);
         }

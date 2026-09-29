@@ -34,6 +34,16 @@ pub fn resolve_next_segment(
     let prior = state.clone();
     let result = resolve_next_segment_inner(input, state, selected_play_call)?;
     let result = resolve_officiating(input, state, result, Some(&prior))?;
+    let (mut events, outcome) = result.into_parts();
+    state.record_segment_energy(input, &prior, &mut events)?;
+    if matches!(outcome, crate::step::StepOutcome::Finished) {
+        state.record_final_energy(&mut events)?;
+    }
+    let result = match outcome {
+        crate::step::StepOutcome::Resolved => StepResult::resolved(events),
+        crate::step::StepOutcome::Finished => StepResult::finished(events),
+        crate::step::StepOutcome::AwaitingDecision(decisions) => StepResult::awaiting_decision(decisions),
+    };
     resolve_injuries(input, state, result)
 }
 

@@ -9,6 +9,8 @@ pub(super) struct RatingIndex {
     attribute_ids: HashMap<AttributeKey, Uuid>,
     active_by_team: HashMap<Uuid, Vec<Uuid>>,
     slots_by_team: HashMap<Uuid, HashMap<Uuid, Uuid>>,
+    energy: HashMap<Uuid, f64>,
+    injured: Vec<Uuid>,
 }
 
 impl RatingIndex {
@@ -28,7 +30,10 @@ impl RatingIndex {
             (input.away().team_id(), input.away().lineup().assignments().iter()
                 .map(|assignment| (assignment.player_id(), state.away().slot_player_id(assignment.player_id()))).collect()),
         ]);
-        Self { attribute_ids, active_by_team, slots_by_team }
+        let injured = state.home().injured_player_ids().iter().chain(state.away().injured_player_ids()).copied().collect();
+        let energy = input.home().roster().iter().chain(input.away().roster().iter())
+            .map(|player| (player.id(), state.player_energy(player.id()))).collect();
+        Self { attribute_ids, active_by_team, slots_by_team, energy, injured }
     }
 
     pub(super) fn slot_player_id(&self, team: &TeamInput, original_id: Uuid) -> Uuid {
@@ -55,7 +60,10 @@ impl RatingIndex {
             .ok_or_else(|| {
                 EngineError::InvalidInput(format!("player {} lacks {key:?}", player.id()))
             })?;
-        Ok(f64::from(value.value()))
+        let energy = self.energy.get(&player.id()).copied().unwrap_or(1.0);
+        let fatigue = (0.58 + 0.42 * energy).clamp(0.58, 1.0);
+        let injury = if self.injured.contains(&player.id()) { 0.72 } else { 1.0 };
+        Ok(f64::from(value.value()) * fatigue * injury)
     }
 
     fn player<'a>(&self, team: &'a TeamInput, player_id: Uuid) -> EngineResult<&'a Player> {

@@ -85,7 +85,10 @@ impl MatchState {
                 let until = self.clock.total_elapsed_seconds() + f64::from(amount) * 60.0;
                 self.team_mut(team_id)?.suspend_player(player_id, until);
             }
-            PunishmentKind::Expulsion => self.team_mut(team_id)?.expel_player(player_id),
+            PunishmentKind::Expulsion => {
+                self.team_mut(team_id)?.expel_player(player_id);
+                self.clear_injury_decision(team_id, player_id);
+            }
             PunishmentKind::LossOfDrive => self.team_mut(team_id)?.lose_drives(amount as u32),
             PunishmentKind::LossOfDown | PunishmentKind::YardageLoss => {
                 if self.series.team_id() == team_id {

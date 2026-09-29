@@ -1,5 +1,6 @@
 mod live;
 mod injury;
+mod energy;
 mod officiating;
 mod period;
 mod scoring;
@@ -10,10 +11,11 @@ use crate::state::{ClockState, MatchPhase, PendingInjuryDecision, PossessionStat
 use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
 use arlo_events::RefereeDecisionResolved;
 use arlo_events::PlayerAvailabilityChanged;
-use arlo_domain::PunishmentKind;
+use arlo_domain::{InjurySeverityGrade, PunishmentKind};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use uuid::Uuid;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy)]
 struct SuspendedRestart {
@@ -50,6 +52,9 @@ pub struct MatchState {
     pitch_length_mirim: f64,
     next_event_sequence: u64,
     rng: ChaCha8Rng,
+    energy: HashMap<Uuid, f64>,
+    energy_participants: HashSet<Uuid>,
+    injuries: HashMap<Uuid, (Uuid, InjurySeverityGrade)>,
 }
 
 impl MatchState {
@@ -78,6 +83,12 @@ impl MatchState {
             pitch_length_mirim,
             next_event_sequence: 1,
             rng: ChaCha8Rng::seed_from_u64(input.seed()),
+            energy: input.home().roster().iter().chain(input.away().roster().iter())
+                .map(|player| (player.id(), input.player_start_energy(player.id()))).collect(),
+            energy_participants: input.home().lineup().assignments().iter()
+                .chain(input.away().lineup().assignments().iter())
+                .map(|assignment| assignment.player_id()).collect(),
+            injuries: HashMap::new(),
         }
     }
 

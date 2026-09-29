@@ -81,7 +81,6 @@ pub async fn prepare_post_match_condition(
             }
             MatchEvent::PhysicalStrainRecorded(event) => {
                 energy_by_player.insert(event.player_id(), event.energy_remaining());
-                reserve_by_player.insert(event.player_id(), event.w_prime_balance());
             }
             MatchEvent::RecoveryIntervalProcessed(event) => {
                 reserve_by_player.insert(event.player_id(), event.new_w_prime_balance());
@@ -129,8 +128,12 @@ pub async fn prepare_post_match_condition(
         (match_year - 1970) * 31_557_600 + i64::from(match_day_of_year) * 86_400;
     let recovery_profiles = load_recovery_profiles(pool).await?;
     let mut injuries = Vec::new();
-    for envelope in raw_events {
+    let mut registered_injuries = HashSet::new();
+    for envelope in raw_events.iter().rev() {
         if let MatchEvent::InjuryIncidentRecorded(event) = envelope.event() {
+            if !registered_injuries.insert(event.player_id()) {
+                continue;
+            }
             let player = player_for(input, event.player_id())?;
             let age_years = calculate_player_age_years(
                 player.birthdate_unix_seconds(),

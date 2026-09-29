@@ -31,7 +31,19 @@ pub(super) fn apply_injury(
         None
     };
     state.record_injury(team_id, incident.player_id(), withdraw, replacement_id)?;
+    state.set_match_injury(incident.player_id(), incident.injury_definition_id(), incident.severity_grade());
+    if withdraw {
+        state.clear_injury_decision(team_id, incident.player_id());
+    }
+    state.reduce_energy(incident.player_id(), match incident.severity_grade() {
+        arlo_domain::InjurySeverityGrade::Grade1 => 0.12,
+        arlo_domain::InjurySeverityGrade::Grade2 => 0.25,
+        arlo_domain::InjurySeverityGrade::Grade3 => 0.45,
+    });
     events.push(state.emit(MatchEvent::InjuryIncidentRecorded(incident.clone()))?);
+    events.push(state.emit(MatchEvent::PhysicalStrainRecorded(
+        arlo_events::PhysicalStrainRecorded::new(incident.player_id(), state.player_energy(incident.player_id()), 1.0, 0.0),
+    ))?);
     if !withdraw && state.phase() != crate::state::MatchPhase::Finished {
         state.queue_injury_decision(team_id, incident.player_id(), incident.injury_definition_id(), incident.severity_grade());
     }

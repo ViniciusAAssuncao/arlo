@@ -32,9 +32,8 @@ pub(super) fn decide(
             InjurySeverityGrade::Grade3 => 100.0,
         });
     let duration_risk = ((typical_days.max(1.0) + 1.0).ln() / 181.0_f64.ln()).clamp(0.0, 1.0);
-    let energy = input.player_start_energy(pending.player_id());
+    let effective_energy = state.player_energy(pending.player_id());
     let played_fraction = (state.clock().total_elapsed_seconds() / 7200.0).clamp(0.0, 1.0);
-    let effective_energy = (energy - 0.25 * played_fraction).clamp(0.0, 1.0);
     let load_management = manager_value(input, team.manager(), AttributeKey::LoadManagement);
     let judging = manager_value(input, team.manager(), AttributeKey::JudgingAbility);
     let profile_bias = match team.manager().tactical_profile().map(|profile| profile.rotation_policy()) {
