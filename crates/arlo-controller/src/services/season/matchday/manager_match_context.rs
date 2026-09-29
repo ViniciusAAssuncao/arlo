@@ -1,4 +1,4 @@
-use arlo_domain::{AttributeDefinition, AttributeKey, Manager, Player, Team};
+use arlo_domain::{AttributeDefinition, AttributeKey, Manager, Player, Position, Team};
 use std::collections::HashMap;
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
@@ -114,13 +114,29 @@ pub fn assess(
             .is_some_and(|definition| definition.key() == AttributeKey::Rigor))
         .map_or(10.0, |entry| f64::from(entry.value()));
     let required_starts = (11.0 - rigor / 4.0).round().clamp(6.0, 10.0) as u8;
-    let core_artrine_form = if history.core_artrine_starts >= required_starts {
+    let core_artrine_id = own_players.iter()
+        .filter(|player| player.positions().iter().any(|entry| entry.position() == Position::Artrine))
+        .max_by(|left, right| artrine_strength(left, keys).total_cmp(&artrine_strength(right, keys)))
+        .map(Player::id);
+    let core_artrine_form = if history.core_artrine_id == core_artrine_id
+        && history.core_artrine_starts >= required_starts {
         history.core_artrine_form
     } else { 0.5 };
     ManagerMatchContext { relative_strength, importance, rotation_opportunity,
         selection_seed: seed, recent_starts: history.starts,
-        core_artrine_id: history.core_artrine_id,
+        core_artrine_id,
         core_artrine_form }
+}
+
+fn artrine_strength(player: &Player, keys: &HashMap<Uuid, AttributeKey>) -> f64 {
+    let proficiency = player.positions().iter().filter(|entry| entry.position() == Position::Artrine)
+        .map(|entry| entry.proficiency()).max().unwrap_or(0) as f64;
+    let relevant = [AttributeKey::ArloControl, AttributeKey::Decisions,
+        AttributeKey::Passing, AttributeKey::DriveTechnique, AttributeKey::Leadership];
+    let skill = relevant.iter().map(|key| player.attributes().iter()
+        .find(|entry| keys.get(&entry.attribute_definition_id()) == Some(key))
+        .map_or(10.0, |entry| f64::from(entry.value()))).sum::<f64>() / relevant.len() as f64;
+    proficiency * 5.0 + skill * 1.8
 }
 
 fn squad_quality(players: &[Player], keys: &HashMap<Uuid, AttributeKey>) -> f64 {

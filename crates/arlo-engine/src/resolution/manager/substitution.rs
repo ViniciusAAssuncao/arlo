@@ -22,7 +22,8 @@ pub fn select_substitution(input: &MatchInput, state: &MatchState, team_id: Uuid
     let opposing_score = if team_id == input.home().team_id() { state.away().score().total_points() }
         else { state.home().score().total_points() };
     let deficit = i64::from(opposing_score) - i64::from(team_state.score().total_points());
-    let tactical = state.clock().total_elapsed_seconds() >= 4800.0 && deficit.abs() >= 6;
+    let elapsed = state.clock().total_elapsed_seconds();
+    let tactical = elapsed >= 3600.0 && (deficit.abs() >= 5 || elapsed >= 6000.0);
     let mut best: Option<(f64, SubstitutionIntent, SubstitutionReason)> = None;
     for &outgoing in team_state.active_player_ids() {
         let Some(position) = assigned_position(team, team_state, outgoing) else { continue };
@@ -39,11 +40,14 @@ pub fn select_substitution(input: &MatchInput, state: &MatchState, team_id: Uuid
             let tactical_gain = if tactical {
                 (tactical_fit(input, team, incoming, position, deficit > 0)
                     - tactical_fit(input, team, outgoing, position, deficit > 0))
-                    * (0.08 + adjustments * 0.006)
+                    * (0.32 + adjustments * 0.014)
             } else { 0.0 };
-            let gain = replacement - current + injury_risk + fatigue_risk + tactical_gain - specialist_cost;
-            if gain > 0.10 && best.as_ref().is_none_or(|(value, _, _)| gain > *value) {
-                let reason = if tactical_gain > injury_risk + fatigue_risk && energy > 0.46 {
+            let base_gain = replacement - current - specialist_cost;
+            let gain = base_gain + injury_risk + fatigue_risk + tactical_gain;
+            let tactical_case = tactical && energy > 0.44 && base_gain > -0.08
+                && tactical_gain > 0.035 && gain > 0.03;
+            if (gain > 0.10 || tactical_case) && best.as_ref().is_none_or(|(value, _, _)| gain > *value) {
+                let reason = if tactical_case && tactical_gain > injury_risk + fatigue_risk {
                     SubstitutionReason::Tactical
                 } else { SubstitutionReason::Fatigue };
                 best = Some((gain, SubstitutionIntent::new(outgoing, incoming), reason));

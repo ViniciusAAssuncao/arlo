@@ -139,7 +139,7 @@ fn player_score(
     let core_priority = if position == Position::Artrine
         && context.core_artrine_id == Some(player.id()) {
         ((context.core_artrine_form - 0.35) / 0.3).clamp(0.0, 1.0)
-            * ((energy - 0.7) / 0.15).clamp(0.0, 1.0) * 35.0
+            * ((energy - 0.7) / 0.15).clamp(0.0, 1.0) * 8.0
     } else { 0.0 };
     (proficiency * 5.0 + if same_line { 8.0 } else { 0.0 } + skill * 1.8 + style_bonus + artrine_fit)
         * readiness - rest_priority * role_rotation + core_priority + continuity
