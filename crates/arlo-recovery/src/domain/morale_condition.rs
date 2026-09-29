@@ -3,15 +3,15 @@ use arlo_domain::error::DomainResult;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct ImpulseCondition {
+pub struct MoraleCondition {
     current: f64,
     baseline: f64,
 }
 
-impl ImpulseCondition {
+impl MoraleCondition {
     pub fn new(current: f64, baseline: f64) -> DomainResult<Self> {
-        validate_float_range(current, 0.0, 100.0, "current")?;
-        validate_float_range(baseline, 0.0, 100.0, "baseline")?;
+        validate_float_range(current, 0.0, 120.0, "current")?;
+        validate_float_range(baseline, 0.0, 120.0, "baseline")?;
 
         Ok(Self { current, baseline })
     }

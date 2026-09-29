@@ -54,7 +54,7 @@ pub(super) fn sample_call(
         (ratings.player_value(defense, defender_id, AttributeKey::DefensiveContainment)?
             + ratings.player_value(defense, defender_id, AttributeKey::Pace)?)
             * 0.5;
-    let success_probability = (BASE_SUCCESS_PROBABILITY
+    let success_probability = ratings.reliable_probability(carrier_id, (BASE_SUCCESS_PROBABILITY
         + (offense_rating.offense - defense_rating.defense) * ATTRIBUTE_DIFFERENCE_WEIGHT
         + (carrier_ability - offense_rating.offense) * INDIVIDUAL_CARRY_WEIGHT
         - if contested {
@@ -65,7 +65,7 @@ pub(super) fn sample_call(
         + if is_home { HOME_ADVANTAGE } else { 0.0 }
         + mentality * MENTALITY_WEIGHT
         + carry_bias * CARRY_EMPHASIS_WEIGHT)
-        .clamp(MIN_SUCCESS_PROBABILITY, MAX_SUCCESS_PROBABILITY);
+        .clamp(MIN_SUCCESS_PROBABILITY, MAX_SUCCESS_PROBABILITY), MAX_SUCCESS_PROBABILITY);
 
     let successful = rng.gen_range(0.0..1.0) < success_probability;
     let gain_mirim = if successful {

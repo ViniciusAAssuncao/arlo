@@ -36,12 +36,12 @@ pub(super) fn sample_reception(
     let contested = rng.gen_range(0.0..1.0) < 0.18 + 0.35 * pressing;
     let pressure = ratings.player_value(defense, defender_id, AttributeKey::PasserPressure)?
         * if contested { 0.8 + 0.4 * pressing } else { 0.2 };
-    let probability = (BASE_RECEPTION_PROBABILITY
+    let probability = ratings.reliable_probability(receiver_id, (BASE_RECEPTION_PROBABILITY
         + passing * PASSING_RECEPTION_WEIGHT
         + hands * HANDS_RECEPTION_WEIGHT
         + control * CONTROL_RECEPTION_WEIGHT
         - pressure * DEFENSIVE_PRESSURE_RECEPTION_WEIGHT)
-        .clamp(MIN_RECEPTION_PROBABILITY, MAX_RECEPTION_PROBABILITY);
+        .clamp(MIN_RECEPTION_PROBABILITY, MAX_RECEPTION_PROBABILITY), MAX_RECEPTION_PROBABILITY);
     let caught = rng.gen_range(0.0..1.0) < probability;
     let distance_mirim =
         PASS_DISTANCE_MIN_MIRIM + rng.gen_range(0.0..1.0) * PASS_DISTANCE_RANGE_MIRIM;

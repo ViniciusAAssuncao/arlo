@@ -1,8 +1,8 @@
 use crate::conditioning::advance_conditioning;
-use crate::domain::{FatigueCondition, ImpulseCondition, InjuryRecord};
+use crate::domain::{FatigueCondition, MoraleCondition, InjuryRecord};
 use crate::error::{RecoveryError, RecoveryResult};
 use crate::fatigue_recovery::{calculate_fatigue_recovery, calculate_player_age_years};
-use crate::impulse_recovery::calculate_impulse_recovery;
+use crate::morale_recovery::calculate_morale_recovery;
 use crate::injury_recovery::{
     advance_injury_days, evaluate_reinjury_risk, load_recovery_profiles, register_injury,
     InjuryProgressionOutcome,
@@ -170,7 +170,7 @@ pub async fn prepare_all_players_one_day(
                         active,
                     )
                 }
-                None => (1.0, 1.0, 50.0, 50.0, 0.5, None, None, false),
+                None => (1.0, 1.0, 100.0, 100.0, 0.5, None, None, false),
             };
 
             let mut is_injured_today = false;
@@ -326,9 +326,9 @@ pub async fn prepare_all_players_one_day(
                 &tuning,
             )?;
 
-            let impulse_condition = ImpulseCondition::new(current_impulse, impulse_baseline)?;
-            let new_impulse = calculate_impulse_recovery(
-                &impulse_condition,
+            let morale_condition = MoraleCondition::new(current_impulse, impulse_baseline)?;
+            let new_morale = calculate_morale_recovery(
+                &morale_condition,
                 determination,
                 composure,
                 consistency,
@@ -341,8 +341,8 @@ pub async fn prepare_all_players_one_day(
                 player_id,
                 new_fatigue.energy(),
                 new_fatigue.w_prime(),
-                new_impulse.current().clamp(0.0, 100.0).round() as u8,
-                new_impulse.baseline(),
+                new_morale.current().clamp(0.0, 120.0).round() as u8,
+                new_morale.baseline(),
                 new_conditioning,
                 current_year,
                 current_day_of_year,

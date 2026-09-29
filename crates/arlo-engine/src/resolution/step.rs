@@ -36,8 +36,10 @@ pub fn resolve_next_segment(
     let result = resolve_officiating(input, state, result, Some(&prior))?;
     let (mut events, outcome) = result.into_parts();
     state.record_segment_energy(input, &prior, &mut events)?;
+    state.record_segment_morale(&prior, &mut events)?;
     if matches!(outcome, crate::step::StepOutcome::Finished) {
         state.record_final_energy(&mut events)?;
+        state.record_final_morale(&mut events)?;
     }
     let result = match outcome {
         crate::step::StepOutcome::Resolved => StepResult::resolved(events),

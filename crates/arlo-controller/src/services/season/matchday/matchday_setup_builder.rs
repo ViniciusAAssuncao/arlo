@@ -243,6 +243,9 @@ pub async fn build_matchday_setup(
     let player_start_energy = initial_conditions.iter()
         .map(|(id, condition)| (*id, condition.fatigue().energy()))
         .collect();
+    let player_start_morale = initial_conditions.iter()
+        .map(|(id, condition)| (*id, condition.morale().current()))
+        .collect();
     let input = MatchInput::new(
         Uuid::new_v4(),
         home_input,
@@ -257,6 +260,7 @@ pub async fn build_matchday_setup(
         seed
     ).map_err(|error| ControllerError::InvalidData(error.to_string()))?
         .with_manager_decision_context(manager_attribute_keys, player_start_energy)
+        .and_then(|input| input.with_player_start_morale(player_start_morale))
         .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
 
     let persistence_context = MatchPersistenceContext::new(

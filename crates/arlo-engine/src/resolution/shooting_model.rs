@@ -154,5 +154,5 @@ pub(super) fn conversion_probability(
                 - distance_ratio * DISTANCE_CONVERSION_WEIGHT
         }
     };
-    Ok(probability.clamp(MIN_SHOT_CONVERSION, MAX_SHOT_CONVERSION))
+    Ok(ratings.reliable_probability(shooter_id, probability.clamp(MIN_SHOT_CONVERSION, MAX_SHOT_CONVERSION), MAX_SHOT_CONVERSION))
 }

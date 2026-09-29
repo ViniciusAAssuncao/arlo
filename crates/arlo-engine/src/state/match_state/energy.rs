@@ -6,6 +6,12 @@ use arlo_events::{MatchEvent, MatchEventEnvelope, PhysicalStrainRecorded};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+#[derive(Debug)]
+pub(super) struct EnergyProfile {
+    capacity: f64,
+    work: f64,
+}
+
 impl MatchState {
     pub fn player_energy(&self, player_id: Uuid) -> f64 {
         self.energy.get(&player_id).copied().unwrap_or(1.0)
@@ -53,11 +59,9 @@ impl MatchState {
             for &player_id in active {
                 self.energy_participants.insert(player_id);
                 let position = assigned_position(team, prior, player_id);
-                let stamina = attribute(input, team, player_id, AttributeKey::Stamina);
-                let fitness = attribute(input, team, player_id, AttributeKey::NaturalFitness);
-                let work_rate = attribute(input, team, player_id, AttributeKey::WorkRate);
-                let capacity = (0.72 + 0.018 * stamina + 0.010 * fitness).clamp(0.75, 1.30);
-                let work = (0.82 + 0.018 * work_rate).clamp(0.84, 1.18);
+                let profile = prior.energy_profiles.get(&player_id);
+                let capacity = profile.map_or(1.0, |profile| profile.capacity);
+                let work = profile.map_or(1.0, |profile| profile.work);
                 let team_state = if team.team_id() == prior.home.team_id() {
                     &prior.home
                 } else {
@@ -164,4 +168,18 @@ fn attribute(input: &MatchInput, team: &TeamInput, player_id: Uuid, key: Attribu
         })
         .map(|value| f64::from(value.value()))
         .unwrap_or(10.0)
+}
+
+pub(super) fn initial_profiles(input: &MatchInput) -> HashMap<Uuid, EnergyProfile> {
+    input.home().roster().iter().map(|player| (input.home(), player.id()))
+        .chain(input.away().roster().iter().map(|player| (input.away(), player.id())))
+        .map(|(team, player_id)| {
+            let stamina = attribute(input, team, player_id, AttributeKey::Stamina);
+            let fitness = attribute(input, team, player_id, AttributeKey::NaturalFitness);
+            let work_rate = attribute(input, team, player_id, AttributeKey::WorkRate);
+            (player_id, EnergyProfile {
+                capacity: (0.72 + 0.018 * stamina + 0.010 * fitness).clamp(0.75, 1.30),
+                work: (0.82 + 0.018 * work_rate).clamp(0.84, 1.18),
+            })
+        }).collect()
 }

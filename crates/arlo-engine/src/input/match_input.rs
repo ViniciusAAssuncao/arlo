@@ -19,6 +19,7 @@ pub struct MatchInput {
     player_attribute_definitions: Vec<AttributeDefinition>,
     manager_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
     player_start_energy: Arc<HashMap<Uuid, f64>>,
+    player_start_morale: Arc<HashMap<Uuid, f64>>,
     seed: u64,
 }
 
@@ -98,6 +99,7 @@ impl MatchInput {
             player_attribute_definitions,
             manager_attribute_keys: Arc::new(HashMap::new()),
             player_start_energy: Arc::new(HashMap::new()),
+            player_start_morale: Arc::new(HashMap::new()),
             seed,
         })
     }
@@ -155,5 +157,17 @@ impl MatchInput {
 
     pub fn player_start_energy(&self, player_id: Uuid) -> f64 {
         self.player_start_energy.get(&player_id).copied().unwrap_or(1.0)
+    }
+
+    pub fn with_player_start_morale(mut self, values: HashMap<Uuid, f64>) -> EngineResult<Self> {
+        if values.values().any(|value| !value.is_finite() || !(0.0..=120.0).contains(value)) {
+            return Err(EngineError::InvalidInput("player start morale must be between zero and 120".into()));
+        }
+        self.player_start_morale = Arc::new(values);
+        Ok(self)
+    }
+
+    pub fn player_start_morale(&self, player_id: Uuid) -> f64 {
+        self.player_start_morale.get(&player_id).copied().unwrap_or(100.0)
     }
 }

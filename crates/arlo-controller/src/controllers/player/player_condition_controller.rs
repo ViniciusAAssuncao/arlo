@@ -77,7 +77,7 @@ pub async fn get_player_medical_condition(
                 c.impulse_baseline,
                 c.conditioning_score,
             ),
-            None => (1.0, 1.0, 50u8, 50.0, 0.5),
+            None => (1.0, 1.0, 100u8, 100.0, 0.5),
         };
 
     let injury_defs = arlo_db::repositories::injury_definition::list_all(pool)
@@ -138,6 +138,8 @@ pub async fn get_player_medical_condition(
         anaerobic_reserve,
         impulse_value,
         impulse_baseline,
+        morale_value: impulse_value,
+        morale_baseline: impulse_baseline,
         conditioning_score,
         status,
         is_injured,

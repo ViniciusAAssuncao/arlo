@@ -109,9 +109,9 @@ pub async fn prepare_post_match_condition(
                 .unwrap_or(condition.fatigue().w_prime())
                 .clamp(0.0, 1.0),
             impulse_by_player.get(&player_id).copied().unwrap_or_else(|| {
-                condition.impulse().current().round().clamp(0.0, 100.0) as u8
+                condition.morale().current().round().clamp(0.0, 120.0) as u8
             }),
-            condition.impulse().baseline(),
+            condition.morale().baseline(),
             condition.conditioning().readiness(),
             match_year,
             match_day_of_year,

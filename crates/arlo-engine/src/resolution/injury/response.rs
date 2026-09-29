@@ -40,6 +40,7 @@ pub(super) fn apply_injury(
         arlo_domain::InjurySeverityGrade::Grade2 => 0.25,
         arlo_domain::InjurySeverityGrade::Grade3 => 0.45,
     });
+    state.record_injury_morale(incident.player_id(), incident.severity_grade(), events)?;
     events.push(state.emit(MatchEvent::InjuryIncidentRecorded(incident.clone()))?);
     events.push(state.emit(MatchEvent::PhysicalStrainRecorded(
         arlo_events::PhysicalStrainRecorded::new(incident.player_id(), state.player_energy(incident.player_id()), 1.0, 0.0),

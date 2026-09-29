@@ -1,5 +1,5 @@
 use crate::domain::{
-    ConditioningProfile, FatigueCondition, ImpulseCondition, InjuryRecord, PlayerCondition,
+    ConditioningProfile, FatigueCondition, MoraleCondition, InjuryRecord, PlayerCondition,
 };
 use crate::error::{RecoveryError, RecoveryResult};
 use arlo_domain::{BodyRegion, InjurySeverityGrade};
@@ -115,17 +115,17 @@ pub async fn load_conditions_for_players(
                 row.last_match_year.map(|y| y as u32),
                 row.last_match_day_of_year.map(|d| d as u32),
             ),
-            None => (1.0, 1.0, 50.0, 50.0, 0.5, 0, 0, None, None),
+            None => (1.0, 1.0, 100.0, 100.0, 0.5, 0, 0, None, None),
         };
 
         let fatigue = FatigueCondition::new(energy_level, anaerobic_reserve)?;
-        let impulse = ImpulseCondition::new(impulse_val, impulse_base)?;
+        let morale = MoraleCondition::new(impulse_val, impulse_base)?;
         let conditioning = ConditioningProfile::new(cond_score)?;
 
         let player_condition = PlayerCondition::new(
             player_id,
             fatigue,
-            impulse,
+            morale,
             conditioning,
             active_injury,
             last_update_yr,

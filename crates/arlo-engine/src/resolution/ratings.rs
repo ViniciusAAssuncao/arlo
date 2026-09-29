@@ -10,6 +10,7 @@ pub(super) struct RatingIndex {
     active_by_team: HashMap<Uuid, Vec<Uuid>>,
     slots_by_team: HashMap<Uuid, HashMap<Uuid, Uuid>>,
     energy: HashMap<Uuid, f64>,
+    morale: HashMap<Uuid, f64>,
     injured: Vec<Uuid>,
 }
 
@@ -33,7 +34,9 @@ impl RatingIndex {
         let injured = state.home().injured_player_ids().iter().chain(state.away().injured_player_ids()).copied().collect();
         let energy = input.home().roster().iter().chain(input.away().roster().iter())
             .map(|player| (player.id(), state.player_energy(player.id()))).collect();
-        Self { attribute_ids, active_by_team, slots_by_team, energy, injured }
+        let morale = input.home().roster().iter().chain(input.away().roster().iter())
+            .map(|player| (player.id(), state.player_morale(player.id()))).collect();
+        Self { attribute_ids, active_by_team, slots_by_team, energy, morale, injured }
     }
 
     pub(super) fn slot_player_id(&self, team: &TeamInput, original_id: Uuid) -> Uuid {
@@ -63,7 +66,9 @@ impl RatingIndex {
         let energy = self.energy.get(&player.id()).copied().unwrap_or(1.0);
         let fatigue = (0.58 + 0.42 * energy).clamp(0.58, 1.0);
         let injury = if self.injured.contains(&player.id()) { 0.72 } else { 1.0 };
-        Ok(f64::from(value.value()) * fatigue * injury)
+        let morale = self.morale.get(&player.id()).copied().unwrap_or(100.0);
+        let composure = if morale >= 100.0 { 1.0 } else { 0.72 + 0.0028 * morale };
+        Ok(f64::from(value.value()) * fatigue * injury * composure)
     }
 
     fn player<'a>(&self, team: &'a TeamInput, player_id: Uuid) -> EngineResult<&'a Player> {
@@ -80,6 +85,12 @@ impl RatingIndex {
         key: AttributeKey,
     ) -> EngineResult<f64> {
         self.value(self.player(team, player_id)?, key)
+    }
+
+    pub(super) fn reliable_probability(&self, player_id: Uuid, probability: f64, ceiling: f64) -> f64 {
+        let morale = self.morale.get(&player_id).copied().unwrap_or(100.0);
+        let gain = ((morale - 100.0).max(0.0) * 0.001 * (1.0 - probability)).min(0.02);
+        (probability + gain).min(ceiling)
     }
 
     pub(super) fn specialist(

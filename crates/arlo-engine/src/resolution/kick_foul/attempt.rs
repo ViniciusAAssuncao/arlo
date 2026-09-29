@@ -28,8 +28,10 @@ pub fn resolve_kick_foul_segment(
     let result = super::super::officiating::resolve_officiating(input, state, result, None)?;
     let (mut events, outcome) = result.into_parts();
     state.record_segment_energy(input, &prior, &mut events)?;
+    state.record_segment_morale(&prior, &mut events)?;
     if matches!(outcome, crate::step::StepOutcome::Finished) {
         state.record_final_energy(&mut events)?;
+        state.record_final_morale(&mut events)?;
     }
     let result = match outcome {
         crate::step::StepOutcome::Resolved => StepResult::resolved(events),

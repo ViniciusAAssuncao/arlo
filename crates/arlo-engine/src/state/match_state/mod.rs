@@ -1,6 +1,7 @@
 mod live;
 mod injury;
 mod energy;
+mod morale;
 mod officiating;
 mod period;
 mod scoring;
@@ -16,6 +17,7 @@ use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use uuid::Uuid;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy)]
 struct SuspendedRestart {
@@ -53,7 +55,10 @@ pub struct MatchState {
     next_event_sequence: u64,
     rng: ChaCha8Rng,
     energy: HashMap<Uuid, f64>,
+    energy_profiles: Arc<HashMap<Uuid, energy::EnergyProfile>>,
     energy_participants: HashSet<Uuid>,
+    morale: HashMap<Uuid, f64>,
+    morale_resilience: Arc<HashMap<Uuid, f64>>,
     injuries: HashMap<Uuid, (Uuid, InjurySeverityGrade)>,
 }
 
@@ -85,9 +90,13 @@ impl MatchState {
             rng: ChaCha8Rng::seed_from_u64(input.seed()),
             energy: input.home().roster().iter().chain(input.away().roster().iter())
                 .map(|player| (player.id(), input.player_start_energy(player.id()))).collect(),
+            energy_profiles: Arc::new(energy::initial_profiles(input)),
             energy_participants: input.home().lineup().assignments().iter()
                 .chain(input.away().lineup().assignments().iter())
                 .map(|assignment| assignment.player_id()).collect(),
+            morale: input.home().roster().iter().chain(input.away().roster().iter())
+                .map(|player| (player.id(), input.player_start_morale(player.id()))).collect(),
+            morale_resilience: Arc::new(morale::initial_resilience(input)),
             injuries: HashMap::new(),
         }
     }

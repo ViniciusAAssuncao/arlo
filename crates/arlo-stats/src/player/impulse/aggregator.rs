@@ -42,7 +42,7 @@ impl PlayerImpulseAggregator {
         let team_entry = self
             .team_stats
             .entry(team_id)
-            .or_insert_with(|| TeamImpulseStats::new(team_id, Vec::new(), 50.0));
+            .or_insert_with(|| TeamImpulseStats::new(team_id, Vec::new(), 100.0));
         if !team_entry.player_ids.contains(&player_id) {
             team_entry.player_ids.push(player_id);
         }
@@ -84,7 +84,7 @@ impl PlayerImpulseAggregator {
     fn get_mut_or_create(&mut self, player_id: Uuid) -> &mut PlayerImpulseStats {
         let team_id = self.player_team_map.get(&player_id).copied();
         self.player_stats.entry(player_id).or_insert_with(|| {
-            let mut s = PlayerImpulseStats::new(player_id, 50.0);
+            let mut s = PlayerImpulseStats::new(player_id, 100.0);
             s.team_id = team_id;
             s
         })
@@ -98,7 +98,7 @@ impl PlayerImpulseAggregator {
         self.player_stats
             .get(player_id)
             .cloned()
-            .unwrap_or_else(|| PlayerImpulseStats::new(*player_id, 50.0))
+            .unwrap_or_else(|| PlayerImpulseStats::new(*player_id, 100.0))
     }
 
     pub fn get_team(&self, team_id: &Uuid) -> Option<&TeamImpulseStats> {
@@ -129,7 +129,7 @@ impl PlayerImpulseAggregator {
     pub fn record_shift(
         &mut self,
         player_id: Uuid,
-        _previous_value: u8,
+        previous_value: u8,
         new_value: u8,
         event_kind: ImpulseEventKind,
         _surprisal: f64,
@@ -139,6 +139,9 @@ impl PlayerImpulseAggregator {
 
         let team_id_opt = {
             let stats = self.get_mut_or_create(player_id);
+            if stats.shifts_count == 0 && stats.initial_value != previous_value {
+                stats.set_initial_value(previous_value);
+            }
             stats.apply_value_shift(new_value, event_kind, timestamp_seconds);
             stats.team_id
         };
@@ -166,7 +169,7 @@ impl PlayerImpulseAggregator {
     fn calculate_team_current_average(&self, team_id: Uuid) -> f64 {
         if let Some(tstats) = self.team_stats.get(&team_id) {
             if tstats.player_ids.is_empty() {
-                return 50.0;
+                return 100.0;
             }
             let mut sum = 0.0;
             let mut count = 0;
@@ -179,10 +182,10 @@ impl PlayerImpulseAggregator {
             if count > 0 {
                 sum / (count as f64)
             } else {
-                50.0
+                100.0
             }
         } else {
-            50.0
+            100.0
         }
     }
 

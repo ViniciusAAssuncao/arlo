@@ -8,6 +8,10 @@ pub struct PlayerMedicalConditionDto {
     pub anaerobic_reserve: f64,
     pub impulse_value: u8,
     pub impulse_baseline: f64,
+    #[serde(default)]
+    pub morale_value: u8,
+    #[serde(default)]
+    pub morale_baseline: f64,
     pub conditioning_score: f64,
     pub status: String,
     pub is_injured: bool,
