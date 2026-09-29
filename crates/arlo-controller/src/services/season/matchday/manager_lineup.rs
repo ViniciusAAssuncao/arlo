@@ -14,8 +14,11 @@ pub fn choose_lineup(
     attributes: &HashMap<Uuid, AttributeKey>,
     conditions: &HashMap<Uuid, PlayerCondition>,
     context: &ManagerMatchContext,
-    previous_formation_id: Option<Uuid>,
+    previous_lineup: Option<&TacticalLineup>,
 ) -> ControllerResult<(TacticalLineup, Formation)> {
+    let previous_starters: HashSet<_> = previous_lineup.into_iter()
+        .flat_map(|lineup| lineup.assignments().iter().map(SlotAssignment::player_id))
+        .collect();
     let mut best: Option<(f64, TacticalLineup, Formation)> = None;
     for formation in formations.iter().filter(|formation| formation.slots().len() == 14) {
         if players.len() < formation.slots().len() {
@@ -31,7 +34,8 @@ pub fn choose_lineup(
             let slot = &formation.slots()[index];
             let (player, value) = players.iter()
                 .filter(|player| !selected.contains(&player.id()))
-                .map(|player| (player, player_score(player, slot.position(), manager, attributes, conditions, context)))
+                .map(|player| (player, player_score(player, slot.position(), manager, attributes,
+                    conditions, context, previous_starters.contains(&player.id()))))
                 .max_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.id().cmp(&b.0.id())))
                 .ok_or_else(|| ControllerError::InvalidData("Unable to fill manager lineup".into()))?;
             selected.insert(player.id());
@@ -52,7 +56,7 @@ pub fn choose_lineup(
             || (manager_attribute(manager, AttributeKey::Adaptability, attributes) / 20.0)
                 .clamp(0.1, 0.95),
             |style| style.flexibility_tendency());
-        if previous_formation_id == Some(formation.id()) {
+        if previous_lineup.is_some_and(|lineup| lineup.formation_id() == formation.id()) {
             score += (1.0 - flexibility) * 55.0;
         }
         let tactical_need = context.relative_strength * flexibility;
@@ -79,6 +83,7 @@ fn player_score(
     attributes: &HashMap<Uuid, AttributeKey>,
     conditions: &HashMap<Uuid, PlayerCondition>,
     context: &ManagerMatchContext,
+    previous_starter: bool,
 ) -> f64 {
     let proficiency = player.positions().iter().filter(|entry| entry.position() == position)
         .map(|entry| entry.proficiency()).max().unwrap_or(0) as f64;
@@ -118,14 +123,26 @@ fn player_score(
         RotationPolicy::Situational => 0.5,
         RotationPolicy::HighRotation => 0.85,
     });
-    let readiness = (1.0 - rotation * (1.0 - energy) * 0.55) * (0.9 + morale.clamp(0.0, 120.0) * 0.001);
-    let rotation_seed = (player.id().as_u128() ^ context.selection_seed).rotate_left(13);
-    let rotation_bias = (rotation_seed as u64 as f64 / u64::MAX as f64 - 0.5)
-        * context.rotation_opportunity * rotation * 24.0;
+    let fatigue = ((0.85 - energy) / 0.15).clamp(0.0, 1.0);
+    let readiness = (1.0 - rotation * fatigue * 0.32)
+        * (0.9 + morale.clamp(0.0, 120.0) * 0.001);
     let recent_load = f64::from(*context.recent_starts.get(&player.id()).unwrap_or(&0));
-    let rest_priority = recent_load * context.rotation_opportunity * rotation * 6.0;
+    let rest_priority = recent_load * context.rotation_opportunity * rotation * fatigue * 2.0;
+    let role_rotation = if matches!(position, Position::Artrine | Position::Passer | Position::Goalguard) {
+        0.2
+    } else { 1.0 };
+    let continuity = if previous_starter && energy >= 0.8 {
+        if matches!(position, Position::Artrine | Position::Passer | Position::Goalguard) {
+            2.0
+        } else { 1.5 }
+    } else { 0.0 };
+    let core_priority = if position == Position::Artrine
+        && context.core_artrine_id == Some(player.id()) {
+        ((context.core_artrine_form - 0.35) / 0.3).clamp(0.0, 1.0)
+            * ((energy - 0.7) / 0.15).clamp(0.0, 1.0) * 35.0
+    } else { 0.0 };
     (proficiency * 5.0 + if same_line { 8.0 } else { 0.0 } + skill * 1.8 + style_bonus + artrine_fit)
-        * readiness + rotation_bias - rest_priority
+        * readiness - rest_priority * role_rotation + core_priority + continuity
 }
 
 fn attribute(player: &Player, key: AttributeKey, definitions: &HashMap<Uuid, AttributeKey>) -> f64 {

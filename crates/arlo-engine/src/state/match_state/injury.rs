@@ -48,6 +48,7 @@ impl MatchState {
         replacement_id: Option<Uuid>,
     ) -> EngineResult<()> {
         self.team_mut(team_id)?.withdraw_injured_player(player_id, replacement_id);
+        if let Some(id) = replacement_id { self.entered_at.insert(id, self.clock.total_elapsed_seconds()); }
         self.clear_injury_decision(team_id, player_id);
         Ok(())
     }
@@ -59,6 +60,7 @@ impl MatchState {
         replacement_id: Uuid,
     ) -> EngineResult<()> {
         self.team_mut(team_id)?.withdraw_injured_player(player_id, Some(replacement_id));
+        self.entered_at.insert(replacement_id, self.clock.total_elapsed_seconds());
         self.clear_forced_substitution(team_id, player_id);
         Ok(())
     }
@@ -70,6 +72,7 @@ impl MatchState {
         replacement_id: Option<Uuid>,
     ) -> EngineResult<()> {
         self.team_mut(team_id)?.record_injury(player_id, withdraw, replacement_id);
+        if let Some(id) = replacement_id { self.entered_at.insert(id, self.clock.total_elapsed_seconds()); }
         if withdraw && self.possessor_team_id() == team_id && self.carrier_id() == Some(player_id) {
             let next_carrier = self.team(team_id)?.active_player_ids().first().copied();
             if let Some(next_carrier) = next_carrier {

@@ -1,10 +1,12 @@
 use crate::error::{MatchRunnerError, MatchRunnerResult};
 use crate::manager_play_call;
 use arlo_engine::{
-    resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_kick_foul_segment, resolve_next_segment, resolve_time_call_segment, MatchInput,
+    resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_kick_foul_segment, resolve_next_segment, resolve_time_call_segment,
+    resolve_substitution_segment, select_substitution, should_use_time_call, MatchInput,
     MatchPhase, MatchState, StepOutcome, StepResult,
 };
 use arlo_manager_control::{ManagerDecisionInbox, RequiredManagerDecision};
+use arlo_events::SubstitutionReason;
 use arlo_tactics::PlayCall;
 
 pub fn resolve_segment(
@@ -44,6 +46,22 @@ pub fn resolve_segment(
             let result = resolve_time_call_segment(input, state, team_id)?;
             inbox.take_time_call(team_id);
             return Ok(result);
+        }
+        if should_use_time_call(input, state) {
+            return Ok(resolve_time_call_segment(input, state, team_id)?);
+        }
+    }
+    if state.phase() == MatchPhase::Stopped {
+        for team_id in [input.home().team_id(), input.away().team_id()] {
+            let submitted = inbox.substitutions(team_id);
+            if !submitted.is_empty() {
+                let result = resolve_substitution_segment(input, state, team_id, &submitted, SubstitutionReason::Tactical)?;
+                inbox.take_substitutions(team_id);
+                return Ok(result);
+            }
+            if let Some((intent, reason)) = select_substitution(input, state, team_id) {
+                return Ok(resolve_substitution_segment(input, state, team_id, &[intent], reason)?);
+            }
         }
     }
     if state.phase() == MatchPhase::KickFoul {

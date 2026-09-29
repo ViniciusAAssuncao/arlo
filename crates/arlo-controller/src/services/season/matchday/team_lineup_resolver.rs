@@ -33,13 +33,12 @@ pub async fn resolve_team_lineup(
     if !manager.is_human_controlled() {
         let previous = arlo_tactics::tactical_lineup::get_latest_by_team_id(pool, team_id)
             .await.map_err(|error| ControllerError::InvalidData(error.to_string()))?;
-        let previous_formation_id = previous.as_ref().map(TacticalLineup::formation_id);
         let (lineup, formation) = choose_lineup(
             team_id, &candidate_players, formations, manager, attribute_keys, conditions, context,
-            previous_formation_id,
+            previous.as_ref(),
         ).or_else(|_| choose_lineup(
             team_id, available_players, formations, manager, attribute_keys, conditions, context,
-            previous_formation_id,
+            previous.as_ref(),
         ))?;
         if let Some(existing) = previous {
             if existing.formation_id() == formation.id()

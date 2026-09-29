@@ -5,7 +5,7 @@ use crate::services::season::matchday::emergency_roster::ensure_minimum_roster;
 use crate::services::season::matchday::matchday_catalog_cache::MatchdayCatalogs;
 use crate::services::season::matchday::matchday_referee_selector::select_referees;
 use crate::services::season::matchday::manager_preparation::{persist_plan, plan_tactics};
-use crate::services::season::matchday::manager_match_context::{assess, load_recent_starts};
+use crate::services::season::matchday::manager_match_context::{assess, load_recent_history};
 use crate::services::season::matchday::team_lineup_resolver::resolve_team_lineup;
 use crate::services::season::matchday::team_playbook_resolver::resolve_team_playbook;
 use crate::services::season::matchday::team_profile_resolver::resolve_team_instructions;
@@ -154,16 +154,16 @@ pub async fn build_matchday_setup(
         .bind(stage_id.to_string()).fetch_one(pool).await
         .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
     let knockout = stage_type == "KnockoutBracket";
-    let home_recent_starts = load_recent_starts(pool, home_team_id).await
+    let home_history = load_recent_history(pool, home_team_id).await
         .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
-    let away_recent_starts = load_recent_starts(pool, away_team_id).await
+    let away_history = load_recent_history(pool, away_team_id).await
         .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
     let home_context = assess(&home_manager, &home_team, &away_team, &home_players,
         &away_players, &catalogs.attribute_keys_by_id, &manager_defs, fixture_id, knockout,
-        fixture.round_index, home_recent_starts);
+        fixture.round_index, home_history);
     let away_context = assess(&away_manager, &away_team, &home_team, &away_players,
         &home_players, &catalogs.attribute_keys_by_id, &manager_defs, fixture_id, knockout,
-        fixture.round_index, away_recent_starts);
+        fixture.round_index, away_history);
 
     let home_base_profile = resolve_team_instructions(pool, home_team_id).await?;
     let away_base_profile = resolve_team_instructions(pool, away_team_id).await?;

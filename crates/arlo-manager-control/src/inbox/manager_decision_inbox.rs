@@ -118,6 +118,11 @@ impl ManagerDecisionInbox {
         teams.entry(team_id).or_default().take_substitutions()
     }
 
+    pub fn substitutions(&self, team_id: Uuid) -> Vec<SubstitutionIntent> {
+        let teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
+        teams.get(&team_id).map_or_else(Vec::new, |team| team.substitutions().to_vec())
+    }
+
     pub fn take_forced_substitutions(&self, team_id: Uuid) -> Vec<ForcedSubstitutionIntent> {
         let mut teams = self.teams.lock().unwrap_or_else(|p| p.into_inner());
         teams

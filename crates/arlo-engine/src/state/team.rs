@@ -21,6 +21,8 @@ pub struct TeamState {
     drive_progress: DriveProgress,
     drives_in_series: u32,
     time_calls_used_in_period: u32,
+    challenges_used: u32,
+    last_voluntary_substitution_at: Option<f64>,
     score: Score,
 }
 
@@ -70,6 +72,8 @@ impl TeamState {
             drive_progress: DriveProgress::default(),
             drives_in_series: 0,
             time_calls_used_in_period: 0,
+            challenges_used: 0,
+            last_voluntary_substitution_at: None,
             score: Score::default(),
         }
     }
@@ -135,6 +139,12 @@ impl TeamState {
     }
     pub fn time_calls_used_in_period(&self) -> u32 {
         self.time_calls_used_in_period
+    }
+    pub fn challenges_used(&self) -> u32 {
+        self.challenges_used
+    }
+    pub fn last_voluntary_substitution_at(&self) -> Option<f64> {
+        self.last_voluntary_substitution_at
     }
     pub fn score(&self) -> Score {
         self.score
@@ -202,6 +212,25 @@ impl TeamState {
         self.time_calls_used_in_period = 0;
     }
 
+    pub(crate) fn record_challenge(&mut self) {
+        self.challenges_used += 1;
+    }
+
+    pub(crate) fn restore_challenges(&mut self, used: u32) {
+        self.challenges_used = used;
+    }
+
+    pub(crate) fn substitute_voluntarily(&mut self, outgoing: Uuid, incoming: Uuid, elapsed: f64) {
+        self.active_player_ids.retain(|id| *id != outgoing);
+        self.active_player_ids.push(incoming);
+        self.reserve_player_ids.retain(|id| *id != incoming);
+        self.reserve_player_ids.push(outgoing);
+        let original = self.slot_replacements.iter().find(|(_, current)| **current == outgoing)
+            .map(|(original, _)| *original).unwrap_or(outgoing);
+        self.slot_replacements.insert(original, incoming);
+        self.last_voluntary_substitution_at = Some(elapsed);
+    }
+
     pub(crate) fn suspend_player(&mut self, player_id: Uuid, until: f64) {
         if self.expelled_players.contains(&player_id) { return; }
         self.active_player_ids.retain(|id| *id != player_id);
@@ -252,6 +281,8 @@ mod tests {
             drive_progress: DriveProgress::default(),
             drives_in_series: 0,
             time_calls_used_in_period: 0,
+            challenges_used: 0,
+            last_voluntary_substitution_at: None,
             score: Score::default(),
         };
         (state, reserve_id)

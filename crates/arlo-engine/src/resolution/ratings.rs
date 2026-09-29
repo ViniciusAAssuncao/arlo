@@ -9,7 +9,7 @@ pub(super) struct RatingIndex {
     attribute_ids: HashMap<AttributeKey, Uuid>,
     active_by_team: HashMap<Uuid, Vec<Uuid>>,
     slots_by_team: HashMap<Uuid, HashMap<Uuid, Uuid>>,
-    energy: HashMap<Uuid, f64>,
+    physical_readiness: HashMap<Uuid, f64>,
     morale: HashMap<Uuid, f64>,
     injured: Vec<Uuid>,
 }
@@ -32,11 +32,12 @@ impl RatingIndex {
                 .map(|assignment| (assignment.player_id(), state.away().slot_player_id(assignment.player_id()))).collect()),
         ]);
         let injured = state.home().injured_player_ids().iter().chain(state.away().injured_player_ids()).copied().collect();
-        let energy = input.home().roster().iter().chain(input.away().roster().iter())
-            .map(|player| (player.id(), state.player_energy(player.id()))).collect();
+        let physical_readiness = input.home().roster().iter().chain(input.away().roster().iter())
+            .map(|player| (player.id(), (0.58 + 0.42 * state.player_energy(player.id()))
+                * state.player_settling_factor(player.id()))).collect();
         let morale = input.home().roster().iter().chain(input.away().roster().iter())
             .map(|player| (player.id(), state.player_morale(player.id()))).collect();
-        Self { attribute_ids, active_by_team, slots_by_team, energy, morale, injured }
+        Self { attribute_ids, active_by_team, slots_by_team, physical_readiness, morale, injured }
     }
 
     pub(super) fn slot_player_id(&self, team: &TeamInput, original_id: Uuid) -> Uuid {
@@ -63,12 +64,11 @@ impl RatingIndex {
             .ok_or_else(|| {
                 EngineError::InvalidInput(format!("player {} lacks {key:?}", player.id()))
             })?;
-        let energy = self.energy.get(&player.id()).copied().unwrap_or(1.0);
-        let fatigue = (0.58 + 0.42 * energy).clamp(0.58, 1.0);
+        let physical_readiness = self.physical_readiness.get(&player.id()).copied().unwrap_or(1.0);
         let injury = if self.injured.contains(&player.id()) { 0.72 } else { 1.0 };
         let morale = self.morale.get(&player.id()).copied().unwrap_or(100.0);
         let composure = if morale >= 100.0 { 1.0 } else { 0.72 + 0.0028 * morale };
-        Ok(f64::from(value.value()) * fatigue * injury * composure)
+        Ok(f64::from(value.value()) * physical_readiness * injury * composure)
     }
 
     fn player<'a>(&self, team: &'a TeamInput, player_id: Uuid) -> EngineResult<&'a Player> {

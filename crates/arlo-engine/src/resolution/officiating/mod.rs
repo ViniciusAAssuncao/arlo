@@ -74,6 +74,24 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
             state.queue_referee_decision(decision);
         }
     }
+    if serious_stop && state.phase() == MatchPhase::Live {
+        let pending = state.pending_call_outcome();
+        let position = state.possession().ball_position_mirim();
+        state.stop_for_serious_foul()?;
+        if let Some(pending) = pending {
+            super::down::emit_down_advanced(state, &mut events, pending, position)?;
+        }
+    }
+    let mut challenges = Vec::new();
+    if !matches!(state.phase(), MatchPhase::Live | MatchPhase::Finished) && state.has_pending_referee_decisions() {
+        for decision in state.take_referee_decisions() {
+            let (reviewed, challenge) = super::manager::review_decision(input, state, decision)?;
+            state.queue_referee_decision(reviewed);
+            if let Some(challenge) = challenge {
+                challenges.push(challenge);
+            }
+        }
+    }
     let annulled_score = prior.is_some() && !scored_teams.is_empty() && state.has_pending_referee_decisions()
         && state.pending_referee_decisions().iter().any(|decision| {
             decision.origin() == FoulOrigin::LineFault && decision.final_call()
@@ -89,13 +107,8 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
             }
         }
     }
-    if serious_stop && !annulled_score {
-        let pending = state.pending_call_outcome();
-        let position = state.possession().ball_position_mirim();
-        state.stop_for_serious_foul()?;
-        if let Some(pending) = pending {
-            super::down::emit_down_advanced(state, &mut events, pending, position)?;
-        }
+    for challenge in challenges {
+        events.push(state.emit(MatchEvent::ChallengeResolved(challenge))?);
     }
     if !state.has_pending_referee_decisions() || state.phase() == MatchPhase::Live {
         return Ok(match outcome { StepOutcome::Resolved => StepResult::resolved(events), StepOutcome::Finished => StepResult::finished(events), StepOutcome::AwaitingDecision(_) => unreachable!() });

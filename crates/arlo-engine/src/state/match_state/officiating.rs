@@ -51,10 +51,14 @@ impl MatchState {
         let clock = self.clock.stop();
         let rng = self.rng.clone();
         let decisions = self.take_referee_decisions();
+        let home_challenges = self.home.challenges_used();
+        let away_challenges = self.away.challenges_used();
         *self = prior.clone();
         self.clock = clock;
         self.rng = rng;
         self.pending_referee_decisions = decisions;
+        self.home.restore_challenges(home_challenges);
+        self.away.restore_challenges(away_challenges);
         if self.phase == MatchPhase::Live && self.series.team_id() != self.possessor_team_id() {
             let possessor = self.possessor_team_id();
             let position = self.possession.ball_position_mirim();

@@ -2,6 +2,7 @@ mod live;
 mod injury;
 mod energy;
 mod morale;
+mod manager;
 mod officiating;
 mod period;
 mod scoring;
@@ -60,6 +61,7 @@ pub struct MatchState {
     morale: HashMap<Uuid, f64>,
     morale_resilience: Arc<HashMap<Uuid, f64>>,
     injuries: HashMap<Uuid, (Uuid, InjurySeverityGrade)>,
+    entered_at: HashMap<Uuid, f64>,
 }
 
 impl MatchState {
@@ -98,6 +100,7 @@ impl MatchState {
                 .map(|player| (player.id(), input.player_start_morale(player.id()))).collect(),
             morale_resilience: Arc::new(morale::initial_resilience(input)),
             injuries: HashMap::new(),
+            entered_at: HashMap::new(),
         }
     }
 
