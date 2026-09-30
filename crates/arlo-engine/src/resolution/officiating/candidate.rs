@@ -58,6 +58,23 @@ pub(in crate::resolution) fn sample_context_decision(
     let aggression = ratings.player_value(offender_team, offender_id, AttributeKey::Aggressiveness)?;
     let factual_probability = (0.008 + (10.0 - aggression) * 0.00055).clamp(0.002, 0.02);
     let factual_foul = state.rng_mut().gen_range(0.0..1.0) < factual_probability;
+    resolve_specific_decision(input, state, offender_id, offender_team_id, opposing_id,
+        opposing_team_id, origin, None, &entries, factual_foul, 1.0)
+}
+
+pub(super) fn resolve_specific_decision(
+    input: &MatchInput,
+    state: &mut MatchState,
+    offender_id: Uuid,
+    offender_team_id: Uuid,
+    opposing_id: Uuid,
+    opposing_team_id: Uuid,
+    origin: FoulOrigin,
+    definition_id: Option<Uuid>,
+    entries: &[(Uuid, FaultOffenderRole, f64)],
+    factual_foul: bool,
+    false_call_scale: f64,
+) -> EngineResult<Option<RefereeDecisionResolved>> {
     let head_rigor = referee_value(input, 0, AttributeKey::Rigor);
     let head_consistency = referee_value(input, 0, AttributeKey::Consistency);
     let head_authority = referee_value(input, 0, AttributeKey::Authority);
@@ -67,13 +84,13 @@ pub(in crate::resolution) fn sample_context_decision(
             + (head_authority - 10.0) * 0.004 + crowd_bias).clamp(0.45, 0.94)
     } else {
         (0.002 + (head_rigor - 10.0) * 0.00035 - (head_consistency - 10.0) * 0.00015
-            + crowd_bias * 0.04).clamp(0.0002, 0.009)
+            + crowd_bias * 0.04).clamp(0.0002, 0.009) * false_call_scale
     };
     let original_call = state.rng_mut().gen_range(0.0..1.0) < original_call_probability;
     if !factual_foul && !original_call {
         return Ok(None);
     }
-    let definition_id = select_definition(&entries, state);
+    let definition_id = definition_id.unwrap_or_else(|| select_definition(entries, state));
     let peace_intervened = if original_call == factual_foul {
         false
     } else {
@@ -108,7 +125,7 @@ fn select_definition(entries: &[(Uuid, FaultOffenderRole, f64)], state: &mut Mat
     entries[entries.len() - 1].0
 }
 
-fn referee_value(input: &MatchInput, index: usize, key: AttributeKey) -> f64 {
+pub(super) fn referee_value(input: &MatchInput, index: usize, key: AttributeKey) -> f64 {
     input.referees()[index]
         .attributes()
         .iter()

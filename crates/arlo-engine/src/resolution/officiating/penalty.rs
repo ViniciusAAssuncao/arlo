@@ -21,6 +21,16 @@ pub(in crate::resolution) fn select_punishments(
         .map(|attribute| attribute.value() as f64)
         .unwrap_or(10.0);
     let firmness = ((head_rigor - 10.0) / 10.0).clamp(-1.0, 1.0);
+    if let Some(invalidation) = options.iter().find(|option| option.kind() == PunishmentKind::InvalidatePreviousPlay) {
+        let mut selected = vec![(PunishmentKind::InvalidatePreviousPlay, sample_magnitude(invalidation, state))];
+        if options.iter().any(|option| option.kind() != PunishmentKind::InvalidatePreviousPlay)
+            && state.rng_mut().gen_range(0.0..1.0) < (0.42 + firmness * 0.18).clamp(0.15, 0.75)
+        {
+            let option = choose_option(options, firmness, Some(PunishmentKind::InvalidatePreviousPlay), state);
+            selected.push((option.kind(), sample_magnitude(option, state)));
+        }
+        return selected;
+    }
     let first = choose_option(options, firmness, None, state);
     let mut selected = vec![first];
     let additional_probability: f64 = match severity {

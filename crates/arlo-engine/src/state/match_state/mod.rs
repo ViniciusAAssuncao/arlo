@@ -47,6 +47,7 @@ pub struct MatchState {
     suspended_restart: Option<SuspendedRestart>,
     pending_call_outcome: Option<PendingCallOutcome>,
     pending_referee_decisions: Vec<RefereeDecisionResolved>,
+    play_checkpoint: Option<Arc<MatchState>>,
     initial_lineup_reviewed: bool,
     pending_availability_events: Vec<PlayerAvailabilityChanged>,
     pending_injury_decisions: Vec<PendingInjuryDecision>,
@@ -84,6 +85,7 @@ impl MatchState {
             suspended_restart: None,
             pending_call_outcome: None,
             pending_referee_decisions: Vec::new(),
+            play_checkpoint: None,
             initial_lineup_reviewed: false,
             pending_availability_events: Vec::new(),
             pending_injury_decisions: Vec::new(),
@@ -147,6 +149,16 @@ impl MatchState {
     }
     pub fn next_event_sequence(&self) -> u64 {
         self.next_event_sequence
+    }
+
+    pub(crate) fn begin_play_checkpoint(&mut self) {
+        if self.play_checkpoint.is_none() {
+            self.play_checkpoint = Some(Arc::new(self.clone()));
+        }
+    }
+
+    pub(crate) fn clear_play_checkpoint(&mut self) {
+        self.play_checkpoint = None;
     }
 
     pub(crate) fn initial_lineup_reviewed(&self) -> bool {

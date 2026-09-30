@@ -1,4 +1,4 @@
-use arlo_events::{EventSink, InMemorySink, MatchEventEnvelope};
+use arlo_events::{AvailabilityStatus, EventSink, ImpulseEventKind, InMemorySink, MatchEvent, MatchEventEnvelope, SubstitutionReason};
 use arlo_stats::AggregatorRegistry;
 
 pub struct DualEventSink<'a> {
@@ -31,6 +31,31 @@ impl<'a> DualEventSink<'a> {
 
     pub fn aggregator_registry_mut(&mut self) -> &mut AggregatorRegistry {
         self.aggregator_registry
+    }
+
+    pub fn invalidate_play(&mut self, first_sequence: u64, last_sequence: u64) {
+        let mut preceding_injury = None;
+        self.raw_sink.retain(|envelope| {
+            let preserve_strain = matches!(envelope.event(), MatchEvent::PhysicalStrainRecorded(event)
+                if preceding_injury == Some(event.player_id()));
+            preceding_injury = match envelope.event() {
+                MatchEvent::InjuryIncidentRecorded(event) => Some(event.player_id()),
+                _ => None,
+            };
+            if envelope.sequence_number() < first_sequence || envelope.sequence_number() > last_sequence {
+                return true;
+            }
+            preserve_strain || matches!(envelope.event(), MatchEvent::InjuryIncidentRecorded(_))
+                || matches!(envelope.event(), MatchEvent::ImpulseShiftRecorded(event)
+                    if event.event_kind() == ImpulseEventKind::InjurySetback)
+                || matches!(envelope.event(),
+                MatchEvent::PlayerAvailabilityChanged(event) if event.new_status() == AvailabilityStatus::Injured
+            ) || matches!(envelope.event(),
+                MatchEvent::SubstitutionMade(event) if event.reason() == SubstitutionReason::Injury
+            )
+        });
+        self.aggregator_registry.reset_all();
+        self.aggregator_registry.handle_envelopes(self.raw_sink.events());
     }
 }
 

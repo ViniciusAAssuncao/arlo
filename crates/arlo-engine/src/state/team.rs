@@ -136,6 +136,12 @@ impl TeamState {
             self.slot_replacements.insert(original, replacement_id);
         }
     }
+    pub(crate) fn preserve_medical_lineup(&mut self, current: &Self) {
+        self.injured_players = current.injured_players.clone();
+        self.active_player_ids = current.active_player_ids.clone();
+        self.reserve_player_ids = current.reserve_player_ids.clone();
+        self.slot_replacements = current.slot_replacements.clone();
+    }
     pub(crate) fn withdraw_injured_player(&mut self, player_id: Uuid, replacement_id: Option<Uuid>) {
         self.active_player_ids.retain(|id| *id != player_id);
         if let Some(replacement_id) = replacement_id {

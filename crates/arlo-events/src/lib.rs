@@ -24,7 +24,7 @@ pub use events::manager::*;
 pub use in_memory_sink::InMemorySink;
 pub use injury::InjuryIncidentRecorded;
 pub use kick_foul::{KickFoulAwarded, KickFoulDecisionMade, KickFoulEvent};
-pub use officiating::{AddedTimeAwarded, FoulOrigin, FoulRaised, OfficiatingEvent, PunishmentApplied, RefereeDecisionResolved};
+pub use officiating::{AddedTimeAwarded, FoulOrigin, FoulRaised, OfficiatingEvent, PlayInvalidated, PunishmentApplied, RefereeDecisionResolved};
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
     CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent,
@@ -72,6 +72,7 @@ pub enum MatchEvent {
     FoulRaised(FoulRaised),
     RefereeDecisionResolved(RefereeDecisionResolved),
     PunishmentApplied(PunishmentApplied),
+    PlayInvalidated(PlayInvalidated),
     AddedTimeAwarded(AddedTimeAwarded),
     PlayerAvailabilityChanged(PlayerAvailabilityChanged),
     KickFoulAwarded(KickFoulAwarded),
@@ -145,7 +146,7 @@ impl MatchEvent {
     pub fn is_officiating(&self) -> bool {
         matches!(
             self,
-            Self::FoulRaised(_) | Self::RefereeDecisionResolved(_) | Self::PunishmentApplied(_) | Self::KickFoulAwarded(_) | Self::AddedTimeAwarded(_)
+            Self::FoulRaised(_) | Self::RefereeDecisionResolved(_) | Self::PunishmentApplied(_) | Self::PlayInvalidated(_) | Self::KickFoulAwarded(_) | Self::AddedTimeAwarded(_)
         )
     }
 
@@ -195,6 +196,7 @@ impl MatchEvent {
             Self::FoulRaised(_) => "FoulRaised",
             Self::RefereeDecisionResolved(_) => "RefereeDecisionResolved",
             Self::PunishmentApplied(_) => "PunishmentApplied",
+            Self::PlayInvalidated(_) => "PlayInvalidated",
             Self::AddedTimeAwarded(_) => "AddedTimeAwarded",
             Self::PlayerAvailabilityChanged(_) => "PlayerAvailabilityChanged",
             Self::KickFoulAwarded(_) => "KickFoulAwarded",
@@ -470,6 +472,7 @@ impl From<OfficiatingEvent> for MatchEvent {
             OfficiatingEvent::FoulRaised(e) => Self::FoulRaised(e),
             OfficiatingEvent::RefereeDecisionResolved(e) => Self::RefereeDecisionResolved(e),
             OfficiatingEvent::PunishmentApplied(e) => Self::PunishmentApplied(e),
+            OfficiatingEvent::PlayInvalidated(e) => Self::PlayInvalidated(e),
             OfficiatingEvent::AddedTimeAwarded(e) => Self::AddedTimeAwarded(e),
         }
     }

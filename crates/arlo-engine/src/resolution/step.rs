@@ -31,12 +31,19 @@ pub fn resolve_next_segment(
     state: &mut MatchState,
     selected_play_call: Option<&PlayCall>,
 ) -> EngineResult<StepResult> {
+    if state.initial_lineup_reviewed()
+        && matches!(state.phase(), MatchPhase::Ready | MatchPhase::Stopped | MatchPhase::BonusPhase | MatchPhase::KickFoul)
+    {
+        state.begin_play_checkpoint();
+    }
     let prior = state.clone();
     let result = resolve_next_segment_inner(input, state, selected_play_call)?;
     let result = resolve_officiating(input, state, result, Some(&prior))?;
     let (mut events, outcome) = result.into_parts();
-    state.record_segment_energy(input, &prior, &mut events)?;
-    state.record_segment_morale(&prior, &mut events)?;
+    if !events.iter().any(|event| matches!(event.event(), MatchEvent::PlayInvalidated(_))) {
+        state.record_segment_energy(input, &prior, &mut events)?;
+        state.record_segment_morale(&prior, &mut events)?;
+    }
     if matches!(outcome, crate::step::StepOutcome::Finished) {
         state.record_final_energy(&mut events)?;
         state.record_final_morale(&mut events)?;

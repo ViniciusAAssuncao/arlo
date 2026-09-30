@@ -1,4 +1,5 @@
 mod candidate;
+mod fraud;
 mod penalty;
 
 use crate::error::EngineResult;
@@ -6,7 +7,7 @@ use crate::input::MatchInput;
 use crate::state::{MatchPhase, MatchState};
 use crate::step::{StepOutcome, StepResult};
 use arlo_domain::{FaultSeverity, PunishmentKind};
-use arlo_events::{FoulOrigin, FoulRaised, KickFoulAwarded, MatchEvent, PlayerAvailabilityChanged, PunishmentApplied, Turnover};
+use arlo_events::{FoulOrigin, FoulRaised, KickFoulAwarded, MatchEvent, PlayInvalidated, PlayerAvailabilityChanged, PunishmentApplied, RefereeDecisionResolved, Turnover};
 use arlo_domain::{KickFoulScoringTier, SecondZone};
 use uuid::Uuid;
 use rand::Rng;
@@ -33,10 +34,11 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
             MatchEvent::CallToActionStarted(call) => {
                 let attacker = pick_active(input, state, call.offense_team_id());
                 let defender = pick_active(input, state, call.defense_team_id());
-                match (attacker, defender) {
+                let ordinary = match (attacker, defender) {
                     (Some(a), Some(d)) => candidate::sample_context_decision(input, state, "CallToAction", a, d, FoulOrigin::CallToAction)?,
                     _ => None,
-                }
+                };
+                if ordinary.is_some() { ordinary } else { fraud::sample_communicator_use(input, state, call.offense_team_id())? }
             }
             MatchEvent::DriveRecorded(drive) => {
                 let defender_team = other_team(input, team_of(input, drive.artrine_id()));
@@ -58,8 +60,9 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
             }
             MatchEvent::ReceptionResolved(reception) if reception.caught() => {
                 let defender_team = other_team(input, team_of(input, reception.receiver_id()));
-                pick_active(input, state, defender_team).map(|defender| candidate::sample_line_fault(
-                    input, state, reception.receiver_id(), defender)).transpose()?.flatten()
+                let line_fault = pick_active(input, state, defender_team).map(|defender| candidate::sample_line_fault(
+                    input, state, reception.receiver_id(), defender)).transpose()?.flatten();
+                if line_fault.is_some() { line_fault } else { fraud::sample_false_artro_claim(input, state, reception.receiver_id())? }
             }
             _ => None,
         };
@@ -107,17 +110,39 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
             }
         }
     }
-    for challenge in challenges {
-        events.push(state.emit(MatchEvent::ChallengeResolved(challenge))?);
+    for challenge in &challenges {
+        events.push(state.emit(MatchEvent::ChallengeResolved(challenge.clone()))?);
     }
     if !state.has_pending_referee_decisions() || state.phase() == MatchPhase::Live {
+        if state.phase() != MatchPhase::Live {
+            state.clear_play_checkpoint();
+        }
         return Ok(match outcome { StepOutcome::Resolved => StepResult::resolved(events), StepOutcome::Finished => StepResult::finished(events), StepOutcome::AwaitingDecision(_) => unreachable!() });
     }
-    for decision in state.take_referee_decisions() {
+    let mut adjudications: Vec<(RefereeDecisionResolved, Vec<(PunishmentKind, Option<i32>)>)> = state.take_referee_decisions().into_iter()
+        .map(|decision| {
+            let punishments = if decision.final_call() {
+                decision.fault_definition_id().map(|id| penalty::select_punishments(input, state, id))
+                    .unwrap_or_else(|| if decision.origin() == FoulOrigin::LineFault { vec![(PunishmentKind::LossOfDown, None)] } else { Vec::new() })
+            } else { Vec::new() };
+            (decision, punishments)
+        }).collect();
+    let invalidated = if let Some(index) = adjudications.iter().position(|(_, punishments)|
+        punishments.iter().any(|(kind, _)| *kind == PunishmentKind::InvalidatePreviousPlay)) {
+        let selected = adjudications.swap_remove(index);
+        let (first, last) = state.invalidate_current_play()?;
+        events.clear();
+        scored_teams.clear();
+        events.push(state.emit(MatchEvent::PlayInvalidated(PlayInvalidated::new(first, last)))?);
+        for challenge in challenges {
+            events.push(state.emit(MatchEvent::ChallengeResolved(challenge))?);
+        }
+        adjudications = vec![selected];
+        true
+    } else { false };
+    for (decision, mut punishments) in adjudications {
         events.push(state.emit(MatchEvent::RefereeDecisionResolved(decision.clone()))?);
         if !decision.final_call() { continue; }
-        let mut punishments = decision.fault_definition_id().map(|id| penalty::select_punishments(input, state, id))
-            .unwrap_or_else(|| if decision.origin() == arlo_events::FoulOrigin::LineFault { vec![(PunishmentKind::LossOfDown, None)] } else { Vec::new() });
         if scored_teams.contains(&decision.opposing_team_id()) {
             punishments.retain(|(kind, _)| *kind != PunishmentKind::KickFoulAwarded);
         }
@@ -130,7 +155,9 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
         for (kind, magnitude) in punishments {
             let prior_possessor = state.possessor_team_id();
             let previous_status = state.availability_status(decision.offending_team_id(), decision.offending_player_id());
-            state.apply_punishment(decision.offending_team_id(), decision.offending_player_id(), kind, magnitude)?;
+            if kind != PunishmentKind::InvalidatePreviousPlay {
+                state.apply_punishment(decision.offending_team_id(), decision.offending_player_id(), kind, magnitude)?;
+            }
             events.push(state.emit(MatchEvent::PunishmentApplied(PunishmentApplied::new(
                 decision.offending_player_id(), decision.offending_team_id(), decision.fault_definition_id(), kind, magnitude,
             )))?);
@@ -161,7 +188,8 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
             }
         }
     }
-    Ok(match outcome { StepOutcome::Resolved => StepResult::resolved(events), StepOutcome::Finished if !annulled_score => StepResult::finished(events), StepOutcome::Finished => StepResult::resolved(events), StepOutcome::AwaitingDecision(_) => unreachable!() })
+    state.clear_play_checkpoint();
+    Ok(match outcome { StepOutcome::Resolved => StepResult::resolved(events), StepOutcome::Finished if !annulled_score && !invalidated => StepResult::finished(events), StepOutcome::Finished => StepResult::resolved(events), StepOutcome::AwaitingDecision(_) => unreachable!() })
 }
 
 fn team_of(input: &MatchInput, player_id: Uuid) -> Uuid {

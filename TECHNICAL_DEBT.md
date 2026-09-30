@@ -26,19 +26,18 @@ Fault definitions and punishment options belong to the database catalog. An inci
 
 ## Faults awaiting their own match actions
 
-Confirmed scope: plausible faults with `InvalidatePreviousPlay` stay in the catalog until their triggering action and complete reversal exist. Excess official designations of Artrine, Passer, Goalguard, and bounded tactical roles are reviewed as `illegal_substitution` for both AI and human lineups. Everyone designated to the exceeded position or role is expelled. If no designated Artrine remains, an active teammate handles the mandatory opening reception without Artro or Drive eligibility; Field Points and Kick Fouls remain possible.
+Confirmed scope: excess official designations of Artrine, Passer, Goalguard, and bounded tactical roles are reviewed as `illegal_substitution` for both AI and human lineups. Everyone designated to the exceeded position or role is expelled. If no designated Artrine remains, an active teammate handles the mandatory opening reception without Artro or Drive eligibility; Field Points and Kick Fouls remain possible.
 
 Do not generate these faults from unrelated duels or random match time. Introduce their triggering action and evidence before making them eligible for officiating:
 
 - Substitution protocol: `wrong_substitution_protocol`. `illegal_substitution` now covers excess official designations at the initial lineup review; extending the same review to any future in-match role reassignment remains necessary.
 - Equipment and inspection: `equipment_violation`, `illegal_equipment_check`.
-- Injury or weapon evidence: `deliberate_injury_attempt`, `weapon_use`.
 - Manager and restart timing: `delay_of_game`, `excessive_time_call_delay`, `play_call_delay`, `illegal_countdown_execution`.
-- Lineup and communication fraud: `illegal_formation`, `illegal_formation_numbering`, `illegal_marking_scheme`, `false_artrine_fraud`, `working_communicator_non_artrine`.
+- Other lineup faults: `illegal_formation`, `illegal_formation_numbering`, `illegal_marking_scheme`.
 - Artro or Drive declaration fraud: `false_drive_declaration`, `illegal_drive_registration`.
 - Deliberate behavior and incidents away from the current duel: `feigning_injury`, `fan_aggression`, `referee_contact`, `referee_verbal_abuse`, `dissent`, `excessive_celebration`, `minor_unsportsmanlike`, `taunting`, `unsportsmanlike_conduct`, `sideline_encroachment`.
 - Post-whistle contact without an Out or shot attempt: `late_hit`.
 - First-zone goalkeeper handling: `illegal_goalguard_handling` needs a handling action.
 - Pass and specialist procedural fouls: `illegal_call_to_action_pass`, `passer_contact_late`, `roughing_passer_late` require corresponding contested actions.
 
-The four catalogue definitions that permit `InvalidatePreviousPlay` remain outside activation until those actions exist. Their effect requires full rollback of the play and every derived statistic, as confirmed by the owner.
+`deliberate_injury_attempt` and `weapon_use` are removed from the catalog. A designated FalseArtrine can commit `false_artrine_fraud` on reception by attempting to claim an Artro, or `working_communicator_non_artrine` during a Call-to-Action by misusing the communicator. The actual official Artrine is never eligible for either fault. Confirmed infractions always invalidate the full continuous play; expulsion is optional. `InvalidatePreviousPlay` restores the sporting state and derived statistics while match time and physical injuries remain.

@@ -7,6 +7,40 @@ use crate::error::EngineError;
 use crate::state::{MatchPhase, SeriesState};
 
 impl MatchState {
+    pub(crate) fn invalidate_current_play(&mut self) -> EngineResult<(u64, u64)> {
+        let checkpoint = self.play_checkpoint.take().ok_or_else(||
+            EngineError::InvalidTransition("play invalidation requires a checkpoint".into()))?;
+        let first = checkpoint.next_event_sequence;
+        let last = self.next_event_sequence.saturating_sub(1);
+        let mut restored = (*checkpoint).clone();
+        let clock = self.clock.stop();
+        restored.clock = clock;
+        restored.rng = self.rng.clone();
+        restored.next_event_sequence = self.next_event_sequence;
+        restored.home.preserve_medical_lineup(&self.home);
+        restored.away.preserve_medical_lineup(&self.away);
+        for (&player_id, &injury) in &self.injuries {
+            if restored.injuries.get(&player_id) != Some(&injury) {
+                if let Some(&energy) = self.energy.get(&player_id) {
+                    restored.energy.insert(player_id, energy);
+                }
+                if let Some(&morale) = self.morale.get(&player_id) {
+                    restored.morale.insert(player_id, morale);
+                }
+            }
+        }
+        restored.injuries = self.injuries.clone();
+        restored.pending_injury_decisions = self.pending_injury_decisions.clone();
+        restored.injury_decisions_ready = self.injury_decisions_ready;
+        restored.pending_forced_substitutions = self.pending_forced_substitutions.clone();
+        restored.entered_at = self.entered_at.clone();
+        restored.home.restore_challenges(self.home.challenges_used());
+        restored.away.restore_challenges(self.away.challenges_used());
+        restored.release_expired_players();
+        *self = restored;
+        Ok((first, last))
+    }
+
     pub(crate) fn disable_team_drives(&mut self, team_id: uuid::Uuid) -> EngineResult<()> {
         self.team_mut(team_id)?.disable_drives();
         Ok(())
@@ -122,7 +156,10 @@ impl MatchState {
                     self.deferred_series_penalties.push((team_id, kind, amount));
                 }
             }
-            PunishmentKind::KickFoulAwarded | PunishmentKind::InvalidatePreviousPlay => {}
+            PunishmentKind::KickFoulAwarded => {}
+            PunishmentKind::InvalidatePreviousPlay => {
+                return Err(EngineError::InvalidTransition("play invalidation requires officiating rollback".into()));
+            }
         }
         Ok(())
     }

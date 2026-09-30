@@ -32,6 +32,7 @@ pub async fn persist_incident_events(
     let mut added_time_awards = Vec::new();
     let mut referee_decisions = Vec::new();
     let mut foul_punishments = Vec::new();
+    let mut play_invalidations = Vec::new();
 
     for envelope in run_result.raw_sink.events() {
         let seq = envelope.sequence_number();
@@ -102,6 +103,10 @@ pub async fn persist_incident_events(
                 foul_punishments.push((seq as i64, clock.period() as i32, clock.seconds_in_period(),
                     e.offending_player_id().to_string(), e.offending_team_id().to_string(),
                     e.fault_definition_id().map(|id| id.to_string()), format!("{:?}", e.kind()), e.magnitude()));
+            }
+            MatchEvent::PlayInvalidated(e) => {
+                play_invalidations.push((seq as i64, clock.period() as i32, clock.seconds_in_period(),
+                    e.first_sequence() as i64, e.last_sequence() as i64));
             }
             MatchEvent::InjuryIncidentRecorded(e) => {
                 injuries.push(MatchInjuryRow::from_event(
@@ -247,6 +252,11 @@ pub async fn persist_incident_events(
         sqlx::query("INSERT INTO match_foul_punishments (match_id, sequence_number, period, seconds_in_period, offending_player_id, offending_team_id, fault_definition_id, kind, magnitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(match_id.to_string()).bind(seq).bind(period).bind(seconds).bind(offender).bind(team)
             .bind(definition).bind(kind).bind(magnitude).execute(&mut **tx).await?;
+    }
+    for (seq, period, seconds, first, last) in play_invalidations {
+        sqlx::query("INSERT INTO match_play_invalidations (match_id, sequence_number, period, seconds_in_period, first_invalidated_sequence, last_invalidated_sequence) VALUES (?, ?, ?, ?, ?, ?)")
+            .bind(match_id.to_string()).bind(seq).bind(period).bind(seconds).bind(first).bind(last)
+            .execute(&mut **tx).await?;
     }
 
     Ok(())

@@ -23,12 +23,15 @@ pub fn resolve_kick_foul_segment(
     selected_decision: Option<KickFoulDecisionKind>,
     selected_taker_id: Option<Uuid>,
 ) -> EngineResult<StepResult> {
+    state.begin_play_checkpoint();
     let prior = state.clone();
     let result = resolve_kick_foul_segment_inner(input, state, selected_decision, selected_taker_id)?;
     let result = super::super::officiating::resolve_officiating(input, state, result, None)?;
     let (mut events, outcome) = result.into_parts();
-    state.record_segment_energy(input, &prior, &mut events)?;
-    state.record_segment_morale(&prior, &mut events)?;
+    if !events.iter().any(|event| matches!(event.event(), MatchEvent::PlayInvalidated(_))) {
+        state.record_segment_energy(input, &prior, &mut events)?;
+        state.record_segment_morale(&prior, &mut events)?;
+    }
     if matches!(outcome, crate::step::StepOutcome::Finished) {
         state.record_final_energy(&mut events)?;
         state.record_final_morale(&mut events)?;

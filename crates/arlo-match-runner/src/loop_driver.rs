@@ -4,7 +4,7 @@ use crate::error::{MatchRunnerError, MatchRunnerResult};
 use crate::match_run_result::MatchRunResult;
 use crate::match_run_status::MatchRunStatus;
 use arlo_engine::{MatchInput, MatchPhase, MatchState, StepOutcome};
-use arlo_events::{EventSink, InMemorySink};
+use arlo_events::{EventSink, InMemorySink, MatchEvent};
 use arlo_manager_control::ManagerDecisionInbox;
 use arlo_stats::AggregatorRegistry;
 use arlo_tactics::PlayCall;
@@ -118,7 +118,12 @@ pub fn run_loop_with_inbox(
         }
         let result = resolve_segment(input, state, inbox, play_calls)?;
         let (events, outcome) = result.into_parts();
-        dual_sink.record_all(events);
+        for event in events {
+            if let MatchEvent::PlayInvalidated(invalidated) = event.event() {
+                dual_sink.invalidate_play(invalidated.first_sequence(), invalidated.last_sequence());
+            }
+            dual_sink.record(event);
+        }
         match outcome {
             StepOutcome::Resolved => segments += 1,
             StepOutcome::Finished => {

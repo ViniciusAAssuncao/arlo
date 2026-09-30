@@ -3,12 +3,14 @@ pub mod foul_origin;
 pub mod foul_raised;
 mod referee_decision_resolved;
 mod punishment_applied;
+mod play_invalidated;
 
 pub use added_time_awarded::AddedTimeAwarded;
 pub use foul_origin::FoulOrigin;
 pub use foul_raised::FoulRaised;
 pub use referee_decision_resolved::RefereeDecisionResolved;
 pub use punishment_applied::PunishmentApplied;
+pub use play_invalidated::PlayInvalidated;
 
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +19,7 @@ pub enum OfficiatingEvent {
     FoulRaised(FoulRaised),
     RefereeDecisionResolved(RefereeDecisionResolved),
     PunishmentApplied(PunishmentApplied),
+    PlayInvalidated(PlayInvalidated),
     AddedTimeAwarded(AddedTimeAwarded),
 }
 
@@ -35,6 +38,12 @@ impl From<RefereeDecisionResolved> for OfficiatingEvent {
 impl From<PunishmentApplied> for OfficiatingEvent {
     fn from(ev: PunishmentApplied) -> Self {
         Self::PunishmentApplied(ev)
+    }
+}
+
+impl From<PlayInvalidated> for OfficiatingEvent {
+    fn from(ev: PlayInvalidated) -> Self {
+        Self::PlayInvalidated(ev)
     }
 }
 
