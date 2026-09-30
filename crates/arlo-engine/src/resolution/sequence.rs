@@ -132,7 +132,8 @@ pub(super) fn resolve_sequence(
             sample,
             gain_mirim,
         )?;
-        if current_holder_id == context.artrine_id
+        if (if context.is_home { state.home() } else { state.away() }).drive_eligible()
+            && current_holder_id == context.artrine_id
             && action_duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS
         {
             let artros = sample_artros(

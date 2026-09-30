@@ -83,10 +83,7 @@ pub async fn resolve_team_lineup(
                     if !candidate_id_set.contains(&pid)
                         || !assigned_players.insert(pid)
                         || !assigned_slots.insert(index)
-                        || !formation
-                            .slots()
-                            .get(index)
-                            .is_some_and(|slot| slot.position() == assignment.position())
+                        || formation.slots().get(index).is_none()
                     {
                         valid = false;
                         break;

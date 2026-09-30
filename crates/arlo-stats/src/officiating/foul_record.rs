@@ -140,7 +140,9 @@ impl StatAggregator for PlayerFoulAggregator {
         if let MatchEvent::FoulRaised(e) = event {
             if e.final_call_correct() {
                 self.record_foul_committed(e.offending_player_id(), e.origin(), true);
-                self.record_foul_drawn(e.opposing_player_id());
+                if e.origin() != arlo_events::FoulOrigin::Lineup {
+                    self.record_foul_drawn(e.opposing_player_id());
+                }
             }
         }
     }

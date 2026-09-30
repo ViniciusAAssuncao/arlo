@@ -12,6 +12,7 @@ pub struct TeamState {
     artrine_id: Uuid,
     passer_id: Uuid,
     goalguard_id: Uuid,
+    drive_eligible: bool,
     active_player_ids: Vec<Uuid>,
     reserve_player_ids: Vec<Uuid>,
     suspended_players: Vec<(Uuid, f64)>,
@@ -67,6 +68,7 @@ impl TeamState {
             artrine_id,
             passer_id,
             goalguard_id,
+            drive_eligible: true,
             active_player_ids,
             reserve_player_ids,
             suspended_players: Vec::new(),
@@ -95,6 +97,14 @@ impl TeamState {
         else { self.active_player_ids.iter().copied().find(|id| *id != self.slot_player_id(self.passer_id) && *id != self.slot_player_id(self.goalguard_id))
             .or_else(|| self.active_player_ids.iter().copied().find(|id| *id != self.slot_player_id(self.goalguard_id)))
             .unwrap_or(self.artrine_id) }
+    }
+    pub fn drive_eligible(&self) -> bool {
+        self.drive_eligible
+    }
+
+    pub(crate) fn disable_drives(&mut self) {
+        self.drive_eligible = false;
+        self.reset_drives();
     }
     pub fn passer_id(&self) -> Uuid {
         let assigned = self.slot_player_id(self.passer_id);
@@ -183,7 +193,7 @@ impl TeamState {
         player_id: Uuid,
         control_seconds: f64,
     ) -> EngineResult<Option<u32>> {
-        if player_id != self.artrine_id()
+        if !self.drive_eligible || player_id != self.artrine_id()
             || !control_seconds.is_finite()
             || control_seconds < IMMEDIATE_POSSESSION_CONTROL_SECONDS
         {
@@ -299,6 +309,7 @@ mod tests {
             artrine_id: active_player_ids[0],
             passer_id: active_player_ids[1],
             goalguard_id: active_player_ids[2],
+            drive_eligible: true,
             active_player_ids,
             reserve_player_ids: vec![reserve_id],
             suspended_players: Vec::new(),

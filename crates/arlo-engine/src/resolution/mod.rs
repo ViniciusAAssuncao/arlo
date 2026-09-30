@@ -7,6 +7,7 @@ mod down;
 mod exchange;
 mod kick_foul;
 mod injury;
+mod illegal_substitution;
 mod kicker;
 mod manager;
 mod model;

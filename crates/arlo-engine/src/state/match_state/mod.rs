@@ -47,6 +47,7 @@ pub struct MatchState {
     suspended_restart: Option<SuspendedRestart>,
     pending_call_outcome: Option<PendingCallOutcome>,
     pending_referee_decisions: Vec<RefereeDecisionResolved>,
+    initial_lineup_reviewed: bool,
     pending_availability_events: Vec<PlayerAvailabilityChanged>,
     pending_injury_decisions: Vec<PendingInjuryDecision>,
     injury_decisions_ready: bool,
@@ -83,6 +84,7 @@ impl MatchState {
             suspended_restart: None,
             pending_call_outcome: None,
             pending_referee_decisions: Vec::new(),
+            initial_lineup_reviewed: false,
             pending_availability_events: Vec::new(),
             pending_injury_decisions: Vec::new(),
             injury_decisions_ready: false,
@@ -145,6 +147,14 @@ impl MatchState {
     }
     pub fn next_event_sequence(&self) -> u64 {
         self.next_event_sequence
+    }
+
+    pub(crate) fn initial_lineup_reviewed(&self) -> bool {
+        self.initial_lineup_reviewed
+    }
+
+    pub(crate) fn mark_initial_lineup_reviewed(&mut self) {
+        self.initial_lineup_reviewed = true;
     }
 
     pub fn pending_injury_decisions(&self) -> &[PendingInjuryDecision] {

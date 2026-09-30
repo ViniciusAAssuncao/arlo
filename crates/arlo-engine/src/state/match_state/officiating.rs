@@ -7,6 +7,11 @@ use crate::error::EngineError;
 use crate::state::{MatchPhase, SeriesState};
 
 impl MatchState {
+    pub(crate) fn disable_team_drives(&mut self, team_id: uuid::Uuid) -> EngineResult<()> {
+        self.team_mut(team_id)?.disable_drives();
+        Ok(())
+    }
+
     pub(crate) fn queue_referee_decision(&mut self, decision: RefereeDecisionResolved) {
         self.pending_referee_decisions.push(decision);
     }

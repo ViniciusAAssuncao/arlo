@@ -36,6 +36,7 @@ impl MatchPlayerFoulByOriginRow {
         count: u32,
     ) -> Self {
         let origin_str = match origin {
+            FoulOrigin::Lineup => "Lineup".to_string(),
             FoulOrigin::ContactDuel(kind) => format!("ContactDuel:{}", kind.as_str()),
             FoulOrigin::LineFault => "LineFault".to_string(),
             FoulOrigin::CallToAction => "CallToAction".to_string(),

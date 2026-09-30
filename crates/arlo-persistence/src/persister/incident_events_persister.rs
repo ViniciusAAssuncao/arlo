@@ -84,6 +84,7 @@ pub async fn persist_incident_events(
             }
             MatchEvent::RefereeDecisionResolved(e) => {
                 let origin = match e.origin() {
+                    arlo_events::FoulOrigin::Lineup => "Lineup".to_owned(),
                     arlo_events::FoulOrigin::ContactDuel(kind) => format!("ContactDuel:{}", kind.as_str()),
                     arlo_events::FoulOrigin::LineFault => "LineFault".to_owned(),
                     arlo_events::FoulOrigin::CallToAction => "CallToAction".to_owned(),

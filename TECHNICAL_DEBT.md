@@ -26,9 +26,11 @@ Fault definitions and punishment options belong to the database catalog. An inci
 
 ## Faults awaiting their own match actions
 
+Confirmed scope: plausible faults with `InvalidatePreviousPlay` stay in the catalog until their triggering action and complete reversal exist. Excess official designations of Artrine, Passer, Goalguard, and bounded tactical roles are reviewed as `illegal_substitution` for both AI and human lineups. Everyone designated to the exceeded position or role is expelled. If no designated Artrine remains, an active teammate handles the mandatory opening reception without Artro or Drive eligibility; Field Points and Kick Fouls remain possible.
+
 Do not generate these faults from unrelated duels or random match time. Introduce their triggering action and evidence before making them eligible for officiating:
 
-- Substitution protocol: `illegal_substitution`, `wrong_substitution_protocol`.
+- Substitution protocol: `wrong_substitution_protocol`. `illegal_substitution` now covers excess official designations at the initial lineup review; extending the same review to any future in-match role reassignment remains necessary.
 - Equipment and inspection: `equipment_violation`, `illegal_equipment_check`.
 - Injury or weapon evidence: `deliberate_injury_attempt`, `weapon_use`.
 - Manager and restart timing: `delay_of_game`, `excessive_time_call_delay`, `play_call_delay`, `illegal_countdown_execution`.

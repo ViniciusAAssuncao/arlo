@@ -55,6 +55,9 @@ fn resolve_next_segment_inner(
     selected_play_call: Option<&PlayCall>,
 ) -> EngineResult<StepResult> {
     validate_match_state(input, state)?;
+    if state.phase() == MatchPhase::Ready && !state.initial_lineup_reviewed() {
+        return super::illegal_substitution::review_initial_lineups(input, state);
+    }
     if state.phase() == MatchPhase::Finished {
         return Ok(StepResult::finished(Vec::new()));
     }
