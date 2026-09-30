@@ -60,6 +60,7 @@ pub struct MatchState {
     energy_participants: HashSet<Uuid>,
     morale: HashMap<Uuid, f64>,
     morale_resilience: Arc<HashMap<Uuid, f64>>,
+    recent_scores: Vec<(f64, Uuid, u32)>,
     injuries: HashMap<Uuid, (Uuid, InjurySeverityGrade)>,
     entered_at: HashMap<Uuid, f64>,
 }
@@ -99,6 +100,7 @@ impl MatchState {
             morale: input.home().roster().iter().chain(input.away().roster().iter())
                 .map(|player| (player.id(), input.player_start_morale(player.id()))).collect(),
             morale_resilience: Arc::new(morale::initial_resilience(input)),
+            recent_scores: Vec::new(),
             injuries: HashMap::new(),
             entered_at: HashMap::new(),
         }

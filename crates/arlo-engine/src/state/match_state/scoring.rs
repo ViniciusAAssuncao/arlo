@@ -98,6 +98,9 @@ impl MatchState {
         };
 
         self.team_mut(team_id)?.replace_score(next_score);
+        let elapsed = self.clock.total_elapsed_seconds();
+        self.recent_scores.retain(|(at, _, _)| elapsed - at <= 900.0);
+        self.recent_scores.push((elapsed, team_id, kind.points()));
         self.home.reset_drives();
         self.away.reset_drives();
         self.pending_call_outcome = None;
@@ -115,6 +118,13 @@ impl MatchState {
             self.phase = MatchPhase::BonusPhase;
         }
         Ok(kind.points())
+    }
+
+    pub fn recent_score_balance(&self, team_id: Uuid) -> i32 {
+        let since = self.clock.total_elapsed_seconds() - 600.0;
+        self.recent_scores.iter().filter(|(at, _, _)| *at >= since)
+            .map(|(_, scorer, points)| if *scorer == team_id { *points as i32 } else { -(*points as i32) })
+            .sum()
     }
 
     pub fn finish_bonus_phase_without_score(&mut self) -> EngineResult<()> {

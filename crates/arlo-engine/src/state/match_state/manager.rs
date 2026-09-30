@@ -22,7 +22,7 @@ impl MatchState {
         }
         let elapsed = self.clock.total_elapsed_seconds();
         let team = self.team_mut(team_id)?;
-        if team.active_tactical_profile_id() == profile_id || team.tactical_switches() >= 2
+        if team.active_tactical_profile_id() == profile_id || team.tactical_switches() >= 3
             || team.last_tactical_switch_at().is_some_and(|last| elapsed - last < 1800.0) {
             return Err(EngineError::InvalidTransition("tactical switch is unavailable".into()));
         }

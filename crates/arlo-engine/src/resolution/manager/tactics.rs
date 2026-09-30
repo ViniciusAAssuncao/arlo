@@ -13,7 +13,7 @@ pub fn select_tactical_profile(input: &MatchInput, state: &MatchState, team_id: 
     if state.phase() != MatchPhase::Stopped
         || state.clock().seconds_in_period() >= state.clock().period_limit_seconds() { return None; }
     let (team, team_state) = team_pair(input, state, team_id)?;
-    if team.manager().is_human_controlled() || team_state.tactical_switches() >= 2
+    if team.manager().is_human_controlled() || team_state.tactical_switches() >= 3
         || team_state.last_tactical_switch_at().is_some_and(|last| state.clock().total_elapsed_seconds() - last < 1800.0) {
         return None;
     }
@@ -24,11 +24,26 @@ pub fn select_tactical_profile(input: &MatchInput, state: &MatchState, team_id: 
     let deficit = i64::from(opponent_score) - i64::from(team_state.score().total_points());
     let chasing = elapsed >= 1800.0 && deficit >= if elapsed >= 5400.0 { 5 } else { 10 };
     let protecting = deficit <= -10 && elapsed >= 5400.0;
-    if !chasing && !protecting { return None; }
-    let flexibility = team.manager().tactical_profile().map_or(0.5, |profile| profile.flexibility_tendency());
-    let adjustments = manager_value(input, team.manager(), AttributeKey::InGameAdjustments);
-    let margin = 0.055 + (1.0 - flexibility) * 0.08 + (20.0 - adjustments) * 0.002;
     let current_id = team_state.active_tactical_profile_id();
+    if !chasing && !protecting {
+        return (current_id != team.tactics().id() && deficit.abs() <= 3 && elapsed <= 6300.0)
+            .then_some(team.tactics().id());
+    }
+    let flexibility = team.manager().tactical_profile()
+        .map_or_else(|| manager_value(input, team.manager(), AttributeKey::Adaptability) / 20.0,
+            |profile| profile.flexibility_tendency()).clamp(0.0, 1.0);
+    let adjustments = (manager_value(input, team.manager(), AttributeKey::InGameAdjustments) / 20.0)
+        .clamp(0.0, 1.0);
+    let conviction = (1.0 - flexibility) * 0.10 + (1.0 - adjustments) * 0.035;
+    let trend = f64::from(state.recent_score_balance(team_id).clamp(-15, 15)) * 0.002;
+    let margin = if chasing {
+        let score_pressure = ((deficit - 5).max(0) as f64 * 0.004).min(0.065);
+        let time_pressure = ((elapsed - 5400.0) / 1800.0).clamp(0.0, 1.0) * 0.025;
+        0.14 + conviction - score_pressure - time_pressure + trend
+    } else {
+        let lead_pressure = ((-deficit - 10).max(0) as f64 * 0.0015).min(0.025);
+        0.085 + conviction * 0.65 - lead_pressure + trend
+    };
     let current = team.tactical_profiles().find(|profile| profile.id() == current_id)?;
     let current_value = profile_value(current.instructions(), chasing);
     team.tactical_profiles()
