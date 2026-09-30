@@ -151,11 +151,12 @@ pub async fn persist_plan(
     if manager.is_human_controlled() || base.instructions() == planned.instructions() {
         return Ok(planned);
     }
+    let name = "Plano do treinador";
     let id = arlo_tactics::team_instructions::insert_profile(
-        pool, planned.team_id(), "Plano do treinador", planned.instructions(), planned.situational_profile(),
+        pool, planned.team_id(), name, planned.instructions(), planned.situational_profile(),
     ).await.map_err(|error| ControllerError::InvalidData(error.to_string()))?;
     Ok(TeamTacticalProfile::new(
-        id, planned.team_id(), planned.name(), *planned.instructions(),
+        id, planned.team_id(), name, *planned.instructions(),
         planned.situational_profile().cloned(), false,
     ))
 }
