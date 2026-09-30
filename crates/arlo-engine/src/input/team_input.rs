@@ -12,6 +12,7 @@ pub struct TeamInput {
     roster: Vec<Player>,
     manager: Manager,
     tactics: TeamTacticalProfile,
+    alternative_tactics: Vec<TeamTacticalProfile>,
 }
 
 impl TeamInput {
@@ -121,7 +122,19 @@ impl TeamInput {
             roster,
             manager,
             tactics,
+            alternative_tactics: Vec::new(),
         })
+    }
+
+    pub fn with_alternative_tactics(mut self, alternatives: Vec<TeamTacticalProfile>) -> EngineResult<Self> {
+        let mut ids = HashSet::from([self.tactics.id()]);
+        for profile in &alternatives {
+            if profile.team_id() != self.team_id || !ids.insert(profile.id()) {
+                return Err(EngineError::InvalidInput("invalid alternative tactical profile".into()));
+            }
+        }
+        self.alternative_tactics = alternatives;
+        Ok(self)
     }
 
     pub fn team_id(&self) -> Uuid {
@@ -141,5 +154,8 @@ impl TeamInput {
     }
     pub fn tactics(&self) -> &TeamTacticalProfile {
         &self.tactics
+    }
+    pub fn tactical_profiles(&self) -> impl Iterator<Item = &TeamTacticalProfile> {
+        std::iter::once(&self.tactics).chain(self.alternative_tactics.iter())
     }
 }

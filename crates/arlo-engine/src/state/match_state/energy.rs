@@ -88,20 +88,17 @@ impl MatchState {
                         0.78 + 0.24 * attack + 0.20 * defense
                     })
                     .unwrap_or(1.0);
-                let tempo = team
-                    .tactics()
-                    .instructions()
+                let instructions = self.team_instructions(team);
+                let tempo = instructions
                     .in_possession()
                     .tempo()
                     .value();
-                let pressing = team
-                    .tactics()
-                    .instructions()
+                let pressing = instructions
                     .out_of_possession()
                     .pressing_intensity()
                     .value();
-                let physicality = team.tactics().instructions().in_possession().physicality().value();
-                let counter_press = team.tactics().instructions().transition().counter_press_intensity().value();
+                let physicality = instructions.in_possession().physicality().value();
+                let counter_press = instructions.transition().counter_press_intensity().value();
                 let tactical_load = 0.72 + 0.24 * tempo + 0.16 * pressing
                     + 0.07 * physicality + 0.06 * counter_press;
                 let role = match position {

@@ -4,7 +4,7 @@ use crate::repositories::formation::formation_cache::get_or_load_formations;
 use crate::services::season::matchday::emergency_roster::ensure_minimum_roster;
 use crate::services::season::matchday::matchday_catalog_cache::MatchdayCatalogs;
 use crate::services::season::matchday::matchday_referee_selector::select_referees;
-use crate::services::season::matchday::manager_preparation::{persist_plan, plan_tactics};
+use crate::services::season::matchday::manager_preparation::{match_variants, persist_plan, plan_tactics};
 use crate::services::season::matchday::manager_match_context::{assess, load_recent_history};
 use crate::services::season::matchday::team_lineup_resolver::resolve_team_lineup;
 use crate::services::season::matchday::team_playbook_resolver::resolve_team_playbook;
@@ -242,7 +242,8 @@ pub async fn build_matchday_setup(
         home_players,
         home_manager,
         home_profile.clone()
-    ).map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    ).and_then(|team| team.with_alternative_tactics(match_variants(&home_profile)))
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
 
     let away_input = TeamInput::new(
         away_team_id,
@@ -251,7 +252,8 @@ pub async fn build_matchday_setup(
         away_players,
         away_manager,
         away_profile.clone()
-    ).map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    ).and_then(|team| team.with_alternative_tactics(match_variants(&away_profile)))
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
 
     let mut player_attribute_definitions: Vec<_> = catalogs.attribute_definitions_by_id
         .values()

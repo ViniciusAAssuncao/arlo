@@ -2,6 +2,7 @@ use crate::error::{EngineError, EngineResult};
 use crate::input::{MatchInput, TeamInput};
 use crate::state::MatchState;
 use arlo_domain::{AttributeKey, Player, Position, PositionLine};
+use arlo_tactics::TeamInstructions;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -12,6 +13,7 @@ pub(super) struct RatingIndex {
     physical_readiness: HashMap<Uuid, f64>,
     morale: HashMap<Uuid, f64>,
     injured: Vec<Uuid>,
+    instructions_by_team: HashMap<Uuid, TeamInstructions>,
 }
 
 impl RatingIndex {
@@ -37,7 +39,16 @@ impl RatingIndex {
                 * state.player_settling_factor(player.id()))).collect();
         let morale = input.home().roster().iter().chain(input.away().roster().iter())
             .map(|player| (player.id(), state.player_morale(player.id()))).collect();
-        Self { attribute_ids, active_by_team, slots_by_team, physical_readiness, morale, injured }
+        let instructions_by_team = HashMap::from([
+            (input.home().team_id(), state.team_instructions(input.home())),
+            (input.away().team_id(), state.team_instructions(input.away())),
+        ]);
+        Self { attribute_ids, active_by_team, slots_by_team, physical_readiness, morale, injured, instructions_by_team }
+    }
+
+    pub(super) fn instructions(&self, team: &TeamInput) -> TeamInstructions {
+        self.instructions_by_team.get(&team.team_id()).copied()
+            .unwrap_or(*team.tactics().instructions())
     }
 
     pub(super) fn slot_player_id(&self, team: &TeamInput, original_id: Uuid) -> Uuid {

@@ -43,7 +43,7 @@ pub(crate) fn select<'a>(
     };
     let chase = (-score_delta / 24.0).clamp(0.0, 1.0) * elapsed * elapsed;
     let protect = (score_delta / 24.0).clamp(0.0, 1.0) * elapsed * elapsed;
-    let identity = team.tactics().instructions().default_decision_emphasis();
+    let identity = state.team_instructions(team).default_decision_emphasis();
     let score = |call: &PlayCall| {
         let fit = call.situational_profile().map_or(0.5, |profile| profile.fit_score(&context));
         let emphasis = call.decision_emphasis();

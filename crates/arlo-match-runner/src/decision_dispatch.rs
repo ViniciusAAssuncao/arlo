@@ -2,7 +2,7 @@ use crate::error::{MatchRunnerError, MatchRunnerResult};
 use crate::manager_play_call;
 use arlo_engine::{
     resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_kick_foul_segment, resolve_next_segment, resolve_time_call_segment,
-    resolve_substitution_segment, select_substitution, should_use_time_call, MatchInput,
+    resolve_substitution_segment, resolve_tactical_switch_segment, select_substitution, select_tactical_profile, should_use_time_call, MatchInput,
     MatchPhase, MatchState, StepOutcome, StepResult,
 };
 use arlo_manager_control::{ManagerDecisionInbox, RequiredManagerDecision};
@@ -53,6 +53,9 @@ pub fn resolve_segment(
     }
     if state.phase() == MatchPhase::Stopped {
         for team_id in [input.home().team_id(), input.away().team_id()] {
+            if let Some(profile_id) = select_tactical_profile(input, state, team_id) {
+                return Ok(resolve_tactical_switch_segment(input, state, team_id, profile_id)?);
+            }
             let submitted = inbox.substitutions(team_id);
             if !submitted.is_empty() {
                 let result = resolve_substitution_segment(input, state, team_id, &submitted, SubstitutionReason::Tactical)?;

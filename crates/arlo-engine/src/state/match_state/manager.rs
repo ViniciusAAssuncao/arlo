@@ -1,9 +1,35 @@
 use super::MatchState;
 use crate::error::{EngineError, EngineResult};
+use crate::input::TeamInput;
 use crate::state::MatchPhase;
+use arlo_tactics::TeamInstructions;
 use uuid::Uuid;
 
 impl MatchState {
+    pub fn team_instructions(&self, team: &TeamInput) -> TeamInstructions {
+        let active_id = if team.team_id() == self.home.team_id() {
+            self.home.active_tactical_profile_id()
+        } else {
+            self.away.active_tactical_profile_id()
+        };
+        team.tactical_profiles().find(|profile| profile.id() == active_id)
+            .map_or(*team.tactics().instructions(), |profile| *profile.instructions())
+    }
+
+    pub(crate) fn activate_tactical_profile(&mut self, team_id: Uuid, profile_id: Uuid) -> EngineResult<()> {
+        if self.phase != MatchPhase::Stopped || self.clock.seconds_in_period() >= self.clock.period_limit_seconds() {
+            return Err(EngineError::InvalidTransition("tactical switch requires a stoppage".into()));
+        }
+        let elapsed = self.clock.total_elapsed_seconds();
+        let team = self.team_mut(team_id)?;
+        if team.active_tactical_profile_id() == profile_id || team.tactical_switches() >= 2
+            || team.last_tactical_switch_at().is_some_and(|last| elapsed - last < 1800.0) {
+            return Err(EngineError::InvalidTransition("tactical switch is unavailable".into()));
+        }
+        team.activate_tactical_profile(profile_id, elapsed);
+        Ok(())
+    }
+
     pub fn challenges_used(&self, team_id: Uuid) -> EngineResult<u32> {
         Ok(self.team(team_id)?.challenges_used())
     }

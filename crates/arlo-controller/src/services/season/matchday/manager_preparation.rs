@@ -113,6 +113,33 @@ pub fn plan_tactics(
         current.situational_profile().cloned(), current.is_active(),
     )
 }
+
+pub fn match_variants(profile: &TeamTacticalProfile) -> Vec<TeamTacticalProfile> {
+    let base = profile.instructions();
+    let offense = base.in_possession();
+    let defense = base.out_of_possession();
+    let aggressive = TeamInstructions::builder(offense.mentality())
+        .with_in_possession(*offense).with_out_of_possession(*defense)
+        .with_transition(*base.transition())
+        .with_mentality(Mentality::new_clamped(offense.mentality().value() + 0.20))
+        .with_tempo(Tempo::new_clamped(offense.tempo().value() + 0.15))
+        .with_directness(Directness::new_clamped(offense.directness().value() + 0.10))
+        .with_pressing_intensity(PressingIntensity::new_clamped(defense.pressing_intensity().value() + 0.10))
+        .build();
+    let conservative = TeamInstructions::builder(offense.mentality())
+        .with_in_possession(*offense).with_out_of_possession(*defense)
+        .with_transition(*base.transition())
+        .with_mentality(Mentality::new_clamped(offense.mentality().value() - 0.18))
+        .with_tempo(Tempo::new_clamped(offense.tempo().value() - 0.10))
+        .with_compactness(Compactness::new_clamped(defense.compactness().value() + 0.10))
+        .with_defensive_line_height(DefensiveLineHeight::new_clamped(defense.defensive_line_height().value() - 0.08))
+        .build();
+    [("Pressão ofensiva", aggressive), ("Controle defensivo", conservative)]
+        .into_iter().filter(|(_, instructions)| *instructions != *base)
+        .map(|(name, instructions)| TeamTacticalProfile::new(
+            Uuid::new_v4(), profile.team_id(), name, instructions, None, false,
+        )).collect()
+}
 use crate::error::{ControllerError, ControllerResult};
 
 pub async fn persist_plan(

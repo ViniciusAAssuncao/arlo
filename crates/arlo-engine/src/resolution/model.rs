@@ -30,21 +30,21 @@ pub(super) fn sample_call(
     selected_play_call: Option<&PlayCall>,
     rng: &mut ChaCha8Rng,
 ) -> EngineResult<SampledCall> {
-    let instructions = offense.tactics().instructions().in_possession();
+    let team_instructions = ratings.instructions(offense);
+    let instructions = team_instructions.in_possession();
     let mentality = instructions.mentality().value();
     let tempo = instructions.tempo().value();
     let emphasis = selected_play_call
         .map(|call| *call.decision_emphasis())
-        .unwrap_or_else(|| offense.tactics().instructions().default_decision_emphasis());
+        .unwrap_or_else(|| team_instructions.default_decision_emphasis());
     let carry_bias = emphasis.self_carry().value() - 0.5;
-    let pressing = defense
-        .tactics()
-        .instructions()
+    let defense_instructions = ratings.instructions(defense);
+    let pressing = defense_instructions
         .out_of_possession()
         .pressing_intensity()
         .value();
-    let defensive = defense.tactics().instructions().out_of_possession();
-    let transition = offense.tactics().instructions().transition();
+    let defensive = defense_instructions.out_of_possession();
+    let transition = team_instructions.transition();
     let contest_probability = (0.16 + pressing * 0.32 + carry_bias * 0.08
         + defensive.aggression().value() * 0.04
         + defensive.defensive_line_height().value() * 0.04)
@@ -74,7 +74,7 @@ pub(super) fn sample_call(
         + instructions.physicality().value() * 0.015
         + instructions.width().value() * defensive.compactness().value() * 0.012
         - defensive.compactness().value() * 0.018
-        - defense.tactics().instructions().transition().press_block_shape().value() * 0.012)
+        - defense_instructions.transition().press_block_shape().value() * 0.012)
         .clamp(MIN_SUCCESS_PROBABILITY, MAX_SUCCESS_PROBABILITY), MAX_SUCCESS_PROBABILITY);
 
     let successful = rng.gen_range(0.0..1.0) < success_probability;

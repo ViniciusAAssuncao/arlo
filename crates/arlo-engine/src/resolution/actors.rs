@@ -77,7 +77,7 @@ pub(super) fn select_shooter(
 ) -> EngineResult<Uuid> {
     let emphasis = selected_play_call
         .map(|call| *call.decision_emphasis())
-        .unwrap_or_else(|| team.tactics().instructions().default_decision_emphasis());
+        .unwrap_or_else(|| ratings.instructions(team).default_decision_emphasis());
     select_weighted_actor(ratings, team, ActorRole::Shooter, None, rng, |assignment| {
         let depth = team
             .formation()

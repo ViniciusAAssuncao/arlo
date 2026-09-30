@@ -1,5 +1,9 @@
 # Technical debt
 
+## Human-controlled matches
+
+Human manager decisions remain deferred indefinitely. The match runner exposes a partial decision inbox, but normal day advancement completes each fixture in one batch and does not persist a resumable match state. Human challenges, tactical switches, lineup control, and frontend interactions must be connected only when a full pause, resume, and persistence flow is designed. Automated manager decisions continue independently.
+
 ## Injury withdrawal decisions
 
 Substitutions have no per-match limit. Human-controlled managers receive a keep-or-withdraw decision at the next Out for injuries that permit continued play. An incapacitating injury, including a complete ACL rupture, removes the player immediately; a human manager chooses the reserve during that injury interruption when one is available. Automated managers choose whether to withdraw an athlete with a non-incapacitating injury at the next Out using diagnosis-specific recovery, athlete condition, reserve suitability, match context, and manager attributes. The medical model must distinguish partial from complete ACL rupture and record the chosen treatment path; a reconstruction case cannot inherit only the generic grade-and-body-region recovery duration.

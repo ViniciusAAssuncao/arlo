@@ -11,6 +11,7 @@ arlo-engine.workspace = true
 arlo-events.workspace = true
 arlo-match-runner.workspace = true
 arlo-stats.workspace = true
+arlo-tactics.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

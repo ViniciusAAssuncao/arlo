@@ -27,14 +27,13 @@ pub(super) fn sample_reception(
     let passing = ratings.player_value(offense, passer_id, AttributeKey::Passing)?;
     let hands = ratings.player_value(offense, receiver_id, AttributeKey::HandsReception)?;
     let control = ratings.player_value(offense, receiver_id, AttributeKey::ArloControl)?;
-    let instructions = offense.tactics().instructions().in_possession();
+    let team_instructions = ratings.instructions(offense);
+    let instructions = team_instructions.in_possession();
     let passing_range = instructions.passing_range().value();
     let aeriality = instructions.aeriality().value();
     let crossing = ratings.player_value(offense, passer_id, AttributeKey::Crossing)?;
     let reach = ratings.player_value(offense, receiver_id, AttributeKey::JumpingReach)?;
-    let pressing = defense
-        .tactics()
-        .instructions()
+    let pressing = ratings.instructions(defense)
         .out_of_possession()
         .pressing_intensity()
         .value();

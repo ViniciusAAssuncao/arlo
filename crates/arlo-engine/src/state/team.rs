@@ -24,6 +24,9 @@ pub struct TeamState {
     last_time_call_at: Option<f64>,
     challenges_used: u32,
     last_voluntary_substitution_at: Option<f64>,
+    active_tactical_profile_id: Uuid,
+    tactical_switches: u8,
+    last_tactical_switch_at: Option<f64>,
     score: Score,
 }
 
@@ -76,6 +79,9 @@ impl TeamState {
             last_time_call_at: None,
             challenges_used: 0,
             last_voluntary_substitution_at: None,
+            active_tactical_profile_id: input.tactics().id(),
+            tactical_switches: 0,
+            last_tactical_switch_at: None,
             score: Score::default(),
         }
     }
@@ -151,6 +157,15 @@ impl TeamState {
     pub fn last_voluntary_substitution_at(&self) -> Option<f64> {
         self.last_voluntary_substitution_at
     }
+    pub fn active_tactical_profile_id(&self) -> Uuid {
+        self.active_tactical_profile_id
+    }
+    pub fn tactical_switches(&self) -> u8 {
+        self.tactical_switches
+    }
+    pub fn last_tactical_switch_at(&self) -> Option<f64> {
+        self.last_tactical_switch_at
+    }
     pub fn score(&self) -> Score {
         self.score
     }
@@ -222,6 +237,12 @@ impl TeamState {
         self.challenges_used += 1;
     }
 
+    pub(crate) fn activate_tactical_profile(&mut self, profile_id: Uuid, elapsed: f64) {
+        self.active_tactical_profile_id = profile_id;
+        self.tactical_switches += 1;
+        self.last_tactical_switch_at = Some(elapsed);
+    }
+
     pub(crate) fn restore_challenges(&mut self, used: u32) {
         self.challenges_used = used;
     }
@@ -290,6 +311,9 @@ mod tests {
             last_time_call_at: None,
             challenges_used: 0,
             last_voluntary_substitution_at: None,
+            active_tactical_profile_id: Uuid::new_v4(),
+            tactical_switches: 0,
+            last_tactical_switch_at: None,
             score: Score::default(),
         };
         (state, reserve_id)
