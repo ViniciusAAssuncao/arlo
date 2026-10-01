@@ -36,7 +36,7 @@ pub async fn get_by_code(pool: &SqlitePool, code: &str) -> DbResult<Option<Fault
 pub async fn list_all(pool: &SqlitePool) -> DbResult<Vec<FaultDefinition>> {
     let rows = fetch_all::<FaultDefinitionRow>(
         pool,
-        "SELECT id, code, description, severity FROM fault_definitions",
+        "SELECT id, code, description, severity FROM fault_definitions WHERE active = 1",
     )
     .await?;
     let mut results = Vec::with_capacity(rows.len());

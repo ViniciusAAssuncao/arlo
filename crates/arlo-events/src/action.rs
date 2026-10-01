@@ -1,4 +1,5 @@
 mod carry;
+mod specialist;
 
 use arlo_domain::pitch::ArtroPlacement;
 use arlo_domain::ArtrineDecisionKind;
@@ -8,6 +9,7 @@ use uuid::Uuid;
 
 pub use arlo_domain::pitch::ArtroPlacement as EventArtroPlacement;
 pub use carry::CarryResolved;
+pub use specialist::{GoalguardRecoveryResolved, PasserContactResolved};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DuelKind {
@@ -397,6 +399,8 @@ pub enum ActionEvent {
     CarryResolved(CarryResolved),
     DistributionCompleted(DistributionCompleted),
     ReceptionResolved(ReceptionResolved),
+    PasserContactResolved(PasserContactResolved),
+    GoalguardRecoveryResolved(GoalguardRecoveryResolved),
     ArtrineDecisionMade(ArtrineDecisionMade),
     DriveRecorded(DriveRecorded),
     DuelResolved(DuelResolved),
@@ -430,6 +434,14 @@ impl From<ReceptionResolved> for ActionEvent {
     fn from(ev: ReceptionResolved) -> Self {
         Self::ReceptionResolved(ev)
     }
+}
+
+impl From<PasserContactResolved> for ActionEvent {
+    fn from(ev: PasserContactResolved) -> Self { Self::PasserContactResolved(ev) }
+}
+
+impl From<GoalguardRecoveryResolved> for ActionEvent {
+    fn from(ev: GoalguardRecoveryResolved) -> Self { Self::GoalguardRecoveryResolved(ev) }
 }
 
 impl From<ArtrineDecisionMade> for ActionEvent {

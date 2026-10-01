@@ -59,6 +59,11 @@ impl PendingTriggerStore {
         due_triggers
     }
 
+    pub async fn has_due(&self, current_date: &CalendarDate) -> bool {
+        let current_key = (current_date.year(), current_date.day_of_year());
+        self.triggers.read().await.range(..=current_key).next().is_some()
+    }
+
     pub async fn len(&self) -> usize {
         let guard = self.triggers.read().await;
         guard.values().map(|v| v.len()).sum()

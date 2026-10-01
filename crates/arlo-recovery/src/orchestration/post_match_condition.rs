@@ -1,14 +1,13 @@
 use crate::domain::PlayerCondition;
 use crate::error::{RecoveryError, RecoveryResult};
 use crate::fatigue_recovery::calculate_player_age_years;
-use crate::injury_recovery::register_injury;
-use crate::tuning::RecoveryTuningProfile;
+use crate::injury_recovery::{load_recovery_profiles, register_injury};
 use arlo_domain::{AttributeKey, BodyRegion, InjurySeverityGrade, Player};
 use arlo_engine::MatchInput;
 use arlo_events::{MatchEvent, MatchEventEnvelope};
 use arlo_persistence::models::condition::{PlayerConditionRow, PlayerInjuryHistoryRow};
 use arlo_persistence::repositories::condition::{player_condition, player_injury_history};
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool, Transaction};
 use std::collections::{HashMap, HashSet};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
@@ -50,14 +49,20 @@ fn natural_fitness(input: &MatchInput, player: &Player) -> RecoveryResult<f64> {
         .ok_or_else(|| RecoveryError::InvalidData("Player lacks NaturalFitness".into()))
 }
 
-pub async fn capture_post_match_condition(
+pub struct PostMatchConditionPlan {
+    condition_rows: Vec<PlayerConditionRow>,
+    injuries: Vec<(Option<Uuid>, PlayerInjuryHistoryRow)>,
+    now_seconds: i64,
+}
+
+pub async fn prepare_post_match_condition(
     pool: &SqlitePool,
     input: &MatchInput,
     initial_conditions: &HashMap<Uuid, PlayerCondition>,
     raw_events: &[MatchEventEnvelope],
     match_year: i64,
     match_day_of_year: u32,
-) -> RecoveryResult<()> {
+) -> RecoveryResult<PostMatchConditionPlan> {
     let mut participating_ids: HashSet<Uuid> = input
         .home()
         .lineup()
@@ -76,7 +81,6 @@ pub async fn capture_post_match_condition(
             }
             MatchEvent::PhysicalStrainRecorded(event) => {
                 energy_by_player.insert(event.player_id(), event.energy_remaining());
-                reserve_by_player.insert(event.player_id(), event.w_prime_balance());
             }
             MatchEvent::RecoveryIntervalProcessed(event) => {
                 reserve_by_player.insert(event.player_id(), event.new_w_prime_balance());
@@ -87,6 +91,7 @@ pub async fn capture_post_match_condition(
             _ => {}
         }
     }
+    let mut condition_rows = Vec::with_capacity(participating_ids.len());
     for player_id in participating_ids {
         let condition = initial_conditions.get(&player_id).ok_or_else(|| {
             RecoveryError::InvalidData(format!("Missing initial condition for {player_id}"))
@@ -104,16 +109,16 @@ pub async fn capture_post_match_condition(
                 .unwrap_or(condition.fatigue().w_prime())
                 .clamp(0.0, 1.0),
             impulse_by_player.get(&player_id).copied().unwrap_or_else(|| {
-                condition.impulse().current().round().clamp(0.0, 100.0) as u8
+                condition.morale().current().round().clamp(0.0, 120.0) as u8
             }),
-            condition.impulse().baseline(),
+            condition.morale().baseline(),
             condition.conditioning().readiness(),
             match_year,
             match_day_of_year,
             Some(match_year),
             Some(match_day_of_year),
         );
-        player_condition::upsert(pool, &condition_row).await?;
+        condition_rows.push(condition_row);
     }
     let now_seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -121,29 +126,39 @@ pub async fn capture_post_match_condition(
         .unwrap_or(0);
     let match_date_unix_seconds =
         (match_year - 1970) * 31_557_600 + i64::from(match_day_of_year) * 86_400;
-    let tuning = RecoveryTuningProfile::default();
-    for envelope in raw_events {
+    let recovery_profiles = load_recovery_profiles(pool).await?;
+    let mut injuries = Vec::new();
+    let mut registered_injuries = HashSet::new();
+    for envelope in raw_events.iter().rev() {
         if let MatchEvent::InjuryIncidentRecorded(event) = envelope.event() {
+            if !registered_injuries.insert(event.player_id()) {
+                continue;
+            }
             let player = player_for(input, event.player_id())?;
             let age_years = calculate_player_age_years(
                 player.birthdate_unix_seconds(),
                 match_date_unix_seconds,
             );
-            let record = register_injury(
+            let (record, treatment) = register_injury(
                 Uuid::new_v4(),
                 event.injury_definition_id(),
                 event.body_region(),
                 event.severity_grade(),
                 natural_fitness(input, player)?,
                 age_years,
-                &tuning,
+                &recovery_profiles,
             )?;
+            let injury_extent = recovery_profiles
+                .get(&(record.injury_definition_id(), severity_grade_to_str(record.severity_grade()).into(), treatment.as_str().into()))
+                .and_then(|profile| profile.injury_extent.clone());
             let injury_row = PlayerInjuryHistoryRow::new(
                 record.id(),
                 event.player_id(),
                 record.injury_definition_id(),
                 body_region_to_str(record.body_region()),
                 severity_grade_to_str(record.severity_grade()),
+                injury_extent,
+                treatment.as_str(),
                 match_year,
                 match_day_of_year,
                 record.days_remaining(),
@@ -155,8 +170,33 @@ pub async fn capture_post_match_condition(
                 None,
                 now_seconds,
             );
-            player_injury_history::insert(pool, &injury_row).await?;
+            let active = player_injury_history::get_active_by_player_id(pool, event.player_id()).await?;
+            let resolved_id = if let Some(active) = active {
+                if active.status == "Observation" && active.days_remaining == 0 {
+                    Some(Uuid::parse_str(&active.id)
+                        .map_err(|error| RecoveryError::InvalidData(error.to_string()))?)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            injuries.push((resolved_id, injury_row));
         }
+    }
+    Ok(PostMatchConditionPlan { condition_rows, injuries, now_seconds })
+}
+
+pub async fn persist_post_match_condition(
+    tx: &mut Transaction<'_, Sqlite>,
+    plan: PostMatchConditionPlan,
+) -> RecoveryResult<()> {
+    player_condition::upsert_many_with_tx(tx, &plan.condition_rows).await?;
+    for (resolved_id, injury_row) in plan.injuries {
+        if let Some(id) = resolved_id {
+            player_injury_history::mark_resolved_with_tx(tx, id, plan.now_seconds).await?;
+        }
+        player_injury_history::insert_with_tx(tx, &injury_row).await?;
     }
     Ok(())
 }

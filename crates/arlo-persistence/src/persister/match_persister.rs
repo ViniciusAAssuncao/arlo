@@ -9,6 +9,7 @@ use crate::persister::player_action_stats_persister::persist_player_action_stats
 use crate::persister::player_condition_stats_persister::persist_player_condition_stats;
 use crate::persister::squad_selection_persister::persist_squad_selections;
 use crate::persister::team_stats_persister::persist_team_stats;
+use crate::persister::tactical_profile_persister::persist_activated_tactical_profiles;
 use arlo_engine::{MatchInput, MatchState};
 use arlo_match_runner::MatchRunResult;
 use sqlx::{Sqlite, Transaction};
@@ -46,6 +47,7 @@ impl MatchPersister {
         persist_team_stats(tx, match_id, &run_result.aggregators).await?;
         persist_manager_stats(tx, match_id, &run_result.aggregators).await?;
         persist_referee_stats(tx, match_id, input, &run_result.aggregators).await?;
+        persist_activated_tactical_profiles(tx, input, run_result).await?;
         persist_incident_events(tx, match_id, run_result).await?;
 
         Ok(match_id)

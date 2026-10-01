@@ -4,6 +4,8 @@ use crate::repositories::formation::formation_cache::get_or_load_formations;
 use crate::services::season::matchday::emergency_roster::ensure_minimum_roster;
 use crate::services::season::matchday::matchday_catalog_cache::MatchdayCatalogs;
 use crate::services::season::matchday::matchday_referee_selector::select_referees;
+use crate::services::season::matchday::manager_preparation::{match_variants, persist_plan, plan_tactics};
+use crate::services::season::matchday::manager_match_context::{assess, load_recent_history};
 use crate::services::season::matchday::team_lineup_resolver::resolve_team_lineup;
 use crate::services::season::matchday::team_playbook_resolver::resolve_team_playbook;
 use crate::services::season::matchday::team_profile_resolver::resolve_team_instructions;
@@ -106,7 +108,7 @@ pub async fn build_matchday_setup(
             ControllerError::NotFound(format!("Home team {} not found", home_team_id))
         })?;
 
-    let _away_team = arlo_db::repositories::team
+    let away_team = arlo_db::repositories::team
         ::get_by_id(pool, away_team_id).await
         .map_err(|e| ControllerError::InvalidData(e.to_string()))?
         .ok_or_else(|| {
@@ -129,56 +131,76 @@ pub async fn build_matchday_setup(
         &formations[0]
     ).await?;
 
+    let manager_defs = get_or_load_manager_attribute_definitions(pool).await?;
+    let home_manager = arlo_db::repositories::manager
+        ::list_by_team_id(pool, home_team_id, &manager_defs).await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+        .into_iter().next()
+        .ok_or_else(|| ControllerError::NotFound(format!("Manager for home team {} not found", home_team_id)))?;
+    let away_manager = arlo_db::repositories::manager
+        ::list_by_team_id(pool, away_team_id, &manager_defs).await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+        .into_iter().next()
+        .ok_or_else(|| ControllerError::NotFound(format!("Manager for away team {} not found", away_team_id)))?;
+
+    let mut all_player_ids = Vec::with_capacity(home_players.len() + away_players.len());
+    all_player_ids.extend(home_players.iter().map(|p| p.id()));
+    all_player_ids.extend(away_players.iter().map(|p| p.id()));
+    let initial_conditions = arlo_recovery::orchestration::match_condition_bridge
+        ::load_conditions_for_players(pool, &all_player_ids).await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+
+    let stage_type: String = sqlx::query_scalar("SELECT stage_type FROM season_stages WHERE id = ?")
+        .bind(stage_id.to_string()).fetch_one(pool).await
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let knockout = stage_type == "KnockoutBracket";
+    let home_history = load_recent_history(pool, home_team_id).await
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let away_history = load_recent_history(pool, away_team_id).await
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let home_context = assess(&home_manager, &home_team, &away_team, &home_players,
+        &away_players, &catalogs.attribute_keys_by_id, &manager_defs, fixture_id, knockout,
+        fixture.round_index, home_history);
+    let away_context = assess(&away_manager, &away_team, &home_team, &away_players,
+        &home_players, &catalogs.attribute_keys_by_id, &manager_defs, fixture_id, knockout,
+        fixture.round_index, away_history);
+
+    let home_base_profile = resolve_team_instructions(pool, home_team_id).await?;
+    let away_base_profile = resolve_team_instructions(pool, away_team_id).await?;
+    let home_identity = plan_tactics(&home_manager, home_base_profile.clone(), &away_base_profile,
+        &manager_defs, &home_context);
+    let away_identity = plan_tactics(&away_manager, away_base_profile.clone(), &home_base_profile,
+        &manager_defs, &away_context);
+    let home_plan = plan_tactics(&home_manager, home_base_profile.clone(), &away_identity,
+        &manager_defs, &home_context);
+    let away_plan = plan_tactics(&away_manager, away_base_profile.clone(), &home_identity,
+        &manager_defs, &away_context);
+
     let (home_lineup, home_formation) = resolve_team_lineup(
         pool,
         home_team_id,
         &home_players,
-        &formations
+        &formations,
+        &home_manager,
+        &catalogs.attribute_keys_by_id,
+        &initial_conditions,
+        &home_context,
     ).await?;
     let (away_lineup, away_formation) = resolve_team_lineup(
         pool,
         away_team_id,
         &away_players,
-        &formations
+        &formations,
+        &away_manager,
+        &catalogs.attribute_keys_by_id,
+        &initial_conditions,
+        &away_context,
     ).await?;
+    let home_profile = persist_plan(pool, &home_manager, &home_base_profile, home_plan).await?;
+    let away_profile = persist_plan(pool, &away_manager, &away_base_profile, away_plan).await?;
 
-    let mut all_player_ids = Vec::with_capacity(home_players.len() + away_players.len());
-    all_player_ids.extend(home_players.iter().map(|p| p.id()));
-    all_player_ids.extend(away_players.iter().map(|p| p.id()));
-
-    let initial_conditions = arlo_recovery::orchestration::match_condition_bridge
-        ::load_conditions_for_players(pool, &all_player_ids).await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
-    let manager_defs = get_or_load_manager_attribute_definitions(pool).await?;
-
-    let home_managers = arlo_db::repositories::manager
-        ::list_by_team_id(pool, home_team_id, &manager_defs).await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
-    let home_manager = home_managers
-        .into_iter()
-        .next()
-        .ok_or_else(|| {
-            ControllerError::NotFound(format!("Manager for home team {} not found", home_team_id))
-        })?;
-
-    let away_managers = arlo_db::repositories::manager
-        ::list_by_team_id(pool, away_team_id, &manager_defs).await
-        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
-    let away_manager = away_managers
-        .into_iter()
-        .next()
-        .ok_or_else(|| {
-            ControllerError::NotFound(format!("Manager for away team {} not found", away_team_id))
-        })?;
-
-    let home_profile = resolve_team_instructions(pool, home_team_id).await?;
-    let away_profile = resolve_team_instructions(pool, away_team_id).await?;
-
-    let home_playbook = resolve_team_playbook(pool, home_team_id, home_lineup.id()).await?;
-    let away_playbook = resolve_team_playbook(pool, away_team_id, away_lineup.id()).await?;
+    let home_playbook = resolve_team_playbook(pool, home_team_id, home_lineup.id(), &home_profile, &home_manager).await?;
+    let away_playbook = resolve_team_playbook(pool, away_team_id, away_lineup.id(), &away_profile, &away_manager).await?;
 
     let (head_referee, peace_referee) = select_referees(pool, seed).await?;
 
@@ -220,7 +242,8 @@ pub async fn build_matchday_setup(
         home_players,
         home_manager,
         home_profile.clone()
-    ).map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    ).and_then(|team| team.with_alternative_tactics(match_variants(&home_profile)))
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
 
     let away_input = TeamInput::new(
         away_team_id,
@@ -229,7 +252,8 @@ pub async fn build_matchday_setup(
         away_players,
         away_manager,
         away_profile.clone()
-    ).map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    ).and_then(|team| team.with_alternative_tactics(match_variants(&away_profile)))
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
 
     let mut player_attribute_definitions: Vec<_> = catalogs.attribute_definitions_by_id
         .values()
@@ -237,6 +261,15 @@ pub async fn build_matchday_setup(
         .cloned()
         .collect();
     player_attribute_definitions.sort_by_key(|definition| definition.id());
+    let manager_attribute_keys = Arc::new(manager_defs.iter()
+        .map(|(id, definition)| (*id, definition.key()))
+        .collect());
+    let player_start_energy = initial_conditions.iter()
+        .map(|(id, condition)| (*id, condition.fatigue().energy()))
+        .collect();
+    let player_start_morale = initial_conditions.iter()
+        .map(|(id, condition)| (*id, condition.morale().current()))
+        .collect();
     let input = MatchInput::new(
         Uuid::new_v4(),
         home_input,
@@ -244,9 +277,15 @@ pub async fn build_matchday_setup(
         format_rules,
         pitch,
         vec![head_referee, peace_referee],
+        catalogs.attribute_keys_by_id.clone(),
+        catalogs.fault_catalog.clone(),
+        catalogs.injury_catalog.clone(),
         player_attribute_definitions,
         seed
-    ).map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    ).map_err(|error| ControllerError::InvalidData(error.to_string()))?
+        .with_manager_decision_context(manager_attribute_keys, player_start_energy)
+        .and_then(|input| input.with_player_start_morale(player_start_morale))
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
 
     let persistence_context = MatchPersistenceContext::new(
         home_lineup.id(),

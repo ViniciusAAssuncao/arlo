@@ -13,10 +13,10 @@ pub struct RecoveryTuningProfile {
     pub anaerobic_base_daily_recovery: f64,
     pub anaerobic_natural_fitness_weight: f64,
 
-    pub impulse_base_daily_reversion_rate: f64,
-    pub impulse_determination_weight: f64,
-    pub impulse_composure_weight: f64,
-    pub impulse_consistency_weight: f64,
+    pub morale_base_daily_reversion_rate: f64,
+    pub morale_determination_weight: f64,
+    pub morale_composure_weight: f64,
+    pub morale_consistency_weight: f64,
 
     pub conditioning_daily_gain_active: f64,
     pub conditioning_daily_loss_inactive: f64,
@@ -52,6 +52,7 @@ pub struct RecoveryTuningProfile {
     pub relapse_grade_1_multiplier: f64,
     pub relapse_grade_2_multiplier: f64,
     pub relapse_grade_3_multiplier: f64,
+    pub outside_match_daily_incident_probability: f64,
 }
 
 impl Default for RecoveryTuningProfile {
@@ -67,10 +68,10 @@ impl Default for RecoveryTuningProfile {
             anaerobic_base_daily_recovery: 0.85,
             anaerobic_natural_fitness_weight: 0.2,
 
-            impulse_base_daily_reversion_rate: 0.3,
-            impulse_determination_weight: 0.2,
-            impulse_composure_weight: 0.25,
-            impulse_consistency_weight: 0.35,
+            morale_base_daily_reversion_rate: 0.2,
+            morale_determination_weight: 0.2,
+            morale_composure_weight: 0.25,
+            morale_consistency_weight: 0.35,
 
             conditioning_daily_gain_active: 0.035,
             conditioning_daily_loss_inactive: 0.015,
@@ -106,6 +107,7 @@ impl Default for RecoveryTuningProfile {
             relapse_grade_1_multiplier: 0.8,
             relapse_grade_2_multiplier: 1.8,
             relapse_grade_3_multiplier: 3.5,
+            outside_match_daily_incident_probability: 0.00025,
         }
     }
 }

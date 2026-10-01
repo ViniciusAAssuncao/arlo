@@ -201,10 +201,7 @@ pub async fn build_team_roster(
                 .get(&pid)
                 .map(|p| p.end_energy_level)
                 .unwrap_or(1.0);
-            let m = latest_impulse_map
-                .get(&pid)
-                .map(|i| i.current_value as f64)
-                .unwrap_or(50.0);
+            let m = 100.0;
             (c, m, 0.5)
         };
 

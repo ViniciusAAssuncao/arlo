@@ -70,8 +70,13 @@ impl MatchFoulRow {
         event: &FoulRaised,
     ) -> Self {
         let origin_str = match event.origin() {
+            FoulOrigin::Lineup => "Lineup".to_string(),
             FoulOrigin::ContactDuel(kind) => format!("ContactDuel:{}", kind.as_str()),
             FoulOrigin::LineFault => "LineFault".to_string(),
+            FoulOrigin::CallToAction => "CallToAction".to_string(),
+            FoulOrigin::Drive => "Drive".to_string(),
+            FoulOrigin::ShotAttempt => "ShotAttempt".to_string(),
+            FoulOrigin::OutOfBounds => "OutOfBounds".to_string(),
         };
 
         let punishment_kind_str = event.punishment_kind().map(|k| match k {

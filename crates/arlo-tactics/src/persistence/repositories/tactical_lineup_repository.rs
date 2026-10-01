@@ -77,6 +77,19 @@ pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> TacticsResult<Option<Tact
     Ok(Some(row.to_domain(assignments)?))
 }
 
+pub async fn get_latest_by_team_id(
+    pool: &SqlitePool,
+    team_id: Uuid,
+) -> TacticsResult<Option<TacticalLineup>> {
+    let id = sqlx::query_scalar::<_, String>(
+        "SELECT id FROM tactical_lineups WHERE team_id = ? ORDER BY created_at_unix_seconds DESC, rowid DESC LIMIT 1",
+    ).bind(team_id.to_string()).fetch_optional(pool).await?;
+    match id {
+        Some(id) => get_by_id(pool, Uuid::parse_str(&id)?).await,
+        None => Ok(None),
+    }
+}
+
 pub async fn list_by_team_id(
     pool: &SqlitePool,
     team_id: Uuid,

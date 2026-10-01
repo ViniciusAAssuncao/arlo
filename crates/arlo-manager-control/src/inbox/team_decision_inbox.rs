@@ -1,5 +1,5 @@
 use crate::intents::{
-    ChallengeIntent, ForcedSubstitutionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
+    ChallengeIntent, ForcedSubstitutionIntent, InjuryDecisionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
     PlayCallIntent, SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
 };
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct TeamDecisionInbox {
     substitutions: Vec<SubstitutionIntent>,
     forced_substitutions: Vec<ForcedSubstitutionIntent>,
+    injury_decisions: Vec<InjuryDecisionIntent>,
     time_call: Option<TimeCallIntent>,
     challenge: Option<ChallengeIntent>,
     tactical_switch: Option<TacticalSwitchIntent>,
@@ -30,14 +31,31 @@ impl TeamDecisionInbox {
     }
 
     pub fn submit_forced_substitution(&mut self, intent: ForcedSubstitutionIntent) {
+        self.forced_substitutions.retain(|existing| existing.outgoing_player_id() != intent.outgoing_player_id());
         self.forced_substitutions.push(intent);
+    }
+
+    pub fn submit_injury_decision(&mut self, intent: InjuryDecisionIntent) {
+        self.injury_decisions.retain(|existing| existing.injured_player_id() != intent.injured_player_id());
+        self.injury_decisions.push(intent);
+    }
+
+    pub fn take_injury_decision(&mut self, player_id: uuid::Uuid) -> Option<InjuryDecisionIntent> {
+        let index = self.injury_decisions.iter().position(|intent| intent.injured_player_id() == player_id)?;
+        Some(self.injury_decisions.remove(index))
+    }
+
+    pub fn injury_decision(&self, player_id: uuid::Uuid) -> Option<InjuryDecisionIntent> {
+        self.injury_decisions.iter().find(|intent| intent.injured_player_id() == player_id).copied()
     }
 
     pub fn submit_forced_substitutions(
         &mut self,
         intents: impl IntoIterator<Item = ForcedSubstitutionIntent>,
     ) {
-        self.forced_substitutions.extend(intents);
+        for intent in intents {
+            self.submit_forced_substitution(intent);
+        }
     }
 
     pub fn submit_time_call(&mut self, intent: TimeCallIntent) {
@@ -70,6 +88,15 @@ impl TeamDecisionInbox {
 
     pub fn take_forced_substitutions(&mut self) -> Vec<ForcedSubstitutionIntent> {
         std::mem::take(&mut self.forced_substitutions)
+    }
+
+    pub fn forced_substitution(&self, player_id: uuid::Uuid) -> Option<ForcedSubstitutionIntent> {
+        self.forced_substitutions.iter().find(|intent| intent.outgoing_player_id() == player_id).copied()
+    }
+
+    pub fn take_forced_substitution(&mut self, player_id: uuid::Uuid) -> Option<ForcedSubstitutionIntent> {
+        let index = self.forced_substitutions.iter().position(|intent| intent.outgoing_player_id() == player_id)?;
+        Some(self.forced_substitutions.remove(index))
     }
 
     pub fn take_time_call(&mut self) -> Option<TimeCallIntent> {
@@ -131,6 +158,7 @@ impl TeamDecisionInbox {
     pub fn clear(&mut self) {
         self.substitutions.clear();
         self.forced_substitutions.clear();
+        self.injury_decisions.clear();
         self.time_call = None;
         self.challenge = None;
         self.tactical_switch = None;

@@ -101,6 +101,8 @@ pub async fn build_team_stats(
     Ok(MatchTeamStatsDto {
         home_possession,
         away_possession,
+        home_morale: home_imp.clone(),
+        away_morale: away_imp.clone(),
         home_impulse: home_imp,
         away_impulse: away_imp,
     })

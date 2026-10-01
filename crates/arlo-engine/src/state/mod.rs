@@ -1,6 +1,7 @@
 mod clock;
 mod drive;
 mod match_state;
+mod pending_injury_decision;
 mod phase;
 mod possession;
 mod score;
@@ -10,6 +11,7 @@ mod team;
 pub use clock::ClockState;
 pub use drive::DriveProgress;
 pub use match_state::MatchState;
+pub use pending_injury_decision::PendingInjuryDecision;
 pub(crate) use match_state::PendingCallOutcome;
 pub use phase::MatchPhase;
 pub use possession::PossessionState;

@@ -26,6 +26,8 @@ pub struct PlayerMatchTelemetryDto {
     pub fouls: PlayerFoulStatsDto,
     pub kick_fouls: PlayerKickFoulStatsDto,
     pub impulse: Option<PlayerMatchImpulseDto>,
+    #[serde(default)]
+    pub morale: Option<PlayerMatchImpulseDto>,
     pub physical: Option<PlayerMatchPhysicalDto>,
     pub availability: PlayerMatchAvailabilityDto,
     pub injuries: PlayerMatchInjuryDto,

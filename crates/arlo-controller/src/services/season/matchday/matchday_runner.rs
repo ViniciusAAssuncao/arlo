@@ -1,9 +1,10 @@
 use crate::error::{ControllerError, ControllerResult};
 use arlo_engine::{MatchInput, MatchState};
-use arlo_match_runner::{run_match_with_registry, MatchRunResult};
+use arlo_match_runner::{run_match_with_registry_and_play_calls, MatchRunResult};
 use arlo_persistence::models::season::FixtureRow;
 use arlo_persistence::persister::{MatchPersistenceContext, MatchPersister};
 use arlo_stats::AggregatorRegistry;
+use arlo_tactics::PlayCall;
 use arlo_recovery::PlayerCondition;
 use sqlx::{Sqlite, Transaction};
 use std::collections::HashMap;
@@ -24,13 +25,15 @@ pub fn simulate_match(
     fixture_row: FixtureRow,
     stage_id: Uuid,
     initial_conditions: HashMap<Uuid, PlayerCondition>,
+    play_calls: Vec<PlayCall>,
 ) -> ControllerResult<CompletedMatchSimulation> {
     let mut state = MatchState::new(&input);
     let registry = AggregatorRegistry::with_default_aggregators();
-    let run_result = run_match_with_registry(
+    let run_result = run_match_with_registry_and_play_calls(
         &input,
         &mut state,
         registry,
+        &play_calls,
         arlo_match_runner::DEFAULT_MAX_SEGMENTS,
     )
     .map_err(|e| ControllerError::InvalidData(e.to_string()))?;

@@ -74,7 +74,7 @@ pub(super) fn sample_regular_shot(
 ) -> EngineResult<Option<ShotSample>> {
     let emphasis = selected_play_call
         .map(|call| *call.decision_emphasis())
-        .unwrap_or_else(|| offense.tactics().instructions().default_decision_emphasis());
+        .unwrap_or_else(|| ratings.instructions(offense).default_decision_emphasis());
     let finishing = ratings.player_value(offense, shooter_id, AttributeKey::Finishing)?;
     let composure = ratings.player_value(offense, shooter_id, AttributeKey::Composure)?;
     let anticipation = ratings.player_value(offense, shooter_id, AttributeKey::Anticipation)?;
@@ -82,9 +82,7 @@ pub(super) fn sample_regular_shot(
         ((0.50 * finishing + 0.30 * composure + 0.20 * anticipation - 10.0) / 10.0)
             .clamp(-0.8, 1.0);
     let proximity = 1.0 - (distance_to_goal_mirim / pitch_length_mirim).clamp(0.0, 1.0);
-    let patience = offense
-        .tactics()
-        .instructions()
+    let patience = ratings.instructions(offense)
         .in_possession()
         .scoring_patience()
         .value();
@@ -154,5 +152,5 @@ pub(super) fn conversion_probability(
                 - distance_ratio * DISTANCE_CONVERSION_WEIGHT
         }
     };
-    Ok(probability.clamp(MIN_SHOT_CONVERSION, MAX_SHOT_CONVERSION))
+    Ok(ratings.reliable_probability(shooter_id, probability.clamp(MIN_SHOT_CONVERSION, MAX_SHOT_CONVERSION), MAX_SHOT_CONVERSION))
 }

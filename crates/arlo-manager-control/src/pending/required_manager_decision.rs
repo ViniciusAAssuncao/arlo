@@ -14,6 +14,10 @@ pub enum RequiredManagerDecision {
         team_id: Uuid,
         outgoing_player_ids: Vec<Uuid>,
     },
+    InjuryResponse {
+        team_id: Uuid,
+        injured_player_id: Uuid,
+    },
 }
 
 impl RequiredManagerDecision {
@@ -22,6 +26,7 @@ impl RequiredManagerDecision {
             Self::PlayCall { team_id } => *team_id,
             Self::KickFoulDecision { team_id } => *team_id,
             Self::ForcedSubstitution { team_id, .. } => *team_id,
+            Self::InjuryResponse { team_id, .. } => *team_id,
         }
     }
 
@@ -30,6 +35,7 @@ impl RequiredManagerDecision {
             Self::PlayCall { .. } => ManagerDecisionCategory::PlayCall,
             Self::KickFoulDecision { .. } => ManagerDecisionCategory::KickFoulDecision,
             Self::ForcedSubstitution { .. } => ManagerDecisionCategory::ForcedSubstitution,
+            Self::InjuryResponse { .. } => ManagerDecisionCategory::InjuryResponse,
         }
     }
 }

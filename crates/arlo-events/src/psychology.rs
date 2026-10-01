@@ -3,6 +3,8 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ImpulseEventKind {
+    MentalFatigue,
+    InjurySetback,
     DuelWon,
     DuelLost,
     ScoreFor,
@@ -21,6 +23,8 @@ pub enum ImpulseEventKind {
 impl ImpulseEventKind {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::MentalFatigue => "MentalFatigue",
+            Self::InjurySetback => "InjurySetback",
             Self::DuelWon => "DuelWon",
             Self::DuelLost => "DuelLost",
             Self::ScoreFor => "ScoreFor",

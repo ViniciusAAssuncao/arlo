@@ -2,9 +2,10 @@ use crate::error::{ControllerError, ControllerResult};
 use arlo_domain::{
     AttributeDefinition, AttributeKey, FaultCatalog, FaultPunishmentOption, InjuryCatalog,
     InjuryDefinition,
+    InjurySeverityGrade,
 };
-use sqlx::SqlitePool;
-use std::collections::HashMap;
+use sqlx::{Row, SqlitePool};
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -45,13 +46,93 @@ pub async fn get_or_load_matchday_catalogs(
         all_options.extend(options);
     }
 
-    let fault_catalog = Arc::new(FaultCatalog::new(fault_defs, all_options));
+    let activations = arlo_db::repositories::fault_activation::list_all(pool)
+        .await
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
+    let fault_catalog = Arc::new(FaultCatalog::new(fault_defs, all_options).with_activations(activations));
+
+    arlo_db::repositories::injury_definition::validate_recovery_profile_coverage(pool)
+        .await
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
 
     let injury_defs: Vec<InjuryDefinition> =
-        arlo_db::repositories::injury_definition::list_all(pool)
+        arlo_db::repositories::injury_definition::list_match_eligible(pool)
             .await
             .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-    let injury_catalog = Arc::new(InjuryCatalog::new(injury_defs));
+    let withdrawal_rows = sqlx::query(
+        "SELECT injury_definition_id, severity_grade FROM injury_recovery_profiles GROUP BY injury_definition_id, severity_grade HAVING MIN(mandatory_withdrawal) = 1",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let mut withdrawal_rules = HashSet::new();
+    for row in withdrawal_rows {
+        let id: String = row.try_get("injury_definition_id")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade: String = row.try_get("severity_grade")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade = match grade.as_str() {
+            "Grade1" => InjurySeverityGrade::Grade1,
+            "Grade2" => InjurySeverityGrade::Grade2,
+            "Grade3" => InjurySeverityGrade::Grade3,
+            _ => return Err(ControllerError::InvalidData(format!("Invalid injury grade {grade}"))),
+        };
+        withdrawal_rules.insert((Uuid::parse_str(&id).map_err(|error| ControllerError::InvalidData(error.to_string()))?, grade));
+    }
+    let recovery_rows = sqlx::query(
+        "SELECT injury_definition_id, severity_grade, AVG(typical_days) AS typical_days FROM injury_recovery_profiles GROUP BY injury_definition_id, severity_grade",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let mut expected_recovery_days = HashMap::with_capacity(recovery_rows.len());
+    for row in recovery_rows {
+        let id: String = row.try_get("injury_definition_id")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade: String = row.try_get("severity_grade")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade = match grade.as_str() {
+            "Grade1" => InjurySeverityGrade::Grade1,
+            "Grade2" => InjurySeverityGrade::Grade2,
+            "Grade3" => InjurySeverityGrade::Grade3,
+            _ => return Err(ControllerError::InvalidData(format!("Invalid injury grade {grade}"))),
+        };
+        let days: f64 = row.try_get("typical_days")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        expected_recovery_days.insert(
+            (Uuid::parse_str(&id).map_err(|error| ControllerError::InvalidData(error.to_string()))?, grade),
+            days,
+        );
+    }
+    let grade_rows = sqlx::query(
+        "SELECT injury_definition_id, minimum_grade FROM match_injury_grade_floors",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let mut minimum_grades = HashMap::with_capacity(grade_rows.len());
+    for row in grade_rows {
+        let id: String = row.try_get("injury_definition_id")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade: String = row.try_get("minimum_grade")
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+        let grade = match grade.as_str() {
+            "Grade1" => InjurySeverityGrade::Grade1,
+            "Grade2" => InjurySeverityGrade::Grade2,
+            "Grade3" => InjurySeverityGrade::Grade3,
+            _ => return Err(ControllerError::InvalidData(format!("Invalid injury grade {grade}"))),
+        };
+        minimum_grades.insert(
+            Uuid::parse_str(&id).map_err(|error| ControllerError::InvalidData(error.to_string()))?,
+            grade,
+        );
+    }
+    let injury_catalog = Arc::new(
+        InjuryCatalog::new(injury_defs)
+            .with_mandatory_withdrawals(withdrawal_rules)
+            .with_minimum_grades(minimum_grades)
+            .with_expected_recovery_days(expected_recovery_days),
+    );
 
     let attr_defs = arlo_db::repositories::attribute_definition::list_all(pool)
         .await

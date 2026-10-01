@@ -141,7 +141,8 @@ impl MatchState {
         }
         let position = self.possession.ball_position_mirim();
         let result = self.resolve_out(requesting_team_id, position)?;
-        self.team_mut(requesting_team_id)?.record_time_call();
+        let elapsed = self.clock.total_elapsed_seconds();
+        self.team_mut(requesting_team_id)?.record_time_call(elapsed);
         Ok((result, time_calls_per_period - used - 1))
     }
 
@@ -182,6 +183,7 @@ impl MatchState {
                 .award_next_call(next_team_id, end_mirim, self.pitch_length_mirim)?;
         self.series = series;
         self.possession = possession;
+        self.apply_deferred_series_penalties()?;
         if matches!(result, SeriesOut::NewSeries | SeriesOut::TurnoverOnDowns) {
             self.team_mut(next_team_id)?.reset_series_drives();
         }

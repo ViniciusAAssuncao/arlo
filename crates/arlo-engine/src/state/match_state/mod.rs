@@ -1,14 +1,24 @@
 mod live;
+mod injury;
+mod energy;
+mod morale;
+mod manager;
+mod officiating;
 mod period;
 mod scoring;
 
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
-use crate::state::{ClockState, MatchPhase, PossessionState, SeriesState, TeamState};
+use crate::state::{ClockState, MatchPhase, PendingInjuryDecision, PossessionState, SeriesState, TeamState};
 use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
+use arlo_events::RefereeDecisionResolved;
+use arlo_events::PlayerAvailabilityChanged;
+use arlo_domain::{InjurySeverityGrade, PunishmentKind};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use uuid::Uuid;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy)]
 struct SuspendedRestart {
@@ -36,9 +46,25 @@ pub struct MatchState {
     series: SeriesState,
     suspended_restart: Option<SuspendedRestart>,
     pending_call_outcome: Option<PendingCallOutcome>,
+    pending_referee_decisions: Vec<RefereeDecisionResolved>,
+    play_checkpoint: Option<Arc<MatchState>>,
+    initial_lineup_reviewed: bool,
+    pending_availability_events: Vec<PlayerAvailabilityChanged>,
+    pending_injury_decisions: Vec<PendingInjuryDecision>,
+    injury_decisions_ready: bool,
+    pending_forced_substitutions: Vec<(Uuid, Uuid)>,
+    deferred_series_penalties: Vec<(Uuid, PunishmentKind, i32)>,
     pitch_length_mirim: f64,
     next_event_sequence: u64,
     rng: ChaCha8Rng,
+    energy: HashMap<Uuid, f64>,
+    energy_profiles: Arc<HashMap<Uuid, energy::EnergyProfile>>,
+    energy_participants: HashSet<Uuid>,
+    morale: HashMap<Uuid, f64>,
+    morale_resilience: Arc<HashMap<Uuid, f64>>,
+    recent_scores: Vec<(f64, Uuid, u32)>,
+    injuries: HashMap<Uuid, (Uuid, InjurySeverityGrade)>,
+    entered_at: HashMap<Uuid, f64>,
 }
 
 impl MatchState {
@@ -58,9 +84,29 @@ impl MatchState {
                 .expect("validated pitch has a midfield"),
             suspended_restart: None,
             pending_call_outcome: None,
+            pending_referee_decisions: Vec::new(),
+            play_checkpoint: None,
+            initial_lineup_reviewed: false,
+            pending_availability_events: Vec::new(),
+            pending_injury_decisions: Vec::new(),
+            injury_decisions_ready: false,
+            pending_forced_substitutions: Vec::new(),
+            deferred_series_penalties: Vec::new(),
             pitch_length_mirim,
             next_event_sequence: 1,
             rng: ChaCha8Rng::seed_from_u64(input.seed()),
+            energy: input.home().roster().iter().chain(input.away().roster().iter())
+                .map(|player| (player.id(), input.player_start_energy(player.id()))).collect(),
+            energy_profiles: Arc::new(energy::initial_profiles(input)),
+            energy_participants: input.home().lineup().assignments().iter()
+                .chain(input.away().lineup().assignments().iter())
+                .map(|assignment| assignment.player_id()).collect(),
+            morale: input.home().roster().iter().chain(input.away().roster().iter())
+                .map(|player| (player.id(), input.player_start_morale(player.id()))).collect(),
+            morale_resilience: Arc::new(morale::initial_resilience(input)),
+            recent_scores: Vec::new(),
+            injuries: HashMap::new(),
+            entered_at: HashMap::new(),
         }
     }
 
@@ -103,6 +149,36 @@ impl MatchState {
     }
     pub fn next_event_sequence(&self) -> u64 {
         self.next_event_sequence
+    }
+
+    pub(crate) fn begin_play_checkpoint(&mut self) {
+        if self.play_checkpoint.is_none() {
+            self.play_checkpoint = Some(Arc::new(self.clone()));
+        }
+    }
+
+    pub(crate) fn clear_play_checkpoint(&mut self) {
+        self.play_checkpoint = None;
+    }
+
+    pub(crate) fn initial_lineup_reviewed(&self) -> bool {
+        self.initial_lineup_reviewed
+    }
+
+    pub(crate) fn mark_initial_lineup_reviewed(&mut self) {
+        self.initial_lineup_reviewed = true;
+    }
+
+    pub fn pending_injury_decisions(&self) -> &[PendingInjuryDecision] {
+        &self.pending_injury_decisions
+    }
+
+    pub fn injury_decisions_ready(&self) -> bool {
+        self.injury_decisions_ready
+    }
+
+    pub fn pending_forced_substitutions(&self) -> &[(Uuid, Uuid)] {
+        &self.pending_forced_substitutions
     }
 
     pub(crate) fn rng_mut(&mut self) -> &mut ChaCha8Rng {

@@ -1,6 +1,6 @@
 use crate::aggregator::StatAggregator;
 use crate::snapshot::{IntoSnapshot, PlayerReceivingSnapshot};
-use arlo_events::{DuelKind, MatchEvent};
+use arlo_events::MatchEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -117,8 +117,6 @@ impl IntoSnapshot for PlayerReceivingStats {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 struct PendingReception {
     receiver_id: Uuid,
-    had_rac_duel: bool,
-    rac_duel_won: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -206,6 +204,7 @@ impl StatAggregator for PlayerReceivingAggregator {
                 self.finalize_pending();
             }
             MatchEvent::PassCompleted(e) => {
+                self.finalize_pending();
                 let stats = self.get_mut_or_create(e.receiver_id());
                 stats.targets += 1;
                 stats.receptions += 1;
@@ -213,6 +212,9 @@ impl StatAggregator for PlayerReceivingAggregator {
                 if e.distance_mirim() > stats.longest_reception_mirim {
                     stats.longest_reception_mirim = e.distance_mirim();
                 }
+                self.current_reception = Some(PendingReception {
+                    receiver_id: e.receiver_id(),
+                });
             }
             MatchEvent::DistributionCompleted(e) => {
                 self.finalize_pending();
@@ -226,8 +228,6 @@ impl StatAggregator for PlayerReceivingAggregator {
                     }
                     self.current_reception = Some(PendingReception {
                         receiver_id: e.receiver_id(),
-                        had_rac_duel: false,
-                        rac_duel_won: false,
                     });
                 } else {
                     stats.drops += 1;
@@ -236,29 +236,28 @@ impl StatAggregator for PlayerReceivingAggregator {
             }
             MatchEvent::ReceptionResolved(e) => {
                 if !e.caught() {
+                    self.finalize_pending();
                     self.get_mut_or_create(e.receiver_id()).targets += 1;
                 }
             }
-            MatchEvent::DuelResolved(e) => {
-                if let Some(pending) = &mut self.current_reception {
-                    if e.kind() == DuelKind::RunBreakthrough {
-                        pending.had_rac_duel = true;
-                        if e.attacker_won() {
-                            pending.rac_duel_won = true;
-                        }
+            MatchEvent::CarryResolved(e) => {
+                if let Some(pending) = &self.current_reception {
+                    if pending.receiver_id == e.carrier_id() {
+                        self.get_mut_or_create(e.carrier_id()).run_after_catch_mirins +=
+                            e.gain_mirim().max(0.0);
+                    } else {
+                        self.finalize_pending();
                     }
                 }
             }
-            MatchEvent::DownAdvanced(e) => {
-                if let Some(pending) = self.current_reception.take() {
-                    if pending.had_rac_duel && pending.rac_duel_won {
-                        let mirins = e.mirins_advanced_this_down();
-                        let stats = self.get_mut_or_create(pending.receiver_id);
-                        let rac = mirins.max(0.0);
-                        stats.run_after_catch_mirins += rac;
-                    }
-                }
-            }
+            MatchEvent::DownAdvanced(_)
+            | MatchEvent::Turnover(_)
+            | MatchEvent::OutOfBounds(_)
+            | MatchEvent::GoalPoint(_)
+            | MatchEvent::FieldPoint(_)
+            | MatchEvent::FieldGoal(_)
+            | MatchEvent::ScoringAttemptMissed(_)
+            | MatchEvent::TimeCallUsed(_) => self.finalize_pending(),
             _ => {}
         }
     }

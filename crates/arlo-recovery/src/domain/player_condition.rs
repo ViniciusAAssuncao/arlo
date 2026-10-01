@@ -1,6 +1,6 @@
 use crate::domain::conditioning_profile::ConditioningProfile;
 use crate::domain::fatigue_condition::FatigueCondition;
-use crate::domain::impulse_condition::ImpulseCondition;
+use crate::domain::morale_condition::MoraleCondition;
 use crate::domain::injury_record::InjuryRecord;
 use crate::domain::injury_status_kind::InjuryStatusKind;
 use arlo_domain::domain::invariant_violation::InvariantViolation;
@@ -12,7 +12,8 @@ use uuid::Uuid;
 pub struct PlayerCondition {
     player_id: Uuid,
     fatigue: FatigueCondition,
-    impulse: ImpulseCondition,
+    #[serde(alias = "impulse")]
+    morale: MoraleCondition,
     conditioning: ConditioningProfile,
     active_injury: Option<InjuryRecord>,
     last_update_year: u32,
@@ -25,7 +26,7 @@ impl PlayerCondition {
     pub fn new(
         player_id: Uuid,
         fatigue: FatigueCondition,
-        impulse: ImpulseCondition,
+        morale: MoraleCondition,
         conditioning: ConditioningProfile,
         active_injury: Option<InjuryRecord>,
         last_update_year: u32,
@@ -46,7 +47,7 @@ impl PlayerCondition {
         Ok(Self {
             player_id,
             fatigue,
-            impulse,
+            morale,
             conditioning,
             active_injury,
             last_update_year,
@@ -64,8 +65,12 @@ impl PlayerCondition {
         &self.fatigue
     }
 
-    pub fn impulse(&self) -> &ImpulseCondition {
-        &self.impulse
+    pub fn morale(&self) -> &MoraleCondition {
+        &self.morale
+    }
+
+    pub fn impulse(&self) -> &MoraleCondition {
+        &self.morale
     }
 
     pub fn conditioning(&self) -> &ConditioningProfile {

@@ -1,9 +1,9 @@
 use crate::error::{TacticsError, TacticsResult};
 use crate::instructions::player::MarkingAssignment;
-use crate::lineup::special_role_rules::{is_role_eligible_for_position, max_concurrent_count};
+use crate::lineup::special_role_rules::is_role_eligible_for_position;
 use crate::lineup::tactical_lineup::TacticalLineup;
 use arlo_domain::{Formation, Player, SlotRole};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 pub fn validate_tactical_lineup(
     lineup: &TacticalLineup,
@@ -38,22 +38,6 @@ pub fn validate_tactical_lineup(
                     assignment.player_id()
                 ))
             })?;
-    }
-
-    let mut role_counts: HashMap<SlotRole, u32> = HashMap::new();
-    for assignment in lineup.assignments() {
-        *role_counts.entry(assignment.slot_role()).or_insert(0) += 1;
-    }
-
-    for (&role, &count) in &role_counts {
-        if let Some(max) = max_concurrent_count(role) {
-            if count > max {
-                return Err(TacticsError::InvalidLineup(format!(
-                    "Role {:?} exceeds maximum concurrent count of {} (found {})",
-                    role, max, count
-                )));
-            }
-        }
     }
 
     for assignment in lineup.assignments() {

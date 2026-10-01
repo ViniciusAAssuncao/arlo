@@ -73,6 +73,28 @@ pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> TacticsResult<
     )
     .await?;
 
+    load_many(pool, rows).await
+}
+
+pub async fn list_by_lineup_id(pool: &SqlitePool, lineup_id: Uuid) -> TacticsResult<Vec<PlayCall>> {
+    let rows = fetch_all_by_param::<PlayCallRow>(
+        pool,
+        "SELECT id, team_id, tactical_lineup_id, name, category, counter_play_id, created_at_unix_seconds FROM play_calls WHERE tactical_lineup_id = ? ORDER BY created_at_unix_seconds ASC",
+        &lineup_id.to_string(),
+    ).await?;
+    load_many(pool, rows).await
+}
+
+pub async fn list_authored_by_lineup_id(pool: &SqlitePool, lineup_id: Uuid) -> TacticsResult<Vec<PlayCall>> {
+    let rows = fetch_all_by_param::<PlayCallRow>(
+        pool,
+        "SELECT id, team_id, tactical_lineup_id, name, category, counter_play_id, created_at_unix_seconds FROM play_calls WHERE tactical_lineup_id = ? AND ai_generated = 0 AND name <> 'Jogada Padrão' ORDER BY created_at_unix_seconds ASC",
+        &lineup_id.to_string(),
+    ).await?;
+    load_many(pool, rows).await
+}
+
+async fn load_many(pool: &SqlitePool, rows: Vec<PlayCallRow>) -> TacticsResult<Vec<PlayCall>> {
     let mut results = Vec::with_capacity(rows.len());
     for row in rows {
         let situational_rows = sqlx::query_as::<_, PlayCallSituationalParameterRow>(
@@ -115,6 +137,14 @@ pub async fn list_by_team_id(pool: &SqlitePool, team_id: Uuid) -> TacticsResult<
 }
 
 pub async fn insert(pool: &SqlitePool, play_call: &PlayCall) -> TacticsResult<()> {
+    insert_with_origin(pool, play_call, false).await
+}
+
+pub async fn insert_generated(pool: &SqlitePool, play_call: &PlayCall) -> TacticsResult<()> {
+    insert_with_origin(pool, play_call, true).await
+}
+
+async fn insert_with_origin(pool: &SqlitePool, play_call: &PlayCall, ai_generated: bool) -> TacticsResult<()> {
     let mut tx = pool.begin().await?;
 
     if let Some(counter_play_id) = play_call.counter_play_id() {
@@ -152,7 +182,7 @@ pub async fn insert(pool: &SqlitePool, play_call: &PlayCall) -> TacticsResult<()
     let counter_play_str = play_call.counter_play_id().map(|id| id.to_string());
 
     sqlx::query(
-        "INSERT INTO play_calls (id, team_id, tactical_lineup_id, name, category, counter_play_id, created_at_unix_seconds) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO play_calls (id, team_id, tactical_lineup_id, name, category, counter_play_id, created_at_unix_seconds, ai_generated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(play_call.id().to_string())
     .bind(play_call.team_id().to_string())
@@ -161,6 +191,7 @@ pub async fn insert(pool: &SqlitePool, play_call: &PlayCall) -> TacticsResult<()
     .bind(category_code)
     .bind(counter_play_str)
     .bind(timestamp)
+    .bind(ai_generated)
     .execute(&mut *tx)
     .await?;
 

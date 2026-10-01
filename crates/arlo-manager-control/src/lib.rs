@@ -7,7 +7,7 @@ pub use arlo_domain::ManagerControlMode;
 pub use decision_category::ManagerDecisionCategory;
 pub use inbox::{ManagerDecisionInbox, TeamDecisionInbox};
 pub use intents::{
-    ChallengeIntent, ForcedSubstitutionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
+    ChallengeIntent, ForcedSubstitutionIntent, InjuryDecisionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
     PlayCallIntent, SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
 };
 pub use pending::RequiredManagerDecision;
