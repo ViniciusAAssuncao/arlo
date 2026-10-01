@@ -1,6 +1,6 @@
 use crate::error::{PersistenceError, PersistenceResult};
-use crate::models::MatchPlayerPerformanceRow;
-use crate::repositories::match_player_performance;
+use crate::models::{MatchPlayerPerformanceCategoryRow, MatchPlayerPerformanceRow};
+use crate::repositories::{match_player_performance, match_player_performance_category};
 use arlo_analytics::PlayerPerformanceAggregator;
 use arlo_stats::AggregatorRegistry;
 use sqlx::{Sqlite, Transaction};
@@ -23,11 +23,31 @@ pub async fn persist_player_performance(
         ));
     }
 
-    let rows: Vec<_> = aggregator
-        .all_player_snapshots()
+    let snapshots = aggregator.all_player_snapshots();
+
+    let rows: Vec<_> = snapshots
         .iter()
         .map(|snapshot| MatchPlayerPerformanceRow::from_snapshot(Uuid::new_v4(), match_id, snapshot))
         .collect();
 
-    match_player_performance::insert_batch(tx, &rows).await
+    let category_rows: Vec<_> = snapshots
+        .iter()
+        .flat_map(|snapshot| {
+            snapshot
+                .diagnostics()
+                .category_contributions()
+                .iter()
+                .map(move |contribution| {
+                    MatchPlayerPerformanceCategoryRow::from_contribution(
+                        Uuid::new_v4(),
+                        match_id,
+                        snapshot,
+                        contribution,
+                    )
+                })
+        })
+        .collect();
+
+    match_player_performance::insert_batch(tx, &rows).await?;
+    match_player_performance_category::insert_batch(tx, &category_rows).await
 }
