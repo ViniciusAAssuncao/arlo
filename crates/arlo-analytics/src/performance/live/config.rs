@@ -1,3 +1,4 @@
+use crate::performance::rating::OutcomeAdjustmentPolicy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -10,6 +11,7 @@ pub struct LiveRatingConfig {
     confidence_shrinkage_weight: f64,
     shrinkage_prior_opportunities: f64,
     record_snapshots_automatically: bool,
+    outcome_policy: OutcomeAdjustmentPolicy,
 }
 
 impl Default for LiveRatingConfig {
@@ -23,6 +25,7 @@ impl Default for LiveRatingConfig {
             confidence_shrinkage_weight: 0.0,
             shrinkage_prior_opportunities: 4.0,
             record_snapshots_automatically: true,
+            outcome_policy: OutcomeAdjustmentPolicy::default_policy(),
         }
     }
 }
@@ -64,6 +67,10 @@ impl LiveRatingConfig {
         self.record_snapshots_automatically
     }
 
+    pub fn outcome_policy(&self) -> &OutcomeAdjustmentPolicy {
+        &self.outcome_policy
+    }
+
     pub fn with_baseline_rating(mut self, baseline_rating: f64) -> Self {
         self.baseline_rating = baseline_rating;
         self
@@ -101,6 +108,11 @@ impl LiveRatingConfig {
 
     pub fn with_record_snapshots_automatically(mut self, record: bool) -> Self {
         self.record_snapshots_automatically = record;
+        self
+    }
+
+    pub fn with_outcome_policy(mut self, policy: OutcomeAdjustmentPolicy) -> Self {
+        self.outcome_policy = policy;
         self
     }
 }

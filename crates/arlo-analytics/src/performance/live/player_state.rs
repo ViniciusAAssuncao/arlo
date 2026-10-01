@@ -184,6 +184,14 @@ impl LivePlayerState {
         self.outcome_adjustment = adjustment;
     }
 
+    pub fn clear_outcome_adjustment(&mut self) {
+        self.outcome_adjustment = 0.0;
+    }
+
+    pub fn final_rating(&self) -> PerformanceRating {
+        PerformanceRating::new_clamped(self.performance_rating.value() + self.outcome_adjustment)
+    }
+
     pub fn update_assignment(
         &mut self,
         offensive_position: Position,
@@ -267,9 +275,7 @@ impl LivePlayerState {
     }
 
     pub fn to_snapshot(&self) -> PlayerPerformanceSnapshot {
-        let final_rating = PerformanceRating::new_clamped(
-            self.performance_rating.value() + self.outcome_adjustment,
-        );
+        let final_rating = self.final_rating();
 
         PlayerPerformanceSnapshot::new(
             self.player_id,
@@ -290,9 +296,7 @@ impl LivePlayerState {
     }
 
     pub fn try_to_snapshot(&self) -> AnalyticsResult<PlayerPerformanceSnapshot> {
-        let final_rating = PerformanceRating::new_clamped(
-            self.performance_rating.value() + self.outcome_adjustment,
-        );
+        let final_rating = self.final_rating();
 
         PlayerPerformanceSnapshot::new(
             self.player_id,

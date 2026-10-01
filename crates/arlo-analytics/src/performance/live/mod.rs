@@ -1,17 +1,24 @@
 pub mod aggregator;
 pub mod config;
+pub mod finalizer;
 pub mod player_state;
 pub mod rating_calculator;
+pub mod replay;
 pub mod seed;
 pub mod snapshot;
 
 pub use aggregator::PlayerPerformanceAggregator;
 pub use config::LiveRatingConfig;
+pub use finalizer::{
+    apply_outcome_to_players, clear_players_outcome, extract_player_match_ratings,
+    MatchFinalizationState,
+};
 pub use player_state::LivePlayerState;
 pub use rating_calculator::{
     calculate_confidence, calculate_dual_rating, calculate_dual_rating_with_exposure,
     calculate_rating, calculate_rating_from_latent, calculate_rating_with_exposure,
     calculate_shrunk_latent,
 };
+pub use replay::filter_surviving_envelopes;
 pub use seed::InitialParticipantSeed;
 pub use snapshot::LivePerformanceSnapshotRecord;

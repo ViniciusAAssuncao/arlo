@@ -257,6 +257,36 @@ pub enum MatchOutcome {
     Loss,
 }
 
+impl MatchOutcome {
+    pub fn from_scores(team_score: u32, opponent_score: u32) -> Self {
+        match team_score.cmp(&opponent_score) {
+            std::cmp::Ordering::Greater => Self::Win,
+            std::cmp::Ordering::Equal => Self::Draw,
+            std::cmp::Ordering::Less => Self::Loss,
+        }
+    }
+
+    pub fn is_win(&self) -> bool {
+        matches!(self, Self::Win)
+    }
+
+    pub fn is_draw(&self) -> bool {
+        matches!(self, Self::Draw)
+    }
+
+    pub fn is_loss(&self) -> bool {
+        matches!(self, Self::Loss)
+    }
+
+    pub fn opponent_outcome(&self) -> Self {
+        match self {
+            Self::Win => Self::Loss,
+            Self::Draw => Self::Draw,
+            Self::Loss => Self::Win,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct OutcomeAdjustmentPolicy {
     win_bonus: f64,
@@ -289,6 +319,29 @@ impl OutcomeAdjustmentPolicy {
             draw_adjustment: 0.0,
             loss_penalty: -0.10,
         }
+    }
+
+    pub fn zero() -> Self {
+        Self {
+            win_bonus: 0.0,
+            draw_adjustment: 0.0,
+            loss_penalty: 0.0,
+        }
+    }
+
+    pub fn with_win_bonus(mut self, win_bonus: f64) -> Self {
+        self.win_bonus = win_bonus;
+        self
+    }
+
+    pub fn with_draw_adjustment(mut self, draw_adjustment: f64) -> Self {
+        self.draw_adjustment = draw_adjustment;
+        self
+    }
+
+    pub fn with_loss_penalty(mut self, loss_penalty: f64) -> Self {
+        self.loss_penalty = loss_penalty;
+        self
     }
 
     pub fn adjustment_for(&self, outcome: MatchOutcome) -> f64 {

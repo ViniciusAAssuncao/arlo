@@ -1,7 +1,12 @@
 use crate::context::{MatchAnalysisContext, PlayerAssignment};
 use crate::error::AnalyticsResult;
 use crate::performance::live::config::LiveRatingConfig;
+use crate::performance::live::finalizer::{
+    apply_outcome_to_players, clear_players_outcome, extract_player_match_ratings,
+    MatchFinalizationState,
+};
 use crate::performance::live::player_state::LivePlayerState;
+use crate::performance::live::replay;
 use crate::performance::live::seed::InitialParticipantSeed;
 use crate::performance::live::snapshot::LivePerformanceSnapshotRecord;
 use crate::performance::observation::PerformanceObservation;
@@ -9,6 +14,7 @@ use crate::performance::rating::{
     MatchOutcome, OutcomeAdjustmentPolicy, PlayerPerformanceSnapshot,
 };
 use crate::performance::translator::EventPerformanceTranslator;
+use crate::performance::PlayerMatchRating;
 use arlo_domain::tactics::Formation;
 use arlo_domain::{Position, SlotRole};
 use arlo_events::{AvailabilityStatus, MatchClockInstant, MatchEvent, MatchEventEnvelope};
@@ -28,6 +34,7 @@ pub struct PlayerPerformanceAggregator {
     last_clock: MatchClockInstant,
     last_clock_seconds: f64,
     sequence_counter: u64,
+    finalization: MatchFinalizationState,
 }
 
 impl Default for PlayerPerformanceAggregator {
@@ -42,6 +49,7 @@ impl Default for PlayerPerformanceAggregator {
             last_clock: MatchClockInstant::zero(),
             last_clock_seconds: 0.0,
             sequence_counter: 0,
+            finalization: MatchFinalizationState::new(),
         }
     }
 }
@@ -76,6 +84,7 @@ impl PlayerPerformanceAggregator {
         self.last_clock = MatchClockInstant::zero();
         self.last_clock_seconds = 0.0;
         self.sequence_counter = 0;
+        self.finalization.clear();
         self.translator.set_context(context.clone());
         self.seed_from_context(&context);
     }
@@ -428,12 +437,93 @@ impl PlayerPerformanceAggregator {
         outcome: MatchOutcome,
         policy: &OutcomeAdjustmentPolicy,
     ) {
-        let adjustment = policy.adjustment_for(outcome);
-        for state in self.players.values_mut() {
-            if state.team_id() == team_id {
-                state.set_outcome_adjustment(adjustment);
+        apply_outcome_to_players(&mut self.players, team_id, outcome, policy);
+        self.finalization.record_outcome(team_id, outcome);
+    }
+
+    pub fn apply_outcome(&mut self, team_id: Uuid, outcome: MatchOutcome) {
+        let policy = *self.config.outcome_policy();
+        self.apply_match_outcome(team_id, outcome, &policy);
+    }
+
+    pub fn finalize_match(
+        &mut self,
+        home_team_id: Uuid,
+        home_outcome: MatchOutcome,
+        away_team_id: Uuid,
+        away_outcome: MatchOutcome,
+        policy: &OutcomeAdjustmentPolicy,
+    ) -> LivePerformanceSnapshotRecord {
+        self.apply_match_outcome(home_team_id, home_outcome, policy);
+        self.apply_match_outcome(away_team_id, away_outcome, policy);
+        self.finalization.mark_finalized();
+
+        let snap = self.create_snapshot(self.sequence_counter, self.last_clock);
+        if let Some(last) = self.history.last_mut() {
+            if last.sequence_number() == self.sequence_counter && last.clock() == self.last_clock {
+                *last = snap.clone();
+                return snap;
             }
         }
+
+        self.history.push(snap.clone());
+        snap
+    }
+
+    pub fn finalize_match_with_scores(
+        &mut self,
+        home_team_id: Uuid,
+        home_score: u32,
+        away_team_id: Uuid,
+        away_score: u32,
+        policy: &OutcomeAdjustmentPolicy,
+    ) -> LivePerformanceSnapshotRecord {
+        let home_outcome = MatchOutcome::from_scores(home_score, away_score);
+        let away_outcome = MatchOutcome::from_scores(away_score, home_score);
+        self.finalize_match(home_team_id, home_outcome, away_team_id, away_outcome, policy)
+    }
+
+    pub fn finalize_with_config(
+        &mut self,
+        home_team_id: Uuid,
+        home_outcome: MatchOutcome,
+        away_team_id: Uuid,
+        away_outcome: MatchOutcome,
+    ) -> LivePerformanceSnapshotRecord {
+        let policy = *self.config.outcome_policy();
+        self.finalize_match(home_team_id, home_outcome, away_team_id, away_outcome, &policy)
+    }
+
+    pub fn finalize_with_scores_and_config(
+        &mut self,
+        home_team_id: Uuid,
+        home_score: u32,
+        away_team_id: Uuid,
+        away_score: u32,
+    ) -> LivePerformanceSnapshotRecord {
+        let policy = *self.config.outcome_policy();
+        self.finalize_match_with_scores(home_team_id, home_score, away_team_id, away_score, &policy)
+    }
+
+    pub fn is_finalized(&self) -> bool {
+        self.finalization.is_finalized()
+    }
+
+    pub fn finalized_outcome_for_team(&self, team_id: &Uuid) -> Option<MatchOutcome> {
+        self.finalization.outcome_for_team(team_id)
+    }
+
+    pub fn final_player_ratings(&self) -> Vec<PlayerMatchRating> {
+        extract_player_match_ratings(&self.players)
+    }
+
+    pub fn final_player_rating(&self, player_id: &Uuid) -> Option<f64> {
+        self.players.get(player_id).map(|p| p.final_rating().value())
+    }
+
+    pub fn clear_match_outcomes(&mut self) {
+        clear_players_outcome(&mut self.players);
+        self.finalization.clear();
     }
 
     pub fn players(&self) -> &HashMap<Uuid, LivePlayerState> {
@@ -457,6 +547,7 @@ impl PlayerPerformanceAggregator {
         self.last_clock = MatchClockInstant::zero();
         self.last_clock_seconds = 0.0;
         self.sequence_counter = 0;
+        self.finalization.clear();
 
         let seeds = self.initial_seeds.clone();
         for seed in &seeds {
@@ -468,6 +559,7 @@ impl PlayerPerformanceAggregator {
         self.sequence_counter == 0
             && self.last_clock_seconds == 0.0
             && self.history.is_empty()
+            && !self.finalization.is_finalized()
             && self
                 .players
                 .values()
@@ -492,42 +584,7 @@ impl PlayerPerformanceAggregator {
         last_sequence: u64,
         envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>,
     ) {
-        let mut preceding_injury = None;
-        let surviving: Vec<&'a MatchEventEnvelope> = envelopes
-            .into_iter()
-            .filter(|envelope| {
-                let preserve_strain = matches!(
-                    envelope.event(),
-                    MatchEvent::PhysicalStrainRecorded(e) if preceding_injury == Some(e.player_id())
-                );
-                preceding_injury = match envelope.event() {
-                    MatchEvent::InjuryIncidentRecorded(e) => Some(e.player_id()),
-                    _ => None,
-                };
-                if envelope.sequence_number() < first_sequence
-                    || envelope.sequence_number() > last_sequence
-                {
-                    return true;
-                }
-                preserve_strain
-                    || matches!(envelope.event(), MatchEvent::InjuryIncidentRecorded(_))
-                    || matches!(
-                        envelope.event(),
-                        MatchEvent::ImpulseShiftRecorded(e)
-                            if e.event_kind() == arlo_events::ImpulseEventKind::InjurySetback
-                    )
-                    || matches!(
-                        envelope.event(),
-                        MatchEvent::PlayerAvailabilityChanged(e)
-                            if e.new_status() == arlo_events::AvailabilityStatus::Injured
-                    )
-                    || matches!(
-                        envelope.event(),
-                        MatchEvent::SubstitutionMade(e)
-                            if e.reason() == arlo_events::SubstitutionReason::Injury
-                    )
-            })
-            .collect();
+        let surviving = replay::filter_surviving_envelopes(first_sequence, last_sequence, envelopes);
         self.replay(surviving);
     }
 

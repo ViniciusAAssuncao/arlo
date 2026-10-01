@@ -8,10 +8,12 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub use live::{
-    calculate_confidence, calculate_dual_rating, calculate_dual_rating_with_exposure,
-    calculate_rating, calculate_rating_from_latent, calculate_rating_with_exposure,
-    calculate_shrunk_latent, InitialParticipantSeed, LivePerformanceSnapshotRecord, LivePlayerState,
-    LiveRatingConfig, PlayerPerformanceAggregator,
+    apply_outcome_to_players, calculate_confidence, calculate_dual_rating,
+    calculate_dual_rating_with_exposure, calculate_rating, calculate_rating_from_latent,
+    calculate_rating_with_exposure, calculate_shrunk_latent, clear_players_outcome,
+    extract_player_match_ratings, filter_surviving_envelopes, InitialParticipantSeed,
+    LivePerformanceSnapshotRecord, LivePlayerState, LiveRatingConfig, MatchFinalizationState,
+    PlayerPerformanceAggregator,
 };
 pub use observation::{
     ObservationCategory, PerformanceObservation, PerformanceObservationBuilder, PossessionPhase,
@@ -35,6 +37,13 @@ pub struct PlayerMatchRating {
 impl PlayerMatchRating {
     pub fn new(player_id: Uuid, rating: f64) -> Self {
         Self { player_id, rating }
+    }
+
+    pub fn from_snapshot(snapshot: &PlayerPerformanceSnapshot) -> Self {
+        Self {
+            player_id: snapshot.player_id(),
+            rating: snapshot.final_rating().value(),
+        }
     }
 
     pub fn player_id(&self) -> Uuid {
