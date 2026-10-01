@@ -27,6 +27,7 @@ pub(super) struct BonusShotSample {
     pub post: ScoringPost,
     pub converted: bool,
     pub duration_seconds: f64,
+    pub conversion_probability: f64,
 }
 
 pub(super) fn sample_bonus_shot(
@@ -59,6 +60,7 @@ pub(super) fn sample_bonus_shot(
         converted: rng.gen_range(0.0..1.0) < probability,
         duration_seconds: BONUS_DURATION_MIN_SECONDS
             + rng.gen_range(0.0..1.0) * BONUS_DURATION_RANGE_SECONDS,
+        conversion_probability: probability,
     })
 }
 
