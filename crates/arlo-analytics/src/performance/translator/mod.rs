@@ -20,6 +20,7 @@ pub struct EventPerformanceTranslator {
     current_down_number: u32,
     scrimmage_x_mirim: f64,
     current_drives_in_series: u32,
+    #[serde(default)]
     pending_missed_shot_recovery: bool,
     last_clock: MatchClockInstant,
 }
