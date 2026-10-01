@@ -10,6 +10,7 @@ pub struct PlayerSeasonStatsDto {
     pub competition_name: Option<String>,
     pub season_label: Option<String>,
     pub primary_role: Option<String>,
+    pub performance: PlayerSeasonPerformanceStatsDto,
     pub appearances: PlayerAppearanceStatsDto,
     pub scoring: PlayerScoringStatsDto,
     pub assists: PlayerAssistStatsDto,
