@@ -1,5 +1,6 @@
 use crate::controllers::r#match::match_lineup_controller::build_match_lineups;
 use crate::controllers::r#match::match_manager_controller::build_manager_report;
+use crate::controllers::r#match::match_performance_controller::get_match_performance;
 use crate::controllers::r#match::match_officiating_controller::build_officiating_summary;
 use crate::controllers::r#match::match_summary_controller::build_match_summary_with_incidents;
 use crate::controllers::r#match::match_team_stats_controller::build_team_stats;
@@ -44,11 +45,13 @@ pub async fn get_match_detail(
     let team_stats = build_team_stats(pool, &match_row).await?;
 
     let manager_summary = build_manager_report(pool, &match_row).await?;
+    let performance = get_match_performance(pool, match_id).await?;
 
     Ok(MatchDetailDto {
         summary,
         home_lineup,
         away_lineup,
+        performance,
         timeline,
         officiating,
         team_stats,
