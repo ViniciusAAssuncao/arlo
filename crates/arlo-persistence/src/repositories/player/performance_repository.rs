@@ -1,8 +1,24 @@
 use crate::error::PersistenceResult;
 use crate::models::MatchPlayerPerformanceRow;
 use crate::repositories::batching::execute_batch_insert;
-use sqlx::{Sqlite, SqlitePool, Transaction};
+use sqlx::{FromRow, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
+
+#[derive(Debug, Clone, PartialEq, FromRow)]
+pub struct PlayerSeasonPerformanceAggregateRow {
+    pub matches_rated: i64,
+    pub average_rating: f64,
+    pub average_performance_rating: f64,
+    pub average_confidence: f64,
+    pub highest_rating: f64,
+    pub lowest_rating: f64,
+    pub average_execution: f64,
+    pub average_production: f64,
+    pub average_defense: f64,
+    pub average_ball_security: f64,
+    pub average_discipline: f64,
+    pub average_high_impact: f64,
+}
 
 const COLUMNS: &[&str] = &[
     "id",
@@ -126,6 +142,40 @@ pub async fn get_by_match_id_and_player_id(
     .bind(match_id.to_string())
     .bind(player_id.to_string())
     .fetch_optional(pool)
+    .await?;
+
+    Ok(row)
+}
+
+pub async fn get_player_season_performance(
+    pool: &SqlitePool,
+    player_id: Uuid,
+    season_instance_id: Uuid,
+) -> PersistenceResult<PlayerSeasonPerformanceAggregateRow> {
+    let row = sqlx::query_as::<_, PlayerSeasonPerformanceAggregateRow>(
+        r#"SELECT
+            COUNT(*) AS matches_rated,
+            COALESCE(AVG(perf.final_rating), 0.0) AS average_rating,
+            COALESCE(AVG(perf.performance_rating), 0.0) AS average_performance_rating,
+            COALESCE(AVG(perf.confidence), 0.0) AS average_confidence,
+            COALESCE(MAX(perf.final_rating), 0.0) AS highest_rating,
+            COALESCE(MIN(perf.final_rating), 0.0) AS lowest_rating,
+            COALESCE(AVG(perf.execution_score), 0.0) AS average_execution,
+            COALESCE(AVG(perf.production_score), 0.0) AS average_production,
+            COALESCE(AVG(perf.defense_score), 0.0) AS average_defense,
+            COALESCE(AVG(perf.ball_security_score), 0.0) AS average_ball_security,
+            COALESCE(AVG(perf.discipline_score), 0.0) AS average_discipline,
+            COALESCE(AVG(perf.high_impact_score), 0.0) AS average_high_impact
+        FROM match_player_performance perf
+        INNER JOIN matches m ON m.id = perf.match_id
+        INNER JOIN fixtures f ON f.id = m.fixture_id
+        INNER JOIN season_stages ss ON ss.id = f.season_stage_id
+        WHERE perf.player_id = ?
+          AND ss.season_instance_id = ?"#,
+    )
+    .bind(player_id.to_string())
+    .bind(season_instance_id.to_string())
+    .fetch_one(pool)
     .await?;
 
     Ok(row)
