@@ -13,18 +13,18 @@ pub(crate) fn translate_artrine_decision(
     let artrine_team = resolve_team(event.artrine_id(), offense_team_id, context);
     let down_leverage = match event.down_number() {
         1 => 1.0,
-        2 => 1.25,
-        3 => 1.65,
-        _ => 2.30,
+        2 => 1.20,
+        3 => 1.50,
+        _ => 2.0,
     };
 
-    let prob = event.decision_probability().value();
-    let quality_factor = 0.40 + (prob * 0.35);
-
-    let exec = quality_factor * 0.55 * down_leverage;
-    let prod = quality_factor * 0.45 * down_leverage;
-    let hi = quality_factor * 0.65 * down_leverage;
-    let sec = 0.15;
+    let (exec, prod, hi, sec) = match event.decision_kind() {
+        arlo_domain::ArtrineDecisionKind::SelfCarry => (0.12, 0.08, 0.08, 0.05),
+        arlo_domain::ArtrineDecisionKind::ShortPass => (0.10, 0.06, 0.06, 0.05),
+        arlo_domain::ArtrineDecisionKind::LongLaunch => (0.14, 0.10, 0.12, 0.05),
+        arlo_domain::ArtrineDecisionKind::Cross => (0.12, 0.08, 0.08, 0.05),
+        arlo_domain::ArtrineDecisionKind::SelfFinish => (0.15, 0.12, 0.15, 0.05),
+    };
 
     let bd = PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi);
 
@@ -35,7 +35,7 @@ pub(crate) fn translate_artrine_decision(
         PossessionPhase::Offense,
         ObservationCategory::ArtrineDecision,
         bd,
-        1.0,
+        0.50,
         down_leverage,
         format!(
             "Artrine {:?} (Down {})",
@@ -55,16 +55,16 @@ pub(crate) fn translate_drive_recorded(
     let drives = event.drives_in_series();
 
     let (hi_bonus, lev) = if drives >= 3 {
-        (1.50, 2.50)
+        (0.90, 1.80)
     } else if drives == 2 {
-        (1.00, 1.70)
+        (0.60, 1.40)
     } else {
-        (0.80, 1.30)
+        (0.40, 1.20)
     };
 
-    let exec = 0.55;
-    let prod = 0.75;
-    let sec = 0.30;
+    let exec = 0.40;
+    let prod = 0.50;
+    let sec = 0.20;
 
     let bd = PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi_bonus);
 
@@ -77,11 +77,7 @@ pub(crate) fn translate_drive_recorded(
         bd,
         1.0,
         lev,
-        format!(
-            "Drive {} in series at {:?}",
-            drives,
-            event.placement()
-        ),
+        format!("Drive {} in series at {:?}", drives, event.placement()),
     )]
 }
 
@@ -121,7 +117,7 @@ pub(crate) fn translate_passer_contact(
             "Rough or late contact on passer".into(),
         ));
     } else {
-        let bd = PerformanceBreakdown::new_unchecked(0.50, 0.0, 0.75, 0.0, 0.0, 0.40);
+        let bd = PerformanceBreakdown::new_unchecked(0.35, 0.0, 0.55, 0.0, 0.0, 0.30);
         obs.push(PerformanceObservation::new_unchecked(
             event.defender_id(),
             def_team,
@@ -130,7 +126,7 @@ pub(crate) fn translate_passer_contact(
             ObservationCategory::PasserContact,
             bd,
             1.0,
-            1.2,
+            1.1,
             "Legal passer pressure applied".into(),
         ));
     }

@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub use live::{
-    calculate_confidence, calculate_rating, LivePerformanceSnapshotRecord, LivePlayerState,
-    LiveRatingConfig, PlayerPerformanceAggregator,
+    calculate_confidence, calculate_dual_rating, calculate_rating, calculate_rating_from_latent,
+    LivePerformanceSnapshotRecord, LivePlayerState, LiveRatingConfig, PlayerPerformanceAggregator,
 };
 pub use observation::{
     ObservationCategory, PerformanceObservation, PerformanceObservationBuilder, PossessionPhase,

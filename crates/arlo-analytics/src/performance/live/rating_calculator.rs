@@ -17,13 +17,11 @@ pub fn calculate_confidence(
     PerformanceConfidence::new_clamped(raw)
 }
 
-pub fn calculate_rating(
-    profile: &PerformanceProfile,
-    breakdown: &PerformanceBreakdown,
+pub fn calculate_rating_from_latent(
+    latent: f64,
     confidence: PerformanceConfidence,
     config: &LiveRatingConfig,
 ) -> PerformanceRating {
-    let latent = profile.calculate_latent_score(breakdown);
     let delta = if latent >= 0.0 {
         let scale = config.positive_scale().max(1e-4);
         (PerformanceRating::MAX - config.baseline_rating()) * latent
@@ -39,4 +37,27 @@ pub fn calculate_rating(
     let adjusted_delta = delta * confidence_weight;
 
     PerformanceRating::new_clamped(config.baseline_rating() + adjusted_delta)
+}
+
+pub fn calculate_rating(
+    profile: &PerformanceProfile,
+    breakdown: &PerformanceBreakdown,
+    confidence: PerformanceConfidence,
+    config: &LiveRatingConfig,
+) -> PerformanceRating {
+    let latent = profile.calculate_latent_score(breakdown);
+    calculate_rating_from_latent(latent, confidence, config)
+}
+
+pub fn calculate_dual_rating(
+    offensive_profile: &PerformanceProfile,
+    offensive_breakdown: &PerformanceBreakdown,
+    defensive_profile: &PerformanceProfile,
+    defensive_breakdown: &PerformanceBreakdown,
+    confidence: PerformanceConfidence,
+    config: &LiveRatingConfig,
+) -> PerformanceRating {
+    let latent_off = offensive_profile.calculate_latent_score(offensive_breakdown);
+    let latent_def = defensive_profile.calculate_latent_score(defensive_breakdown);
+    calculate_rating_from_latent(latent_off + latent_def, confidence, config)
 }

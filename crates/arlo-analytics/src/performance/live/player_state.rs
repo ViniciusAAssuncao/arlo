@@ -1,7 +1,7 @@
 use crate::error::AnalyticsResult;
 use crate::performance::live::config::LiveRatingConfig;
-use crate::performance::live::rating_calculator::{calculate_confidence, calculate_rating};
-use crate::performance::observation::PerformanceObservation;
+use crate::performance::live::rating_calculator::{calculate_confidence, calculate_dual_rating};
+use crate::performance::observation::{PerformanceObservation, PossessionPhase};
 use crate::performance::profile::PerformanceProfile;
 use crate::performance::rating::{
     ModelVersion, PerformanceBreakdown, PerformanceConfidence, PerformanceRating,
@@ -18,10 +18,13 @@ pub struct LivePlayerState {
     offensive_position: Position,
     defensive_position: Position,
     slot_role: SlotRole,
-    profile: PerformanceProfile,
+    offensive_profile: PerformanceProfile,
+    defensive_profile: PerformanceProfile,
     is_active: bool,
     seconds_played: f64,
     effective_opportunities: u32,
+    offensive_breakdown: PerformanceBreakdown,
+    defensive_breakdown: PerformanceBreakdown,
     accumulated_breakdown: PerformanceBreakdown,
     performance_rating: PerformanceRating,
     confidence: PerformanceConfidence,
@@ -38,11 +41,22 @@ impl LivePlayerState {
         is_active: bool,
         config: &LiveRatingConfig,
     ) -> Self {
-        let profile = PerformanceProfile::for_position_and_role(offensive_position, slot_role);
+        let offensive_profile =
+            PerformanceProfile::for_position_and_role(offensive_position, slot_role);
+        let defensive_profile =
+            PerformanceProfile::for_position_and_role(defensive_position, slot_role);
         let confidence = calculate_confidence(0, 0.0, config);
+        let offensive_breakdown = PerformanceBreakdown::zero();
+        let defensive_breakdown = PerformanceBreakdown::zero();
         let accumulated_breakdown = PerformanceBreakdown::zero();
-        let performance_rating =
-            calculate_rating(&profile, &accumulated_breakdown, confidence, config);
+        let performance_rating = calculate_dual_rating(
+            &offensive_profile,
+            &offensive_breakdown,
+            &defensive_profile,
+            &defensive_breakdown,
+            confidence,
+            config,
+        );
 
         Self {
             player_id,
@@ -50,10 +64,13 @@ impl LivePlayerState {
             offensive_position,
             defensive_position,
             slot_role,
-            profile,
+            offensive_profile,
+            defensive_profile,
             is_active,
             seconds_played: 0.0,
             effective_opportunities: 0,
+            offensive_breakdown,
+            defensive_breakdown,
             accumulated_breakdown,
             performance_rating,
             confidence,
@@ -82,7 +99,15 @@ impl LivePlayerState {
     }
 
     pub fn profile(&self) -> &PerformanceProfile {
-        &self.profile
+        &self.offensive_profile
+    }
+
+    pub fn offensive_profile(&self) -> &PerformanceProfile {
+        &self.offensive_profile
+    }
+
+    pub fn defensive_profile(&self) -> &PerformanceProfile {
+        &self.defensive_profile
     }
 
     pub fn is_active(&self) -> bool {
@@ -99,6 +124,14 @@ impl LivePlayerState {
 
     pub fn effective_opportunities(&self) -> u32 {
         self.effective_opportunities
+    }
+
+    pub fn offensive_breakdown(&self) -> &PerformanceBreakdown {
+        &self.offensive_breakdown
+    }
+
+    pub fn defensive_breakdown(&self) -> &PerformanceBreakdown {
+        &self.defensive_breakdown
     }
 
     pub fn accumulated_breakdown(&self) -> &PerformanceBreakdown {
@@ -143,7 +176,28 @@ impl LivePlayerState {
             observation.high_impact() * factor,
         );
 
-        self.accumulated_breakdown = self.accumulated_breakdown + scaled_bd;
+        match observation.phase() {
+            PossessionPhase::Offense => {
+                self.offensive_breakdown = self.offensive_breakdown + scaled_bd;
+            }
+            PossessionPhase::Defense => {
+                self.defensive_breakdown = self.defensive_breakdown + scaled_bd;
+            }
+            PossessionPhase::Neutral => {
+                let half_bd = PerformanceBreakdown::new_unchecked(
+                    scaled_bd.execution() * 0.5,
+                    scaled_bd.production() * 0.5,
+                    scaled_bd.defense() * 0.5,
+                    scaled_bd.ball_security() * 0.5,
+                    scaled_bd.discipline() * 0.5,
+                    scaled_bd.high_impact() * 0.5,
+                );
+                self.offensive_breakdown = self.offensive_breakdown + half_bd;
+                self.defensive_breakdown = self.defensive_breakdown + half_bd;
+            }
+        }
+
+        self.accumulated_breakdown = self.offensive_breakdown + self.defensive_breakdown;
         self.effective_opportunities = self.effective_opportunities.saturating_add(1);
         self.recalculate(config);
     }
@@ -151,9 +205,11 @@ impl LivePlayerState {
     pub fn recalculate(&mut self, config: &LiveRatingConfig) {
         self.confidence =
             calculate_confidence(self.effective_opportunities, self.seconds_played, config);
-        self.performance_rating = calculate_rating(
-            &self.profile,
-            &self.accumulated_breakdown,
+        self.performance_rating = calculate_dual_rating(
+            &self.offensive_profile,
+            &self.offensive_breakdown,
+            &self.defensive_profile,
+            &self.defensive_breakdown,
             self.confidence,
             config,
         );

@@ -19,7 +19,7 @@ impl Default for LiveRatingConfig {
             negative_scale: 10.0,
             opportunities_to_full_confidence: 20.0,
             seconds_to_full_confidence: 1800.0,
-            confidence_shrinkage_weight: 0.70,
+            confidence_shrinkage_weight: 0.0,
             record_snapshots_automatically: true,
         }
     }

@@ -14,15 +14,22 @@ pub(crate) fn translate_pass_completed(
 ) -> Vec<PerformanceObservation> {
     let passer_team = resolve_team(event.passer_id(), offense_team_id, context);
     let dist = event.distance_mirim().max(0.0);
-    let aerial_bonus = if event.is_aerial() { 0.12 } else { 0.0 };
+    let dist_norm = (dist / 40.0).min(1.0);
+    let aerial_bonus = if event.is_aerial() { 0.08 } else { 0.0 };
 
-    let exec = 0.45 + (dist / 40.0).min(0.40) + aerial_bonus;
-    let prod = (dist * 0.035).min(0.85);
-    let sec = 0.15;
-    let hi = if dist >= 15.0 { 0.35 } else { 0.10 };
+    let exec = 0.05 + dist_norm * 0.45 + aerial_bonus;
+    let prod = (dist * 0.035).min(0.90);
+    let sec = 0.05;
+    let hi = if dist >= 18.0 {
+        0.35
+    } else if dist >= 10.0 {
+        0.15
+    } else {
+        0.0
+    };
 
     let bd = PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi);
-    let lev = 1.0 + (dist / 35.0).min(0.60);
+    let lev = 1.0 + (dist / 35.0).min(0.50);
 
     vec![PerformanceObservation::new_unchecked(
         event.passer_id(),
@@ -44,22 +51,22 @@ pub(crate) fn translate_reception_resolved(
     context: Option<&MatchAnalysisContext>,
 ) -> Vec<PerformanceObservation> {
     let receiver_team = resolve_team(event.receiver_id(), offense_team_id, context);
-    let aerial_adj = if event.is_aerial() { 0.15 } else { 0.0 };
+    let aerial_adj = if event.is_aerial() { 0.12 } else { 0.0 };
 
     let (bd, desc) = if event.caught() {
-        let exec = 0.50 + aerial_adj;
-        let prod = 0.30;
-        let sec = 0.25;
-        let hi = if event.is_aerial() { 0.25 } else { 0.10 };
+        let exec = 0.12 + aerial_adj;
+        let prod = 0.08;
+        let sec = 0.06;
+        let hi = if event.is_aerial() { 0.15 } else { 0.0 };
         (
             PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi),
             "Reception caught",
         )
     } else {
         let exec = -0.65;
-        let prod = -0.30;
-        let sec = -0.40;
-        let hi = -0.20;
+        let prod = -0.35;
+        let sec = -0.45;
+        let hi = -0.25;
         (
             PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi),
             "Reception dropped",
@@ -87,19 +94,20 @@ pub(crate) fn translate_distribution_completed(
 ) -> Vec<PerformanceObservation> {
     let passer_team = resolve_team(event.passer_id(), offense_team_id, context);
     let dist = event.distance_mirim().max(0.0);
-    let mut obs = Vec::new();
+    let dist_norm = (dist / 45.0).min(1.0);
+    let aerial_bonus = if event.is_aerial() { 0.06 } else { 0.0 };
 
     let passer_bd = if event.caught() {
-        let exec = 0.50 + (dist / 45.0).min(0.35);
-        let prod = (dist * 0.03).min(0.70);
-        let sec = 0.20;
-        let hi = if dist >= 12.0 { 0.30 } else { 0.10 };
+        let exec = 0.06 + dist_norm * 0.40 + aerial_bonus;
+        let prod = (dist * 0.03).min(0.75);
+        let sec = 0.05;
+        let hi = if dist >= 15.0 { 0.25 } else { 0.0 };
         PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi)
     } else {
-        PerformanceBreakdown::new_unchecked(-0.45, -0.20, 0.0, -0.20, 0.0, -0.15)
+        PerformanceBreakdown::new_unchecked(-0.45, -0.25, 0.0, -0.30, 0.0, -0.20)
     };
 
-    obs.push(PerformanceObservation::new_unchecked(
+    vec![PerformanceObservation::new_unchecked(
         event.passer_id(),
         passer_team,
         clock,
@@ -109,9 +117,7 @@ pub(crate) fn translate_distribution_completed(
         1.0,
         1.0,
         format!("Distribution {:?}", event.decision_kind()),
-    ));
-
-    obs
+    )]
 }
 
 pub(crate) fn translate_carry_resolved(
@@ -124,11 +130,17 @@ pub(crate) fn translate_carry_resolved(
     let gain = event.gain_mirim();
 
     let (bd, lev) = if gain > 0.0 {
-        let exec = 0.30 + (gain * 0.035).min(0.45);
-        let prod = (gain * 0.06).min(1.0);
-        let sec = 0.20;
-        let hi = if gain >= 10.0 { 0.45 } else { 0.05 };
-        let lev = 1.0 + (gain / 15.0).min(0.60);
+        let exec = 0.05 + (gain * 0.03).min(0.40);
+        let prod = (gain * 0.05).min(0.95);
+        let sec = 0.05;
+        let hi = if gain >= 10.0 {
+            0.40
+        } else if gain >= 5.0 {
+            0.15
+        } else {
+            0.0
+        };
+        let lev = 1.0 + (gain / 20.0).min(0.50);
         (
             PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi),
             lev,
@@ -136,7 +148,7 @@ pub(crate) fn translate_carry_resolved(
     } else {
         let exec = (-0.25 + gain * 0.03).max(-0.60);
         let prod = (gain * 0.04).max(-0.50);
-        let sec = 0.0;
+        let sec = -0.05;
         let hi = -0.15;
         (
             PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi),

@@ -11,18 +11,15 @@ pub(crate) fn translate_duel(
     context: Option<&MatchAnalysisContext>,
 ) -> Vec<PerformanceObservation> {
     let mut observations = Vec::new();
-    let win_prob = event.win_probability().value();
     let net_adv = event.net_advantage();
     let attacker_won = event.attacker_won();
 
     let (att_perf, def_perf) = if attacker_won {
-        let upset = (1.0 - win_prob) * 0.45;
-        let margin = (net_adv.max(0.0) * 0.12).min(0.40);
-        (0.50 + upset + margin, -(0.40 + win_prob * 0.30 + margin * 0.50))
+        let margin = (net_adv.max(0.0) * 0.12).min(0.35);
+        (0.55 + margin, -(0.45 + margin * 0.50))
     } else {
-        let upset = win_prob * 0.45;
-        let margin = ((-net_adv).max(0.0) * 0.12).min(0.40);
-        (-(0.40 + (1.0 - win_prob) * 0.30 + margin * 0.50), 0.50 + upset + margin)
+        let margin = ((-net_adv).max(0.0) * 0.12).min(0.35);
+        (-(0.45 + margin * 0.50), 0.55 + margin)
     };
 
     let att_count = event.attacker_ids().len().max(1) as f64;
