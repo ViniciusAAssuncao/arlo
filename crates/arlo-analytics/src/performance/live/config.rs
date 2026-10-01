@@ -17,15 +17,15 @@ pub struct LiveRatingConfig {
 impl Default for LiveRatingConfig {
     fn default() -> Self {
         Self {
-            baseline_rating: 5.5,
-            positive_scale: 12.0,
-            negative_scale: 10.0,
-            opportunities_to_full_confidence: 20.0,
-            seconds_to_full_confidence: 1800.0,
-            confidence_shrinkage_weight: 0.0,
+            baseline_rating: 6.2,
+            positive_scale: 4.0,
+            negative_scale: 4.0,
+            opportunities_to_full_confidence: 60.0,
+            seconds_to_full_confidence: 3600.0,
+            confidence_shrinkage_weight: 0.75,
             shrinkage_prior_opportunities: 4.0,
             record_snapshots_automatically: false,
-            outcome_policy: OutcomeAdjustmentPolicy::default_policy(),
+            outcome_policy: OutcomeAdjustmentPolicy::zero(),
         }
     }
 }
