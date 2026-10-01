@@ -23,14 +23,23 @@ pub(super) fn resolve_after_release(
     let blocking = ratings.active_average(offense, AttributeKey::OffensiveBlocking, true)?;
     let encounter_probability =
         (0.035 + (pressure - blocking) * 0.002).clamp(0.012, 0.075);
-    let defender_broke_through =
-        state.rng_mut().gen_range(0.0..1.0) < encounter_probability;
+    let protection_contest_window = 0.08;
+    let contest_probability =
+        (encounter_probability + protection_contest_window).min(1.0);
+    let contest_roll = state.rng_mut().gen_range(0.0..1.0);
+
+    if contest_roll >= contest_probability {
+        return Ok(());
+    }
+
+    let defender_broke_through = contest_roll < encounter_probability;
     let blocker_id = select_primary_blocker(ratings, offense)?;
-    let blocker_win_probability = 1.0 - encounter_probability;
+    let blocker_win_probability =
+        protection_contest_window / contest_probability.max(1e-6);
     let surprise = if defender_broke_through {
         blocker_win_probability
     } else {
-        encounter_probability
+        1.0 - blocker_win_probability
     };
     let net_advantage = if defender_broke_through {
         -(surprise * 2.0)
