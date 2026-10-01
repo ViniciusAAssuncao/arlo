@@ -7,11 +7,27 @@ pub(crate) fn translate_turnover(
     event: &Turnover,
     clock: MatchClockInstant,
     _context: Option<&MatchAnalysisContext>,
+    follows_missed_shot: bool,
 ) -> Vec<PerformanceObservation> {
     let mut obs = Vec::new();
 
     if let Some(recoverer_id) = event.recovering_player() {
-        let bd = PerformanceBreakdown::new_unchecked(0.40, 0.20, 0.65, 0.85, 0.0, 0.95);
+        let (bd, opportunity, leverage, description) = if follows_missed_shot {
+            (
+                PerformanceBreakdown::new_unchecked(0.08, 0.0, 0.12, 0.18, 0.0, 0.05),
+                0.35,
+                1.0,
+                "Missed shot recovery secured",
+            )
+        } else {
+            (
+                PerformanceBreakdown::new_unchecked(0.40, 0.20, 0.65, 0.85, 0.0, 0.95),
+                1.0,
+                1.75,
+                "Turnover recovered",
+            )
+        };
+
         obs.push(PerformanceObservation::new_unchecked(
             recoverer_id,
             event.new_offense(),
@@ -19,9 +35,9 @@ pub(crate) fn translate_turnover(
             PossessionPhase::Defense,
             ObservationCategory::Recovery,
             bd,
-            1.0,
-            1.75,
-            "Turnover recovered".into(),
+            opportunity,
+            leverage,
+            description.into(),
         ));
     }
 
