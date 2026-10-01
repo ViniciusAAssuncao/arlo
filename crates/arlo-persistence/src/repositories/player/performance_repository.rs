@@ -187,8 +187,19 @@ pub async fn get_player_season_performance(
         INNER JOIN fixtures f ON f.id = m.fixture_id
         INNER JOIN season_stages ss ON ss.id = f.season_stage_id
         WHERE perf.player_id = ?
-          AND ss.season_instance_id = ?"#,
+          AND ss.season_instance_id = ?
+          AND perf.model_version = (
+              SELECT MAX(perf_latest.model_version)
+              FROM match_player_performance perf_latest
+              INNER JOIN matches m_latest ON m_latest.id = perf_latest.match_id
+              INNER JOIN fixtures f_latest ON f_latest.id = m_latest.fixture_id
+              INNER JOIN season_stages ss_latest ON ss_latest.id = f_latest.season_stage_id
+              WHERE perf_latest.player_id = ?
+                AND ss_latest.season_instance_id = ?
+          )"#,
     )
+    .bind(player_id.to_string())
+    .bind(season_instance_id.to_string())
     .bind(player_id.to_string())
     .bind(season_instance_id.to_string())
     .fetch_one(pool)
