@@ -41,19 +41,22 @@ pub(crate) fn translate_turnover(
         ));
     }
 
-    if let Some(lost_id) = event.lost_by_player_id() {
-        let bd = PerformanceBreakdown::new_unchecked(-0.75, -0.30, 0.0, -1.60, 0.0, -1.30);
-        obs.push(PerformanceObservation::new_unchecked(
-            lost_id,
-            event.previous_offense(),
-            clock,
-            PossessionPhase::Offense,
-            ObservationCategory::Turnover,
-            bd,
-            1.0,
-            1.85,
-            "Turnover conceded".into(),
-        ));
+    if !follows_missed_shot {
+        if let Some(lost_id) = event.lost_by_player_id() {
+            let bd =
+                PerformanceBreakdown::new_unchecked(-0.75, -0.30, 0.0, -1.60, 0.0, -1.30);
+            obs.push(PerformanceObservation::new_unchecked(
+                lost_id,
+                event.previous_offense(),
+                clock,
+                PossessionPhase::Offense,
+                ObservationCategory::Turnover,
+                bd,
+                1.0,
+                1.85,
+                "Turnover conceded".into(),
+            ));
+        }
     }
 
     obs
