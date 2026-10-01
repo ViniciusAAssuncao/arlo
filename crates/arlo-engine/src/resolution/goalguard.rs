@@ -21,10 +21,7 @@ pub(super) fn resolve_recovery(
     state: &mut MatchState,
     events: &mut Vec<MatchEventEnvelope>,
 ) -> EngineResult<Recovery> {
-    let goalguard = defense.lineup().assignments().iter()
-        .find(|assignment| assignment.position() == Position::Goalguard
-            && ratings.is_active_slot(defense, assignment.player_id()))
-        .map(|assignment| ratings.slot_player_id(defense, assignment.player_id()));
+    let goalguard = active_goalguard_id(ratings, defense);
     let field_player_available = defense.lineup().assignments().iter()
         .any(|assignment| assignment.position() != Position::Goalguard
             && ratings.is_active_slot(defense, assignment.player_id()));
@@ -66,4 +63,19 @@ fn position_from_goal(goal_line_mirim: f64, pitch_length_mirim: f64, distance: f
     } else {
         (goal_line_mirim + distance).clamp(0.0, pitch_length_mirim)
     }
+}
+
+pub(super) fn active_goalguard_id(
+    ratings: &RatingIndex,
+    defense: &TeamInput,
+) -> Option<Uuid> {
+    defense
+        .lineup()
+        .assignments()
+        .iter()
+        .find(|assignment| {
+            assignment.position() == Position::Goalguard
+                && ratings.is_active_slot(defense, assignment.player_id())
+        })
+        .map(|assignment| ratings.slot_player_id(defense, assignment.player_id()))
 }
