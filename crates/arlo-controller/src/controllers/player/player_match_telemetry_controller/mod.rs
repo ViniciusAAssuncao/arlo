@@ -74,6 +74,8 @@ pub async fn get_player_match_telemetry(
     )
     .await?;
     let injuries = injury_stats_loader::load_injury_stats(pool, match_id, player_id).await?;
+    let performance =
+        performance_stats_loader::load_performance_stats(pool, match_id, player_id).await?;
 
     Ok(PlayerMatchTelemetryDto {
         match_id: match_id.to_string(),
@@ -91,6 +93,7 @@ pub async fn get_player_match_telemetry(
         artrine_decisions,
         fouls,
         kick_fouls,
+        performance,
         morale: impulse.clone(),
         impulse,
         physical,
