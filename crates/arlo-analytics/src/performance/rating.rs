@@ -301,11 +301,7 @@ impl OutcomeAdjustmentPolicy {
     }
 
     pub fn default_policy() -> Self {
-        Self {
-            win_bonus: 0.15,
-            draw_adjustment: 0.0,
-            loss_penalty: -0.10,
-        }
+        Self::zero()
     }
 
     pub fn zero() -> Self {
@@ -372,6 +368,7 @@ pub struct PlayerPerformanceSnapshot {
     seconds_played: f64,
     effective_opportunities: u32,
     breakdown: PerformanceBreakdown,
+    #[serde(default)]
     diagnostics: PerformanceDiagnostics,
     model_version: ModelVersion,
 }
