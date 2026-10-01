@@ -6,7 +6,8 @@ use crate::officiating::{
 };
 use crate::player::{
     PlayerArtrineDecisionAggregator, PlayerAssistAggregator, PlayerAvailabilityAggregator,
-    PlayerDrivesAggregator, PlayerDuelAggregator, PlayerImpulseAggregator, PlayerInjuryAggregator,
+    PlayerDrivesAggregator, PlayerDuelAggregator, PlayerGoalguardAggregator,
+    PlayerImpulseAggregator, PlayerInjuryAggregator, PlayerPassingAggregator,
     PlayerPhysicalAggregator, PlayerReceivingAggregator, PlayerScoringAttemptAggregator,
     PlayerTouchesAggregator,
 };
@@ -21,12 +22,16 @@ use uuid::Uuid;
 #[derive(Default)]
 pub struct AggregatorRegistry {
     aggregators: Vec<Box<dyn StatAggregator>>,
+    participant_player_ids: HashSet<Uuid>,
+    participant_team_ids: HashSet<Uuid>,
 }
 
 impl AggregatorRegistry {
     pub fn new() -> Self {
         Self {
             aggregators: Vec::new(),
+            participant_player_ids: HashSet::new(),
+            participant_team_ids: HashSet::new(),
         }
     }
 
@@ -36,6 +41,8 @@ impl AggregatorRegistry {
         registry.register_aggregator(PlayerDrivesAggregator::new());
         registry.register_aggregator(PlayerDuelAggregator::new());
         registry.register_aggregator(PlayerReceivingAggregator::new());
+        registry.register_aggregator(PlayerPassingAggregator::new());
+        registry.register_aggregator(PlayerGoalguardAggregator::new());
         registry.register_aggregator(PlayerTouchesAggregator::new());
         registry.register_aggregator(PlayerScoringAttemptAggregator::new());
         registry.register_aggregator(PlayerPhysicalAggregator::new());
@@ -61,6 +68,30 @@ impl AggregatorRegistry {
         self.aggregators.push(Box::new(aggregator));
     }
 
+    pub fn register_participant(&mut self, player_id: Uuid) {
+        self.participant_player_ids.insert(player_id);
+    }
+
+    pub fn register_participants(&mut self, player_ids: impl IntoIterator<Item = Uuid>) {
+        self.participant_player_ids.extend(player_ids);
+    }
+
+    pub fn participant_player_ids(&self) -> &HashSet<Uuid> {
+        &self.participant_player_ids
+    }
+
+    pub fn register_team(&mut self, team_id: Uuid) {
+        self.participant_team_ids.insert(team_id);
+    }
+
+    pub fn register_teams(&mut self, team_ids: impl IntoIterator<Item = Uuid>) {
+        self.participant_team_ids.extend(team_ids);
+    }
+
+    pub fn participant_team_ids(&self) -> &HashSet<Uuid> {
+        &self.participant_team_ids
+    }
+
     pub fn get<T: StatAggregator + 'static>(&self) -> Option<&T> {
         for agg in &self.aggregators {
             if let Some(downcasted) = agg.as_any().downcast_ref::<T>() {
@@ -80,12 +111,14 @@ impl AggregatorRegistry {
     }
 
     pub fn handle_envelope(&mut self, envelope: &MatchEventEnvelope) {
+        self.extract_participants(envelope.event());
         for aggregator in &mut self.aggregators {
             aggregator.handle_envelope(envelope);
         }
     }
 
     pub fn handle_event(&mut self, event: &MatchEvent) {
+        self.extract_participants(event);
         for aggregator in &mut self.aggregators {
             aggregator.handle_event(event);
         }
@@ -100,7 +133,153 @@ impl AggregatorRegistry {
         }
     }
 
+    fn extract_participants(&mut self, event: &MatchEvent) {
+        match event {
+            MatchEvent::CallToActionStarted(e) => {
+                self.participant_player_ids.insert(e.passer_id());
+                self.participant_player_ids.insert(e.artrine_id());
+                self.participant_team_ids.insert(e.offense_team_id());
+                self.participant_team_ids.insert(e.defense_team_id());
+            }
+            MatchEvent::PassCompleted(e) => {
+                self.participant_player_ids.insert(e.passer_id());
+                self.participant_player_ids.insert(e.receiver_id());
+            }
+            MatchEvent::CarryResolved(e) => {
+                self.participant_player_ids.insert(e.carrier_id());
+            }
+            MatchEvent::DistributionCompleted(e) => {
+                self.participant_player_ids.insert(e.passer_id());
+                self.participant_player_ids.insert(e.receiver_id());
+            }
+            MatchEvent::ReceptionResolved(e) => {
+                self.participant_player_ids.insert(e.receiver_id());
+                self.participant_player_ids.insert(e.passer_id());
+            }
+            MatchEvent::PasserContactResolved(e) => {
+                self.participant_player_ids.insert(e.passer_id());
+                self.participant_player_ids.insert(e.defender_id());
+            }
+            MatchEvent::GoalguardRecoveryResolved(e) => {
+                self.participant_player_ids.insert(e.goalguard_id());
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::ArtrineDecisionMade(e) => {
+                self.participant_player_ids.insert(e.artrine_id());
+            }
+            MatchEvent::DriveRecorded(e) => {
+                self.participant_player_ids.insert(e.artrine_id());
+            }
+            MatchEvent::DuelResolved(e) => {
+                self.participant_player_ids.extend(e.attacker_ids().iter().copied());
+                self.participant_player_ids.extend(e.defender_ids().iter().copied());
+            }
+            MatchEvent::Turnover(e) => {
+                self.participant_team_ids.insert(e.previous_offense());
+                self.participant_team_ids.insert(e.new_offense());
+                if let Some(id) = e.recovering_player() {
+                    self.participant_player_ids.insert(id);
+                }
+                if let Some(id) = e.lost_by_player_id() {
+                    self.participant_player_ids.insert(id);
+                }
+            }
+            MatchEvent::OutOfBounds(e) => {
+                self.participant_team_ids.insert(e.last_possession_team());
+                if let Some(id) = e.last_player() {
+                    self.participant_player_ids.insert(id);
+                }
+            }
+            MatchEvent::GoalPoint(e) => {
+                self.participant_player_ids.insert(e.scorer_id());
+                self.participant_player_ids.insert(e.artrine_id());
+                if let Some(id) = e.assister_id() {
+                    self.participant_player_ids.insert(id);
+                }
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::FieldPoint(e) => {
+                self.participant_player_ids.insert(e.scorer_id());
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::FieldGoal(e) => {
+                self.participant_player_ids.insert(e.scorer_id());
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::ScoringAttemptMissed(e) => {
+                self.participant_player_ids.insert(e.scorer_id());
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::PhysicalStrainRecorded(e) => {
+                self.participant_player_ids.insert(e.player_id());
+            }
+            MatchEvent::RecoveryIntervalProcessed(e) => {
+                self.participant_player_ids.insert(e.player_id());
+            }
+            MatchEvent::ImpulseShiftRecorded(e) => {
+                self.participant_player_ids.insert(e.player_id());
+            }
+            MatchEvent::ImpulseCriticalReached(e) => {
+                self.participant_player_ids.insert(e.player_id());
+            }
+            MatchEvent::PossessionTimeRecorded(e) => {
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::SubstitutionMade(e) => {
+                self.participant_team_ids.insert(e.team_id());
+                self.participant_player_ids.insert(e.player_out());
+                self.participant_player_ids.insert(e.player_in());
+            }
+            MatchEvent::TimeCallUsed(e) => {
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::ChallengeResolved(e) => {
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::TacticalProfileActivated(e) => {
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::PlayCallSelected(e) => {
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::FoulRaised(e) => {
+                self.participant_player_ids.insert(e.offending_player_id());
+                self.participant_player_ids.insert(e.opposing_player_id());
+                self.participant_team_ids.insert(e.offending_team_id());
+                self.participant_team_ids.insert(e.opposing_team_id());
+            }
+            MatchEvent::RefereeDecisionResolved(e) => {
+                self.participant_player_ids.insert(e.offending_player_id());
+                self.participant_player_ids.insert(e.opposing_player_id());
+                self.participant_team_ids.insert(e.offending_team_id());
+                self.participant_team_ids.insert(e.opposing_team_id());
+            }
+            MatchEvent::PunishmentApplied(e) => {
+                self.participant_player_ids.insert(e.offending_player_id());
+                self.participant_team_ids.insert(e.offending_team_id());
+            }
+            MatchEvent::PlayerAvailabilityChanged(e) => {
+                self.participant_player_ids.insert(e.player_id());
+                self.participant_team_ids.insert(e.team_id());
+            }
+            MatchEvent::KickFoulAwarded(e) => {
+                self.participant_team_ids.insert(e.awarded_team_id());
+                self.participant_team_ids.insert(e.offending_team_id());
+            }
+            MatchEvent::KickFoulDecisionMade(e) => {
+                self.participant_player_ids.insert(e.taker_id());
+            }
+            MatchEvent::InjuryIncidentRecorded(e) => {
+                self.participant_player_ids.insert(e.player_id());
+                self.participant_team_ids.insert(e.team_id());
+            }
+            _ => {}
+        }
+    }
+
     pub fn reset_all(&mut self) {
+        self.participant_player_ids.clear();
+        self.participant_team_ids.clear();
         for aggregator in &mut self.aggregators {
             aggregator.reset();
         }
@@ -120,7 +299,14 @@ impl AggregatorRegistry {
 
     pub fn all_player_ids(&self) -> HashSet<Uuid> {
         let mut ids = HashSet::new();
+        ids.extend(&self.participant_player_ids);
         if let Some(agg) = self.get::<PlayerTouchesAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerPassingAggregator>() {
+            ids.extend(agg.all_stats().keys().copied());
+        }
+        if let Some(agg) = self.get::<PlayerGoalguardAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
         if let Some(agg) = self.get::<PlayerDuelAggregator>() {
@@ -167,6 +353,7 @@ impl AggregatorRegistry {
 
     pub fn all_team_ids(&self) -> HashSet<Uuid> {
         let mut ids = HashSet::new();
+        ids.extend(&self.participant_team_ids);
         if let Some(agg) = self.get::<TeamPossessionAggregator>() {
             ids.extend(agg.all_stats().keys().copied());
         }
@@ -202,6 +389,21 @@ impl AggregatorRegistry {
             snap.turnovers_conceded = t.turnovers_conceded;
         }
 
+        if let Some(agg) = self.get::<PlayerPassingAggregator>() {
+            let p = agg.get_or_default(player_id);
+            if p.passes_attempted > 0 || snap.passes_attempted == 0 {
+                snap.passes_attempted = p.passes_attempted;
+            }
+            snap.passes_completed = p.passes_completed;
+            snap.passes_incompleted = p.passes_incompleted;
+            snap.passing_mirins = p.passing_mirins;
+            snap.passing_completion_rate = p.completion_rate();
+            snap.longest_pass_mirim = p.longest_pass_mirim;
+            snap.aerial_passes_attempted = p.aerial_passes_attempted;
+            snap.aerial_passes_completed = p.aerial_passes_completed;
+            snap.average_mirins_per_pass_completion = p.average_mirins_per_completion();
+        }
+
         if let Some(agg) = self.get::<PlayerDrivesAggregator>() {
             let d = agg.get_or_default(player_id);
             snap.total_drives = d.total_drives;
@@ -226,6 +428,7 @@ impl AggregatorRegistry {
             snap.defender_duel_wins = du.defender_wins;
             snap.defender_duel_losses = du.defender_losses;
             snap.defender_duel_win_rate = du.defender_win_rate();
+            snap.duels_by_kind = du.by_kind.clone();
         }
 
         if let Some(agg) = self.get::<PlayerReceivingAggregator>() {
@@ -239,6 +442,15 @@ impl AggregatorRegistry {
             snap.run_after_catch_mirins = r.run_after_catch_mirins;
             snap.longest_reception_mirim = r.longest_reception_mirim;
             snap.average_mirins_per_reception = r.average_mirins_per_reception();
+        }
+
+        if let Some(agg) = self.get::<PlayerGoalguardAggregator>() {
+            let g = agg.get_or_default(player_id);
+            snap.goalguard_recoveries = g.total_recoveries;
+            snap.goalguard_first_zone_recoveries = g.first_zone_recoveries;
+            snap.goalguard_second_zone_recoveries = g.second_zone_recoveries;
+            snap.goalguard_open_field_recoveries = g.open_field_recoveries;
+            snap.goalguard_used_hands_recoveries = g.used_hands_recoveries;
         }
 
         if let Some(agg) = self.get::<PlayerScoringAttemptAggregator>() {
