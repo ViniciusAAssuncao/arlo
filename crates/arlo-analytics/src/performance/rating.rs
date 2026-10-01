@@ -3,40 +3,26 @@ use arlo_domain::{Position, SlotRole};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub const PLAYER_PERFORMANCE_MODEL_VERSION: u32 = 1;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct ModelVersion {
-    major: u32,
-    minor: u32,
-    patch: u32,
-}
+pub struct ModelVersion(u32);
 
 impl ModelVersion {
-    pub const V1_0_0: Self = Self::new(1, 0, 0);
+    pub const CURRENT: Self = Self::new(PLAYER_PERFORMANCE_MODEL_VERSION);
 
-    pub const fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self {
-            major,
-            minor,
-            patch,
-        }
+    pub const fn new(value: u32) -> Self {
+        Self(value)
     }
 
-    pub fn major(&self) -> u32 {
-        self.major
-    }
-
-    pub fn minor(&self) -> u32 {
-        self.minor
-    }
-
-    pub fn patch(&self) -> u32 {
-        self.patch
+    pub const fn value(&self) -> u32 {
+        self.0
     }
 }
 
 impl Default for ModelVersion {
     fn default() -> Self {
-        Self::V1_0_0
+        Self::CURRENT
     }
 }
 

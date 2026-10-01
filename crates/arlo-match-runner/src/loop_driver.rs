@@ -3,6 +3,7 @@ use crate::dual_sink::DualEventSink;
 use crate::error::{MatchRunnerError, MatchRunnerResult};
 use crate::match_run_result::MatchRunResult;
 use crate::match_run_status::MatchRunStatus;
+use crate::performance_registry::{build_default_aggregator_registry, finalize_player_performance};
 use arlo_engine::{MatchInput, MatchPhase, MatchState, StepOutcome};
 use arlo_events::{EventSink, InMemorySink, MatchEvent};
 use arlo_manager_control::ManagerDecisionInbox;
@@ -20,12 +21,8 @@ pub fn run_match_with_limit(
     state: &mut MatchState,
     max_segments: usize,
 ) -> MatchRunnerResult<MatchRunResult> {
-    run_match_with_registry(
-        input,
-        state,
-        AggregatorRegistry::with_default_aggregators(),
-        max_segments,
-    )
+    let registry = build_default_aggregator_registry(input)?;
+    run_match_with_registry(input, state, registry, max_segments)
 }
 
 pub fn run_match_with_inbox(
@@ -35,7 +32,7 @@ pub fn run_match_with_inbox(
     play_calls: &[PlayCall],
 ) -> MatchRunnerResult<MatchRunStatus> {
     let mut raw_sink = InMemorySink::new();
-    let mut aggregators = AggregatorRegistry::with_default_aggregators();
+    let mut aggregators = build_default_aggregator_registry(input)?;
     let outcome = run_loop_with_inbox(
         input,
         state,
@@ -47,7 +44,11 @@ pub fn run_match_with_inbox(
     );
     let result = MatchRunResult::new(raw_sink, aggregators);
     match outcome {
-        Ok(_) => Ok(MatchRunStatus::Finished(result)),
+        Ok(_) => {
+            let mut result = result;
+            finalize_player_performance(input, state, &mut result.aggregators);
+            Ok(MatchRunStatus::Finished(result))
+        }
         Err(MatchRunnerError::AwaitingManagerDecision { decisions }) => {
             Ok(MatchRunStatus::AwaitingDecision {
                 decisions,
@@ -66,6 +67,7 @@ pub fn run_match_with_registry(
 ) -> MatchRunnerResult<MatchRunResult> {
     let mut raw_sink = InMemorySink::new();
     run_loop(input, state, &mut raw_sink, &mut aggregators, max_segments)?;
+    finalize_player_performance(input, state, &mut aggregators);
     Ok(MatchRunResult::new(raw_sink, aggregators))
 }
 
@@ -79,6 +81,7 @@ pub fn run_match_with_registry_and_play_calls(
     let mut raw_sink = InMemorySink::new();
     let inbox = ManagerDecisionInbox::new();
     run_loop_with_inbox(input, state, &inbox, play_calls, &mut raw_sink, &mut aggregators, max_segments)?;
+    finalize_player_performance(input, state, &mut aggregators);
     Ok(MatchRunResult::new(raw_sink, aggregators))
 }
 

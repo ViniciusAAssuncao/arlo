@@ -4,6 +4,7 @@ pub mod error;
 pub mod loop_driver;
 pub mod match_run_result;
 pub mod match_run_status;
+mod performance_registry;
 
 pub use dual_sink::DualEventSink;
 pub use decision_dispatch::resolve_segment;
@@ -14,4 +15,5 @@ pub use loop_driver::{
 };
 pub use match_run_result::MatchRunResult;
 pub use match_run_status::MatchRunStatus;
+pub use performance_registry::build_default_aggregator_registry;
 mod manager_play_call;

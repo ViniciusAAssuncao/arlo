@@ -24,7 +24,7 @@ impl Default for LiveRatingConfig {
             seconds_to_full_confidence: 1800.0,
             confidence_shrinkage_weight: 0.0,
             shrinkage_prior_opportunities: 4.0,
-            record_snapshots_automatically: true,
+            record_snapshots_automatically: false,
             outcome_policy: OutcomeAdjustmentPolicy::default_policy(),
         }
     }

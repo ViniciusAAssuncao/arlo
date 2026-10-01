@@ -155,6 +155,25 @@ impl MatchAnalysisContext {
         slot_index: usize,
         slot: &FormationSlot,
     ) -> AnalyticsResult<()> {
+        self.register_starter_assignment(
+            player_id,
+            team_id,
+            slot_index,
+            slot.offensive_position(),
+            slot.defensive_position(),
+            slot.role(),
+        )
+    }
+
+    pub fn register_starter_assignment(
+        &mut self,
+        player_id: Uuid,
+        team_id: Uuid,
+        slot_index: usize,
+        offensive_position: Position,
+        defensive_position: Position,
+        slot_role: SlotRole,
+    ) -> AnalyticsResult<()> {
         if self.assignments.contains_key(&player_id) {
             return Err(AnalyticsError::DuplicatePlayer(player_id));
         }
@@ -163,9 +182,9 @@ impl MatchAnalysisContext {
             player_id,
             team_id,
             slot_index,
-            slot.offensive_position(),
-            slot.defensive_position(),
-            slot.role(),
+            offensive_position,
+            defensive_position,
+            slot_role,
             true,
             None,
             0.0,

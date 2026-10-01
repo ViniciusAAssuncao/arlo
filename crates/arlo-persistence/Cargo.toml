@@ -6,6 +6,7 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+arlo-analytics.workspace = true
 arlo-domain.workspace = true
 arlo-engine.workspace = true
 arlo-events.workspace = true

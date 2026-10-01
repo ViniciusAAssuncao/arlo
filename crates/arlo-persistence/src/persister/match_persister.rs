@@ -7,6 +7,7 @@ use crate::persister::manager_and_referee_persister::{
 use crate::persister::match_persistence_context::MatchPersistenceContext;
 use crate::persister::player_action_stats_persister::persist_player_action_stats;
 use crate::persister::player_condition_stats_persister::persist_player_condition_stats;
+use crate::persister::player_performance_persister::persist_player_performance;
 use crate::persister::squad_selection_persister::persist_squad_selections;
 use crate::persister::team_stats_persister::persist_team_stats;
 use crate::persister::tactical_profile_persister::persist_activated_tactical_profiles;
@@ -44,6 +45,7 @@ impl MatchPersister {
         persist_squad_selections(tx, match_id, input, run_result).await?;
         persist_player_action_stats(tx, match_id, &run_result.aggregators).await?;
         persist_player_condition_stats(tx, match_id, &run_result.aggregators).await?;
+        persist_player_performance(tx, match_id, &run_result.aggregators).await?;
         persist_team_stats(tx, match_id, &run_result.aggregators).await?;
         persist_manager_stats(tx, match_id, &run_result.aggregators).await?;
         persist_referee_stats(tx, match_id, input, &run_result.aggregators).await?;

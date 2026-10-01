@@ -25,6 +25,7 @@ pub use profile::{
 pub use rating::{
     MatchOutcome, ModelVersion, OutcomeAdjustmentPolicy, PerformanceBreakdown,
     PerformanceConfidence, PerformanceRating, PlayerPerformanceSnapshot,
+    PLAYER_PERFORMANCE_MODEL_VERSION,
 };
 pub use translator::EventPerformanceTranslator;
 

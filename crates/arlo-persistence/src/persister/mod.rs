@@ -6,6 +6,7 @@ pub mod match_persistence_context;
 pub mod match_persister;
 pub mod player_action_stats_persister;
 pub mod player_condition_stats_persister;
+pub mod player_performance_persister;
 pub mod promotion_relegation_result_persister;
 pub mod season_persister;
 pub mod squad_selection_persister;
