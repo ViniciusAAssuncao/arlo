@@ -31,6 +31,10 @@ const COLUMNS: &[&str] = &[
     "confidence",
     "seconds_played",
     "effective_opportunities",
+    "effective_opportunity_weight",
+    "offensive_latent",
+    "defensive_latent",
+    "raw_latent",
     "offensive_position",
     "defensive_position",
     "slot_role",
@@ -58,6 +62,10 @@ pub async fn insert_batch(
         builder.push_bind(row.confidence);
         builder.push_bind(row.seconds_played);
         builder.push_bind(row.effective_opportunities);
+        builder.push_bind(row.effective_opportunity_weight);
+        builder.push_bind(row.offensive_latent);
+        builder.push_bind(row.defensive_latent);
+        builder.push_bind(row.raw_latent);
         builder.push_bind(&row.offensive_position);
         builder.push_bind(&row.defensive_position);
         builder.push_bind(&row.slot_role);
@@ -88,6 +96,10 @@ pub async fn list_by_match_id(
             confidence,
             seconds_played,
             effective_opportunities,
+            effective_opportunity_weight,
+            offensive_latent,
+            defensive_latent,
+            raw_latent,
             offensive_position,
             defensive_position,
             slot_role,
@@ -126,6 +138,10 @@ pub async fn get_by_match_id_and_player_id(
             confidence,
             seconds_played,
             effective_opportunities,
+            effective_opportunity_weight,
+            offensive_latent,
+            defensive_latent,
+            raw_latent,
             offensive_position,
             defensive_position,
             slot_role,
