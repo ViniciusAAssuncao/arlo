@@ -1,9 +1,14 @@
+pub mod observation;
 pub mod profile;
 pub mod rating;
+pub mod translator;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub use observation::{
+    ObservationCategory, PerformanceObservation, PerformanceObservationBuilder, PossessionPhase,
+};
 pub use profile::{
     base_weights_for_line, overlay_for_role, weights_for_position, PerformanceProfile,
     PerformanceProfileWeights, SlotRoleOverlay,
@@ -12,6 +17,7 @@ pub use rating::{
     MatchOutcome, ModelVersion, OutcomeAdjustmentPolicy, PerformanceBreakdown,
     PerformanceConfidence, PerformanceRating, PlayerPerformanceSnapshot,
 };
+pub use translator::EventPerformanceTranslator;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayerMatchRating {

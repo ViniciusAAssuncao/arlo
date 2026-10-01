@@ -188,6 +188,24 @@ impl PerformanceBreakdown {
         })
     }
 
+    pub const fn new_unchecked(
+        execution: f64,
+        production: f64,
+        defense: f64,
+        ball_security: f64,
+        discipline: f64,
+        high_impact: f64,
+    ) -> Self {
+        Self {
+            execution,
+            production,
+            defense,
+            ball_security,
+            discipline,
+            high_impact,
+        }
+    }
+
     pub fn zero() -> Self {
         Self::default()
     }
@@ -214,6 +232,21 @@ impl PerformanceBreakdown {
 
     pub fn high_impact(&self) -> f64 {
         self.high_impact
+    }
+}
+
+impl std::ops::Add for PerformanceBreakdown {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            execution: self.execution + rhs.execution,
+            production: self.production + rhs.production,
+            defense: self.defense + rhs.defense,
+            ball_security: self.ball_security + rhs.ball_security,
+            discipline: self.discipline + rhs.discipline,
+            high_impact: self.high_impact + rhs.high_impact,
+        }
     }
 }
 
