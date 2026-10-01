@@ -15,6 +15,10 @@ pub struct MatchPlayerPerformanceRow {
     pub confidence: f64,
     pub seconds_played: f64,
     pub effective_opportunities: i64,
+    pub effective_opportunity_weight: f64,
+    pub offensive_latent: f64,
+    pub defensive_latent: f64,
+    pub raw_latent: f64,
     pub offensive_position: String,
     pub defensive_position: String,
     pub slot_role: String,
@@ -34,6 +38,7 @@ impl MatchPlayerPerformanceRow {
         snapshot: &PlayerPerformanceSnapshot,
     ) -> Self {
         let breakdown = snapshot.breakdown();
+        let diagnostics = snapshot.diagnostics();
         Self {
             id: id.to_string(),
             match_id: match_id.to_string(),
@@ -45,6 +50,10 @@ impl MatchPlayerPerformanceRow {
             confidence: snapshot.confidence().value(),
             seconds_played: snapshot.seconds_played(),
             effective_opportunities: i64::from(snapshot.effective_opportunities()),
+            effective_opportunity_weight: diagnostics.effective_opportunity_weight(),
+            offensive_latent: diagnostics.offensive_latent(),
+            defensive_latent: diagnostics.defensive_latent(),
+            raw_latent: diagnostics.raw_latent(),
             offensive_position: position_code(snapshot.offensive_position()).to_string(),
             defensive_position: position_code(snapshot.defensive_position()).to_string(),
             slot_role: slot_role_code(snapshot.slot_role()).to_string(),
