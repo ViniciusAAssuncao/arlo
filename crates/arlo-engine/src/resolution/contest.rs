@@ -28,13 +28,15 @@ pub(super) fn emit_route_contest(
         DuelKind::RouteContest
     };
 
+    let net_advantage = outcome_advantage(attacker_won, reception.probability, 0.0);
+
     events.push(state.emit(MatchEvent::DuelResolved(DuelResolved::single(
         kind,
         receiver_id,
         defender_id,
         attacker_won,
         Probability::new_clamped(reception.probability),
-        reception.probability - 0.5,
+        net_advantage,
     )))?);
     Ok(())
 }
@@ -60,13 +62,17 @@ pub(super) fn emit_carry_contest(
         DuelKind::BallSecurityCarry
     };
 
+    let gain_signal = (gain_mirim.abs() / 12.0).min(0.50);
+    let net_advantage =
+        outcome_advantage(sample.successful, sample.success_probability, gain_signal);
+
     events.push(state.emit(MatchEvent::DuelResolved(DuelResolved::single(
         kind,
         carrier_id,
         defender_id,
         sample.successful,
         Probability::new_clamped(sample.success_probability),
-        gain_mirim,
+        net_advantage,
     )))?);
     Ok(())
 }
@@ -109,4 +115,18 @@ pub(super) fn emit_shot_contest(
         net_advantage,
     )))?);
     Ok(())
+}
+
+fn outcome_advantage(attacker_won: bool, probability: f64, extra: f64) -> f64 {
+    let surprise = if attacker_won {
+        1.0 - probability
+    } else {
+        probability
+    };
+    let magnitude = surprise * 2.0 + extra.max(0.0);
+    if attacker_won {
+        magnitude
+    } else {
+        -magnitude
+    }
 }
