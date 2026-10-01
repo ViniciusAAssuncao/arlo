@@ -30,14 +30,7 @@ pub fn calculate_shrunk_latent(
         effective_opportunities as f64
     };
 
-    let scale = if raw_latent >= 0.0 {
-        config.positive_scale().max(1e-4)
-    } else {
-        config.negative_scale().max(1e-4)
-    };
-
-    let shrunk_rate = raw_latent / (n + prior_opps);
-    shrunk_rate * scale
+    raw_latent / (n + prior_opps)
 }
 
 pub fn calculate_rating_from_latent(
@@ -45,14 +38,17 @@ pub fn calculate_rating_from_latent(
     confidence: PerformanceConfidence,
     config: &LiveRatingConfig,
 ) -> PerformanceRating {
-    let delta = if latent >= 0.0 {
-        let scale = config.positive_scale().max(1e-4);
-        (PerformanceRating::MAX - config.baseline_rating()) * latent
-            / (scale * scale + latent * latent).sqrt()
+    let gain = if latent >= 0.0 {
+        config.positive_scale().max(1e-4)
     } else {
-        let scale = config.negative_scale().max(1e-4);
-        (config.baseline_rating() - PerformanceRating::MIN) * latent
-            / (scale * scale + latent * latent).sqrt()
+        config.negative_scale().max(1e-4)
+    };
+    let scaled = latent * gain;
+    let normalized = scaled / (1.0 + scaled * scaled).sqrt();
+    let delta = if normalized >= 0.0 {
+        (PerformanceRating::MAX - config.baseline_rating()) * normalized
+    } else {
+        (config.baseline_rating() - PerformanceRating::MIN) * normalized
     };
 
     let shrinkage = config.confidence_shrinkage_weight().clamp(0.0, 1.0);
