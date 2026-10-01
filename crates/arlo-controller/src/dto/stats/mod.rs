@@ -7,6 +7,7 @@ pub mod player_foul_stats_dto;
 pub mod player_kick_foul_stats_dto;
 pub mod player_receiving_stats_dto;
 pub mod player_scoring_stats_dto;
+pub mod player_season_performance_stats_dto;
 pub mod player_touch_stats_dto;
 
 pub use player_appearance_stats_dto::*;
@@ -18,4 +19,5 @@ pub use player_foul_stats_dto::*;
 pub use player_kick_foul_stats_dto::*;
 pub use player_receiving_stats_dto::*;
 pub use player_scoring_stats_dto::*;
+pub use player_season_performance_stats_dto::*;
 pub use player_touch_stats_dto::*;
