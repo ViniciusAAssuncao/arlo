@@ -1,5 +1,17 @@
+pub mod profile;
+pub mod rating;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+pub use profile::{
+    base_weights_for_line, overlay_for_role, weights_for_position, PerformanceProfile,
+    PerformanceProfileWeights, SlotRoleOverlay,
+};
+pub use rating::{
+    MatchOutcome, ModelVersion, OutcomeAdjustmentPolicy, PerformanceBreakdown,
+    PerformanceConfidence, PerformanceRating, PlayerPerformanceSnapshot,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayerMatchRating {
