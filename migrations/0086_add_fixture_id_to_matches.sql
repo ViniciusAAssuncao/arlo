@@ -1,0 +1,1 @@
+ALTER TABLE matches ADD COLUMN fixture_id TEXT REFERENCES fixtures(id);

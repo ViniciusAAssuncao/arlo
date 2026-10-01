@@ -1,4 +1,5 @@
 use crate::domain::attribute_definition::{AttributeDefinition, AttributeTarget};
+use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::validation::validate_integer_range;
 use crate::error::{DomainError, DomainResult};
 use serde::{Deserialize, Serialize};
@@ -15,7 +16,7 @@ impl ManagerAttributeValue {
         if definition.applies_to() != AttributeTarget::Manager {
             return Err(DomainError::InvalidInvariant {
                 field: "attribute_definition".to_string(),
-                reason: "attribute definition does not apply to manager".to_string(),
+                violation: InvariantViolation::UnexpectedValue,
             });
         }
         validate_integer_range(value, 0, 20, "value")?;

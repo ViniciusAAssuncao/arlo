@@ -1,0 +1,1 @@
+ALTER TABLE league_calendar_stage_entry_rule_pools ADD COLUMN external_competition_id TEXT REFERENCES competitions(id);

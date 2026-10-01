@@ -1,0 +1,2 @@
+ALTER TABLE league_calendar_stage_entry_rule_pools ADD COLUMN range_start_position INTEGER;
+ALTER TABLE league_calendar_stage_entry_rule_pools ADD COLUMN range_end_position INTEGER;

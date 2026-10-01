@@ -1,0 +1,1 @@
+ALTER TABLE league_calendar_stage_definitions ADD COLUMN entry_gap_days INTEGER NOT NULL DEFAULT 0;

@@ -1,0 +1,70 @@
+use crate::error::{TacticsError, TacticsResult};
+use crate::instructions::player::MarkingAssignment;
+use crate::lineup::special_role_rules::is_role_eligible_for_position;
+use crate::lineup::tactical_lineup::TacticalLineup;
+use arlo_domain::{Formation, Player, SlotRole};
+use std::collections::HashSet;
+
+pub fn validate_tactical_lineup(
+    lineup: &TacticalLineup,
+    formation: &Formation,
+    roster: &[Player],
+) -> TacticsResult<()> {
+    if lineup.assignments().len() != formation.slots().len() {
+        return Err(TacticsError::InvalidLineup(format!(
+            "Slot count mismatch: expected {}, found {}",
+            formation.slots().len(),
+            lineup.assignments().len()
+        )));
+    }
+
+    let mut seen_players = HashSet::new();
+    for assignment in lineup.assignments() {
+        if !seen_players.insert(assignment.player_id()) {
+            return Err(TacticsError::InvalidLineup(format!(
+                "Duplicate player assignment: {}",
+                assignment.player_id()
+            )));
+        }
+    }
+
+    for assignment in lineup.assignments() {
+        let _player = roster
+            .iter()
+            .find(|p| p.id() == assignment.player_id())
+            .ok_or_else(|| {
+                TacticsError::InvalidLineup(format!(
+                    "Player {} not found in roster",
+                    assignment.player_id()
+                ))
+            })?;
+    }
+
+    for assignment in lineup.assignments() {
+        if assignment.slot_role() != SlotRole::Standard
+            && !is_role_eligible_for_position(assignment.slot_role(), assignment.position())
+        {
+            return Err(TacticsError::InvalidLineup(format!(
+                "Role {:?} is not eligible for position {:?}",
+                assignment.slot_role(),
+                assignment.position()
+            )));
+        }
+    }
+
+    for assignment in lineup.assignments() {
+        if let Some(MarkingAssignment::Man(target)) = assignment
+            .player_instructions()
+            .out_of_possession()
+            .marking()
+        {
+            if target == assignment.position() {
+                return Err(TacticsError::InvalidLineup(
+                    "player cannot man-mark their own position".to_string(),
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}

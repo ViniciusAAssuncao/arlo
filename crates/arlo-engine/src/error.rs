@@ -1,5 +1,11 @@
-#[derive(thiserror::Error, Debug)]
+use thiserror::Error;
+
+#[derive(Debug, Error)]
 pub enum EngineError {
-    #[error(transparent)]
-    Domain(#[from] arlo_domain::DomainError),
+    #[error("invalid match input: {0}")]
+    InvalidInput(String),
+    #[error("invalid match transition: {0}")]
+    InvalidTransition(String),
 }
+
+pub type EngineResult<T> = Result<T, EngineError>;

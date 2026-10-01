@@ -1,0 +1,3 @@
+pub mod referee_performance_repository;
+
+pub use referee_performance_repository as match_referee_performance;

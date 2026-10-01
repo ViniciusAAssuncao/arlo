@@ -1,0 +1,23 @@
+pub mod player_appearances_season_stats_repository;
+pub mod player_artrine_decision_season_stats_repository;
+pub mod player_assist_season_stats_repository;
+pub mod player_drive_season_stats_repository;
+pub mod player_duel_season_stats_repository;
+pub mod player_foul_season_stats_repository;
+pub mod player_kick_foul_season_stats_repository;
+pub mod player_receiving_season_stats_repository;
+pub mod player_role_season_stats_repository;
+pub mod player_scoring_season_stats_repository;
+pub mod player_touch_season_stats_repository;
+
+pub use player_appearances_season_stats_repository as player_appearances;
+pub use player_artrine_decision_season_stats_repository as player_artrine_decisions;
+pub use player_assist_season_stats_repository as player_assists;
+pub use player_drive_season_stats_repository as player_drives;
+pub use player_duel_season_stats_repository as player_duels;
+pub use player_foul_season_stats_repository as player_fouls;
+pub use player_kick_foul_season_stats_repository as player_kick_fouls;
+pub use player_receiving_season_stats_repository as player_receiving;
+pub use player_role_season_stats_repository as player_roles;
+pub use player_scoring_season_stats_repository as player_scoring;
+pub use player_touch_season_stats_repository as player_touches;

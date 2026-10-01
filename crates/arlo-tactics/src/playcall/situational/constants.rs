@@ -1,0 +1,2 @@
+pub const SITUATIONAL_SIGMA_MIN: f64 = 0.15;
+pub const SITUATIONAL_SIGMA_MAX: f64 = 0.85;

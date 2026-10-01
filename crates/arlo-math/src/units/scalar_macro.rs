@@ -62,6 +62,13 @@ macro_rules! define_rate_of_change {
                 $accumulated::new(self.value() * rhs.value())
             }
         }
+
+        impl std::ops::Div<$rate> for $accumulated {
+            type Output = $duration;
+            fn div(self, rhs: $rate) -> Self::Output {
+                $duration::new(self.value() / rhs.value())
+            }
+        }
     };
 }
 

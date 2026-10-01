@@ -1,0 +1,5 @@
+INSERT INTO attribute_definitions (id, key, display_name, category, applies_to) VALUES
+    (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-a' || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))), 'rigor', 'Rigor / Critério de Falta', 'Managerial', 'Referee'),
+    (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-a' || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))), 'authority', 'Autoridade / Assertividade', 'Managerial', 'Referee'),
+    (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-a' || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))), 'consistency', 'Consistência / Regularidade', 'Mental', 'Referee'),
+    (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-a' || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))), 'composure', 'Compostura / Frieza', 'Mental', 'Referee');

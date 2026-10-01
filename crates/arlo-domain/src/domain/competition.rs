@@ -1,3 +1,4 @@
+use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::scope::Scope;
 use crate::domain::validation::{validate_integer_range, validate_not_empty};
 use crate::error::{DomainError, DomainResult};
@@ -41,8 +42,7 @@ impl Competition {
                 if country_id.is_none() {
                     return Err(DomainError::InvalidInvariant {
                         field: "country_id".to_string(),
-                        reason: "country_id must be present for Regional or National scope"
-                            .to_string(),
+                        violation: InvariantViolation::MissingRequiredValue,
                     });
                 }
             }
@@ -50,8 +50,7 @@ impl Competition {
                 if country_id.is_some() {
                     return Err(DomainError::InvalidInvariant {
                         field: "country_id".to_string(),
-                        reason: "country_id must be None for Continental or International scope"
-                            .to_string(),
+                        violation: InvariantViolation::UnexpectedValue,
                     });
                 }
             }

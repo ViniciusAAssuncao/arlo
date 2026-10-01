@@ -13,6 +13,7 @@ pub struct Team {
     prestige: i32,
     primary_color_hex: Option<String>,
     secondary_color_hex: Option<String>,
+    home_venue_id: Option<Uuid>,
 }
 
 impl Team {
@@ -63,6 +64,10 @@ impl Team {
     pub fn secondary_color_hex(&self) -> Option<&str> {
         self.secondary_color_hex.as_deref()
     }
+
+    pub fn home_venue_id(&self) -> Option<Uuid> {
+        self.home_venue_id
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +80,7 @@ pub struct TeamBuilder {
     prestige: i32,
     primary_color_hex: Option<String>,
     secondary_color_hex: Option<String>,
+    home_venue_id: Option<Uuid>,
 }
 
 impl TeamBuilder {
@@ -94,6 +100,7 @@ impl TeamBuilder {
             prestige,
             primary_color_hex: None,
             secondary_color_hex: None,
+            home_venue_id: None,
         }
     }
 
@@ -109,6 +116,11 @@ impl TeamBuilder {
 
     pub fn with_secondary_color_hex(mut self, secondary_color_hex: Option<String>) -> Self {
         self.secondary_color_hex = secondary_color_hex;
+        self
+    }
+
+    pub fn with_home_venue_id(mut self, home_venue_id: Option<Uuid>) -> Self {
+        self.home_venue_id = home_venue_id;
         self
     }
 
@@ -132,6 +144,7 @@ impl TeamBuilder {
             prestige: self.prestige,
             primary_color_hex: self.primary_color_hex,
             secondary_color_hex: self.secondary_color_hex,
+            home_venue_id: self.home_venue_id,
         })
     }
 }

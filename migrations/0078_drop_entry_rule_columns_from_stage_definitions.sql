@@ -1,0 +1,2 @@
+ALTER TABLE league_calendar_stage_definitions DROP COLUMN entry_rule_kind;
+ALTER TABLE league_calendar_stage_definitions DROP COLUMN entry_rule_count;

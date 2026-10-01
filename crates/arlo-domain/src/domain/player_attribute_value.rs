@@ -1,7 +1,8 @@
-use crate::domain::attribute_definition::{ AttributeDefinition, AttributeTarget };
+use crate::domain::attribute_definition::{AttributeDefinition, AttributeTarget};
+use crate::domain::invariant_violation::InvariantViolation;
 use crate::domain::validation::validate_integer_range;
-use crate::error::{ DomainError, DomainResult };
-use serde::{ Deserialize, Serialize };
+use crate::error::{DomainError, DomainResult};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -15,7 +16,7 @@ impl PlayerAttributeValue {
         if definition.applies_to() != AttributeTarget::Player {
             return Err(DomainError::InvalidInvariant {
                 field: "attribute_definition".to_string(),
-                reason: "attribute definition does not apply to player".to_string(),
+                violation: InvariantViolation::UnexpectedValue,
             });
         }
         validate_integer_range(value, 0, 20, "value")?;
