@@ -14,6 +14,7 @@ pub mod match_player_injury_by_body_region_row;
 pub mod match_player_injury_row;
 pub mod match_player_kick_foul_by_decision_row;
 pub mod match_player_kick_foul_row;
+pub mod match_player_performance_category_row;
 pub mod match_player_performance_row;
 pub mod match_player_physical_row;
 pub mod match_player_punishment_row;
@@ -39,6 +40,7 @@ pub use match_player_injury_by_body_region_row::MatchPlayerInjuryByBodyRegionRow
 pub use match_player_injury_row::MatchPlayerInjuryRow;
 pub use match_player_kick_foul_by_decision_row::MatchPlayerKickFoulByDecisionRow;
 pub use match_player_kick_foul_row::MatchPlayerKickFoulRow;
+pub use match_player_performance_category_row::MatchPlayerPerformanceCategoryRow;
 pub use match_player_performance_row::MatchPlayerPerformanceRow;
 pub use match_player_physical_row::MatchPlayerPhysicalRow;
 pub use match_player_punishment_row::MatchPlayerPunishmentRow;
