@@ -168,4 +168,12 @@ impl SeriesState {
             SeriesOut::Retained,
         )
     }
+
+    pub(crate) fn lose_downs(self, count: u32) -> Self {
+        Self { down: u8::try_from(u32::from(self.down).saturating_add(count).min(4)).unwrap_or(4), ..self }
+    }
+
+    pub(crate) fn lose_yardage(self, mirim: f64) -> Self {
+        Self { distance_to_gain_mirim: self.distance_to_gain_mirim + mirim, valid_advance_mirim: self.valid_advance_mirim - mirim, ..self }
+    }
 }

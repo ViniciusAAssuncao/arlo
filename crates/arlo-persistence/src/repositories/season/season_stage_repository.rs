@@ -14,7 +14,9 @@ pub async fn insert(
             stage_order_index,
             stage_type,
             status
-        ) VALUES (?, ?, ?, ?, ?)"#,
+        ) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            status = excluded.status"#,
     )
     .bind(&row.id)
     .bind(&row.season_instance_id)

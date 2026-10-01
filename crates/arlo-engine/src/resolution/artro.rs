@@ -20,7 +20,7 @@ pub(super) fn sample_artros(
     let containment = ratings.active_average(defense, AttributeKey::DefensiveContainment, false)?;
     let emphasis = selected_play_call
         .map(|call| *call.decision_emphasis())
-        .unwrap_or_else(|| offense.tactics().instructions().default_decision_emphasis());
+        .unwrap_or_else(|| ratings.instructions(offense).default_decision_emphasis());
     let probability = (BASE_ARTRO_PROBABILITY + technique * DRIVE_TECHNIQUE_ARTRO_WEIGHT
         - containment * DEFENSIVE_CONTAINMENT_ARTRO_WEIGHT
         + emphasis.self_carry().value() * CARRY_EMPHASIS_ARTRO_WEIGHT)
@@ -29,7 +29,7 @@ pub(super) fn sample_artros(
     let distribution = Poisson::new(lambda)
         .map_err(|_| EngineError::InvalidTransition("invalid Artro rate".into()))?;
     let count = distribution.sample(rng) as usize;
-    let channels = offense.tactics().instructions().channel_distribution();
+    let channels = ratings.instructions(offense).channel_distribution();
     let mut placements = Vec::with_capacity(count);
     for _ in 0..count {
         let roll = rng.gen_range(0.0..1.0);

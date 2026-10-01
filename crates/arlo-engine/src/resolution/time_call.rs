@@ -27,5 +27,5 @@ pub fn resolve_time_call_segment(
         emit_down_advanced(&mut next, &mut events, outcome, position)?;
     }
     *state = next;
-    Ok(StepResult::resolved(events))
+    super::officiating::resolve_officiating(input, state, StepResult::resolved(events), None)
 }

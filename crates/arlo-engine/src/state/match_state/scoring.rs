@@ -36,9 +36,9 @@ impl MatchState {
     }
 
     pub fn award_kick_foul(&mut self, kicker_team_id: Uuid) -> EngineResult<()> {
-        if self.phase != MatchPhase::Live {
+        if !matches!(self.phase, MatchPhase::Live | MatchPhase::Stopped) {
             return Err(EngineError::InvalidTransition(
-                "Kick Foul requires live play".into(),
+                "Kick Foul requires a live or just-concluded play".into(),
             ));
         }
         self.team(kicker_team_id)?;
@@ -98,6 +98,9 @@ impl MatchState {
         };
 
         self.team_mut(team_id)?.replace_score(next_score);
+        let elapsed = self.clock.total_elapsed_seconds();
+        self.recent_scores.retain(|(at, _, _)| elapsed - at <= 900.0);
+        self.recent_scores.push((elapsed, team_id, kind.points()));
         self.home.reset_drives();
         self.away.reset_drives();
         self.pending_call_outcome = None;
@@ -108,12 +111,20 @@ impl MatchState {
         if let Some((possession, series)) = restart {
             self.possession = possession;
             self.series = series;
+            self.apply_deferred_series_penalties()?;
             self.suspended_restart = None;
             self.phase = MatchPhase::Stopped;
         } else {
             self.phase = MatchPhase::BonusPhase;
         }
         Ok(kind.points())
+    }
+
+    pub fn recent_score_balance(&self, team_id: Uuid) -> i32 {
+        let since = self.clock.total_elapsed_seconds() - 600.0;
+        self.recent_scores.iter().filter(|(at, _, _)| *at >= since)
+            .map(|(_, scorer, points)| if *scorer == team_id { *points as i32 } else { -(*points as i32) })
+            .sum()
     }
 
     pub fn finish_bonus_phase_without_score(&mut self) -> EngineResult<()> {
@@ -126,6 +137,7 @@ impl MatchState {
         let (possession, series) = self.restart_for(recipient)?;
         self.possession = possession;
         self.series = series;
+        self.apply_deferred_series_penalties()?;
         self.suspended_restart = None;
         self.clock = self.clock.stop();
         self.phase = MatchPhase::Stopped;

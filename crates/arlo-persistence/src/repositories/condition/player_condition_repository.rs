@@ -1,6 +1,6 @@
 use crate::error::PersistenceResult;
 use crate::models::condition::PlayerConditionRow;
-use sqlx::{Sqlite, SqlitePool, Transaction};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
 pub async fn get_by_player_id(
@@ -95,42 +95,49 @@ pub async fn upsert_with_tx(
     tx: &mut Transaction<'_, Sqlite>,
     row: &PlayerConditionRow,
 ) -> PersistenceResult<()> {
-    sqlx::query(
-        r#"INSERT INTO player_condition (
-            player_id,
-            energy_level,
-            anaerobic_reserve,
-            impulse_current_value,
-            impulse_baseline,
-            conditioning_score,
-            last_updated_year,
-            last_updated_day_of_year,
-            last_match_year,
-            last_match_day_of_year
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(player_id) DO UPDATE SET
-            energy_level = excluded.energy_level,
-            anaerobic_reserve = excluded.anaerobic_reserve,
-            impulse_current_value = excluded.impulse_current_value,
-            impulse_baseline = excluded.impulse_baseline,
-            conditioning_score = excluded.conditioning_score,
-            last_updated_year = excluded.last_updated_year,
-            last_updated_day_of_year = excluded.last_updated_day_of_year,
-            last_match_year = excluded.last_match_year,
-            last_match_day_of_year = excluded.last_match_day_of_year"#,
-    )
-    .bind(&row.player_id)
-    .bind(row.energy_level)
-    .bind(row.anaerobic_reserve)
-    .bind(row.impulse_current_value)
-    .bind(row.impulse_baseline)
-    .bind(row.conditioning_score)
-    .bind(row.last_updated_year)
-    .bind(row.last_updated_day_of_year)
-    .bind(row.last_match_year)
-    .bind(row.last_match_day_of_year)
-    .execute(&mut **tx)
-    .await?;
+    upsert_many_with_tx(tx, std::slice::from_ref(row)).await
+}
 
+pub async fn list_by_player_ids(
+    pool: &SqlitePool,
+    player_ids: &[Uuid],
+) -> PersistenceResult<Vec<PlayerConditionRow>> {
+    if player_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut query = QueryBuilder::<Sqlite>::new(
+        "SELECT player_id, energy_level, anaerobic_reserve, impulse_current_value, impulse_baseline, conditioning_score, last_updated_year, last_updated_day_of_year, last_match_year, last_match_day_of_year FROM player_condition WHERE player_id IN (",
+    );
+    let mut ids = query.separated(", ");
+    for id in player_ids {
+        ids.push_bind(id.to_string());
+    }
+    ids.push_unseparated(")");
+    Ok(query.build_query_as::<PlayerConditionRow>().fetch_all(pool).await?)
+}
+
+pub async fn upsert_many_with_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    rows: &[PlayerConditionRow],
+) -> PersistenceResult<()> {
+    for chunk in rows.chunks(300) {
+        let mut query = QueryBuilder::<Sqlite>::new(
+            "INSERT INTO player_condition (player_id, energy_level, anaerobic_reserve, impulse_current_value, impulse_baseline, conditioning_score, last_updated_year, last_updated_day_of_year, last_match_year, last_match_day_of_year) ",
+        );
+        query.push_values(chunk, |mut values, row| {
+            values.push_bind(&row.player_id)
+                .push_bind(row.energy_level)
+                .push_bind(row.anaerobic_reserve)
+                .push_bind(row.impulse_current_value)
+                .push_bind(row.impulse_baseline)
+                .push_bind(row.conditioning_score)
+                .push_bind(row.last_updated_year)
+                .push_bind(row.last_updated_day_of_year)
+                .push_bind(row.last_match_year)
+                .push_bind(row.last_match_day_of_year);
+        });
+        query.push(" ON CONFLICT(player_id) DO UPDATE SET energy_level = excluded.energy_level, anaerobic_reserve = excluded.anaerobic_reserve, impulse_current_value = excluded.impulse_current_value, impulse_baseline = excluded.impulse_baseline, conditioning_score = excluded.conditioning_score, last_updated_year = excluded.last_updated_year, last_updated_day_of_year = excluded.last_updated_day_of_year, last_match_year = excluded.last_match_year, last_match_day_of_year = excluded.last_match_day_of_year");
+        query.build().execute(&mut **tx).await?;
+    }
     Ok(())
 }

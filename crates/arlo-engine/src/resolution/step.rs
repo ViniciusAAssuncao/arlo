@@ -3,8 +3,10 @@ use super::bonus::resolve_bonus_segment;
 use super::context::validate_match_state;
 use super::contest::emit_route_contest;
 use super::down::emit_down_advanced;
-use super::kick_foul::resolve_kick_foul_segment;
+use super::kick_foul::resolve_kick_foul_segment_inner;
+use super::injury::resolve_injuries;
 use super::model::sample_call;
+use super::officiating::resolve_officiating;
 use super::open_play::resolve_open_play_segment;
 use super::ratings::RatingIndex;
 use super::reception::sample_reception;
@@ -18,7 +20,7 @@ use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_events::{
     CallToActionStarted, MatchEvent, OutOfBounds, PassCompleted, PossessionTimeRecorded,
-    ReceptionResolved, Turnover,
+    PlayCallSelected, ReceptionResolved, Turnover,
 };
 use arlo_manager_control::RequiredManagerDecision;
 use arlo_tactics::{validate_play_call, PlayCall, PlayCallCategory};
@@ -29,7 +31,40 @@ pub fn resolve_next_segment(
     state: &mut MatchState,
     selected_play_call: Option<&PlayCall>,
 ) -> EngineResult<StepResult> {
+    if state.initial_lineup_reviewed()
+        && matches!(state.phase(), MatchPhase::Ready | MatchPhase::Stopped | MatchPhase::BonusPhase | MatchPhase::KickFoul)
+    {
+        state.begin_play_checkpoint();
+    }
+    let prior = state.clone();
+    let result = resolve_next_segment_inner(input, state, selected_play_call)?;
+    let result = resolve_officiating(input, state, result, Some(&prior))?;
+    let (mut events, outcome) = result.into_parts();
+    if !events.iter().any(|event| matches!(event.event(), MatchEvent::PlayInvalidated(_))) {
+        state.record_segment_energy(input, &prior, &mut events)?;
+        state.record_segment_morale(&prior, &mut events)?;
+    }
+    if matches!(outcome, crate::step::StepOutcome::Finished) {
+        state.record_final_energy(&mut events)?;
+        state.record_final_morale(&mut events)?;
+    }
+    let result = match outcome {
+        crate::step::StepOutcome::Resolved => StepResult::resolved(events),
+        crate::step::StepOutcome::Finished => StepResult::finished(events),
+        crate::step::StepOutcome::AwaitingDecision(decisions) => StepResult::awaiting_decision(decisions),
+    };
+    resolve_injuries(input, state, result)
+}
+
+fn resolve_next_segment_inner(
+    input: &MatchInput,
+    state: &mut MatchState,
+    selected_play_call: Option<&PlayCall>,
+) -> EngineResult<StepResult> {
     validate_match_state(input, state)?;
+    if state.phase() == MatchPhase::Ready && !state.initial_lineup_reviewed() {
+        return super::illegal_substitution::review_initial_lineups(input, state);
+    }
     if state.phase() == MatchPhase::Finished {
         return Ok(StepResult::finished(Vec::new()));
     }
@@ -53,7 +88,7 @@ pub fn resolve_next_segment(
                 "Kick Foul does not accept an open-play Call-to-Action".into(),
             ));
         }
-        return resolve_kick_foul_segment(input, state, None, None);
+        return resolve_kick_foul_segment_inner(input, state, None, None);
     }
     if state.phase() == MatchPhase::Live {
         if selected_play_call.is_some() {
@@ -117,7 +152,7 @@ pub fn resolve_next_segment(
         .map_err(|error| EngineError::InvalidInput(error.to_string()))?;
     }
 
-    let ratings = RatingIndex::new(input);
+    let ratings = RatingIndex::new(input, state);
     let offense_rating = ratings.team_ratings(offense)?;
     let defense_rating = ratings.team_ratings(defense)?;
     let mut next = state.clone();
@@ -170,6 +205,11 @@ pub fn resolve_next_segment(
     let controlled_reception = reception.caught && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS;
     next.begin_call_to_action()?;
     let mut events = Vec::with_capacity(7);
+    if let Some(call) = selected_play_call {
+        events.push(next.emit(MatchEvent::PlayCallSelected(PlayCallSelected::new(
+            offense_id, call.id(), call.name(), arlo_events::PlayCallCategory::OpenPlay,
+        )))?);
+    }
     events.push(
         next.emit(MatchEvent::CallToActionStarted(CallToActionStarted::new(
             offense_id,
@@ -194,6 +234,9 @@ pub fn resolve_next_segment(
             false,
         )))?,
     );
+    super::passer_contact::resolve_after_release(
+        &ratings, offense, defense, passer_id, carry_defender_id, &mut next, &mut events,
+    )?;
     emit_route_contest(
         &mut next,
         &mut events,

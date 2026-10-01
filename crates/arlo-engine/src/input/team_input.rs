@@ -12,6 +12,7 @@ pub struct TeamInput {
     roster: Vec<Player>,
     manager: Manager,
     tactics: TeamTacticalProfile,
+    alternative_tactics: Vec<TeamTacticalProfile>,
 }
 
 impl TeamInput {
@@ -66,12 +67,9 @@ impl TeamInput {
         let mut assigned_players = HashSet::new();
         let mut assigned_slots = HashSet::new();
         for assignment in lineup.assignments() {
-            let slot = formation
-                .slots()
-                .get(assignment.formation_slot_index())
-                .ok_or_else(|| {
-                    EngineError::InvalidInput("lineup references an unknown slot".into())
-                })?;
+            if formation.slots().get(assignment.formation_slot_index()).is_none() {
+                return Err(EngineError::InvalidInput("lineup references an unknown slot".into()));
+            }
             if !assigned_players.insert(assignment.player_id())
                 || !assigned_slots.insert(assignment.formation_slot_index())
             {
@@ -82,11 +80,6 @@ impl TeamInput {
             if !roster_ids.contains(&assignment.player_id()) {
                 return Err(EngineError::InvalidInput(
                     "lineup player is missing from roster".into(),
-                ));
-            }
-            if assignment.position() != slot.offensive_position() {
-                return Err(EngineError::InvalidInput(
-                    "lineup position differs from formation slot".into(),
                 ));
             }
         }
@@ -106,9 +99,9 @@ impl TeamInput {
             .iter()
             .filter(|a| a.position() == Position::Goalguard)
             .count();
-        if artrines != 1 || passers != 1 || goalguards != 1 {
+        if artrines == 0 || passers == 0 || goalguards == 0 {
             return Err(EngineError::InvalidInput(
-                "lineup requires one Artrine, Passer and Goalguard".into(),
+                "lineup requires at least one Artrine, Passer and Goalguard".into(),
             ));
         }
         validate_tactical_lineup(&lineup, &formation, &roster)
@@ -121,7 +114,19 @@ impl TeamInput {
             roster,
             manager,
             tactics,
+            alternative_tactics: Vec::new(),
         })
+    }
+
+    pub fn with_alternative_tactics(mut self, alternatives: Vec<TeamTacticalProfile>) -> EngineResult<Self> {
+        let mut ids = HashSet::from([self.tactics.id()]);
+        for profile in &alternatives {
+            if profile.team_id() != self.team_id || !ids.insert(profile.id()) {
+                return Err(EngineError::InvalidInput("invalid alternative tactical profile".into()));
+            }
+        }
+        self.alternative_tactics = alternatives;
+        Ok(self)
     }
 
     pub fn team_id(&self) -> Uuid {
@@ -141,5 +146,8 @@ impl TeamInput {
     }
     pub fn tactics(&self) -> &TeamTacticalProfile {
         &self.tactics
+    }
+    pub fn tactical_profiles(&self) -> impl Iterator<Item = &TeamTacticalProfile> {
+        std::iter::once(&self.tactics).chain(self.alternative_tactics.iter())
     }
 }

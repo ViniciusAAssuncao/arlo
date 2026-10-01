@@ -14,7 +14,8 @@ pub mod sink;
 
 pub use action::{
     ActionEvent, ArtrineDecisionMade, CallToActionStarted, CarryResolved, DistributionCompleted, DriveRecorded,
-    DriveRegistered, DuelKind, DuelResolved, EventArtroPlacement, PassCompleted, ReceptionResolved,
+    DriveRegistered, DuelKind, DuelResolved, EventArtroPlacement, GoalguardRecoveryResolved, PassCompleted,
+    PasserContactResolved, ReceptionResolved,
 };
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use arlo_domain::PitchZone;
@@ -24,7 +25,7 @@ pub use events::manager::*;
 pub use in_memory_sink::InMemorySink;
 pub use injury::InjuryIncidentRecorded;
 pub use kick_foul::{KickFoulAwarded, KickFoulDecisionMade, KickFoulEvent};
-pub use officiating::{AddedTimeAwarded, FoulOrigin, FoulRaised, OfficiatingEvent};
+pub use officiating::{AddedTimeAwarded, FoulOrigin, FoulRaised, OfficiatingEvent, PlayInvalidated, PunishmentApplied, RefereeDecisionResolved};
 pub use physical::{PhysicalEvent, PhysicalStrainRecorded, RecoveryIntervalProcessed};
 pub use possession::{
     CountdownReason, CountdownToSizeStarted, DownAdvanced, OutOfBounds, PossessionEvent,
@@ -48,6 +49,8 @@ pub enum MatchEvent {
     CarryResolved(CarryResolved),
     DistributionCompleted(DistributionCompleted),
     ReceptionResolved(ReceptionResolved),
+    PasserContactResolved(PasserContactResolved),
+    GoalguardRecoveryResolved(GoalguardRecoveryResolved),
     ArtrineDecisionMade(ArtrineDecisionMade),
     DriveRecorded(DriveRecorded),
     DuelResolved(DuelResolved),
@@ -70,6 +73,9 @@ pub enum MatchEvent {
     TacticalProfileActivated(TacticalProfileActivated),
     PlayCallSelected(PlayCallSelected),
     FoulRaised(FoulRaised),
+    RefereeDecisionResolved(RefereeDecisionResolved),
+    PunishmentApplied(PunishmentApplied),
+    PlayInvalidated(PlayInvalidated),
     AddedTimeAwarded(AddedTimeAwarded),
     PlayerAvailabilityChanged(PlayerAvailabilityChanged),
     KickFoulAwarded(KickFoulAwarded),
@@ -86,6 +92,8 @@ impl MatchEvent {
                 | Self::CarryResolved(_)
                 | Self::DistributionCompleted(_)
                 | Self::ReceptionResolved(_)
+                | Self::PasserContactResolved(_)
+                | Self::GoalguardRecoveryResolved(_)
                 | Self::ArtrineDecisionMade(_)
                 | Self::DriveRecorded(_)
                 | Self::DuelResolved(_)
@@ -143,7 +151,7 @@ impl MatchEvent {
     pub fn is_officiating(&self) -> bool {
         matches!(
             self,
-            Self::FoulRaised(_) | Self::KickFoulAwarded(_) | Self::AddedTimeAwarded(_)
+            Self::FoulRaised(_) | Self::RefereeDecisionResolved(_) | Self::PunishmentApplied(_) | Self::PlayInvalidated(_) | Self::KickFoulAwarded(_) | Self::AddedTimeAwarded(_)
         )
     }
 
@@ -169,6 +177,8 @@ impl MatchEvent {
             Self::CarryResolved(_) => "CarryResolved",
             Self::DistributionCompleted(_) => "DistributionCompleted",
             Self::ReceptionResolved(_) => "ReceptionResolved",
+            Self::PasserContactResolved(_) => "PasserContactResolved",
+            Self::GoalguardRecoveryResolved(_) => "GoalguardRecoveryResolved",
             Self::ArtrineDecisionMade(_) => "ArtrineDecisionMade",
             Self::DriveRecorded(_) => "DriveRecorded",
             Self::DuelResolved(_) => "DuelResolved",
@@ -191,6 +201,9 @@ impl MatchEvent {
             Self::TacticalProfileActivated(_) => "TacticalProfileActivated",
             Self::PlayCallSelected(_) => "PlayCallSelected",
             Self::FoulRaised(_) => "FoulRaised",
+            Self::RefereeDecisionResolved(_) => "RefereeDecisionResolved",
+            Self::PunishmentApplied(_) => "PunishmentApplied",
+            Self::PlayInvalidated(_) => "PlayInvalidated",
             Self::AddedTimeAwarded(_) => "AddedTimeAwarded",
             Self::PlayerAvailabilityChanged(_) => "PlayerAvailabilityChanged",
             Self::KickFoulAwarded(_) => "KickFoulAwarded",
@@ -228,6 +241,14 @@ impl From<ReceptionResolved> for MatchEvent {
     fn from(ev: ReceptionResolved) -> Self {
         Self::ReceptionResolved(ev)
     }
+}
+
+impl From<PasserContactResolved> for MatchEvent {
+    fn from(ev: PasserContactResolved) -> Self { Self::PasserContactResolved(ev) }
+}
+
+impl From<GoalguardRecoveryResolved> for MatchEvent {
+    fn from(ev: GoalguardRecoveryResolved) -> Self { Self::GoalguardRecoveryResolved(ev) }
 }
 
 impl From<ArtrineDecisionMade> for MatchEvent {
@@ -418,6 +439,8 @@ impl From<ActionEvent> for MatchEvent {
             ActionEvent::CarryResolved(e) => Self::CarryResolved(e),
             ActionEvent::DistributionCompleted(e) => Self::DistributionCompleted(e),
             ActionEvent::ReceptionResolved(e) => Self::ReceptionResolved(e),
+            ActionEvent::PasserContactResolved(e) => Self::PasserContactResolved(e),
+            ActionEvent::GoalguardRecoveryResolved(e) => Self::GoalguardRecoveryResolved(e),
             ActionEvent::ArtrineDecisionMade(e) => Self::ArtrineDecisionMade(e),
             ActionEvent::DriveRecorded(e) => Self::DriveRecorded(e),
             ActionEvent::DuelResolved(e) => Self::DuelResolved(e),
@@ -464,6 +487,9 @@ impl From<OfficiatingEvent> for MatchEvent {
     fn from(ev: OfficiatingEvent) -> Self {
         match ev {
             OfficiatingEvent::FoulRaised(e) => Self::FoulRaised(e),
+            OfficiatingEvent::RefereeDecisionResolved(e) => Self::RefereeDecisionResolved(e),
+            OfficiatingEvent::PunishmentApplied(e) => Self::PunishmentApplied(e),
+            OfficiatingEvent::PlayInvalidated(e) => Self::PlayInvalidated(e),
             OfficiatingEvent::AddedTimeAwarded(e) => Self::AddedTimeAwarded(e),
         }
     }

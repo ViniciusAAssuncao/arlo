@@ -1,9 +1,9 @@
-use crate::error::ControllerResult;
+use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::attribute::attribute_definition_cache::get_or_load_manager_attribute_definitions;
 use crate::repositories::formation::formation_cache::get_or_load_formations;
 use crate::repositories::season::standings_cache;
 use arlo_persistence::models::season::FixtureRow;
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
 pub fn apply_walkover(fixture: &FixtureRow, fault_team_id: Option<Uuid>) -> FixtureRow {
@@ -47,17 +47,32 @@ pub async fn handle_walkover(
     pool: &SqlitePool,
     fixture: &FixtureRow,
 ) -> ControllerResult<FixtureRow> {
+    let completed = prepare_walkover(pool, fixture).await?;
+    persist_walkover_fixture(pool, &completed).await?;
+    Ok(completed)
+}
+
+pub async fn prepare_walkover(
+    pool: &SqlitePool,
+    fixture: &FixtureRow,
+) -> ControllerResult<FixtureRow> {
     let home_id = Uuid::parse_str(&fixture.home_team_id).ok();
     let away_id = Uuid::parse_str(&fixture.away_team_id).ok();
 
     let home_ready = match home_id {
-        Some(id) => is_team_ready(pool, id).await,
+        Some(id) => is_team_ready(pool, id).await?,
         None => false,
     };
     let away_ready = match away_id {
-        Some(id) => is_team_ready(pool, id).await,
+        Some(id) => is_team_ready(pool, id).await?,
         None => false,
     };
+
+    if home_ready && away_ready {
+        return Err(ControllerError::InvalidData(
+            "Both teams are ready; a match setup error cannot be converted to a walkover".into(),
+        ));
+    }
 
     let fault_team_id = match (home_ready, away_ready) {
         (false, true) => home_id,
@@ -66,8 +81,33 @@ pub async fn handle_walkover(
     };
 
     let completed = apply_walkover(fixture, fault_team_id);
-    persist_walkover_fixture(pool, &completed).await?;
     Ok(completed)
+}
+
+pub async fn persist_walkover_fixture_with_tx(
+    tx: &mut Transaction<'_, Sqlite>,
+    fixture_row: &FixtureRow,
+) -> ControllerResult<()> {
+    let affected = sqlx::query(
+        "UPDATE fixtures SET status = ?, home_score = ?, away_score = ?, home_goal_points = ?, away_goal_points = ?, home_field_goals = ?, away_field_goals = ?, home_field_points = ?, away_field_points = ? WHERE id = ?",
+    )
+    .bind(&fixture_row.status)
+    .bind(fixture_row.home_score)
+    .bind(fixture_row.away_score)
+    .bind(fixture_row.home_goal_points)
+    .bind(fixture_row.away_goal_points)
+    .bind(fixture_row.home_field_goals)
+    .bind(fixture_row.away_field_goals)
+    .bind(fixture_row.home_field_points)
+    .bind(fixture_row.away_field_points)
+    .bind(&fixture_row.id)
+    .execute(&mut **tx)
+    .await?
+    .rows_affected();
+    if affected != 1 {
+        return Err(ControllerError::InvalidData("Walkover fixture is missing".into()));
+    }
+    Ok(())
 }
 
 pub async fn persist_walkover_fixture(
@@ -97,29 +137,18 @@ pub async fn persist_walkover_fixture(
     Ok(())
 }
 
-async fn is_team_ready(pool: &SqlitePool, team_id: Uuid) -> bool {
-    let players = match arlo_db::repositories::player::list_by_team_id(pool, team_id).await {
-        Ok(p) => p,
-        Err(_) => return false,
-    };
-    let manager_defs = match get_or_load_manager_attribute_definitions(pool).await {
-        Ok(defs) => defs,
-        Err(_) => return false,
-    };
-    let managers =
-        match arlo_db::repositories::manager::list_by_team_id(pool, team_id, &manager_defs).await {
-            Ok(m) => m,
-            Err(_) => return false,
-        };
+async fn is_team_ready(pool: &SqlitePool, team_id: Uuid) -> ControllerResult<bool> {
+    let players = arlo_db::repositories::player::list_by_team_id(pool, team_id)
+        .await.map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+    let manager_defs = get_or_load_manager_attribute_definitions(pool).await?;
+    let managers = arlo_db::repositories::manager::list_by_team_id(pool, team_id, &manager_defs)
+        .await.map_err(|error| ControllerError::InvalidData(error.to_string()))?;
     if managers.is_empty() || players.is_empty() {
-        return false;
+        return Ok(false);
     }
-    let formations = match get_or_load_formations(pool).await {
-        Ok(f) => f,
-        Err(_) => return false,
-    };
+    let formations = get_or_load_formations(pool).await?;
     if formations.is_empty() {
-        return false;
+        return Ok(false);
     }
-    players.len() >= formations[0].slots().len()
+    Ok(players.len() >= formations[0].slots().len())
 }

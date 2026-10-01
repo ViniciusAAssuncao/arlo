@@ -42,4 +42,8 @@ impl DriveProgress {
     pub fn reset(self) -> Self {
         Self::default()
     }
+
+    pub(crate) fn lose_drives(self, count: u32) -> Self {
+        Self { completed_drives: self.completed_drives.saturating_sub(count), ..self }
+    }
 }

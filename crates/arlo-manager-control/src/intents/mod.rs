@@ -1,5 +1,6 @@
 pub mod challenge_intent;
 pub mod forced_substitution_intent;
+pub mod injury_decision_intent;
 pub mod kick_foul_decision_intent;
 pub mod kick_foul_realignment_intent;
 pub mod play_call_intent;
@@ -9,6 +10,7 @@ pub mod time_call_intent;
 
 pub use challenge_intent::ChallengeIntent;
 pub use forced_substitution_intent::ForcedSubstitutionIntent;
+pub use injury_decision_intent::InjuryDecisionIntent;
 pub use kick_foul_decision_intent::KickFoulDecisionIntent;
 pub use kick_foul_realignment_intent::KickFoulRealignmentIntent;
 pub use play_call_intent::PlayCallIntent;

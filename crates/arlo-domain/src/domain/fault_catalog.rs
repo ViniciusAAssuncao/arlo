@@ -5,18 +5,22 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct FaultCatalog {
     definitions_by_id: HashMap<Uuid, FaultDefinition>,
+    definitions_by_code: HashMap<String, Uuid>,
     definitions_by_severity: HashMap<FaultSeverity, Vec<Uuid>>,
     punishment_options_by_definition: HashMap<Uuid, Vec<FaultPunishmentOption>>,
+    activations_by_context: HashMap<String, Vec<(Uuid, FaultOffenderRole, f64)>>,
 }
 
 impl FaultCatalog {
     pub fn new(definitions: Vec<FaultDefinition>, options: Vec<FaultPunishmentOption>) -> Self {
         let mut definitions_by_id = HashMap::with_capacity(definitions.len());
+        let mut definitions_by_code = HashMap::with_capacity(definitions.len());
         let mut definitions_by_severity: HashMap<FaultSeverity, Vec<Uuid>> = HashMap::new();
         for def in definitions {
+            definitions_by_code.insert(def.code().to_owned(), def.id());
             definitions_by_severity
                 .entry(def.severity())
                 .or_default()
@@ -35,9 +39,30 @@ impl FaultCatalog {
 
         Self {
             definitions_by_id,
+            definitions_by_code,
             definitions_by_severity,
             punishment_options_by_definition,
+            activations_by_context: HashMap::new(),
         }
+    }
+
+    pub fn with_activations(mut self, activations: Vec<FaultActivation>) -> Self {
+        for activation in activations {
+            if let Some(&definition_id) = self.definitions_by_code.get(activation.fault_code()) {
+                self.activations_by_context
+                    .entry(activation.context().to_owned())
+                    .or_default()
+                    .push((definition_id, activation.offender_role(), activation.weight()));
+            }
+        }
+        self
+    }
+
+    pub fn activations_for_context(&self, context: &str) -> &[(Uuid, FaultOffenderRole, f64)] {
+        self.activations_by_context
+            .get(context)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
     }
 
     pub fn definition(&self, id: &Uuid) -> Option<&FaultDefinition> {
@@ -70,3 +95,4 @@ impl FaultCatalog {
         &self.punishment_options_by_definition
     }
 }
+use crate::domain::fault_activation::{FaultActivation, FaultOffenderRole};

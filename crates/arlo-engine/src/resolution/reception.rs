@@ -27,24 +27,31 @@ pub(super) fn sample_reception(
     let passing = ratings.player_value(offense, passer_id, AttributeKey::Passing)?;
     let hands = ratings.player_value(offense, receiver_id, AttributeKey::HandsReception)?;
     let control = ratings.player_value(offense, receiver_id, AttributeKey::ArloControl)?;
-    let pressing = defense
-        .tactics()
-        .instructions()
+    let team_instructions = ratings.instructions(offense);
+    let instructions = team_instructions.in_possession();
+    let passing_range = instructions.passing_range().value();
+    let aeriality = instructions.aeriality().value();
+    let crossing = ratings.player_value(offense, passer_id, AttributeKey::Crossing)?;
+    let reach = ratings.player_value(offense, receiver_id, AttributeKey::JumpingReach)?;
+    let pressing = ratings.instructions(defense)
         .out_of_possession()
         .pressing_intensity()
         .value();
     let contested = rng.gen_range(0.0..1.0) < 0.18 + 0.35 * pressing;
     let pressure = ratings.player_value(defense, defender_id, AttributeKey::PasserPressure)?
         * if contested { 0.8 + 0.4 * pressing } else { 0.2 };
-    let probability = (BASE_RECEPTION_PROBABILITY
+    let probability = ratings.reliable_probability(receiver_id, (BASE_RECEPTION_PROBABILITY
         + passing * PASSING_RECEPTION_WEIGHT
         + hands * HANDS_RECEPTION_WEIGHT
         + control * CONTROL_RECEPTION_WEIGHT
-        - pressure * DEFENSIVE_PRESSURE_RECEPTION_WEIGHT)
-        .clamp(MIN_RECEPTION_PROBABILITY, MAX_RECEPTION_PROBABILITY);
+        - pressure * DEFENSIVE_PRESSURE_RECEPTION_WEIGHT
+        - passing_range * 0.022
+        + aeriality * ((crossing + reach) * 0.5 - 10.0) * 0.0015)
+        .clamp(MIN_RECEPTION_PROBABILITY, MAX_RECEPTION_PROBABILITY), MAX_RECEPTION_PROBABILITY);
     let caught = rng.gen_range(0.0..1.0) < probability;
-    let distance_mirim =
-        PASS_DISTANCE_MIN_MIRIM + rng.gen_range(0.0..1.0) * PASS_DISTANCE_RANGE_MIRIM;
+    let distance_mirim = (PASS_DISTANCE_MIN_MIRIM
+        + rng.gen_range(0.0..1.0) * PASS_DISTANCE_RANGE_MIRIM)
+        * (1.0 + passing_range * 0.28 + aeriality * 0.12);
     Ok(ReceptionSample {
         caught,
         distance_mirim,

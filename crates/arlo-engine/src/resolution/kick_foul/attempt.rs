@@ -23,6 +23,33 @@ pub fn resolve_kick_foul_segment(
     selected_decision: Option<KickFoulDecisionKind>,
     selected_taker_id: Option<Uuid>,
 ) -> EngineResult<StepResult> {
+    state.begin_play_checkpoint();
+    let prior = state.clone();
+    let result = resolve_kick_foul_segment_inner(input, state, selected_decision, selected_taker_id)?;
+    let result = super::super::officiating::resolve_officiating(input, state, result, None)?;
+    let (mut events, outcome) = result.into_parts();
+    if !events.iter().any(|event| matches!(event.event(), MatchEvent::PlayInvalidated(_))) {
+        state.record_segment_energy(input, &prior, &mut events)?;
+        state.record_segment_morale(&prior, &mut events)?;
+    }
+    if matches!(outcome, crate::step::StepOutcome::Finished) {
+        state.record_final_energy(&mut events)?;
+        state.record_final_morale(&mut events)?;
+    }
+    let result = match outcome {
+        crate::step::StepOutcome::Resolved => StepResult::resolved(events),
+        crate::step::StepOutcome::Finished => StepResult::finished(events),
+        crate::step::StepOutcome::AwaitingDecision(decisions) => StepResult::awaiting_decision(decisions),
+    };
+    super::super::injury::resolve_injuries(input, state, result)
+}
+
+pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
+    input: &MatchInput,
+    state: &mut MatchState,
+    selected_decision: Option<KickFoulDecisionKind>,
+    selected_taker_id: Option<Uuid>,
+) -> EngineResult<StepResult> {
     validate_match_state(input, state)?;
     if state.phase() != MatchPhase::KickFoul {
         return Err(EngineError::InvalidTransition(
@@ -41,7 +68,7 @@ pub fn resolve_kick_foul_segment(
             RequiredManagerDecision::KickFoulDecision { team_id },
         ]));
     }
-    let ratings = RatingIndex::new(input);
+    let ratings = RatingIndex::new(input, state);
     let active_players = if is_home {
         state.home().active_player_ids()
     } else {
@@ -68,8 +95,11 @@ pub fn resolve_kick_foul_segment(
             .lineup()
             .assignments()
             .iter()
-            .find(|assignment| assignment.player_id() != taker_id)
-            .map(|assignment| assignment.player_id())
+            .find(|assignment| {
+                let player_id = ratings.slot_player_id(offense, assignment.player_id());
+                player_id != taker_id && active_players.contains(&player_id)
+            })
+            .map(|assignment| ratings.slot_player_id(offense, assignment.player_id()))
             .ok_or_else(|| EngineError::InvalidInput("Kick Foul has no receiver".into()))?
     };
     let mut next = state.clone();
@@ -138,7 +168,9 @@ pub fn resolve_kick_foul_segment(
             &mut next,
             &mut events,
             team_id,
-            defense.team_id(),
+            defense,
+            &ratings,
+            input.pitch(),
             taker_id,
             artrine_id,
             target,
@@ -181,7 +213,9 @@ fn resolve_shot(
     state: &mut MatchState,
     events: &mut Vec<MatchEventEnvelope>,
     team_id: Uuid,
-    defense_id: Uuid,
+    defense: &crate::input::TeamInput,
+    ratings: &RatingIndex,
+    pitch: arlo_domain::Pitch,
     taker_id: Uuid,
     artrine_id: Uuid,
     post: ScoringPost,
@@ -191,6 +225,7 @@ fn resolve_shot(
     position: f64,
     goal_line: f64,
 ) -> EngineResult<()> {
+    let defense_id = defense.team_id();
     if converted {
         let kind = match post {
             ScoringPost::Goalpost => ScoreKind::KickFoulGoalPoint,
@@ -230,11 +265,22 @@ fn resolve_shot(
         } else {
             team_id
         };
-        state.recover_missed_shot(team_id, recovery_team_id, goal_line)?;
         if defense_recovers {
+            let recovery = super::super::goalguard::resolve_recovery(
+                ratings, defense, pitch, goal_line, state, events,
+            )?;
+            state.recover_missed_shot(team_id, recovery_team_id, recovery.position_mirim)?;
+            state.set_carrier(recovery.player_id)?;
             events.push(state.emit(MatchEvent::Turnover(Turnover::new(
-                team_id, defense_id, None, None, true,
+                team_id, defense_id, Some(recovery.player_id), Some(taker_id), true,
             )))?);
+        } else {
+            let position = if goal_line > pitch.length_mirim() / 2.0 {
+                (goal_line - 2.0).max(0.0)
+            } else {
+                (goal_line + 2.0).min(pitch.length_mirim())
+            };
+            state.recover_missed_shot(team_id, recovery_team_id, position)?;
         }
     }
     Ok(())

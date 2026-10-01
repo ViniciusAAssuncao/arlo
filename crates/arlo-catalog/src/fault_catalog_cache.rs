@@ -1,4 +1,4 @@
-use arlo_db::repositories::{fault_definition, fault_punishment_option};
+use arlo_db::repositories::{fault_activation, fault_definition, fault_punishment_option};
 use arlo_db::{DbResult, SqlitePool};
 use arlo_domain::FaultCatalog;
 use std::sync::Arc;
@@ -16,7 +16,8 @@ pub async fn get_or_load_fault_catalog(pool: &SqlitePool) -> DbResult<Arc<FaultC
                     fault_punishment_option::list_by_fault_definition_id(pool, def.id()).await?;
                 all_options.extend(options);
             }
-            let catalog = FaultCatalog::new(definitions, all_options);
+            let activations = fault_activation::list_all(pool).await?;
+            let catalog = FaultCatalog::new(definitions, all_options).with_activations(activations);
             Ok::<Arc<FaultCatalog>, arlo_db::DbError>(Arc::new(catalog))
         })
         .await?;

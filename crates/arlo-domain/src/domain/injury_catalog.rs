@@ -1,13 +1,17 @@
 use crate::domain::injury_definition::InjuryDefinition;
 use crate::domain::injury_mechanism::InjuryMechanism;
+use crate::domain::injury_severity_grade::InjurySeverityGrade;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct InjuryCatalog {
     definitions_by_id: HashMap<Uuid, InjuryDefinition>,
     definitions_by_mechanism: HashMap<InjuryMechanism, Vec<Uuid>>,
+    mandatory_withdrawals: HashSet<(Uuid, InjurySeverityGrade)>,
+    minimum_grades: HashMap<Uuid, InjurySeverityGrade>,
+    expected_recovery_days: HashMap<(Uuid, InjurySeverityGrade), f64>,
 }
 
 impl InjuryCatalog {
@@ -25,7 +29,47 @@ impl InjuryCatalog {
         Self {
             definitions_by_id,
             definitions_by_mechanism,
+            mandatory_withdrawals: HashSet::new(),
+            minimum_grades: HashMap::new(),
+            expected_recovery_days: HashMap::new(),
         }
+    }
+
+    pub fn with_mandatory_withdrawals(
+        mut self,
+        rules: HashSet<(Uuid, InjurySeverityGrade)>,
+    ) -> Self {
+        self.mandatory_withdrawals = rules;
+        self
+    }
+
+    pub fn requires_withdrawal(&self, id: Uuid, grade: InjurySeverityGrade) -> bool {
+        self.mandatory_withdrawals.contains(&(id, grade))
+    }
+
+    pub fn with_minimum_grades(mut self, rules: HashMap<Uuid, InjurySeverityGrade>) -> Self {
+        self.minimum_grades = rules;
+        self
+    }
+
+    pub fn minimum_grade(&self, id: Uuid) -> Option<InjurySeverityGrade> {
+        self.minimum_grades.get(&id).copied()
+    }
+
+    pub fn with_expected_recovery_days(
+        mut self,
+        days: HashMap<(Uuid, InjurySeverityGrade), f64>,
+    ) -> Self {
+        self.expected_recovery_days = days;
+        self
+    }
+
+    pub fn expected_recovery_days(&self, id: Uuid, grade: InjurySeverityGrade) -> Option<f64> {
+        self.expected_recovery_days.get(&(id, grade)).copied()
+    }
+
+    pub fn has_recovery_profile(&self, id: Uuid, grade: InjurySeverityGrade) -> bool {
+        self.expected_recovery_days.contains_key(&(id, grade))
     }
 
     pub fn definition(&self, id: &Uuid) -> Option<&InjuryDefinition> {

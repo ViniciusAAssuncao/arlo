@@ -63,5 +63,5 @@ pub fn resolve_missed_shot_recovery(
         )))?);
     }
     *state = next;
-    Ok(StepResult::resolved(events))
+    super::officiating::resolve_officiating(input, state, StepResult::resolved(events), None)
 }

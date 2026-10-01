@@ -40,6 +40,10 @@ impl InMemorySink {
     pub fn clear(&mut self) {
         self.events.clear();
     }
+
+    pub fn retain(&mut self, mut predicate: impl FnMut(&MatchEventEnvelope) -> bool) {
+        self.events.retain(|event| predicate(event));
+    }
 }
 
 impl EventSink for InMemorySink {

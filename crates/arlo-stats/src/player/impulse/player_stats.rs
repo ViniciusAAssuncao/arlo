@@ -30,7 +30,7 @@ pub struct PlayerImpulseStats {
 
 impl PlayerImpulseStats {
     pub fn new(player_id: Uuid, baseline: f64) -> Self {
-        let initial_val = baseline.clamp(0.0, 100.0).round() as u8;
+        let initial_val = baseline.clamp(0.0, 120.0).round() as u8;
         let mut stats = Self {
             player_id,
             team_id: None,
@@ -234,6 +234,9 @@ impl PlayerImpulseStats {
         timestamp_seconds: f64,
     ) {
         let prev_value = self.current_value;
+        if new_value == prev_value {
+            return;
+        }
         self.current_value = new_value;
         self.min_value = self.min_value.min(new_value);
         self.max_value = self.max_value.max(new_value);
@@ -263,6 +266,19 @@ impl PlayerImpulseStats {
             run.end_time_seconds = timestamp_seconds;
             self.runs.push(run);
         }
+    }
+
+    pub fn set_initial_value(&mut self, value: u8) {
+        self.current_value = value;
+        self.initial_value = value;
+        self.min_value = value;
+        self.max_value = value;
+        self.discrete_sample_sum = f64::from(value);
+        self.active_run = if f64::from(value) >= self.baseline {
+            Some(ImpulseRun::new(0.0, value))
+        } else {
+            None
+        };
     }
 
     pub fn finalize_active_run(&mut self, final_timestamp: f64) {

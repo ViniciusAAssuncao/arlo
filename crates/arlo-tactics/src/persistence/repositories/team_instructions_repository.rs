@@ -10,7 +10,7 @@ use crate::persistence::models::tactical_phase::TacticalPhase;
 use crate::persistence::models::tactical_phase_code::tactical_phase_to_code;
 use crate::playcall::situational::SituationalProfile;
 use arlo_db::repositories::fetch::{fetch_all_by_param, fetch_optional_by_param};
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool, Transaction};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -124,12 +124,28 @@ pub async fn insert_profile(
     situational_profile: Option<&SituationalProfile>,
 ) -> TacticsResult<Uuid> {
     let profile_id = Uuid::new_v4();
+    let profile = TeamTacticalProfile::new(
+        profile_id, team_id, name, *instructions, situational_profile.cloned(), false,
+    );
+    let mut tx = pool.begin().await?;
+    insert_profile_in_transaction(&mut tx, &profile).await?;
+    tx.commit().await?;
+    Ok(profile_id)
+}
+
+pub async fn insert_profile_in_transaction(
+    tx: &mut Transaction<'_, Sqlite>,
+    profile: &TeamTacticalProfile,
+) -> TacticsResult<()> {
+    let profile_id = profile.id();
+    let team_id = profile.team_id();
+    let name = profile.name();
+    let instructions = profile.instructions();
+    let situational_profile = profile.situational_profile();
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-
-    let mut tx = pool.begin().await?;
 
     sqlx::query(
         "INSERT INTO team_tactical_profiles (id, team_id, name, is_active, created_at_unix_seconds) VALUES (?, ?, ?, ?, ?)",
@@ -139,7 +155,7 @@ pub async fn insert_profile(
     .bind(name)
     .bind(0i64)
     .bind(timestamp)
-    .execute(&mut *tx)
+    .execute(&mut **tx)
     .await?;
 
     let entries: [(TacticalPhase, InstructionKey, f64); 17] = [
@@ -248,7 +264,7 @@ pub async fn insert_profile(
         .bind(phase_code)
         .bind(key_code)
         .bind(value)
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await?;
     }
 
@@ -264,13 +280,12 @@ pub async fn insert_profile(
             .bind(profile_id.to_string())
             .bind(key_code)
             .bind(val)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
         }
     }
 
-    tx.commit().await?;
-    Ok(profile_id)
+    Ok(())
 }
 
 pub async fn set_active(pool: &SqlitePool, profile_id: Uuid) -> TacticsResult<()> {

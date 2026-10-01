@@ -7,7 +7,6 @@ use crate::error::EngineResult;
 use crate::input::{MatchInput, TeamInput};
 use crate::state::{MatchState, ScoreKind};
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
-use arlo_domain::Position;
 use arlo_events::{
     FieldPointScored, GoalPointScored, MatchEvent, MatchEventEnvelope, OutOfBounds,
     PossessionTimeRecorded, ScoringAttemptMissed, ScoringPost, Turnover,
@@ -153,12 +152,11 @@ pub(super) fn resolve_regular_attempt(
         } else {
             team_id
         };
-        let recovery_position = if is_home {
+        let default_recovery_position = if is_home {
             (pitch_length - 2.0).max(0.0)
         } else {
             2.0_f64.min(pitch_length)
         };
-        state.recover_missed_shot(team_id, recovery_team_id, recovery_position)?;
         events.push(
             state.emit(MatchEvent::ScoringAttemptMissed(ScoringAttemptMissed::new(
                 team_id,
@@ -167,22 +165,21 @@ pub(super) fn resolve_regular_attempt(
             )))?,
         );
         if sample.defense_recovers {
-            let recovering_goalguard_id = defense
-                .lineup()
-                .assignments()
-                .iter()
-                .find(|assignment| assignment.position() == Position::Goalguard)
-                .map(|assignment| assignment.player_id());
-            if let Some(player_id) = recovering_goalguard_id {
-                state.set_carrier(player_id)?;
-            }
+            let goal_line = if is_home { pitch_length } else { 0.0 };
+            let recovery = super::goalguard::resolve_recovery(
+                ratings, defense, input.pitch(), goal_line, state, events,
+            )?;
+            state.recover_missed_shot(team_id, recovery_team_id, recovery.position_mirim)?;
+            state.set_carrier(recovery.player_id)?;
             events.push(state.emit(MatchEvent::Turnover(Turnover::new(
                 team_id,
                 recovery_team_id,
-                recovering_goalguard_id,
+                Some(recovery.player_id),
                 Some(shooter_id),
                 true,
             )))?);
+        } else {
+            state.recover_missed_shot(team_id, recovery_team_id, default_recovery_position)?;
         }
     }
     Ok(true)

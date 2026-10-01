@@ -33,4 +33,8 @@ pub struct MatchTeamStatsDto {
     pub away_possession: TeamPossessionSummaryDto,
     pub home_impulse: Option<TeamImpulseSummaryDto>,
     pub away_impulse: Option<TeamImpulseSummaryDto>,
+    #[serde(default)]
+    pub home_morale: Option<TeamImpulseSummaryDto>,
+    #[serde(default)]
+    pub away_morale: Option<TeamImpulseSummaryDto>,
 }

@@ -10,6 +10,7 @@ pub mod promotion_relegation_result_persister;
 pub mod season_persister;
 pub mod squad_selection_persister;
 pub mod team_stats_persister;
+mod tactical_profile_persister;
 
 pub use match_persistence_context::MatchPersistenceContext;
 pub use match_persister::MatchPersister;

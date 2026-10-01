@@ -89,6 +89,7 @@ pub async fn get_player_match_telemetry(
         artrine_decisions,
         fouls,
         kick_fouls,
+        morale: impulse.clone(),
         impulse,
         physical,
         availability,

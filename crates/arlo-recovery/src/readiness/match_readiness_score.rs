@@ -44,15 +44,20 @@ impl MatchReadinessAssessment {
 
 pub fn calculate_match_readiness_raw(
     energy: f64,
-    anaerobic_reserve: f64,
+    _anaerobic_reserve: f64,
     conditioning_score: f64,
     status: InjuryStatusKind,
     days_since_resolution: Option<u32>,
     tuning: &ReadinessTuningProfile,
 ) -> MatchReadinessAssessment {
-    let base_physical = (energy.clamp(0.0, 1.0) * tuning.energy_weight)
-        + (anaerobic_reserve.clamp(0.0, 1.0) * tuning.anaerobic_weight)
-        + (conditioning_score.clamp(0.0, 1.0) * tuning.conditioning_weight);
+    let total_weight = tuning.energy_weight + tuning.conditioning_weight;
+    let base_physical = if total_weight > 0.0 {
+        (energy.clamp(0.0, 1.0) * tuning.energy_weight
+            + conditioning_score.clamp(0.0, 1.0) * tuning.conditioning_weight)
+            / total_weight
+    } else {
+        energy.clamp(0.0, 1.0)
+    };
 
     let medical_factor = match status {
         InjuryStatusKind::Injured => 1.0 - tuning.active_injury_penalty,

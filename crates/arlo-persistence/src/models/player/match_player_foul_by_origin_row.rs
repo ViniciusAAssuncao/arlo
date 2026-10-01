@@ -36,8 +36,13 @@ impl MatchPlayerFoulByOriginRow {
         count: u32,
     ) -> Self {
         let origin_str = match origin {
+            FoulOrigin::Lineup => "Lineup".to_string(),
             FoulOrigin::ContactDuel(kind) => format!("ContactDuel:{}", kind.as_str()),
             FoulOrigin::LineFault => "LineFault".to_string(),
+            FoulOrigin::CallToAction => "CallToAction".to_string(),
+            FoulOrigin::Drive => "Drive".to_string(),
+            FoulOrigin::ShotAttempt => "ShotAttempt".to_string(),
+            FoulOrigin::OutOfBounds => "OutOfBounds".to_string(),
         };
         Self::new(id, match_id, player_id, origin_str, count)
     }
