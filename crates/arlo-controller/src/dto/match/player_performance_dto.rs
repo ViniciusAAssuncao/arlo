@@ -13,6 +13,16 @@ pub struct PlayerPerformanceBreakdownDto {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PlayerPerformanceCategoryContributionDto {
+    pub category: String,
+    pub latent_contribution: f64,
+    pub observations: u32,
+    pub opportunity_weight: f64,
+    pub breakdown: PlayerPerformanceBreakdownDto,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlayerMatchPerformanceDto {
     pub player_id: String,
     pub player_name: Option<String>,
@@ -26,6 +36,11 @@ pub struct PlayerMatchPerformanceDto {
     pub confidence: f64,
     pub seconds_played: f64,
     pub effective_opportunities: u32,
+    pub effective_opportunity_weight: f64,
+    pub offensive_latent: f64,
+    pub defensive_latent: f64,
+    pub raw_latent: f64,
     pub breakdown: PlayerPerformanceBreakdownDto,
+    pub category_contributions: Vec<PlayerPerformanceCategoryContributionDto>,
     pub model_version: u32,
 }
