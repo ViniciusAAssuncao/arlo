@@ -131,6 +131,7 @@ pub(super) fn resolve_sequence(
             defender_id,
             sample,
             gain_mirim,
+            current_holder_id == context.artrine_id,
         )?;
         if (if context.is_home { state.home() } else { state.away() }).drive_eligible()
             && current_holder_id == context.artrine_id
