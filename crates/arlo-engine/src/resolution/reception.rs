@@ -13,6 +13,7 @@ pub(super) struct ReceptionSample {
     pub distance_mirim: f64,
     pub probability: f64,
     pub contested: bool,
+    pub is_aerial: bool,
 }
 
 pub(super) fn sample_reception(
@@ -52,10 +53,12 @@ pub(super) fn sample_reception(
     let distance_mirim = (PASS_DISTANCE_MIN_MIRIM
         + rng.gen_range(0.0..1.0) * PASS_DISTANCE_RANGE_MIRIM)
         * (1.0 + passing_range * 0.28 + aeriality * 0.12);
+    let is_aerial = aeriality >= 0.55 || distance_mirim >= 18.0;
     Ok(ReceptionSample {
         caught,
         distance_mirim,
         probability,
         contested,
+        is_aerial,
     })
 }
