@@ -147,7 +147,7 @@ impl PlayerPerformanceAggregator {
     }
 
     fn apply_seed(&mut self, seed: &InitialParticipantSeed) {
-        let state = LivePlayerState::new(
+        let mut state = LivePlayerState::new(
             seed.player_id(),
             seed.team_id(),
             seed.offensive_position(),
@@ -156,6 +156,10 @@ impl PlayerPerformanceAggregator {
             seed.is_active(),
             &self.config,
         );
+        state.set_starter(seed.is_active());
+        if seed.is_active() {
+            state.set_entry_time_seconds(0.0);
+        }
         self.players.insert(seed.player_id(), state);
     }
 
@@ -257,44 +261,50 @@ impl PlayerPerformanceAggregator {
         if let Some(out_state) = self.players.get_mut(&player_out) {
             out_state.set_active(false);
         }
+
+        let clock_seconds = self.last_clock_seconds;
+
+        let (off_pos, def_pos, role) = if let Some(ctx) = self.translator.context() {
+            let off = ctx
+                .offensive_position(&player_in)
+                .or_else(|| ctx.offensive_position(&player_out))
+                .unwrap_or(Position::CenterOffense);
+            let def = ctx
+                .defensive_position(&player_in)
+                .or_else(|| ctx.defensive_position(&player_out))
+                .unwrap_or(Position::Centerback);
+            let r = ctx
+                .slot_role(&player_in)
+                .or_else(|| ctx.slot_role(&player_out))
+                .unwrap_or(SlotRole::Standard);
+            (off, def, r)
+        } else if let Some(out_state) = self.players.get(&player_out) {
+            (
+                out_state.offensive_position(),
+                out_state.defensive_position(),
+                out_state.slot_role(),
+            )
+        } else {
+            (Position::CenterOffense, Position::Centerback, SlotRole::Standard)
+        };
+
         if let Some(in_state) = self.players.get_mut(&player_in) {
             in_state.set_active(true);
+            in_state.set_entry_time_seconds(clock_seconds);
+            in_state.update_assignment(off_pos, def_pos, role, &self.config);
         } else {
-            let (off_pos, def_pos, role) = if let Some(ctx) = self.translator.context() {
-                let off = ctx
-                    .offensive_position(&player_in)
-                    .or_else(|| ctx.offensive_position(&player_out))
-                    .unwrap_or(Position::CenterOffense);
-                let def = ctx
-                    .defensive_position(&player_in)
-                    .or_else(|| ctx.defensive_position(&player_out))
-                    .unwrap_or(Position::Centerback);
-                let r = ctx
-                    .slot_role(&player_in)
-                    .or_else(|| ctx.slot_role(&player_out))
-                    .unwrap_or(SlotRole::Standard);
-                (off, def, r)
-            } else if let Some(out_state) = self.players.get(&player_out) {
-                (
-                    out_state.offensive_position(),
-                    out_state.defensive_position(),
-                    out_state.slot_role(),
-                )
-            } else {
-                (Position::CenterOffense, Position::Centerback, SlotRole::Standard)
-            };
-            self.players.insert(
+            let mut new_state = LivePlayerState::new(
                 player_in,
-                LivePlayerState::new(
-                    player_in,
-                    team_id,
-                    off_pos,
-                    def_pos,
-                    role,
-                    true,
-                    &self.config,
-                ),
+                team_id,
+                off_pos,
+                def_pos,
+                role,
+                true,
+                &self.config,
             );
+            new_state.set_starter(false);
+            new_state.set_entry_time_seconds(clock_seconds);
+            self.players.insert(player_in, new_state);
         }
     }
 
@@ -543,18 +553,18 @@ impl PlayerPerformanceAggregator {
             } else {
                 (Position::CenterOffense, Position::Centerback, SlotRole::Standard)
             };
-            self.players.insert(
+            let mut state = LivePlayerState::new(
                 player_id,
-                LivePlayerState::new(
-                    player_id,
-                    team_id,
-                    off_pos,
-                    def_pos,
-                    role,
-                    true,
-                    &self.config,
-                ),
+                team_id,
+                off_pos,
+                def_pos,
+                role,
+                true,
+                &self.config,
             );
+            state.set_starter(false);
+            state.set_entry_time_seconds(self.last_clock_seconds);
+            self.players.insert(player_id, state);
         }
     }
 }

@@ -1,6 +1,8 @@
 use crate::error::AnalyticsResult;
 use crate::performance::live::config::LiveRatingConfig;
-use crate::performance::live::rating_calculator::{calculate_confidence, calculate_dual_rating};
+use crate::performance::live::rating_calculator::{
+    calculate_confidence, calculate_dual_rating_with_exposure,
+};
 use crate::performance::observation::{PerformanceObservation, PossessionPhase};
 use crate::performance::profile::PerformanceProfile;
 use crate::performance::rating::{
@@ -23,12 +25,15 @@ pub struct LivePlayerState {
     is_active: bool,
     seconds_played: f64,
     effective_opportunities: u32,
+    effective_opportunity_weight: f64,
     offensive_breakdown: PerformanceBreakdown,
     defensive_breakdown: PerformanceBreakdown,
     accumulated_breakdown: PerformanceBreakdown,
     performance_rating: PerformanceRating,
     confidence: PerformanceConfidence,
     outcome_adjustment: f64,
+    is_starter: bool,
+    entry_time_seconds: f64,
 }
 
 impl LivePlayerState {
@@ -49,11 +54,13 @@ impl LivePlayerState {
         let offensive_breakdown = PerformanceBreakdown::zero();
         let defensive_breakdown = PerformanceBreakdown::zero();
         let accumulated_breakdown = PerformanceBreakdown::zero();
-        let performance_rating = calculate_dual_rating(
+        let performance_rating = calculate_dual_rating_with_exposure(
             &offensive_profile,
             &offensive_breakdown,
             &defensive_profile,
             &defensive_breakdown,
+            0,
+            0.0,
             confidence,
             config,
         );
@@ -69,12 +76,15 @@ impl LivePlayerState {
             is_active,
             seconds_played: 0.0,
             effective_opportunities: 0,
+            effective_opportunity_weight: 0.0,
             offensive_breakdown,
             defensive_breakdown,
             accumulated_breakdown,
             performance_rating,
             confidence,
             outcome_adjustment: 0.0,
+            is_starter: is_active,
+            entry_time_seconds: 0.0,
         }
     }
 
@@ -126,6 +136,26 @@ impl LivePlayerState {
         self.effective_opportunities
     }
 
+    pub fn effective_opportunity_weight(&self) -> f64 {
+        self.effective_opportunity_weight
+    }
+
+    pub fn is_starter(&self) -> bool {
+        self.is_starter
+    }
+
+    pub fn set_starter(&mut self, is_starter: bool) {
+        self.is_starter = is_starter;
+    }
+
+    pub fn entry_time_seconds(&self) -> f64 {
+        self.entry_time_seconds
+    }
+
+    pub fn set_entry_time_seconds(&mut self, entry_time: f64) {
+        self.entry_time_seconds = entry_time;
+    }
+
     pub fn offensive_breakdown(&self) -> &PerformanceBreakdown {
         &self.offensive_breakdown
     }
@@ -154,6 +184,23 @@ impl LivePlayerState {
         self.outcome_adjustment = adjustment;
     }
 
+    pub fn update_assignment(
+        &mut self,
+        offensive_position: Position,
+        defensive_position: Position,
+        slot_role: SlotRole,
+        config: &LiveRatingConfig,
+    ) {
+        self.offensive_position = offensive_position;
+        self.defensive_position = defensive_position;
+        self.slot_role = slot_role;
+        self.offensive_profile =
+            PerformanceProfile::for_position_and_role(offensive_position, slot_role);
+        self.defensive_profile =
+            PerformanceProfile::for_position_and_role(defensive_position, slot_role);
+        self.recalculate(config);
+    }
+
     pub fn advance_time(&mut self, dt_seconds: f64, config: &LiveRatingConfig) {
         if self.is_active && dt_seconds > 0.0 {
             self.seconds_played += dt_seconds;
@@ -166,7 +213,8 @@ impl LivePlayerState {
         observation: &PerformanceObservation,
         config: &LiveRatingConfig,
     ) {
-        let factor = observation.opportunity_value() * observation.leverage();
+        let opp_val = observation.opportunity_value();
+        let factor = opp_val * observation.leverage();
         let scaled_bd = PerformanceBreakdown::new_unchecked(
             observation.execution() * factor,
             observation.production() * factor,
@@ -199,17 +247,20 @@ impl LivePlayerState {
 
         self.accumulated_breakdown = self.offensive_breakdown + self.defensive_breakdown;
         self.effective_opportunities = self.effective_opportunities.saturating_add(1);
+        self.effective_opportunity_weight += opp_val;
         self.recalculate(config);
     }
 
     pub fn recalculate(&mut self, config: &LiveRatingConfig) {
         self.confidence =
             calculate_confidence(self.effective_opportunities, self.seconds_played, config);
-        self.performance_rating = calculate_dual_rating(
+        self.performance_rating = calculate_dual_rating_with_exposure(
             &self.offensive_profile,
             &self.offensive_breakdown,
             &self.defensive_profile,
             &self.defensive_breakdown,
+            self.effective_opportunities,
+            self.effective_opportunity_weight,
             self.confidence,
             config,
         );

@@ -8,6 +8,7 @@ pub struct LiveRatingConfig {
     opportunities_to_full_confidence: f64,
     seconds_to_full_confidence: f64,
     confidence_shrinkage_weight: f64,
+    shrinkage_prior_opportunities: f64,
     record_snapshots_automatically: bool,
 }
 
@@ -20,6 +21,7 @@ impl Default for LiveRatingConfig {
             opportunities_to_full_confidence: 20.0,
             seconds_to_full_confidence: 1800.0,
             confidence_shrinkage_weight: 0.0,
+            shrinkage_prior_opportunities: 4.0,
             record_snapshots_automatically: true,
         }
     }
@@ -54,6 +56,10 @@ impl LiveRatingConfig {
         self.confidence_shrinkage_weight
     }
 
+    pub fn shrinkage_prior_opportunities(&self) -> f64 {
+        self.shrinkage_prior_opportunities
+    }
+
     pub fn record_snapshots_automatically(&self) -> bool {
         self.record_snapshots_automatically
     }
@@ -85,6 +91,11 @@ impl LiveRatingConfig {
 
     pub fn with_confidence_shrinkage_weight(mut self, weight: f64) -> Self {
         self.confidence_shrinkage_weight = weight;
+        self
+    }
+
+    pub fn with_shrinkage_prior_opportunities(mut self, count: f64) -> Self {
+        self.shrinkage_prior_opportunities = count;
         self
     }
 

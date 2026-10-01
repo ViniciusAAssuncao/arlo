@@ -9,7 +9,9 @@ pub use aggregator::PlayerPerformanceAggregator;
 pub use config::LiveRatingConfig;
 pub use player_state::LivePlayerState;
 pub use rating_calculator::{
-    calculate_confidence, calculate_dual_rating, calculate_rating, calculate_rating_from_latent,
+    calculate_confidence, calculate_dual_rating, calculate_dual_rating_with_exposure,
+    calculate_rating, calculate_rating_from_latent, calculate_rating_with_exposure,
+    calculate_shrunk_latent,
 };
 pub use seed::InitialParticipantSeed;
 pub use snapshot::LivePerformanceSnapshotRecord;
