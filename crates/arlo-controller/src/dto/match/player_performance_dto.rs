@@ -27,5 +27,5 @@ pub struct PlayerMatchPerformanceDto {
     pub seconds_played: f64,
     pub effective_opportunities: u32,
     pub breakdown: PlayerPerformanceBreakdownDto,
-    pub model_version: String,
+    pub model_version: u32,
 }

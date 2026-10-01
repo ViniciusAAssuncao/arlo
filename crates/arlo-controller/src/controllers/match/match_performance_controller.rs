@@ -2,7 +2,7 @@ use crate::dto::r#match::{
     MatchPerformanceSummaryDto, PlayerMatchPerformanceDto, PlayerPerformanceBreakdownDto,
 };
 use crate::error::{ControllerError, ControllerResult};
-use crate::repositories::performance::match_player_performance_repository;
+use arlo_persistence::repositories::player::match_player_performance;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -15,7 +15,7 @@ pub async fn get_match_performance(
         .await?
         .ok_or_else(|| ControllerError::NotFound(format!("Match {} not found", match_id)))?;
 
-    let perf_rows = match_player_performance_repository::list_by_match_id(pool, match_id).await?;
+    let perf_rows = match_player_performance::list_by_match_id(pool, match_id).await?;
 
     let mut player_names: HashMap<String, String> = HashMap::new();
     for row in &perf_rows {
@@ -34,6 +34,15 @@ pub async fn get_match_performance(
     for row in perf_rows {
         let player_name = player_names.get(&row.player_id).cloned();
         let is_home = row.team_id == match_row.home_team_id;
+        let effective_opportunities = u32::try_from(row.effective_opportunities).map_err(|_| {
+            ControllerError::InvalidData(format!(
+                "Invalid effective opportunities: {}",
+                row.effective_opportunities
+            ))
+        })?;
+        let model_version = u32::try_from(row.model_version).map_err(|_| {
+            ControllerError::InvalidData(format!("Invalid model version: {}", row.model_version))
+        })?;
 
         if is_home {
             home_sum += row.final_rating;
@@ -53,16 +62,16 @@ pub async fn get_match_performance(
             outcome_adjustment: row.outcome_adjustment,
             confidence: row.confidence,
             seconds_played: row.seconds_played,
-            effective_opportunities: row.effective_opportunities as u32,
+            effective_opportunities,
             breakdown: PlayerPerformanceBreakdownDto {
-                execution: row.execution,
-                production: row.production,
-                defense: row.defense,
-                ball_security: row.ball_security,
-                discipline: row.discipline,
-                high_impact: row.high_impact,
+                execution: row.execution_score,
+                production: row.production_score,
+                defense: row.defense_score,
+                ball_security: row.ball_security_score,
+                discipline: row.discipline_score,
+                high_impact: row.high_impact_score,
             },
-            model_version: row.model_version,
+            model_version,
         };
 
         if is_home {
@@ -87,7 +96,11 @@ pub async fn get_match_performance(
     let match_mvp = home_ratings
         .iter()
         .chain(away_ratings.iter())
-        .max_by(|a, b| a.rating.partial_cmp(&b.rating).unwrap_or(std::cmp::Ordering::Equal))
+        .max_by(|a, b| {
+            a.rating
+                .partial_cmp(&b.rating)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
         .cloned();
 
     Ok(MatchPerformanceSummaryDto {
