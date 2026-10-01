@@ -20,6 +20,7 @@ pub struct EventPerformanceTranslator {
     current_down_number: u32,
     scrimmage_x_mirim: f64,
     current_drives_in_series: u32,
+    pending_missed_shot_recovery: bool,
     last_clock: MatchClockInstant,
 }
 
@@ -85,8 +86,9 @@ impl EventPerformanceTranslator {
         clock: MatchClockInstant,
     ) -> Vec<PerformanceObservation> {
         self.update_internal_state(event);
+        let follows_missed_shot = self.pending_missed_shot_recovery;
 
-        match event {
+        let observations = match event {
             MatchEvent::DuelResolved(e) => {
                 duels::translate_duel(e, clock, self.current_offense_team_id, self.context.as_ref())
             }
@@ -124,7 +126,12 @@ impl EventPerformanceTranslator {
                 scoring::translate_scoring_missed(e, clock, self.context.as_ref())
             }
             MatchEvent::Turnover(e) => {
-                possession::translate_turnover(e, clock, self.context.as_ref())
+                possession::translate_turnover(
+                    e,
+                    clock,
+                    self.context.as_ref(),
+                    follows_missed_shot,
+                )
             }
             MatchEvent::GoalguardRecoveryResolved(e) => {
                 possession::translate_goalguard_recovery(e, clock, self.context.as_ref())
@@ -152,7 +159,13 @@ impl EventPerformanceTranslator {
             }
             MatchEvent::PlayInvalidated(_) => Vec::new(),
             _ => Vec::new(),
+        };
+
+        if matches!(event, MatchEvent::Turnover(_)) {
+            self.pending_missed_shot_recovery = false;
         }
+
+        observations
     }
 
     pub fn translate_envelopes<'a>(
@@ -171,6 +184,7 @@ impl EventPerformanceTranslator {
         self.current_down_number = 1;
         self.scrimmage_x_mirim = 0.0;
         self.current_drives_in_series = 0;
+        self.pending_missed_shot_recovery = false;
         self.last_clock = MatchClockInstant::zero();
         self.context = self.initial_context.clone();
     }
@@ -178,6 +192,7 @@ impl EventPerformanceTranslator {
     fn update_internal_state(&mut self, event: &MatchEvent) {
         match event {
             MatchEvent::CallToActionStarted(e) => {
+                self.pending_missed_shot_recovery = false;
                 self.current_offense_team_id = Some(e.offense_team_id());
                 self.current_down_number = e.down_number();
                 self.scrimmage_x_mirim = e.scrimmage_x_mirim();
@@ -192,6 +207,9 @@ impl EventPerformanceTranslator {
             MatchEvent::DriveRecorded(e) => {
                 self.current_drives_in_series = e.drives_in_series();
             }
+            MatchEvent::ScoringAttemptMissed(_) => {
+                self.pending_missed_shot_recovery = true;
+            }
             MatchEvent::Turnover(e) => {
                 self.current_offense_team_id = Some(e.new_offense());
                 self.current_down_number = 1;
@@ -203,6 +221,7 @@ impl EventPerformanceTranslator {
                 self.current_drives_in_series = 0;
             }
             MatchEvent::GoalPoint(_) | MatchEvent::FieldPoint(_) | MatchEvent::FieldGoal(_) => {
+                self.pending_missed_shot_recovery = false;
                 self.current_drives_in_series = 0;
                 self.current_down_number = 1;
             }
