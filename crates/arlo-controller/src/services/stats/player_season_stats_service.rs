@@ -1,4 +1,5 @@
 use crate::dto::player::PlayerSeasonStatsDto;
+use crate::dto::r#match::PlayerPerformanceBreakdownDto;
 use crate::dto::stats::*;
 use crate::error::{ControllerError, ControllerResult};
 use crate::services::season::active_season_resolver::resolve_active_season;
@@ -55,6 +56,7 @@ pub async fn build_player_season_stats(
                 competition_name: None,
                 season_label: None,
                 primary_role: None,
+                performance: PlayerSeasonPerformanceStatsDto::default(),
                 appearances: PlayerAppearanceStatsDto::default(),
                 scoring: PlayerScoringStatsDto::default(),
                 assists: PlayerAssistStatsDto::default(),
@@ -149,6 +151,38 @@ pub async fn build_player_season_stats(
             pool, player_id, season_id,
         )
         .await?;
+
+    let performance_row =
+        arlo_persistence::repositories::player::match_player_performance::get_player_season_performance(
+            pool,
+            player_id,
+            season_id,
+        )
+        .await?;
+
+    let matches_rated = u32::try_from(performance_row.matches_rated).map_err(|_| {
+        ControllerError::InvalidData(format!(
+            "Invalid rated matches count: {}",
+            performance_row.matches_rated
+        ))
+    })?;
+
+    let performance = PlayerSeasonPerformanceStatsDto {
+        matches_rated,
+        average_rating: performance_row.average_rating,
+        average_performance_rating: performance_row.average_performance_rating,
+        average_confidence: performance_row.average_confidence,
+        highest_rating: performance_row.highest_rating,
+        lowest_rating: performance_row.lowest_rating,
+        average_breakdown: PlayerPerformanceBreakdownDto {
+            execution: performance_row.average_execution,
+            production: performance_row.average_production,
+            defense: performance_row.average_defense,
+            ball_security: performance_row.average_ball_security,
+            discipline: performance_row.average_discipline,
+            high_impact: performance_row.average_high_impact,
+        },
+    };
 
     let appearances = PlayerAppearanceStatsDto {
         squad_selections: appearances_row.squad_selections as u32,
@@ -358,6 +392,7 @@ pub async fn build_player_season_stats(
         competition_name: competition_name_opt,
         season_label: season_label_opt,
         primary_role,
+        performance,
         appearances,
         scoring,
         assists,
