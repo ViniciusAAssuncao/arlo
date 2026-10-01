@@ -19,6 +19,7 @@ pub(super) struct ShotSample {
     pub converted: bool,
     pub defense_recovers: bool,
     pub out_of_bounds: bool,
+    pub conversion_probability: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -120,6 +121,7 @@ pub(super) fn sample_regular_shot(
         converted: rng.gen_range(0.0..1.0) < conversion_probability,
         defense_recovers: rng.gen_range(0.0..1.0) < DEFENSIVE_REBOUND_PROBABILITY,
         out_of_bounds: rng.gen_range(0.0..1.0) < MISSED_SHOT_OUT_PROBABILITY,
+        conversion_probability,
     }))
 }
 
