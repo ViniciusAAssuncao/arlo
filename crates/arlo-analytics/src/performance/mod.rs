@@ -1,3 +1,4 @@
+pub mod diagnostics;
 pub mod live;
 pub mod observation;
 pub mod profile;
@@ -7,6 +8,7 @@ pub mod translator;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub use diagnostics::{PerformanceCategoryContribution, PerformanceDiagnostics};
 pub use live::{
     apply_outcome_to_players, calculate_confidence, calculate_dual_rating,
     calculate_dual_rating_with_exposure, calculate_rating, calculate_rating_from_latent,
