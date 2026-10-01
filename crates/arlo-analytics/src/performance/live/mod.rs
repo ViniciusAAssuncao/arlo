@@ -1,5 +1,6 @@
 pub mod aggregator;
 pub mod config;
+pub mod diagnostics;
 pub mod finalizer;
 pub mod player_state;
 pub mod rating_calculator;
@@ -9,6 +10,7 @@ pub mod snapshot;
 
 pub use aggregator::PlayerPerformanceAggregator;
 pub use config::LiveRatingConfig;
+pub use diagnostics::LivePerformanceDiagnosticsState;
 pub use finalizer::{
     apply_outcome_to_players, clear_players_outcome, extract_player_match_ratings,
     MatchFinalizationState,
