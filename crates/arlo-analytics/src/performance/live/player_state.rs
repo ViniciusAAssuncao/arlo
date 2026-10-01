@@ -26,6 +26,7 @@ pub struct LivePlayerState {
     is_active: bool,
     seconds_played: f64,
     effective_opportunities: u32,
+    #[serde(default)]
     diagnostics: LivePerformanceDiagnosticsState,
     offensive_breakdown: PerformanceBreakdown,
     defensive_breakdown: PerformanceBreakdown,
