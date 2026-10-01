@@ -37,7 +37,8 @@ Do not generate these faults from unrelated duels or random match time. Introduc
 - Artro or Drive declaration fraud: `false_drive_declaration`, `illegal_drive_registration`.
 - Deliberate behavior and incidents away from the current duel: `feigning_injury`, `fan_aggression`, `referee_contact`, `referee_verbal_abuse`, `dissent`, `excessive_celebration`, `minor_unsportsmanlike`, `taunting`, `unsportsmanlike_conduct`, `sideline_encroachment`.
 - Post-whistle contact without an Out or shot attempt: `late_hit`.
-- First-zone goalkeeper handling: `illegal_goalguard_handling` needs a handling action.
-- Pass and specialist procedural fouls: `illegal_call_to_action_pass`, `passer_contact_late`, `roughing_passer_late` require corresponding contested actions.
+- Pass procedure: `illegal_call_to_action_pass` remains inactive while every Call-to-Action always starts with the mandatory legal Passer-to-Artrine pass.
 
 `deliberate_injury_attempt` and `weapon_use` are removed from the catalog. A designated FalseArtrine can commit `false_artrine_fraud` on reception by attempting to claim an Artro, or `working_communicator_non_artrine` during a Call-to-Action by misusing the communicator. The actual official Artrine is never eligible for either fault. Confirmed infractions always invalidate the full continuous play; expulsion is optional. `InvalidatePreviousPlay` restores the sporting state and derived statistics while match time and physical injuries remain.
+
+Goalguard recoveries now record zone and hands-or-feet use; `illegal_goalguard_handling` is possible only when hands are used outside the First Zone. Late Passer contact now records the defender and contact severity after the opening pass is released. `passer_contact_late`, `roughing_the_passer`, and `roughing_passer_late` are adjudicated from that action rather than unrelated route duels.

@@ -1,5 +1,6 @@
 mod candidate;
 mod fraud;
+mod specialist;
 mod penalty;
 
 use crate::error::EngineResult;
@@ -64,6 +65,8 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
                     input, state, reception.receiver_id(), defender)).transpose()?.flatten();
                 if line_fault.is_some() { line_fault } else { fraud::sample_false_artro_claim(input, state, reception.receiver_id())? }
             }
+            MatchEvent::PasserContactResolved(contact) => specialist::review_passer_contact(input, state, contact)?,
+            MatchEvent::GoalguardRecoveryResolved(recovery) => specialist::review_goalguard_handling(input, state, recovery)?,
             _ => None,
         };
         if let Some(decision) = sampled {

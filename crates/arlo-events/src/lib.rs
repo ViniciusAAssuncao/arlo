@@ -14,7 +14,8 @@ pub mod sink;
 
 pub use action::{
     ActionEvent, ArtrineDecisionMade, CallToActionStarted, CarryResolved, DistributionCompleted, DriveRecorded,
-    DriveRegistered, DuelKind, DuelResolved, EventArtroPlacement, PassCompleted, ReceptionResolved,
+    DriveRegistered, DuelKind, DuelResolved, EventArtroPlacement, GoalguardRecoveryResolved, PassCompleted,
+    PasserContactResolved, ReceptionResolved,
 };
 pub use arlo_domain::pitch::ArtroPlacement;
 pub use arlo_domain::PitchZone;
@@ -48,6 +49,8 @@ pub enum MatchEvent {
     CarryResolved(CarryResolved),
     DistributionCompleted(DistributionCompleted),
     ReceptionResolved(ReceptionResolved),
+    PasserContactResolved(PasserContactResolved),
+    GoalguardRecoveryResolved(GoalguardRecoveryResolved),
     ArtrineDecisionMade(ArtrineDecisionMade),
     DriveRecorded(DriveRecorded),
     DuelResolved(DuelResolved),
@@ -89,6 +92,8 @@ impl MatchEvent {
                 | Self::CarryResolved(_)
                 | Self::DistributionCompleted(_)
                 | Self::ReceptionResolved(_)
+                | Self::PasserContactResolved(_)
+                | Self::GoalguardRecoveryResolved(_)
                 | Self::ArtrineDecisionMade(_)
                 | Self::DriveRecorded(_)
                 | Self::DuelResolved(_)
@@ -172,6 +177,8 @@ impl MatchEvent {
             Self::CarryResolved(_) => "CarryResolved",
             Self::DistributionCompleted(_) => "DistributionCompleted",
             Self::ReceptionResolved(_) => "ReceptionResolved",
+            Self::PasserContactResolved(_) => "PasserContactResolved",
+            Self::GoalguardRecoveryResolved(_) => "GoalguardRecoveryResolved",
             Self::ArtrineDecisionMade(_) => "ArtrineDecisionMade",
             Self::DriveRecorded(_) => "DriveRecorded",
             Self::DuelResolved(_) => "DuelResolved",
@@ -234,6 +241,14 @@ impl From<ReceptionResolved> for MatchEvent {
     fn from(ev: ReceptionResolved) -> Self {
         Self::ReceptionResolved(ev)
     }
+}
+
+impl From<PasserContactResolved> for MatchEvent {
+    fn from(ev: PasserContactResolved) -> Self { Self::PasserContactResolved(ev) }
+}
+
+impl From<GoalguardRecoveryResolved> for MatchEvent {
+    fn from(ev: GoalguardRecoveryResolved) -> Self { Self::GoalguardRecoveryResolved(ev) }
 }
 
 impl From<ArtrineDecisionMade> for MatchEvent {
@@ -424,6 +439,8 @@ impl From<ActionEvent> for MatchEvent {
             ActionEvent::CarryResolved(e) => Self::CarryResolved(e),
             ActionEvent::DistributionCompleted(e) => Self::DistributionCompleted(e),
             ActionEvent::ReceptionResolved(e) => Self::ReceptionResolved(e),
+            ActionEvent::PasserContactResolved(e) => Self::PasserContactResolved(e),
+            ActionEvent::GoalguardRecoveryResolved(e) => Self::GoalguardRecoveryResolved(e),
             ActionEvent::ArtrineDecisionMade(e) => Self::ArtrineDecisionMade(e),
             ActionEvent::DriveRecorded(e) => Self::DriveRecorded(e),
             ActionEvent::DuelResolved(e) => Self::DuelResolved(e),

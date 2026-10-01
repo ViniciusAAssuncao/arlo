@@ -2,7 +2,7 @@ use crate::input::MatchInput;
 use crate::resolution::ratings::RatingIndex;
 use crate::state::MatchState;
 use arlo_domain::{AttributeKey, InjuryCatalog, InjuryMechanism, InjurySeverityGrade};
-use arlo_events::{DuelResolved, InjuryIncidentRecorded};
+use arlo_events::{DuelResolved, InjuryIncidentRecorded, PasserContactResolved};
 use arlo_math::Probability;
 use rand::Rng;
 use uuid::Uuid;
@@ -33,6 +33,14 @@ impl Exposure {
             mechanism: InjuryMechanism::NonContact,
             base_probability: 0.00009,
         }
+    }
+
+    pub(super) fn passer_contact(contact: &PasserContactResolved) -> Option<Self> {
+        contact.late().then_some(Self {
+            player_id: contact.passer_id(),
+            mechanism: InjuryMechanism::Contact,
+            base_probability: if contact.violent() { 0.0018 } else if contact.rough() { 0.0008 } else { 0.0004 },
+        })
     }
 }
 

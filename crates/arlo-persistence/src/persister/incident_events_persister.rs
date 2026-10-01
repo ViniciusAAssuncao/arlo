@@ -33,6 +33,8 @@ pub async fn persist_incident_events(
     let mut referee_decisions = Vec::new();
     let mut foul_punishments = Vec::new();
     let mut play_invalidations = Vec::new();
+    let mut passer_contacts = Vec::new();
+    let mut goalguard_recoveries = Vec::new();
 
     for envelope in run_result.raw_sink.events() {
         let seq = envelope.sequence_number();
@@ -107,6 +109,15 @@ pub async fn persist_incident_events(
             MatchEvent::PlayInvalidated(e) => {
                 play_invalidations.push((seq as i64, clock.period() as i32, clock.seconds_in_period(),
                     e.first_sequence() as i64, e.last_sequence() as i64));
+            }
+            MatchEvent::PasserContactResolved(e) => {
+                passer_contacts.push((seq as i64, clock.period() as i32, clock.seconds_in_period(),
+                    e.passer_id().to_string(), e.defender_id().to_string(), e.late(), e.rough(), e.violent()));
+            }
+            MatchEvent::GoalguardRecoveryResolved(e) => {
+                goalguard_recoveries.push((seq as i64, clock.period() as i32, clock.seconds_in_period(),
+                    e.goalguard_id().to_string(), e.team_id().to_string(), e.position_mirim(),
+                    e.zone().as_str().to_owned(), e.used_hands()));
             }
             MatchEvent::InjuryIncidentRecorded(e) => {
                 injuries.push(MatchInjuryRow::from_event(
@@ -257,6 +268,16 @@ pub async fn persist_incident_events(
         sqlx::query("INSERT INTO match_play_invalidations (match_id, sequence_number, period, seconds_in_period, first_invalidated_sequence, last_invalidated_sequence) VALUES (?, ?, ?, ?, ?, ?)")
             .bind(match_id.to_string()).bind(seq).bind(period).bind(seconds).bind(first).bind(last)
             .execute(&mut **tx).await?;
+    }
+    for (seq, period, seconds, passer, defender, late, rough, violent) in passer_contacts {
+        sqlx::query("INSERT INTO match_passer_contacts (match_id, sequence_number, period, seconds_in_period, passer_id, defender_id, late, rough, violent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(match_id.to_string()).bind(seq).bind(period).bind(seconds).bind(passer).bind(defender)
+            .bind(late).bind(rough).bind(violent).execute(&mut **tx).await?;
+    }
+    for (seq, period, seconds, goalguard, team, position, zone, used_hands) in goalguard_recoveries {
+        sqlx::query("INSERT INTO match_goalguard_recoveries (match_id, sequence_number, period, seconds_in_period, goalguard_id, team_id, position_mirim, zone, used_hands) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .bind(match_id.to_string()).bind(seq).bind(period).bind(seconds).bind(goalguard).bind(team)
+            .bind(position).bind(zone).bind(used_hands).execute(&mut **tx).await?;
     }
 
     Ok(())

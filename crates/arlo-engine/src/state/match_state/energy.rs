@@ -49,6 +49,13 @@ impl MatchState {
                     *action_load.entry(event.passer_id()).or_default() += 0.00022;
                     *action_load.entry(event.receiver_id()).or_default() += 0.00022;
                 }
+                MatchEvent::PasserContactResolved(event) => {
+                    *action_load.entry(event.defender_id()).or_default() += 0.00055;
+                    *action_load.entry(event.passer_id()).or_default() += 0.00022;
+                }
+                MatchEvent::GoalguardRecoveryResolved(event) => {
+                    *action_load.entry(event.goalguard_id()).or_default() += 0.0005;
+                }
                 _ => {}
             }
         }

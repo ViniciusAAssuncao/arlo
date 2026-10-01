@@ -26,6 +26,7 @@ pub(super) fn resolve_injuries(
     let sampled = events.iter().find_map(|envelope| {
         let exposure = match envelope.event() {
             MatchEvent::DuelResolved(duel) => sample::Exposure::duel(duel, state),
+            MatchEvent::PasserContactResolved(contact) => sample::Exposure::passer_contact(contact),
             MatchEvent::CarryResolved(carry) => Some(sample::Exposure::carry(carry.carrier_id())),
             _ => None,
         };

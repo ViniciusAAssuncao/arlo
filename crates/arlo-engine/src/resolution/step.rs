@@ -234,6 +234,9 @@ fn resolve_next_segment_inner(
             false,
         )))?,
     );
+    super::passer_contact::resolve_after_release(
+        &ratings, offense, defense, passer_id, carry_defender_id, &mut next, &mut events,
+    )?;
     emit_route_contest(
         &mut next,
         &mut events,

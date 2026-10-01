@@ -168,7 +168,9 @@ pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
             &mut next,
             &mut events,
             team_id,
-            defense.team_id(),
+            defense,
+            &ratings,
+            input.pitch(),
             taker_id,
             artrine_id,
             target,
@@ -211,7 +213,9 @@ fn resolve_shot(
     state: &mut MatchState,
     events: &mut Vec<MatchEventEnvelope>,
     team_id: Uuid,
-    defense_id: Uuid,
+    defense: &crate::input::TeamInput,
+    ratings: &RatingIndex,
+    pitch: arlo_domain::Pitch,
     taker_id: Uuid,
     artrine_id: Uuid,
     post: ScoringPost,
@@ -221,6 +225,7 @@ fn resolve_shot(
     position: f64,
     goal_line: f64,
 ) -> EngineResult<()> {
+    let defense_id = defense.team_id();
     if converted {
         let kind = match post {
             ScoringPost::Goalpost => ScoreKind::KickFoulGoalPoint,
@@ -260,11 +265,22 @@ fn resolve_shot(
         } else {
             team_id
         };
-        state.recover_missed_shot(team_id, recovery_team_id, goal_line)?;
         if defense_recovers {
+            let recovery = super::super::goalguard::resolve_recovery(
+                ratings, defense, pitch, goal_line, state, events,
+            )?;
+            state.recover_missed_shot(team_id, recovery_team_id, recovery.position_mirim)?;
+            state.set_carrier(recovery.player_id)?;
             events.push(state.emit(MatchEvent::Turnover(Turnover::new(
-                team_id, defense_id, None, None, true,
+                team_id, defense_id, Some(recovery.player_id), Some(taker_id), true,
             )))?);
+        } else {
+            let position = if goal_line > pitch.length_mirim() / 2.0 {
+                (goal_line - 2.0).max(0.0)
+            } else {
+                (goal_line + 2.0).min(pitch.length_mirim())
+            };
+            state.recover_missed_shot(team_id, recovery_team_id, position)?;
         }
     }
     Ok(())
