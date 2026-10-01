@@ -206,8 +206,10 @@ impl MatchAnalysisContext {
         player_in_id: Uuid,
         clock_seconds: f64,
     ) -> AnalyticsResult<()> {
-        if self.assignments.contains_key(&player_in_id) {
-            return Err(AnalyticsError::DuplicatePlayer(player_in_id));
+        if player_out_id == player_in_id {
+            return Err(AnalyticsError::InvalidData(
+                "Player cannot substitute themselves".into(),
+            ));
         }
 
         let out_assignment = self
@@ -317,5 +319,36 @@ impl MatchAnalysisContext {
             .filter(|a| a.team_id() == *team_id)
             .map(|a| a.player_id())
             .collect()
+    }
+
+    pub fn starters(&self) -> HashMap<Uuid, PlayerAssignment> {
+        self.assignments
+            .iter()
+            .filter(|(_, a)| a.is_starter())
+            .map(|(&k, v)| (k, v.clone()))
+            .collect()
+    }
+
+    pub fn starter_ids_for_team(&self, team_id: &Uuid) -> Vec<Uuid> {
+        let mut ids: Vec<Uuid> = self
+            .assignments
+            .values()
+            .filter(|a| a.team_id() == *team_id && a.is_starter())
+            .map(|a| a.player_id())
+            .collect();
+        ids.sort();
+        ids
+    }
+
+    pub fn clear_substitutions(&mut self) {
+        self.assignments.retain(|_, a| a.is_starter());
+        self.active_slot_players.clear();
+        for a in self.assignments.values() {
+            self.active_slot_players
+                .insert((a.team_id(), a.slot_index()), a.player_id());
+        }
+        self.substitutions_by_player_out.clear();
+        self.substitutions_by_player_in.clear();
+        self.substitution_history.clear();
     }
 }

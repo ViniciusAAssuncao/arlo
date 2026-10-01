@@ -1,3 +1,4 @@
+
 pub mod discipline;
 pub mod duels;
 pub mod passes;
@@ -13,12 +14,13 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct EventPerformanceTranslator {
+    initial_context: Option<MatchAnalysisContext>,
+    context: Option<MatchAnalysisContext>,
     current_offense_team_id: Option<Uuid>,
     current_down_number: u32,
     scrimmage_x_mirim: f64,
     current_drives_in_series: u32,
     last_clock: MatchClockInstant,
-    context: Option<MatchAnalysisContext>,
 }
 
 impl EventPerformanceTranslator {
@@ -28,17 +30,23 @@ impl EventPerformanceTranslator {
 
     pub fn with_context(context: MatchAnalysisContext) -> Self {
         Self {
+            initial_context: Some(context.clone()),
             context: Some(context),
             ..Default::default()
         }
     }
 
     pub fn set_context(&mut self, context: MatchAnalysisContext) {
+        self.initial_context = Some(context.clone());
         self.context = Some(context);
     }
 
     pub fn context(&self) -> Option<&MatchAnalysisContext> {
         self.context.as_ref()
+    }
+
+    pub fn initial_context(&self) -> Option<&MatchAnalysisContext> {
+        self.initial_context.as_ref()
     }
 
     pub fn current_offense_team_id(&self) -> Option<Uuid> {
@@ -142,6 +150,7 @@ impl EventPerformanceTranslator {
                 }
                 Vec::new()
             }
+            MatchEvent::PlayInvalidated(_) => Vec::new(),
             _ => Vec::new(),
         }
     }
@@ -163,6 +172,7 @@ impl EventPerformanceTranslator {
         self.scrimmage_x_mirim = 0.0;
         self.current_drives_in_series = 0;
         self.last_clock = MatchClockInstant::zero();
+        self.context = self.initial_context.clone();
     }
 
     fn update_internal_state(&mut self, event: &MatchEvent) {

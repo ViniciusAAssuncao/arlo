@@ -1,7 +1,8 @@
-use crate::context::MatchAnalysisContext;
+use crate::context::{MatchAnalysisContext, PlayerAssignment};
 use crate::error::AnalyticsResult;
 use crate::performance::live::config::LiveRatingConfig;
 use crate::performance::live::player_state::LivePlayerState;
+use crate::performance::live::seed::InitialParticipantSeed;
 use crate::performance::live::snapshot::LivePerformanceSnapshotRecord;
 use crate::performance::observation::PerformanceObservation;
 use crate::performance::rating::{
@@ -18,6 +19,8 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayerPerformanceAggregator {
+    initial_context: Option<MatchAnalysisContext>,
+    initial_seeds: Vec<InitialParticipantSeed>,
     translator: EventPerformanceTranslator,
     config: LiveRatingConfig,
     players: HashMap<Uuid, LivePlayerState>,
@@ -30,6 +33,8 @@ pub struct PlayerPerformanceAggregator {
 impl Default for PlayerPerformanceAggregator {
     fn default() -> Self {
         Self {
+            initial_context: None,
+            initial_seeds: Vec::new(),
             translator: EventPerformanceTranslator::new(),
             config: LiveRatingConfig::default(),
             players: HashMap::new(),
@@ -55,6 +60,7 @@ impl PlayerPerformanceAggregator {
 
     pub fn with_context(context: MatchAnalysisContext) -> Self {
         let mut agg = Self {
+            initial_context: Some(context.clone()),
             translator: EventPerformanceTranslator::with_context(context.clone()),
             ..Default::default()
         };
@@ -63,12 +69,27 @@ impl PlayerPerformanceAggregator {
     }
 
     pub fn set_context(&mut self, context: MatchAnalysisContext) {
+        self.initial_context = Some(context.clone());
+        self.initial_seeds.clear();
+        self.players.clear();
+        self.history.clear();
+        self.last_clock = MatchClockInstant::zero();
+        self.last_clock_seconds = 0.0;
+        self.sequence_counter = 0;
+        self.translator.set_context(context.clone());
         self.seed_from_context(&context);
-        self.translator.set_context(context);
     }
 
     pub fn context(&self) -> Option<&MatchAnalysisContext> {
         self.translator.context()
+    }
+
+    pub fn initial_context(&self) -> Option<&MatchAnalysisContext> {
+        self.initial_context.as_ref()
+    }
+
+    pub fn initial_seeds(&self) -> &[InitialParticipantSeed] {
+        &self.initial_seeds
     }
 
     pub fn config(&self) -> &LiveRatingConfig {
@@ -80,7 +101,9 @@ impl PlayerPerformanceAggregator {
     }
 
     pub fn seed_from_context(&mut self, context: &MatchAnalysisContext) {
-        for assignment in context.all_assignments().values() {
+        let mut assignments: Vec<&PlayerAssignment> = context.all_assignments().values().collect();
+        assignments.sort_by_key(|a| (a.slot_index(), a.player_id()));
+        for assignment in assignments {
             self.seed_participant(
                 assignment.player_id(),
                 assignment.team_id(),
@@ -101,16 +124,39 @@ impl PlayerPerformanceAggregator {
         slot_role: SlotRole,
         is_active: bool,
     ) {
-        let state = LivePlayerState::new(
+        let seed = InitialParticipantSeed::new(
             player_id,
             team_id,
             offensive_position,
             defensive_position,
             slot_role,
             is_active,
+        );
+
+        if let Some(pos) = self
+            .initial_seeds
+            .iter()
+            .position(|s| s.player_id() == player_id)
+        {
+            self.initial_seeds[pos] = seed;
+        } else {
+            self.initial_seeds.push(seed);
+        }
+
+        self.apply_seed(&seed);
+    }
+
+    fn apply_seed(&mut self, seed: &InitialParticipantSeed) {
+        let state = LivePlayerState::new(
+            seed.player_id(),
+            seed.team_id(),
+            seed.offensive_position(),
+            seed.defensive_position(),
+            seed.slot_role(),
+            seed.is_active(),
             &self.config,
         );
-        self.players.insert(player_id, state);
+        self.players.insert(seed.player_id(), state);
     }
 
     pub fn seed_participants<I>(&mut self, participants: I)
@@ -214,7 +260,21 @@ impl PlayerPerformanceAggregator {
         if let Some(in_state) = self.players.get_mut(&player_in) {
             in_state.set_active(true);
         } else {
-            let (off_pos, def_pos, role) = if let Some(out_state) = self.players.get(&player_out) {
+            let (off_pos, def_pos, role) = if let Some(ctx) = self.translator.context() {
+                let off = ctx
+                    .offensive_position(&player_in)
+                    .or_else(|| ctx.offensive_position(&player_out))
+                    .unwrap_or(Position::CenterOffense);
+                let def = ctx
+                    .defensive_position(&player_in)
+                    .or_else(|| ctx.defensive_position(&player_out))
+                    .unwrap_or(Position::Centerback);
+                let r = ctx
+                    .slot_role(&player_in)
+                    .or_else(|| ctx.slot_role(&player_out))
+                    .unwrap_or(SlotRole::Standard);
+                (off, def, r)
+            } else if let Some(out_state) = self.players.get(&player_out) {
                 (
                     out_state.offensive_position(),
                     out_state.defensive_position(),
@@ -238,11 +298,26 @@ impl PlayerPerformanceAggregator {
         }
     }
 
-    pub fn handle_availability(&mut self, player_id: Uuid, new_status: AvailabilityStatus) {
-        if matches!(new_status, AvailabilityStatus::Expelled | AvailabilityStatus::Injured) {
-            if let Some(state) = self.players.get_mut(&player_id) {
-                state.set_active(false);
+    pub fn handle_availability(
+        &mut self,
+        player_id: Uuid,
+        previous_status: AvailabilityStatus,
+        new_status: AvailabilityStatus,
+    ) {
+        match new_status {
+            AvailabilityStatus::Expelled
+            | AvailabilityStatus::Injured
+            | AvailabilityStatus::Suspended => {
+                if let Some(state) = self.players.get_mut(&player_id) {
+                    state.set_active(false);
+                }
             }
+            AvailabilityStatus::Active if previous_status == AvailabilityStatus::Suspended => {
+                if let Some(state) = self.players.get_mut(&player_id) {
+                    state.set_active(true);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -290,7 +365,7 @@ impl PlayerPerformanceAggregator {
     }
 
     pub fn team_average_rating(&self, team_id: &Uuid) -> Option<f64> {
-        let team_players: Vec<&LivePlayerState> = self
+        let mut team_players: Vec<&LivePlayerState> = self
             .players
             .values()
             .filter(|p| p.team_id() == *team_id)
@@ -299,6 +374,7 @@ impl PlayerPerformanceAggregator {
         if team_players.is_empty() {
             None
         } else {
+            team_players.sort_by_key(|p| p.player_id());
             let sum: f64 = team_players
                 .iter()
                 .map(|p| p.performance_rating().value())
@@ -308,8 +384,11 @@ impl PlayerPerformanceAggregator {
     }
 
     pub fn all_team_average_ratings(&self) -> HashMap<Uuid, f64> {
+        let mut sorted_players: Vec<&LivePlayerState> = self.players.values().collect();
+        sorted_players.sort_by_key(|p| p.player_id());
+
         let mut team_sums: HashMap<Uuid, (f64, usize)> = HashMap::new();
-        for state in self.players.values() {
+        for state in sorted_players {
             let entry = team_sums.entry(state.team_id()).or_insert((0.0, 0));
             entry.0 += state.performance_rating().value();
             entry.1 += 1;
@@ -368,6 +447,78 @@ impl PlayerPerformanceAggregator {
         self.last_clock = MatchClockInstant::zero();
         self.last_clock_seconds = 0.0;
         self.sequence_counter = 0;
+
+        let seeds = self.initial_seeds.clone();
+        for seed in &seeds {
+            self.apply_seed(seed);
+        }
+    }
+
+    pub fn is_initial_state(&self) -> bool {
+        self.sequence_counter == 0
+            && self.last_clock_seconds == 0.0
+            && self.history.is_empty()
+            && self
+                .players
+                .values()
+                .all(|p| p.effective_opportunities() == 0 && p.seconds_played() == 0.0)
+    }
+
+    pub fn replay<'a>(
+        &mut self,
+        envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>,
+    ) {
+        self.reset_state();
+        self.handle_envelopes(envelopes);
+    }
+
+    pub fn replay_from_sink(&mut self, sink: &arlo_events::InMemorySink) {
+        self.replay(sink.events());
+    }
+
+    pub fn invalidate_and_replay<'a>(
+        &mut self,
+        first_sequence: u64,
+        last_sequence: u64,
+        envelopes: impl IntoIterator<Item = &'a MatchEventEnvelope>,
+    ) {
+        let mut preceding_injury = None;
+        let surviving: Vec<&'a MatchEventEnvelope> = envelopes
+            .into_iter()
+            .filter(|envelope| {
+                let preserve_strain = matches!(
+                    envelope.event(),
+                    MatchEvent::PhysicalStrainRecorded(e) if preceding_injury == Some(e.player_id())
+                );
+                preceding_injury = match envelope.event() {
+                    MatchEvent::InjuryIncidentRecorded(e) => Some(e.player_id()),
+                    _ => None,
+                };
+                if envelope.sequence_number() < first_sequence
+                    || envelope.sequence_number() > last_sequence
+                {
+                    return true;
+                }
+                preserve_strain
+                    || matches!(envelope.event(), MatchEvent::InjuryIncidentRecorded(_))
+                    || matches!(
+                        envelope.event(),
+                        MatchEvent::ImpulseShiftRecorded(e)
+                            if e.event_kind() == arlo_events::ImpulseEventKind::InjurySetback
+                    )
+                    || matches!(
+                        envelope.event(),
+                        MatchEvent::PlayerAvailabilityChanged(e)
+                            if e.new_status() == arlo_events::AvailabilityStatus::Injured
+                    )
+                    || matches!(
+                        envelope.event(),
+                        MatchEvent::SubstitutionMade(e)
+                            if e.reason() == arlo_events::SubstitutionReason::Injury
+                    )
+            })
+            .collect();
+        self.replay(surviving);
     }
 
     fn inspect_event_for_roster_updates(&mut self, event: &MatchEvent) {
@@ -376,7 +527,7 @@ impl PlayerPerformanceAggregator {
                 self.handle_substitution(e.player_out(), e.player_in(), e.team_id());
             }
             MatchEvent::PlayerAvailabilityChanged(e) => {
-                self.handle_availability(e.player_id(), e.new_status());
+                self.handle_availability(e.player_id(), e.previous_status(), e.new_status());
             }
             _ => {}
         }
