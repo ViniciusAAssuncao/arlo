@@ -90,7 +90,7 @@ pub(super) fn resolve_targeted_pass(
         receiver_id,
         holder_id,
         reception.caught,
-        false,
+        reception.is_aerial,
     )))?);
     emit_route_contest(state, events, receiver_id, defender_id, reception, reception.caught)?;
     if !reception.caught {
@@ -115,7 +115,7 @@ pub(super) fn resolve_targeted_pass(
     events.push(state.emit(MatchEvent::PassCompleted(PassCompleted::new(
         holder_id,
         receiver_id,
-        false,
+        reception.is_aerial,
         reception.distance_mirim,
     )))?);
     state.complete_pass(holder_id, receiver_id)?;
