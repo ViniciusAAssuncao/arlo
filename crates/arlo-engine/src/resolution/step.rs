@@ -231,7 +231,7 @@ fn resolve_next_segment_inner(
             artrine_id,
             passer_id,
             controlled_reception,
-            false,
+            reception.is_aerial,
         )))?,
     );
     super::passer_contact::resolve_after_release(
@@ -250,7 +250,7 @@ fn resolve_next_segment_inner(
         events.push(next.emit(MatchEvent::PassCompleted(PassCompleted::new(
             passer_id,
             artrine_id,
-            false,
+            reception.is_aerial,
             reception.distance_mirim,
         )))?);
     }
