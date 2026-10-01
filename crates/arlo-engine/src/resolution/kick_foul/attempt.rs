@@ -1,5 +1,5 @@
-use super::super::actors::select_primary_defender;
-use super::super::contest::emit_shot_contest;
+use super::super::actors::{select_actor, select_primary_defender, ActorRole};
+use super::super::contest::{emit_distribution_contest, emit_shot_contest};
 use super::super::context::validate_match_state;
 use super::super::down::emit_down_advanced;
 use super::super::kicker::select_kicker;
@@ -12,9 +12,9 @@ use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_domain::KickFoulDecisionKind;
 use arlo_events::{
-    AddedTimeAwarded, FieldPointScored, GoalPointScored, KickFoulDecisionMade, MatchEvent,
-    MatchEventEnvelope, OutOfBounds, PassCompleted, PossessionTimeRecorded, ReceptionResolved,
-    ScoringAttemptMissed, ScoringPost, Turnover,
+    AddedTimeAwarded, DuelKind, FieldPointScored, GoalPointScored, KickFoulDecisionMade,
+    MatchEvent, MatchEventEnvelope, OutOfBounds, PassCompleted, PossessionTimeRecorded,
+    ReceptionResolved, ScoringAttemptMissed, ScoringPost, Turnover,
 };
 use arlo_manager_control::RequiredManagerDecision;
 use uuid::Uuid;
@@ -187,7 +187,8 @@ pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
             &mut next,
             &mut events,
             team_id,
-            defense.team_id(),
+            defense,
+            &ratings,
             taker_id,
             receiver_id,
             sample.converted && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS,
@@ -197,6 +198,8 @@ pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
             if is_home { 1.0 } else { -1.0 },
             sample.distance_mirim,
             pitch_length,
+            decision,
+            sample.distribution_probability,
             matches!(
                 decision,
                 KickFoulDecisionKind::Cross | KickFoulDecisionKind::LongLaunch
@@ -315,7 +318,8 @@ fn resolve_launch(
     state: &mut MatchState,
     events: &mut Vec<MatchEventEnvelope>,
     team_id: Uuid,
-    defense_id: Uuid,
+    defense: &crate::input::TeamInput,
+    ratings: &RatingIndex,
     taker_id: Uuid,
     receiver_id: Uuid,
     caught: bool,
@@ -325,8 +329,40 @@ fn resolve_launch(
     direction: f64,
     distance_mirim: f64,
     pitch_length: f64,
+    decision: KickFoulDecisionKind,
+    distribution_probability: f64,
     is_aerial: bool,
 ) -> EngineResult<()> {
+    let defense_id = defense.team_id();
+    if !out_of_bounds {
+        let defender_id = select_actor(
+            ratings,
+            defense,
+            ActorRole::Defender,
+            None,
+            state.rng_mut(),
+        )?;
+        let duel_kind = match decision {
+            KickFoulDecisionKind::ShortPass => DuelKind::ShortDistribution,
+            KickFoulDecisionKind::LongLaunch => DuelKind::LongDistribution,
+            KickFoulDecisionKind::Cross => DuelKind::CrossDistribution,
+            KickFoulDecisionKind::Shoot => {
+                return Err(EngineError::InvalidTransition(
+                    "Kick Foul shot cannot resolve as a distribution".into(),
+                ));
+            }
+        };
+        emit_distribution_contest(
+            state,
+            events,
+            receiver_id,
+            defender_id,
+            duel_kind,
+            caught,
+            distribution_probability,
+        )?;
+    }
+
     state.continue_after_kick_foul()?;
     events.push(
         state.emit(MatchEvent::ReceptionResolved(ReceptionResolved::new(

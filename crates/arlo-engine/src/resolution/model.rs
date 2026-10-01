@@ -16,6 +16,7 @@ pub(super) struct SampledCall {
     pub successful: bool,
     pub success_probability: f64,
     pub contested: bool,
+    pub breakthrough_attempted: bool,
 }
 
 pub(super) fn sample_call(
@@ -38,6 +39,15 @@ pub(super) fn sample_call(
         .map(|call| *call.decision_emphasis())
         .unwrap_or_else(|| team_instructions.default_decision_emphasis());
     let carry_bias = emphasis.self_carry().value() - 0.5;
+    let breakthrough_probability = (BASE_BREAKTHROUGH_INTENT_PROBABILITY
+        + emphasis.self_carry().value() * SELF_CARRY_BREAKTHROUGH_WEIGHT
+        + instructions.directness().value() * DIRECTNESS_BREAKTHROUGH_WEIGHT
+        + instructions.physicality().value() * PHYSICALITY_BREAKTHROUGH_WEIGHT)
+        .clamp(
+            MIN_BREAKTHROUGH_INTENT_PROBABILITY,
+            MAX_BREAKTHROUGH_INTENT_PROBABILITY,
+        );
+    let breakthrough_attempted = rng.gen_range(0.0..1.0) < breakthrough_probability;
     let defense_instructions = ratings.instructions(defense);
     let pressing = defense_instructions
         .out_of_possession()
@@ -92,5 +102,6 @@ pub(super) fn sample_call(
         successful,
         success_probability,
         contested,
+        breakthrough_attempted,
     })
 }

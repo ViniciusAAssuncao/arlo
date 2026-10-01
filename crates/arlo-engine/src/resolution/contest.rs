@@ -6,7 +6,7 @@ use arlo_events::{DuelKind, DuelResolved, MatchEvent, MatchEventEnvelope, Scorin
 use arlo_math::Probability;
 use uuid::Uuid;
 
-pub(super) fn emit_route_contest(
+pub(super) fn emit_reception_contest(
     state: &mut MatchState,
     events: &mut Vec<MatchEventEnvelope>,
     receiver_id: Uuid,
@@ -18,24 +18,34 @@ pub(super) fn emit_route_contest(
         return Ok(());
     }
 
-    let kind = if reception.is_aerial {
-        DuelKind::AerialDuel
-    } else if reception.distance_mirim >= 18.0 {
-        DuelKind::LongDistribution
-    } else if reception.distance_mirim <= 8.0 {
-        DuelKind::ShortDistribution
-    } else {
-        DuelKind::RouteContest
-    };
+    emit_distribution_contest(
+        state,
+        events,
+        receiver_id,
+        defender_id,
+        reception.intent.duel_kind(reception.is_aerial),
+        attacker_won,
+        reception.probability,
+    )
+}
 
-    let net_advantage = outcome_advantage(attacker_won, reception.probability, 0.0);
+pub(super) fn emit_distribution_contest(
+    state: &mut MatchState,
+    events: &mut Vec<MatchEventEnvelope>,
+    receiver_id: Uuid,
+    defender_id: Uuid,
+    kind: DuelKind,
+    attacker_won: bool,
+    success_probability: f64,
+) -> EngineResult<()> {
+    let net_advantage = outcome_advantage(attacker_won, success_probability, 0.0);
 
     events.push(state.emit(MatchEvent::DuelResolved(DuelResolved::single(
         kind,
         receiver_id,
         defender_id,
         attacker_won,
-        Probability::new_clamped(reception.probability),
+        Probability::new_clamped(success_probability),
         net_advantage,
     )))?);
     Ok(())
@@ -56,7 +66,7 @@ pub(super) fn emit_carry_contest(
 
     let kind = if carrier_is_artrine {
         DuelKind::ArtroBreakthrough
-    } else if gain_mirim >= 4.0 {
+    } else if sample.breakthrough_attempted {
         DuelKind::RunBreakthrough
     } else {
         DuelKind::BallSecurityCarry

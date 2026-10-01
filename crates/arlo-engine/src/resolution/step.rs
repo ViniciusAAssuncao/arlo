@@ -1,7 +1,7 @@
 use super::actors::{select_actor, ActorRole};
 use super::bonus::resolve_bonus_segment;
 use super::context::validate_match_state;
-use super::contest::emit_route_contest;
+use super::contest::emit_reception_contest;
 use super::down::emit_down_advanced;
 use super::kick_foul::resolve_kick_foul_segment_inner;
 use super::injury::resolve_injuries;
@@ -9,7 +9,7 @@ use super::model::sample_call;
 use super::officiating::resolve_officiating;
 use super::open_play::resolve_open_play_segment;
 use super::ratings::RatingIndex;
-use super::reception::sample_reception;
+use super::reception::{sample_distribution_intent, sample_reception};
 use super::sequence::{resolve_sequence, SequenceContext};
 use super::shooting::resolve_regular_attempt;
 use super::tuning::CTA_OUT_PROBABILITY;
@@ -193,6 +193,8 @@ fn resolve_next_segment_inner(
         None,
         next.rng_mut(),
     )?;
+    let distribution_intent =
+        sample_distribution_intent(&ratings, offense, selected_play_call, next.rng_mut());
     let reception = sample_reception(
         &ratings,
         offense,
@@ -200,6 +202,7 @@ fn resolve_next_segment_inner(
         passer_id,
         artrine_id,
         defender_id,
+        distribution_intent,
         next.rng_mut(),
     )?;
     let controlled_reception = reception.caught && duration >= IMMEDIATE_POSSESSION_CONTROL_SECONDS;
@@ -237,7 +240,7 @@ fn resolve_next_segment_inner(
     super::passer_contact::resolve_after_release(
         &ratings, offense, defense, passer_id, carry_defender_id, &mut next, &mut events,
     )?;
-    emit_route_contest(
+    emit_reception_contest(
         &mut next,
         &mut events,
         artrine_id,

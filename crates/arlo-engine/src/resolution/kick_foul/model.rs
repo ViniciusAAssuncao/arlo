@@ -15,6 +15,7 @@ pub(super) struct KickFoulSample {
     pub out_of_bounds: bool,
     pub distance_mirim: f64,
     pub conversion_probability: f64,
+    pub distribution_probability: f64,
 }
 
 pub(super) fn default_decision(rng: &mut ChaCha8Rng) -> KickFoulDecisionKind {
@@ -47,10 +48,16 @@ pub(super) fn sample_attempt(
     rng: &mut ChaCha8Rng,
 ) -> EngineResult<KickFoulSample> {
     let duration_seconds = 2.0 + rng.gen_range(0.0..1.0) * 4.0;
-    let (converted, distance_mirim, conversion_probability) = if let Some(post) = post {
+    let (converted, distance_mirim, conversion_probability, distribution_probability) =
+        if let Some(post) = post {
         let probability =
             conversion_probability(ratings, offense, defense, taker_id, post, distance_ratio)?;
-        (rng.gen_range(0.0..1.0) < probability, 0.0, probability)
+        (
+            rng.gen_range(0.0..1.0) < probability,
+            0.0,
+            probability,
+            0.0,
+        )
     } else {
         let passing = ratings.player_value(offense, taker_id, AttributeKey::Passing)?;
         let hands = ratings.player_value(offense, receiver_id, AttributeKey::HandsReception)?;
@@ -65,7 +72,12 @@ pub(super) fn sample_attempt(
         let probability =
             (0.70 + passing * 0.012 + hands * 0.008 - containment * 0.012 - distance_mirim * 0.011)
                 .clamp(0.18, 0.92);
-        (rng.gen_range(0.0..1.0) < probability, distance_mirim, 0.0)
+        (
+            rng.gen_range(0.0..1.0) < probability,
+            distance_mirim,
+            0.0,
+            probability,
+        )
     };
     Ok(KickFoulSample {
         duration_seconds,
@@ -74,5 +86,6 @@ pub(super) fn sample_attempt(
         out_of_bounds: rng.gen_range(0.0..1.0) < 0.08,
         distance_mirim,
         conversion_probability,
+        distribution_probability,
     })
 }

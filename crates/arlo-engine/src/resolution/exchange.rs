@@ -1,7 +1,9 @@
 use super::actors::{select_actor, select_receiver, ActorRole};
-use super::contest::emit_route_contest;
+use super::contest::emit_reception_contest;
 use super::ratings::RatingIndex;
-use super::reception::sample_reception;
+use super::reception::{
+    sample_distribution_intent, sample_reception, DistributionIntent,
+};
 use crate::error::EngineResult;
 use crate::input::TeamInput;
 use crate::state::MatchState;
@@ -58,7 +60,18 @@ pub(super) fn resolve_exchange(
         },
         state.rng_mut(),
     )?;
-    resolve_targeted_pass(ratings, offense, defense, holder_id, receiver_id, state, events)
+    let intent =
+        sample_distribution_intent(ratings, offense, selected_play_call, state.rng_mut());
+    resolve_targeted_pass(
+        ratings,
+        offense,
+        defense,
+        holder_id,
+        receiver_id,
+        intent,
+        state,
+        events,
+    )
 }
 
 pub(super) fn resolve_targeted_pass(
@@ -67,6 +80,7 @@ pub(super) fn resolve_targeted_pass(
     defense: &TeamInput,
     holder_id: Uuid,
     receiver_id: Uuid,
+    intent: DistributionIntent,
     state: &mut MatchState,
     events: &mut Vec<MatchEventEnvelope>,
 ) -> EngineResult<ExchangeOutcome> {
@@ -84,6 +98,7 @@ pub(super) fn resolve_targeted_pass(
         holder_id,
         receiver_id,
         defender_id,
+        intent,
         state.rng_mut(),
     )?;
     events.push(state.emit(MatchEvent::ReceptionResolved(ReceptionResolved::new(
@@ -92,7 +107,14 @@ pub(super) fn resolve_targeted_pass(
         reception.caught,
         reception.is_aerial,
     )))?);
-    emit_route_contest(state, events, receiver_id, defender_id, reception, reception.caught)?;
+    emit_reception_contest(
+        state,
+        events,
+        receiver_id,
+        defender_id,
+        reception,
+        reception.caught,
+    )?;
     if !reception.caught {
         let pressing = ratings.instructions(defense)
             .out_of_possession()

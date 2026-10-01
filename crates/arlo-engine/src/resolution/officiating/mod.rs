@@ -8,7 +8,7 @@ use crate::input::MatchInput;
 use crate::state::{MatchPhase, MatchState};
 use crate::step::{StepOutcome, StepResult};
 use arlo_domain::{FaultSeverity, PunishmentKind};
-use arlo_events::{FoulOrigin, FoulRaised, KickFoulAwarded, MatchEvent, PlayInvalidated, PlayerAvailabilityChanged, PunishmentApplied, RefereeDecisionResolved, Turnover};
+use arlo_events::{DuelKind, FoulOrigin, FoulRaised, KickFoulAwarded, MatchEvent, PlayInvalidated, PlayerAvailabilityChanged, PunishmentApplied, RefereeDecisionResolved, Turnover};
 use arlo_domain::{KickFoulScoringTier, SecondZone};
 use uuid::Uuid;
 use rand::Rng;
@@ -28,6 +28,18 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
     if matches!(outcome, StepOutcome::AwaitingDecision(_)) {
         return Ok(StepResult::awaiting_decision(match outcome { StepOutcome::AwaitingDecision(decisions) => decisions, _ => unreachable!() }));
     }
+    let has_scoring_duel = events.iter().any(|envelope| {
+        matches!(
+            envelope.event(),
+            MatchEvent::DuelResolved(duel)
+                if matches!(
+                    duel.kind(),
+                    DuelKind::FinishingAttempt
+                        | DuelKind::FieldGoalAttempt
+                        | DuelKind::KickBlockAttempt
+                )
+        )
+    });
     let mut serious_stop = false;
     for envelope in &events {
         let sampled = match envelope.event() {
@@ -46,11 +58,12 @@ pub(super) fn resolve_officiating(input: &MatchInput, state: &mut MatchState, re
                 pick_active(input, state, defender_team).map(|defender| candidate::sample_context_decision(
                     input, state, "Drive", drive.artrine_id(), defender, FoulOrigin::Drive)).transpose()?.flatten()
             }
-            MatchEvent::ScoringAttemptMissed(attempt) => {
+            MatchEvent::ScoringAttemptMissed(attempt) if !has_scoring_duel => {
                 let defender_team = other_team(input, attempt.team_id());
                 pick_active(input, state, defender_team).map(|defender| candidate::sample_context_decision(
                     input, state, "ShotAttempt", attempt.scorer_id(), defender, FoulOrigin::ShotAttempt)).transpose()?.flatten()
             }
+            MatchEvent::ScoringAttemptMissed(_) => None,
             MatchEvent::OutOfBounds(out) => {
                 let attacker = out.last_player().or_else(|| pick_active(input, state, out.last_possession_team()));
                 let defender = pick_active(input, state, other_team(input, out.last_possession_team()));
