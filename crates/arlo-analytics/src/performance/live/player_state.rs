@@ -1,5 +1,6 @@
 use crate::error::AnalyticsResult;
 use crate::performance::live::config::LiveRatingConfig;
+use crate::performance::live::diagnostics::LivePerformanceDiagnosticsState;
 use crate::performance::live::rating_calculator::{
     calculate_confidence, calculate_dual_rating_with_exposure,
 };
@@ -25,7 +26,7 @@ pub struct LivePlayerState {
     is_active: bool,
     seconds_played: f64,
     effective_opportunities: u32,
-    effective_opportunity_weight: f64,
+    diagnostics: LivePerformanceDiagnosticsState,
     offensive_breakdown: PerformanceBreakdown,
     defensive_breakdown: PerformanceBreakdown,
     accumulated_breakdown: PerformanceBreakdown,
@@ -76,7 +77,7 @@ impl LivePlayerState {
             is_active,
             seconds_played: 0.0,
             effective_opportunities: 0,
-            effective_opportunity_weight: 0.0,
+            diagnostics: LivePerformanceDiagnosticsState::default(),
             offensive_breakdown,
             defensive_breakdown,
             accumulated_breakdown,
@@ -137,7 +138,7 @@ impl LivePlayerState {
     }
 
     pub fn effective_opportunity_weight(&self) -> f64 {
-        self.effective_opportunity_weight
+        self.diagnostics.effective_opportunity_weight()
     }
 
     pub fn is_starter(&self) -> bool {
@@ -253,9 +254,14 @@ impl LivePlayerState {
             }
         }
 
+        self.diagnostics.record(
+            observation,
+            scaled_bd,
+            &self.offensive_profile,
+            &self.defensive_profile,
+        );
         self.accumulated_breakdown = self.offensive_breakdown + self.defensive_breakdown;
         self.effective_opportunities = self.effective_opportunities.saturating_add(1);
-        self.effective_opportunity_weight += opp_val;
         self.recalculate(config);
     }
 
@@ -268,7 +274,7 @@ impl LivePlayerState {
             &self.defensive_profile,
             &self.defensive_breakdown,
             self.effective_opportunities,
-            self.effective_opportunity_weight,
+            self.diagnostics.effective_opportunity_weight(),
             self.confidence,
             config,
         );
@@ -276,6 +282,15 @@ impl LivePlayerState {
 
     pub fn to_snapshot(&self) -> PlayerPerformanceSnapshot {
         let final_rating = self.final_rating();
+        let offensive_latent = self
+            .offensive_profile
+            .calculate_latent_score(&self.offensive_breakdown);
+        let defensive_latent = self
+            .defensive_profile
+            .calculate_latent_score(&self.defensive_breakdown);
+        let diagnostics = self
+            .diagnostics
+            .snapshot(offensive_latent, defensive_latent);
 
         PlayerPerformanceSnapshot::new(
             self.player_id,
@@ -290,6 +305,7 @@ impl LivePlayerState {
             self.seconds_played,
             self.effective_opportunities,
             self.accumulated_breakdown,
+            diagnostics,
             ModelVersion::default(),
         )
         .expect("valid player performance snapshot")
@@ -297,6 +313,15 @@ impl LivePlayerState {
 
     pub fn try_to_snapshot(&self) -> AnalyticsResult<PlayerPerformanceSnapshot> {
         let final_rating = self.final_rating();
+        let offensive_latent = self
+            .offensive_profile
+            .calculate_latent_score(&self.offensive_breakdown);
+        let defensive_latent = self
+            .defensive_profile
+            .calculate_latent_score(&self.defensive_breakdown);
+        let diagnostics = self
+            .diagnostics
+            .snapshot(offensive_latent, defensive_latent);
 
         PlayerPerformanceSnapshot::new(
             self.player_id,
@@ -311,6 +336,7 @@ impl LivePlayerState {
             self.seconds_played,
             self.effective_opportunities,
             self.accumulated_breakdown,
+            diagnostics,
             ModelVersion::default(),
         )
     }
