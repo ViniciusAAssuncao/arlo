@@ -1,9 +1,10 @@
 use crate::error::{AnalyticsError, AnalyticsResult};
+use crate::performance::diagnostics::PerformanceDiagnostics;
 use arlo_domain::{Position, SlotRole};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub const PLAYER_PERFORMANCE_MODEL_VERSION: u32 = 1;
+pub const PLAYER_PERFORMANCE_MODEL_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ModelVersion(u32);
@@ -32,7 +33,7 @@ pub struct PerformanceRating(f64);
 impl PerformanceRating {
     pub const MIN: f64 = 0.0;
     pub const MAX: f64 = 10.0;
-    pub const NEUTRAL: f64 = 5.5;
+    pub const NEUTRAL: f64 = 6.2;
 
     pub fn new(value: f64) -> AnalyticsResult<Self> {
         if !value.is_finite() {
@@ -371,6 +372,7 @@ pub struct PlayerPerformanceSnapshot {
     seconds_played: f64,
     effective_opportunities: u32,
     breakdown: PerformanceBreakdown,
+    diagnostics: PerformanceDiagnostics,
     model_version: ModelVersion,
 }
 
@@ -388,6 +390,7 @@ impl PlayerPerformanceSnapshot {
         seconds_played: f64,
         effective_opportunities: u32,
         breakdown: PerformanceBreakdown,
+        diagnostics: PerformanceDiagnostics,
         model_version: ModelVersion,
     ) -> AnalyticsResult<Self> {
         if !seconds_played.is_finite() || seconds_played < 0.0 {
@@ -414,6 +417,7 @@ impl PlayerPerformanceSnapshot {
             seconds_played,
             effective_opportunities,
             breakdown,
+            diagnostics,
             model_version,
         })
     }
@@ -464,6 +468,10 @@ impl PlayerPerformanceSnapshot {
 
     pub fn breakdown(&self) -> &PerformanceBreakdown {
         &self.breakdown
+    }
+
+    pub fn diagnostics(&self) -> &PerformanceDiagnostics {
+        &self.diagnostics
     }
 
     pub fn model_version(&self) -> ModelVersion {
