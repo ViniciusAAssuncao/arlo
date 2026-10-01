@@ -1,7 +1,7 @@
 use crate::dto::r#match::PlayerPerformanceBreakdownDto;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerSeasonPerformanceStatsDto {
     pub matches_rated: u32,
