@@ -1,3 +1,4 @@
+pub mod live;
 pub mod observation;
 pub mod profile;
 pub mod rating;
@@ -6,6 +7,10 @@ pub mod translator;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub use live::{
+    calculate_confidence, calculate_rating, LivePerformanceSnapshotRecord, LivePlayerState,
+    LiveRatingConfig, PlayerPerformanceAggregator,
+};
 pub use observation::{
     ObservationCategory, PerformanceObservation, PerformanceObservationBuilder, PossessionPhase,
 };
