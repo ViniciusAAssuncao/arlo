@@ -1,3 +1,5 @@
+use super::super::actors::select_primary_defender;
+use super::super::contest::emit_shot_contest;
 use super::super::context::validate_match_state;
 use super::super::down::emit_down_advanced;
 use super::super::kicker::select_kicker;
@@ -177,6 +179,7 @@ pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
             sample.converted,
             sample.out_of_bounds,
             sample.defense_recovers,
+            sample.conversion_probability,
             position,
             if is_home { pitch_length } else { 0.0 },
         )?,
@@ -222,10 +225,32 @@ fn resolve_shot(
     converted: bool,
     out_of_bounds: bool,
     defense_recovers: bool,
+    conversion_probability: f64,
     position: f64,
     goal_line: f64,
 ) -> EngineResult<()> {
     let defense_id = defense.team_id();
+    let shot_defender_id = match post {
+        ScoringPost::Goalpost => super::super::goalguard::active_goalguard_id(ratings, defense)
+            .or_else(|| select_primary_defender(ratings, defense).ok()),
+        ScoringPost::Fieldpost => select_primary_defender(ratings, defense)
+            .ok()
+            .or_else(|| super::super::goalguard::active_goalguard_id(ratings, defense)),
+    };
+
+    if let Some(defender_id) = shot_defender_id {
+        emit_shot_contest(
+            state,
+            events,
+            taker_id,
+            defender_id,
+            post,
+            converted,
+            out_of_bounds,
+            conversion_probability,
+        )?;
+    }
+
     if converted {
         let kind = match post {
             ScoringPost::Goalpost => ScoreKind::KickFoulGoalPoint,
