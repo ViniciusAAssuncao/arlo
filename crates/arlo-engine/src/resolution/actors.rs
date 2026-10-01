@@ -60,6 +60,38 @@ pub(super) fn select_primary_defender(
         .ok_or_else(|| EngineError::InvalidInput("lineup has no active field defender".into()))
 }
 
+pub(super) fn select_primary_blocker(
+    ratings: &RatingIndex,
+    team: &TeamInput,
+) -> EngineResult<Uuid> {
+    let mut best: Option<(Uuid, f64)> = None;
+
+    for assignment in team.lineup().assignments() {
+        let player_id = ratings.slot_player_id(team, assignment.player_id());
+        if !ratings.is_active(team, player_id)
+            || assignment.position().line() == PositionLine::Goalguard
+        {
+            continue;
+        }
+
+        let blocking = ratings.player_value(team, player_id, AttributeKey::OffensiveBlocking)?;
+        let line_weight = match assignment.position().line() {
+            PositionLine::OffensiveLine => 1.25,
+            PositionLine::BackLine => 1.0,
+            PositionLine::DefenseLine => 0.70,
+            PositionLine::Goalguard => 0.0,
+        };
+        let score = blocking * line_weight;
+
+        if best.is_none_or(|(_, best_score)| score > best_score) {
+            best = Some((player_id, score));
+        }
+    }
+
+    best.map(|(player_id, _)| player_id)
+        .ok_or_else(|| EngineError::InvalidInput("lineup has no active blocker".into()))
+}
+
 pub(super) fn select_receiver(
     ratings: &RatingIndex,
     team: &TeamInput,
