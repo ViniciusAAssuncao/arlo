@@ -72,6 +72,11 @@ pub(crate) fn map_player_performance_row(
         offensive_latent: row.offensive_latent,
         defensive_latent: row.defensive_latent,
         raw_latent: row.raw_latent,
+        quality_signal: row.quality_signal,
+        confidence_evidence: row.confidence_evidence,
+        rating_latent: row.rating_latent,
+        impact_signal: row.impact_signal,
+        impact_adjustment: row.impact_adjustment,
         breakdown: PlayerPerformanceBreakdownDto {
             execution: row.execution_score,
             production: row.production_score,

@@ -21,9 +21,9 @@ pub(crate) fn translate_turnover(
             )
         } else {
             (
-                PerformanceBreakdown::new_unchecked(0.40, 0.20, 0.65, 0.85, 0.0, 0.95),
-                1.0,
-                1.75,
+                PerformanceBreakdown::new_unchecked(0.20, 0.08, 0.35, 0.45, 0.0, 0.30),
+                0.75,
+                1.25,
                 "Turnover recovered",
             )
         };

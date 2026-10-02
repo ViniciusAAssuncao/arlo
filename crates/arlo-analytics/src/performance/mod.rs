@@ -10,9 +10,11 @@ use uuid::Uuid;
 
 pub use diagnostics::{PerformanceCategoryContribution, PerformanceDiagnostics};
 pub use live::{
-    apply_outcome_to_players, calculate_confidence, calculate_dual_rating,
-    calculate_dual_rating_with_exposure, calculate_rating, calculate_rating_from_latent,
-    calculate_rating_with_exposure, calculate_shrunk_latent, clear_players_outcome,
+    apply_outcome_to_players, calculate_confidence, calculate_confidence_from_evidence,
+    calculate_dual_rating, calculate_dual_rating_with_exposure, calculate_impact_adjustment,
+    calculate_impact_signal, calculate_quality_latent, calculate_rating,
+    calculate_rating_from_latent, calculate_rating_with_exposure, calculate_shrunk_latent,
+    clear_players_outcome,
     extract_player_match_ratings, filter_surviving_envelopes, InitialParticipantSeed,
     LivePerformanceSnapshotRecord, LivePlayerState, LiveRatingConfig, MatchFinalizationState,
     PlayerPerformanceAggregator,

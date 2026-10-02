@@ -8,8 +8,10 @@ pub use error::{EngineError, EngineResult};
 pub use input::{MatchInput, TeamInput};
 pub use resolution::{
     award_kick_foul_segment, resolve_kick_foul_segment, resolve_missed_shot_recovery,
-    resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_next_segment, resolve_time_call_segment,
-    resolve_substitution_segment, resolve_tactical_switch_segment, select_substitution, select_tactical_profile, should_use_time_call,
+    resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_next_segment,
+    resolve_substitution_segment, resolve_tactical_switch_segment, resolve_time_call_segment,
+    select_substitution, select_tactical_profile, should_use_time_call,
+    try_resolve_automatic_injury_decision_segment,
 };
 pub use state::{
     ClockState, DriveProgress, MatchPhase, MatchState, PossessionState, Score, ScoreKind,

@@ -19,11 +19,11 @@ pub(crate) fn translate_artrine_decision(
     };
 
     let (exec, prod, hi, sec) = match event.decision_kind() {
-        arlo_domain::ArtrineDecisionKind::SelfCarry => (0.12, 0.08, 0.08, 0.05),
-        arlo_domain::ArtrineDecisionKind::ShortPass => (0.10, 0.06, 0.06, 0.05),
-        arlo_domain::ArtrineDecisionKind::LongLaunch => (0.14, 0.10, 0.12, 0.05),
-        arlo_domain::ArtrineDecisionKind::Cross => (0.12, 0.08, 0.08, 0.05),
-        arlo_domain::ArtrineDecisionKind::SelfFinish => (0.15, 0.12, 0.15, 0.05),
+        arlo_domain::ArtrineDecisionKind::SelfCarry => (0.12, 0.08, 0.0, 0.05),
+        arlo_domain::ArtrineDecisionKind::ShortPass => (0.10, 0.06, 0.0, 0.05),
+        arlo_domain::ArtrineDecisionKind::LongLaunch => (0.14, 0.10, 0.0, 0.05),
+        arlo_domain::ArtrineDecisionKind::Cross => (0.12, 0.08, 0.0, 0.05),
+        arlo_domain::ArtrineDecisionKind::SelfFinish => (0.15, 0.12, 0.0, 0.05),
     };
 
     let bd = PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi);

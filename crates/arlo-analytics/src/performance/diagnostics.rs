@@ -50,11 +50,17 @@ impl PerformanceCategoryContribution {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct PerformanceDiagnostics {
     effective_opportunity_weight: f64,
     offensive_latent: f64,
     defensive_latent: f64,
     raw_latent: f64,
+    quality_signal: f64,
+    confidence_evidence: f64,
+    rating_latent: f64,
+    impact_signal: f64,
+    impact_adjustment: f64,
     category_contributions: Vec<PerformanceCategoryContribution>,
 }
 
@@ -63,6 +69,11 @@ impl PerformanceDiagnostics {
         effective_opportunity_weight: f64,
         offensive_latent: f64,
         defensive_latent: f64,
+        quality_signal: f64,
+        confidence_evidence: f64,
+        rating_latent: f64,
+        impact_signal: f64,
+        impact_adjustment: f64,
         category_contributions: Vec<PerformanceCategoryContribution>,
     ) -> Self {
         Self {
@@ -70,6 +81,11 @@ impl PerformanceDiagnostics {
             offensive_latent,
             defensive_latent,
             raw_latent: offensive_latent + defensive_latent,
+            quality_signal,
+            confidence_evidence,
+            rating_latent,
+            impact_signal,
+            impact_adjustment,
             category_contributions,
         }
     }
@@ -88,6 +104,26 @@ impl PerformanceDiagnostics {
 
     pub fn raw_latent(&self) -> f64 {
         self.raw_latent
+    }
+
+    pub fn quality_signal(&self) -> f64 {
+        self.quality_signal
+    }
+
+    pub fn confidence_evidence(&self) -> f64 {
+        self.confidence_evidence
+    }
+
+    pub fn rating_latent(&self) -> f64 {
+        self.rating_latent
+    }
+
+    pub fn impact_signal(&self) -> f64 {
+        self.impact_signal
+    }
+
+    pub fn impact_adjustment(&self) -> f64 {
+        self.impact_adjustment
     }
 
     pub fn category_contributions(&self) -> &[PerformanceCategoryContribution] {

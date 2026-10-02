@@ -2,7 +2,9 @@ use crate::error::AnalyticsResult;
 use crate::performance::live::config::LiveRatingConfig;
 use crate::performance::live::diagnostics::LivePerformanceDiagnosticsState;
 use crate::performance::live::rating_calculator::{
-    calculate_confidence, calculate_dual_rating_with_exposure,
+    calculate_confidence, calculate_confidence_from_evidence,
+    calculate_dual_rating_with_exposure, calculate_impact_adjustment,
+    calculate_impact_signal, calculate_quality_latent, calculate_rating_from_latent,
 };
 use crate::performance::observation::{PerformanceObservation, PossessionPhase};
 use crate::performance::profile::PerformanceProfile;
@@ -28,6 +30,16 @@ pub struct LivePlayerState {
     effective_opportunities: u32,
     #[serde(default)]
     diagnostics: LivePerformanceDiagnosticsState,
+    #[serde(default)]
+    quality_signal: f64,
+    #[serde(default)]
+    confidence_evidence: f64,
+    #[serde(default)]
+    rating_latent: f64,
+    #[serde(default)]
+    impact_signal: f64,
+    #[serde(default)]
+    impact_adjustment: f64,
     offensive_breakdown: PerformanceBreakdown,
     defensive_breakdown: PerformanceBreakdown,
     accumulated_breakdown: PerformanceBreakdown,
@@ -79,6 +91,11 @@ impl LivePlayerState {
             seconds_played: 0.0,
             effective_opportunities: 0,
             diagnostics: LivePerformanceDiagnosticsState::default(),
+            quality_signal: config.quality_center(),
+            confidence_evidence: 0.0,
+            rating_latent: 0.0,
+            impact_signal: 0.0,
+            impact_adjustment: 0.0,
             offensive_breakdown,
             defensive_breakdown,
             accumulated_breakdown,
@@ -178,6 +195,26 @@ impl LivePlayerState {
         self.confidence
     }
 
+    pub fn quality_signal(&self) -> f64 {
+        self.quality_signal
+    }
+
+    pub fn confidence_evidence(&self) -> f64 {
+        self.confidence_evidence
+    }
+
+    pub fn rating_latent(&self) -> f64 {
+        self.rating_latent
+    }
+
+    pub fn impact_signal(&self) -> f64 {
+        self.impact_signal
+    }
+
+    pub fn impact_adjustment(&self) -> f64 {
+        self.impact_adjustment
+    }
+
     pub fn outcome_adjustment(&self) -> f64 {
         self.outcome_adjustment
     }
@@ -267,17 +304,28 @@ impl LivePlayerState {
     }
 
     pub fn recalculate(&mut self, config: &LiveRatingConfig) {
-        self.confidence =
-            calculate_confidence(self.effective_opportunities, self.seconds_played, config);
-        self.performance_rating = calculate_dual_rating_with_exposure(
-            &self.offensive_profile,
-            &self.offensive_breakdown,
-            &self.defensive_profile,
-            &self.defensive_breakdown,
-            self.effective_opportunities,
-            self.diagnostics.effective_opportunity_weight(),
-            self.confidence,
+        self.confidence_evidence = self.diagnostics.confidence_evidence();
+        self.quality_signal = self
+            .diagnostics
+            .quality_signal()
+            .unwrap_or(config.quality_center());
+        self.confidence = calculate_confidence_from_evidence(
+            self.confidence_evidence,
+            self.seconds_played,
             config,
+        );
+        self.rating_latent = calculate_quality_latent(self.quality_signal, config);
+        let routine_rating =
+            calculate_rating_from_latent(self.rating_latent, self.confidence, config);
+        self.impact_signal = calculate_impact_signal(
+            self.diagnostics.high_impact_total(),
+            self.diagnostics.effective_opportunity_weight(),
+            config,
+        );
+        self.impact_adjustment =
+            calculate_impact_adjustment(self.impact_signal, self.confidence, config);
+        self.performance_rating = PerformanceRating::new_clamped(
+            routine_rating.value() + self.impact_adjustment,
         );
     }
 
@@ -289,9 +337,15 @@ impl LivePlayerState {
         let defensive_latent = self
             .defensive_profile
             .calculate_latent_score(&self.defensive_breakdown);
-        let diagnostics = self
-            .diagnostics
-            .snapshot(offensive_latent, defensive_latent);
+        let diagnostics = self.diagnostics.snapshot(
+            offensive_latent,
+            defensive_latent,
+            self.quality_signal,
+            self.confidence_evidence,
+            self.rating_latent,
+            self.impact_signal,
+            self.impact_adjustment,
+        );
 
         PlayerPerformanceSnapshot::new(
             self.player_id,
@@ -320,9 +374,15 @@ impl LivePlayerState {
         let defensive_latent = self
             .defensive_profile
             .calculate_latent_score(&self.defensive_breakdown);
-        let diagnostics = self
-            .diagnostics
-            .snapshot(offensive_latent, defensive_latent);
+        let diagnostics = self.diagnostics.snapshot(
+            offensive_latent,
+            defensive_latent,
+            self.quality_signal,
+            self.confidence_evidence,
+            self.rating_latent,
+            self.impact_signal,
+            self.impact_adjustment,
+        );
 
         PlayerPerformanceSnapshot::new(
             self.player_id,

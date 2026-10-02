@@ -20,10 +20,10 @@ pub(crate) fn translate_pass_completed(
     let exec = 0.05 + dist_norm * 0.45 + aerial_bonus;
     let prod = (dist * 0.035).min(0.90);
     let sec = 0.05;
-    let hi = if dist >= 18.0 {
-        0.35
-    } else if dist >= 10.0 {
-        0.15
+    let hi = if dist >= 24.0 {
+        0.22
+    } else if dist >= 16.0 {
+        0.08
     } else {
         0.0
     };
@@ -73,7 +73,7 @@ pub(crate) fn translate_reception_resolved(
         )
     };
 
-    vec![PerformanceObservation::new_unchecked(
+    let mut observations = vec![PerformanceObservation::new_unchecked(
         event.receiver_id(),
         receiver_team,
         clock,
@@ -83,7 +83,26 @@ pub(crate) fn translate_reception_resolved(
         1.0,
         1.0,
         desc.into(),
-    )]
+    )];
+
+    if !event.caught() {
+        let passer_team = resolve_team(event.passer_id(), offense_team_id, context);
+        let passer_bd =
+            PerformanceBreakdown::new_unchecked(-0.18, -0.10, 0.0, -0.12, 0.0, -0.05);
+        observations.push(PerformanceObservation::new_unchecked(
+            event.passer_id(),
+            passer_team,
+            clock,
+            PossessionPhase::Offense,
+            ObservationCategory::Pass,
+            passer_bd,
+            0.75,
+            1.0,
+            "Pass attempt not completed".into(),
+        ));
+    }
+
+    observations
 }
 
 pub(crate) fn translate_distribution_completed(
@@ -101,7 +120,7 @@ pub(crate) fn translate_distribution_completed(
         let exec = 0.06 + dist_norm * 0.40 + aerial_bonus;
         let prod = (dist * 0.03).min(0.75);
         let sec = 0.05;
-        let hi = if dist >= 15.0 { 0.25 } else { 0.0 };
+        let hi = if dist >= 20.0 { 0.15 } else { 0.0 };
         PerformanceBreakdown::new_unchecked(exec, prod, 0.0, sec, 0.0, hi)
     } else {
         PerformanceBreakdown::new_unchecked(-0.45, -0.25, 0.0, -0.30, 0.0, -0.20)

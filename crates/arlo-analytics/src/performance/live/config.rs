@@ -2,6 +2,7 @@ use crate::performance::rating::OutcomeAdjustmentPolicy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct LiveRatingConfig {
     baseline_rating: f64,
     positive_scale: f64,
@@ -10,6 +11,14 @@ pub struct LiveRatingConfig {
     seconds_to_full_confidence: f64,
     confidence_shrinkage_weight: f64,
     shrinkage_prior_opportunities: f64,
+    quality_center: f64,
+    quality_latent_scale: f64,
+    impact_positive_threshold: f64,
+    impact_negative_threshold: f64,
+    impact_positive_max: f64,
+    impact_negative_max: f64,
+    impact_scale: f64,
+    impact_weight_offset: f64,
     record_snapshots_automatically: bool,
     outcome_policy: OutcomeAdjustmentPolicy,
 }
@@ -20,10 +29,18 @@ impl Default for LiveRatingConfig {
             baseline_rating: 6.2,
             positive_scale: 4.0,
             negative_scale: 4.0,
-            opportunities_to_full_confidence: 60.0,
+            opportunities_to_full_confidence: 55.0,
             seconds_to_full_confidence: 3600.0,
-            confidence_shrinkage_weight: 0.75,
+            confidence_shrinkage_weight: 0.85,
             shrinkage_prior_opportunities: 4.0,
+            quality_center: 0.10,
+            quality_latent_scale: 0.22,
+            impact_positive_threshold: 0.30,
+            impact_negative_threshold: 0.55,
+            impact_positive_max: 1.35,
+            impact_negative_max: 0.65,
+            impact_scale: 0.55,
+            impact_weight_offset: 16.0,
             record_snapshots_automatically: false,
             outcome_policy: OutcomeAdjustmentPolicy::zero(),
         }
@@ -61,6 +78,38 @@ impl LiveRatingConfig {
 
     pub fn shrinkage_prior_opportunities(&self) -> f64 {
         self.shrinkage_prior_opportunities
+    }
+
+    pub fn quality_center(&self) -> f64 {
+        self.quality_center
+    }
+
+    pub fn quality_latent_scale(&self) -> f64 {
+        self.quality_latent_scale
+    }
+
+    pub fn impact_positive_threshold(&self) -> f64 {
+        self.impact_positive_threshold
+    }
+
+    pub fn impact_negative_threshold(&self) -> f64 {
+        self.impact_negative_threshold
+    }
+
+    pub fn impact_positive_max(&self) -> f64 {
+        self.impact_positive_max
+    }
+
+    pub fn impact_negative_max(&self) -> f64 {
+        self.impact_negative_max
+    }
+
+    pub fn impact_scale(&self) -> f64 {
+        self.impact_scale
+    }
+
+    pub fn impact_weight_offset(&self) -> f64 {
+        self.impact_weight_offset
     }
 
     pub fn record_snapshots_automatically(&self) -> bool {
@@ -103,6 +152,46 @@ impl LiveRatingConfig {
 
     pub fn with_shrinkage_prior_opportunities(mut self, count: f64) -> Self {
         self.shrinkage_prior_opportunities = count;
+        self
+    }
+
+    pub fn with_quality_center(mut self, quality_center: f64) -> Self {
+        self.quality_center = quality_center;
+        self
+    }
+
+    pub fn with_quality_latent_scale(mut self, scale: f64) -> Self {
+        self.quality_latent_scale = scale;
+        self
+    }
+
+    pub fn with_impact_positive_threshold(mut self, threshold: f64) -> Self {
+        self.impact_positive_threshold = threshold;
+        self
+    }
+
+    pub fn with_impact_negative_threshold(mut self, threshold: f64) -> Self {
+        self.impact_negative_threshold = threshold;
+        self
+    }
+
+    pub fn with_impact_positive_max(mut self, value: f64) -> Self {
+        self.impact_positive_max = value;
+        self
+    }
+
+    pub fn with_impact_negative_max(mut self, value: f64) -> Self {
+        self.impact_negative_max = value;
+        self
+    }
+
+    pub fn with_impact_scale(mut self, scale: f64) -> Self {
+        self.impact_scale = scale;
+        self
+    }
+
+    pub fn with_impact_weight_offset(mut self, offset: f64) -> Self {
+        self.impact_weight_offset = offset;
         self
     }
 

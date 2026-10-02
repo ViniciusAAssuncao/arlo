@@ -1,4 +1,5 @@
 pub mod aggregator;
+pub(crate) mod category_signal;
 pub mod config;
 pub mod diagnostics;
 pub mod finalizer;
@@ -17,9 +18,10 @@ pub use finalizer::{
 };
 pub use player_state::LivePlayerState;
 pub use rating_calculator::{
-    calculate_confidence, calculate_dual_rating, calculate_dual_rating_with_exposure,
-    calculate_rating, calculate_rating_from_latent, calculate_rating_with_exposure,
-    calculate_shrunk_latent,
+    calculate_confidence, calculate_confidence_from_evidence, calculate_dual_rating,
+    calculate_dual_rating_with_exposure, calculate_impact_adjustment, calculate_impact_signal,
+    calculate_quality_latent, calculate_rating, calculate_rating_from_latent,
+    calculate_rating_with_exposure, calculate_shrunk_latent,
 };
 pub use replay::filter_surviving_envelopes;
 pub use seed::InitialParticipantSeed;

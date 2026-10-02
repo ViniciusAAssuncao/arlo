@@ -1,6 +1,7 @@
 use crate::performance::diagnostics::{
     PerformanceCategoryContribution, PerformanceDiagnostics,
 };
+use crate::performance::live::category_signal::{policy_for, reliability};
 use crate::performance::observation::{
     ObservationCategory, PerformanceObservation, PossessionPhase,
 };
@@ -26,6 +27,45 @@ pub struct LivePerformanceDiagnosticsState {
 impl LivePerformanceDiagnosticsState {
     pub fn effective_opportunity_weight(&self) -> f64 {
         self.effective_opportunity_weight
+    }
+
+    pub fn quality_signal(&self) -> Option<f64> {
+        let mut weighted_quality = 0.0;
+        let mut total_weight = 0.0;
+
+        for (&category, data) in &self.categories {
+            if data.opportunity_weight <= 0.0 {
+                continue;
+            }
+            let policy = policy_for(category);
+            let reliability =
+                reliability(data.opportunity_weight, policy.saturation);
+            let rate = data.latent_contribution / data.opportunity_weight;
+            let quality = (rate / policy.rate_scale).tanh();
+            let weight = policy.importance * reliability;
+            weighted_quality += quality * weight;
+            total_weight += weight;
+        }
+
+        (total_weight > 0.0).then_some(weighted_quality / total_weight)
+    }
+
+    pub fn confidence_evidence(&self) -> f64 {
+        self.categories
+            .iter()
+            .map(|(&category, data)| {
+                let policy = policy_for(category);
+                policy.saturation
+                    * reliability(data.opportunity_weight, policy.saturation)
+            })
+            .sum()
+    }
+
+    pub fn high_impact_total(&self) -> f64 {
+        self.categories
+            .values()
+            .map(|data| data.breakdown.high_impact())
+            .sum()
     }
 
     pub fn record(
@@ -69,6 +109,11 @@ impl LivePerformanceDiagnosticsState {
         &self,
         offensive_latent: f64,
         defensive_latent: f64,
+        quality_signal: f64,
+        confidence_evidence: f64,
+        rating_latent: f64,
+        impact_signal: f64,
+        impact_adjustment: f64,
     ) -> PerformanceDiagnostics {
         let mut categories: Vec<_> = self
             .categories
@@ -90,6 +135,11 @@ impl LivePerformanceDiagnosticsState {
             self.effective_opportunity_weight,
             offensive_latent,
             defensive_latent,
+            quality_signal,
+            confidence_evidence,
+            rating_latent,
+            impact_signal,
+            impact_adjustment,
             categories,
         )
     }

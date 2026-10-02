@@ -9,12 +9,65 @@ pub fn calculate_confidence(
     seconds_played: f64,
     config: &LiveRatingConfig,
 ) -> PerformanceConfidence {
-    let opp_cap = config.opportunities_to_full_confidence().max(1.0);
+    calculate_confidence_from_evidence(
+        effective_opportunities as f64,
+        seconds_played,
+        config,
+    )
+}
+
+pub fn calculate_confidence_from_evidence(
+    effective_evidence: f64,
+    seconds_played: f64,
+    config: &LiveRatingConfig,
+) -> PerformanceConfidence {
+    let evidence_cap = config.opportunities_to_full_confidence().max(1.0);
     let sec_cap = config.seconds_to_full_confidence().max(1.0);
-    let opp_ratio = (effective_opportunities as f64 / opp_cap).min(1.0);
-    let sec_ratio = (seconds_played / sec_cap).min(1.0);
-    let raw = (opp_ratio * 0.70 + sec_ratio * 0.30).clamp(0.0, 1.0);
+    let evidence_ratio = (effective_evidence.max(0.0) / evidence_cap).min(1.0);
+    let sec_ratio = (seconds_played.max(0.0) / sec_cap).min(1.0);
+    let raw = (evidence_ratio * 0.60 + sec_ratio * 0.40).clamp(0.0, 1.0);
     PerformanceConfidence::new_clamped(raw)
+}
+
+pub fn calculate_quality_latent(
+    quality_signal: f64,
+    config: &LiveRatingConfig,
+) -> f64 {
+    (quality_signal - config.quality_center()) * config.quality_latent_scale()
+}
+
+pub fn calculate_impact_signal(
+    high_impact_total: f64,
+    opportunity_weight: f64,
+    config: &LiveRatingConfig,
+) -> f64 {
+    let denominator =
+        (opportunity_weight.max(0.0) + config.impact_weight_offset().max(1e-4)).sqrt();
+    if denominator <= 0.0 {
+        0.0
+    } else {
+        high_impact_total / denominator
+    }
+}
+
+pub fn calculate_impact_adjustment(
+    impact_signal: f64,
+    confidence: PerformanceConfidence,
+    config: &LiveRatingConfig,
+) -> f64 {
+    let raw_adjustment = if impact_signal > config.impact_positive_threshold() {
+        let excess = impact_signal - config.impact_positive_threshold();
+        config.impact_positive_max()
+            * (excess / config.impact_scale().max(1e-4)).tanh()
+    } else if impact_signal < -config.impact_negative_threshold() {
+        let excess = -impact_signal - config.impact_negative_threshold();
+        -config.impact_negative_max()
+            * (excess / config.impact_scale().max(1e-4)).tanh()
+    } else {
+        0.0
+    };
+
+    raw_adjustment * confidence_weight(confidence, config)
 }
 
 pub fn calculate_shrunk_latent(
@@ -51,9 +104,7 @@ pub fn calculate_rating_from_latent(
         (config.baseline_rating() - PerformanceRating::MIN) * normalized
     };
 
-    let shrinkage = config.confidence_shrinkage_weight().clamp(0.0, 1.0);
-    let confidence_weight = 1.0 - shrinkage * (1.0 - confidence.value());
-    let adjusted_delta = delta * confidence_weight;
+    let adjusted_delta = delta * confidence_weight(confidence, config);
 
     PerformanceRating::new_clamped(config.baseline_rating() + adjusted_delta)
 }
@@ -125,4 +176,12 @@ pub fn calculate_dual_rating(
         confidence,
         config,
     )
+}
+
+fn confidence_weight(
+    confidence: PerformanceConfidence,
+    config: &LiveRatingConfig,
+) -> f64 {
+    let shrinkage = config.confidence_shrinkage_weight().clamp(0.0, 1.0);
+    1.0 - shrinkage * (1.0 - confidence.value())
 }

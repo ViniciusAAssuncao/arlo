@@ -2,8 +2,8 @@ use crate::error::{MatchRunnerError, MatchRunnerResult};
 use crate::manager_play_call;
 use arlo_engine::{
     resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_kick_foul_segment, resolve_next_segment, resolve_time_call_segment,
-    resolve_substitution_segment, resolve_tactical_switch_segment, select_substitution, select_tactical_profile, should_use_time_call, MatchInput,
-    MatchPhase, MatchState, StepOutcome, StepResult,
+    resolve_substitution_segment, resolve_tactical_switch_segment, select_substitution, select_tactical_profile, should_use_time_call,
+    try_resolve_automatic_injury_decision_segment, MatchInput, MatchPhase, MatchState, StepOutcome, StepResult,
 };
 use arlo_manager_control::{ManagerDecisionInbox, RequiredManagerDecision};
 use arlo_events::SubstitutionReason;
@@ -26,10 +26,19 @@ pub fn resolve_segment(
         }]));
     }
     if !matches!(state.phase(), MatchPhase::Live | MatchPhase::Finished) {
-        if let Some(pending) = state.pending_injury_decisions().iter()
-            .find(|pending| state.injury_decisions_ready() && state.injury_decision_is_actionable(**pending)) {
+        if let Some(pending) = state
+            .pending_injury_decisions()
+            .iter()
+            .copied()
+            .find(|pending| state.injury_decisions_ready() && state.injury_decision_is_actionable(*pending))
+        {
             let team_id = pending.team_id();
             let player_id = pending.player_id();
+            if let Some(result) =
+                try_resolve_automatic_injury_decision_segment(input, state, pending)?
+            {
+                return Ok(result);
+            }
             if let Some(intent) = inbox.injury_decision(team_id, player_id) {
                 let result = resolve_injury_decision_segment(input, state, team_id, intent)?;
                 inbox.take_injury_decision(team_id, player_id);

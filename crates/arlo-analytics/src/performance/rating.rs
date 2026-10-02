@@ -4,7 +4,7 @@ use arlo_domain::{Position, SlotRole};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub const PLAYER_PERFORMANCE_MODEL_VERSION: u32 = 2;
+pub const PLAYER_PERFORMANCE_MODEL_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ModelVersion(u32);
