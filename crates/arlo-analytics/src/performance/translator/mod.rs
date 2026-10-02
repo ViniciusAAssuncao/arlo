@@ -1,5 +1,6 @@
 
 pub mod discipline;
+pub(crate) mod duel_expectation;
 pub mod duels;
 pub mod passes;
 pub mod possession;

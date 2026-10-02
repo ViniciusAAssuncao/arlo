@@ -26,7 +26,7 @@ pub struct LiveRatingConfig {
 impl Default for LiveRatingConfig {
     fn default() -> Self {
         Self {
-            baseline_rating: 6.2,
+            baseline_rating: 7.2,
             positive_scale: 4.0,
             negative_scale: 4.0,
             opportunities_to_full_confidence: 55.0,
@@ -35,7 +35,7 @@ impl Default for LiveRatingConfig {
             shrinkage_prior_opportunities: 4.0,
             quality_center: 0.10,
             quality_latent_scale: 0.22,
-            impact_positive_threshold: 0.30,
+            impact_positive_threshold: 0.40,
             impact_negative_threshold: 0.55,
             impact_positive_max: 1.35,
             impact_negative_max: 0.65,

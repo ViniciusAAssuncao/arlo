@@ -44,7 +44,7 @@ pub(crate) fn translate_turnover(
     if !follows_missed_shot {
         if let Some(lost_id) = event.lost_by_player_id() {
             let bd =
-                PerformanceBreakdown::new_unchecked(-0.75, -0.30, 0.0, -1.60, 0.0, -1.30);
+                PerformanceBreakdown::new_unchecked(-0.75, -0.30, 0.0, -1.60, 0.0, 0.0);
             obs.push(PerformanceObservation::new_unchecked(
                 lost_id,
                 event.previous_offense(),

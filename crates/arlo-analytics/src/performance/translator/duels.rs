@@ -1,10 +1,11 @@
+use super::duel_expectation::performance_signal;
 use crate::context::MatchAnalysisContext;
-use crate::performance::observation::{ObservationCategory, PerformanceObservation, PossessionPhase};
+use crate::performance::observation::{
+    ObservationCategory, PerformanceObservation, PossessionPhase,
+};
 use crate::performance::rating::PerformanceBreakdown;
 use arlo_events::{DuelKind, DuelResolved, MatchClockInstant};
 use uuid::Uuid;
-
-const DUEL_EXPECTATION_SCALE: f64 = 1.10;
 
 pub(crate) fn translate_duel(
     event: &DuelResolved,
@@ -13,10 +14,11 @@ pub(crate) fn translate_duel(
     context: Option<&MatchAnalysisContext>,
 ) -> Vec<PerformanceObservation> {
     let mut observations = Vec::new();
-    let attacker_probability = event.win_probability().value();
-    let att_perf =
-        expectation_centered_value(event.attacker_won(), attacker_probability);
-    let def_perf = -att_perf;
+    let signal = performance_signal(
+        event.kind(),
+        event.attacker_won(),
+        event.win_probability().value(),
+    );
 
     let att_count = event.attacker_ids().len().max(1) as f64;
     let def_count = event.defender_ids().len().max(1) as f64;
@@ -25,8 +27,10 @@ pub(crate) fn translate_duel(
 
     let (att_bd, def_bd) = breakdown_for_duel(
         event.kind(),
-        att_perf * att_scale,
-        def_perf * def_scale,
+        signal.base * att_scale,
+        -signal.base * def_scale,
+        signal.high_impact * att_scale,
+        -signal.high_impact * def_scale,
     );
 
     for &att_id in event.attacker_ids() {
@@ -74,15 +78,12 @@ pub(crate) fn translate_duel(
     observations
 }
 
-fn expectation_centered_value(attacker_won: bool, win_probability: f64) -> f64 {
-    let observed = if attacker_won { 1.0 } else { 0.0 };
-    (observed - win_probability) * DUEL_EXPECTATION_SCALE
-}
-
 fn breakdown_for_duel(
     kind: DuelKind,
     ap: f64,
     dp: f64,
+    ah: f64,
+    dh: f64,
 ) -> (PerformanceBreakdown, PerformanceBreakdown) {
     match kind {
         DuelKind::PassProtection | DuelKind::CentralBlock | DuelKind::LateralBlock => {
@@ -92,7 +93,7 @@ fn breakdown_for_duel(
                 0.0,
                 0.0,
                 0.0,
-                ap * 0.10,
+                ah * 0.10,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.35,
@@ -100,7 +101,7 @@ fn breakdown_for_duel(
                 dp * 0.80,
                 0.0,
                 0.0,
-                dp * 0.25,
+                dh * 0.25,
             );
             (att, def)
         }
@@ -111,7 +112,7 @@ fn breakdown_for_duel(
                 0.0,
                 ap * 0.20,
                 0.0,
-                ap * 0.40,
+                ah * 0.40,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.35,
@@ -119,7 +120,7 @@ fn breakdown_for_duel(
                 dp * 0.85,
                 0.0,
                 0.0,
-                dp * 0.35,
+                dh * 0.35,
             );
             (att, def)
         }
@@ -130,7 +131,7 @@ fn breakdown_for_duel(
                 0.0,
                 0.0,
                 0.0,
-                ap * 0.15,
+                ah * 0.15,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.35,
@@ -138,7 +139,7 @@ fn breakdown_for_duel(
                 dp * 0.80,
                 0.0,
                 0.0,
-                dp * 0.20,
+                dh * 0.20,
             );
             (att, def)
         }
@@ -149,7 +150,7 @@ fn breakdown_for_duel(
                 0.0,
                 ap * 0.15,
                 0.0,
-                ap * 0.30,
+                ah * 0.30,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.35,
@@ -157,7 +158,7 @@ fn breakdown_for_duel(
                 dp * 0.80,
                 0.0,
                 0.0,
-                dp * 0.30,
+                dh * 0.30,
             );
             (att, def)
         }
@@ -168,7 +169,7 @@ fn breakdown_for_duel(
                 0.0,
                 0.0,
                 0.0,
-                ap * 0.60,
+                ah * 0.60,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.45,
@@ -176,7 +177,7 @@ fn breakdown_for_duel(
                 dp * 0.95,
                 0.0,
                 0.0,
-                dp * 0.60,
+                dh * 0.60,
             );
             (att, def)
         }
@@ -187,7 +188,7 @@ fn breakdown_for_duel(
                 0.0,
                 0.0,
                 0.0,
-                ap * 0.40,
+                ah * 0.40,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.40,
@@ -195,7 +196,7 @@ fn breakdown_for_duel(
                 dp * 0.80,
                 0.0,
                 0.0,
-                dp * 0.45,
+                dh * 0.45,
             );
             (att, def)
         }
@@ -208,7 +209,7 @@ fn breakdown_for_duel(
                 0.0,
                 ap * 0.30,
                 0.0,
-                ap * 0.20,
+                ah * 0.20,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.35,
@@ -216,7 +217,7 @@ fn breakdown_for_duel(
                 dp * 0.75,
                 0.0,
                 0.0,
-                dp * 0.15,
+                dh * 0.15,
             );
             (att, def)
         }
@@ -227,7 +228,7 @@ fn breakdown_for_duel(
                 0.0,
                 ap * 0.90,
                 0.0,
-                ap * 0.20,
+                ah * 0.20,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.30,
@@ -235,7 +236,7 @@ fn breakdown_for_duel(
                 dp * 0.70,
                 0.0,
                 0.0,
-                dp * 0.35,
+                dh * 0.35,
             );
             (att, def)
         }
@@ -246,7 +247,7 @@ fn breakdown_for_duel(
                 0.0,
                 0.0,
                 0.0,
-                ap * 0.20,
+                ah * 0.20,
             );
             let def = PerformanceBreakdown::new_unchecked(
                 dp * 0.40,
@@ -254,7 +255,7 @@ fn breakdown_for_duel(
                 dp * 0.85,
                 0.0,
                 0.0,
-                dp * 0.55,
+                dh * 0.55,
             );
             (att, def)
         }
