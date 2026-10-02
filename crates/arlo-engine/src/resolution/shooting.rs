@@ -1,4 +1,4 @@
-use super::actors::{select_primary_defender, select_shooter};
+use super::actors::select_shooter;
 use super::contest::emit_shot_contest;
 use super::down::emit_down_advanced;
 use super::exchange::{resolve_targeted_pass, ExchangeOutcome};
@@ -103,26 +103,16 @@ pub(super) fn resolve_regular_attempt(
     }
     let shooter_id = sample.shooter_id;
     let assister_id = state.last_passer_id().filter(|passer_id| *passer_id != shooter_id);
-    let shot_defender_id = match sample.post {
-        ScoringPost::Goalpost => super::goalguard::active_goalguard_id(ratings, defense)
-            .or_else(|| select_primary_defender(ratings, defense).ok()),
-        ScoringPost::Fieldpost => select_primary_defender(ratings, defense)
-            .ok()
-            .or_else(|| super::goalguard::active_goalguard_id(ratings, defense)),
-    };
-
-    if let Some(defender_id) = shot_defender_id {
-        emit_shot_contest(
-            state,
-            events,
-            shooter_id,
-            defender_id,
-            sample.post,
-            sample.converted,
-            sample.out_of_bounds,
-            sample.conversion_probability,
-        )?;
-    }
+    emit_shot_contest(
+        state,
+        events,
+        shooter_id,
+        sample.defender_id,
+        sample.post,
+        sample.converted,
+        sample.out_of_bounds,
+        sample.conversion_probability,
+    )?;
 
     if sample.converted {
         let pending = state.pending_call_outcome();

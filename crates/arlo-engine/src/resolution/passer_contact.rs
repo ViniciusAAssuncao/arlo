@@ -33,7 +33,7 @@ pub(super) fn resolve_after_release(
     }
 
     let defender_broke_through = contest_roll < encounter_probability;
-    let blocker_id = select_primary_blocker(ratings, offense)?;
+    let blocker_id = select_primary_blocker(ratings, offense, state.rng_mut())?;
     let blocker_win_probability =
         protection_contest_window / contest_probability.max(1e-6);
     let surprise = if defender_broke_through {

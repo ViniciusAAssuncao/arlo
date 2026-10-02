@@ -29,42 +29,62 @@ pub(super) fn select_actor(
 pub(super) fn select_primary_defender(
     ratings: &RatingIndex,
     team: &TeamInput,
+    rng: &mut ChaCha8Rng,
 ) -> EngineResult<Uuid> {
-    let mut best: Option<(Uuid, f64)> = None;
-
-    for assignment in team.lineup().assignments() {
-        let player_id = ratings.slot_player_id(team, assignment.player_id());
-        if !ratings.is_active(team, player_id)
-            || assignment.position().line() == PositionLine::Goalguard
-        {
-            continue;
-        }
-
-        let containment =
-            ratings.player_value(team, player_id, AttributeKey::DefensiveContainment)?;
-        let anticipation = ratings.player_value(team, player_id, AttributeKey::Anticipation)?;
-        let line_weight = match assignment.position().line() {
-            PositionLine::DefenseLine => 1.20,
-            PositionLine::BackLine => 1.0,
-            PositionLine::OffensiveLine => 0.70,
-            PositionLine::Goalguard => 0.0,
-        };
-        let score = (0.65 * containment + 0.35 * anticipation) * line_weight;
-
-        if best.is_none_or(|(_, best_score)| score > best_score) {
-            best = Some((player_id, score));
-        }
-    }
-
-    best.map(|(player_id, _)| player_id)
-        .ok_or_else(|| EngineError::InvalidInput("lineup has no active field defender".into()))
+    select_weighted_primary(
+        ratings,
+        team,
+        rng,
+        "lineup has no active field defender",
+        |assignment, player_id| {
+            let containment =
+                ratings.player_value(team, player_id, AttributeKey::DefensiveContainment)?;
+            let anticipation =
+                ratings.player_value(team, player_id, AttributeKey::Anticipation)?;
+            let line_weight = match assignment.position().line() {
+                PositionLine::DefenseLine => 1.20,
+                PositionLine::BackLine => 1.0,
+                PositionLine::OffensiveLine => 0.70,
+                PositionLine::Goalguard => 0.0,
+            };
+            Ok((0.65 * containment + 0.35 * anticipation) * line_weight)
+        },
+    )
 }
 
 pub(super) fn select_primary_blocker(
     ratings: &RatingIndex,
     team: &TeamInput,
+    rng: &mut ChaCha8Rng,
 ) -> EngineResult<Uuid> {
-    let mut best: Option<(Uuid, f64)> = None;
+    select_weighted_primary(
+        ratings,
+        team,
+        rng,
+        "lineup has no active blocker",
+        |assignment, player_id| {
+            let blocking =
+                ratings.player_value(team, player_id, AttributeKey::OffensiveBlocking)?;
+            let line_weight = match assignment.position().line() {
+                PositionLine::OffensiveLine => 1.25,
+                PositionLine::BackLine => 1.0,
+                PositionLine::DefenseLine => 0.70,
+                PositionLine::Goalguard => 0.0,
+            };
+            Ok(blocking * line_weight)
+        },
+    )
+}
+
+fn select_weighted_primary(
+    ratings: &RatingIndex,
+    team: &TeamInput,
+    rng: &mut ChaCha8Rng,
+    empty_message: &str,
+    weight: impl Fn(&SlotAssignment, Uuid) -> EngineResult<f64>,
+) -> EngineResult<Uuid> {
+    let mut candidates = Vec::with_capacity(team.lineup().assignments().len());
+    let mut total_weight = 0.0;
 
     for assignment in team.lineup().assignments() {
         let player_id = ratings.slot_player_id(team, assignment.player_id());
@@ -74,22 +94,25 @@ pub(super) fn select_primary_blocker(
             continue;
         }
 
-        let blocking = ratings.player_value(team, player_id, AttributeKey::OffensiveBlocking)?;
-        let line_weight = match assignment.position().line() {
-            PositionLine::OffensiveLine => 1.25,
-            PositionLine::BackLine => 1.0,
-            PositionLine::DefenseLine => 0.70,
-            PositionLine::Goalguard => 0.0,
-        };
-        let score = blocking * line_weight;
-
-        if best.is_none_or(|(_, best_score)| score > best_score) {
-            best = Some((player_id, score));
+        let player_weight = weight(assignment, player_id)?.max(0.0);
+        if player_weight <= 0.0 {
+            continue;
         }
+
+        total_weight += player_weight;
+        candidates.push((player_id, total_weight));
     }
 
-    best.map(|(player_id, _)| player_id)
-        .ok_or_else(|| EngineError::InvalidInput("lineup has no active blocker".into()))
+    if total_weight <= 0.0 {
+        return Err(EngineError::InvalidInput(empty_message.into()));
+    }
+
+    let roll = rng.gen_range(0.0..total_weight);
+    Ok(candidates
+        .iter()
+        .find(|(_, cumulative)| roll < *cumulative)
+        .map(|(player_id, _)| *player_id)
+        .unwrap_or(candidates[candidates.len() - 1].0))
 }
 
 pub(super) fn select_receiver(

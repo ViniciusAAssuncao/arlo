@@ -1,4 +1,3 @@
-use super::actors::select_primary_defender;
 use super::contest::emit_shot_contest;
 use super::kicker::select_kicker;
 use super::ratings::RatingIndex;
@@ -42,7 +41,7 @@ pub(super) fn resolve_bonus_segment(
     let maximum_remaining =
         next.clock().maximum_period_seconds() - next.clock().seconds_in_period();
     let duration = sample.duration_seconds.min(maximum_remaining);
-    let mut events = Vec::with_capacity(3);
+    let mut events = Vec::with_capacity(4);
     let extension =
         next.clock().seconds_in_period() + duration - next.clock().period_limit_seconds();
     if extension > 0.0 {
@@ -69,27 +68,18 @@ pub(super) fn resolve_bonus_segment(
         PossessionTimeRecorded::new(scorer_team_id, duration),
     ))?);
 
-    let shot_defender_id = match sample.post {
-        ScoringPost::Goalpost => super::goalguard::active_goalguard_id(&ratings, defense)
-            .or_else(|| select_primary_defender(&ratings, defense).ok()),
-        ScoringPost::Fieldpost => select_primary_defender(&ratings, defense)
-            .ok()
-            .or_else(|| super::goalguard::active_goalguard_id(&ratings, defense)),
-    };
+    emit_shot_contest(
+        &mut next,
+        &mut events,
+        scorer_id,
+        sample.defender_id,
+        sample.post,
+        sample.converted,
+        false,
+        sample.conversion_probability,
+    )?;
 
     if sample.converted {
-        if let Some(defender_id) = shot_defender_id {
-            emit_shot_contest(
-                &mut next,
-                &mut events,
-                scorer_id,
-                defender_id,
-                sample.post,
-                true,
-                false,
-                sample.conversion_probability,
-            )?;
-        }
         let kind = match sample.post {
             ScoringPost::Goalpost => ScoreKind::BonusGoalpost,
             ScoringPost::Fieldpost => ScoreKind::BonusFieldpost,

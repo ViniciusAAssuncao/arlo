@@ -1,4 +1,4 @@
-use super::super::actors::{select_actor, select_primary_defender, ActorRole};
+use super::super::actors::{select_actor, ActorRole};
 use super::super::contest::{emit_distribution_contest, emit_shot_contest};
 use super::super::context::validate_match_state;
 use super::super::down::emit_down_advanced;
@@ -172,6 +172,9 @@ pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
             team_id,
             defense,
             &ratings,
+            sample.shot_defender_id.ok_or_else(|| {
+                EngineError::InvalidTransition("Kick Foul shot has no defender".into())
+            })?,
             input.pitch(),
             taker_id,
             artrine_id,
@@ -221,6 +224,7 @@ fn resolve_shot(
     team_id: Uuid,
     defense: &crate::input::TeamInput,
     ratings: &RatingIndex,
+    defender_id: Uuid,
     pitch: arlo_domain::Pitch,
     taker_id: Uuid,
     artrine_id: Uuid,
@@ -233,26 +237,16 @@ fn resolve_shot(
     goal_line: f64,
 ) -> EngineResult<()> {
     let defense_id = defense.team_id();
-    let shot_defender_id = match post {
-        ScoringPost::Goalpost => super::super::goalguard::active_goalguard_id(ratings, defense)
-            .or_else(|| select_primary_defender(ratings, defense).ok()),
-        ScoringPost::Fieldpost => select_primary_defender(ratings, defense)
-            .ok()
-            .or_else(|| super::super::goalguard::active_goalguard_id(ratings, defense)),
-    };
-
-    if let Some(defender_id) = shot_defender_id {
-        emit_shot_contest(
-            state,
-            events,
-            taker_id,
-            defender_id,
-            post,
-            converted,
-            out_of_bounds,
-            conversion_probability,
-        )?;
-    }
+    emit_shot_contest(
+        state,
+        events,
+        taker_id,
+        defender_id,
+        post,
+        converted,
+        out_of_bounds,
+        conversion_probability,
+    )?;
 
     if converted {
         let kind = match post {

@@ -1,5 +1,5 @@
 use super::super::ratings::RatingIndex;
-use super::super::shooting_model::conversion_probability;
+use super::super::shooting_model::sample_scoring_contest;
 use crate::error::EngineResult;
 use crate::input::TeamInput;
 use arlo_domain::{AttributeKey, KickFoulDecisionKind};
@@ -16,6 +16,7 @@ pub(super) struct KickFoulSample {
     pub distance_mirim: f64,
     pub conversion_probability: f64,
     pub distribution_probability: f64,
+    pub shot_defender_id: Option<Uuid>,
 }
 
 pub(super) fn default_decision(rng: &mut ChaCha8Rng) -> KickFoulDecisionKind {
@@ -48,15 +49,28 @@ pub(super) fn sample_attempt(
     rng: &mut ChaCha8Rng,
 ) -> EngineResult<KickFoulSample> {
     let duration_seconds = 2.0 + rng.gen_range(0.0..1.0) * 4.0;
-    let (converted, distance_mirim, conversion_probability, distribution_probability) =
-        if let Some(post) = post {
-        let probability =
-            conversion_probability(ratings, offense, defense, taker_id, post, distance_ratio)?;
+    let (
+        converted,
+        distance_mirim,
+        conversion_probability,
+        distribution_probability,
+        shot_defender_id,
+    ) = if let Some(post) = post {
+        let contest = sample_scoring_contest(
+            ratings,
+            offense,
+            defense,
+            taker_id,
+            post,
+            distance_ratio,
+            rng,
+        )?;
         (
-            rng.gen_range(0.0..1.0) < probability,
+            contest.converted,
             0.0,
-            probability,
+            contest.conversion_probability,
             0.0,
+            Some(contest.defender_id),
         )
     } else {
         let passing = ratings.player_value(offense, taker_id, AttributeKey::Passing)?;
@@ -77,6 +91,7 @@ pub(super) fn sample_attempt(
             distance_mirim,
             0.0,
             probability,
+            None,
         )
     };
     Ok(KickFoulSample {
@@ -87,5 +102,6 @@ pub(super) fn sample_attempt(
         distance_mirim,
         conversion_probability,
         distribution_probability,
+        shot_defender_id,
     })
 }
