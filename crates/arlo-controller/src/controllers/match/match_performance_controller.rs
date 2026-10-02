@@ -27,6 +27,7 @@ pub(crate) fn map_player_performance_row(
     let model_version = u32::try_from(row.model_version).map_err(|_| {
         ControllerError::InvalidData(format!("Invalid model version: {}", row.model_version))
     })?;
+    let is_rated = effective_opportunities > 0 && row.confidence_evidence > 0.0;
 
     let category_contributions = categories
         .into_iter()
@@ -67,6 +68,7 @@ pub(crate) fn map_player_performance_row(
         defensive_position: row.defensive_position,
         slot_role: row.slot_role,
         rating: row.final_rating,
+        is_rated,
         performance_rating: row.performance_rating,
         outcome_adjustment: row.outcome_adjustment,
         confidence: row.confidence,
@@ -128,36 +130,39 @@ pub async fn get_match_performance(
     let mut away_ratings = Vec::new();
     let mut home_sum = 0.0;
     let mut away_sum = 0.0;
+    let mut home_rated_count = 0usize;
+    let mut away_rated_count = 0usize;
 
     for row in perf_rows {
         let player_id = row.player_id.clone();
         let player_name = player_names.get(&player_id).cloned();
         let is_home = row.team_id == match_row.home_team_id;
-
-        if is_home {
-            home_sum += row.final_rating;
-        } else {
-            away_sum += row.final_rating;
-        }
-
         let categories = categories_by_player.remove(&player_id).unwrap_or_default();
         let dto = map_player_performance_row(row, categories, player_name)?;
 
         if is_home {
+            if dto.is_rated {
+                home_sum += dto.rating;
+                home_rated_count += 1;
+            }
             home_ratings.push(dto);
         } else {
+            if dto.is_rated {
+                away_sum += dto.rating;
+                away_rated_count += 1;
+            }
             away_ratings.push(dto);
         }
     }
 
-    let home_average_rating = if !home_ratings.is_empty() {
-        home_sum / home_ratings.len() as f64
+    let home_average_rating = if home_rated_count > 0 {
+        home_sum / home_rated_count as f64
     } else {
         6.2
     };
 
-    let away_average_rating = if !away_ratings.is_empty() {
-        away_sum / away_ratings.len() as f64
+    let away_average_rating = if away_rated_count > 0 {
+        away_sum / away_rated_count as f64
     } else {
         6.2
     };
@@ -165,6 +170,7 @@ pub async fn get_match_performance(
     let match_mvp = home_ratings
         .iter()
         .chain(away_ratings.iter())
+        .filter(|performance| performance.is_rated)
         .max_by(|a, b| {
             a.rating
                 .partial_cmp(&b.rating)

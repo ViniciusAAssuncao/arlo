@@ -4,6 +4,8 @@ use crate::performance::rating::PerformanceBreakdown;
 use arlo_events::{DuelKind, DuelResolved, MatchClockInstant};
 use uuid::Uuid;
 
+const DUEL_EXPECTATION_SCALE: f64 = 1.10;
+
 pub(crate) fn translate_duel(
     event: &DuelResolved,
     clock: MatchClockInstant,
@@ -11,23 +13,21 @@ pub(crate) fn translate_duel(
     context: Option<&MatchAnalysisContext>,
 ) -> Vec<PerformanceObservation> {
     let mut observations = Vec::new();
-    let net_adv = event.net_advantage();
-    let attacker_won = event.attacker_won();
-
-    let (att_perf, def_perf) = if attacker_won {
-        let margin = (net_adv.max(0.0) * 0.12).min(0.35);
-        (0.55 + margin, -(0.45 + margin * 0.50))
-    } else {
-        let margin = ((-net_adv).max(0.0) * 0.12).min(0.35);
-        (-(0.45 + margin * 0.50), 0.55 + margin)
-    };
+    let attacker_probability = event.win_probability().value();
+    let att_perf =
+        expectation_centered_value(event.attacker_won(), attacker_probability);
+    let def_perf = -att_perf;
 
     let att_count = event.attacker_ids().len().max(1) as f64;
     let def_count = event.defender_ids().len().max(1) as f64;
     let att_scale = 1.0 / att_count.sqrt();
     let def_scale = 1.0 / def_count.sqrt();
 
-    let (att_bd, def_bd) = breakdown_for_duel(event.kind(), att_perf * att_scale, def_perf * def_scale);
+    let (att_bd, def_bd) = breakdown_for_duel(
+        event.kind(),
+        att_perf * att_scale,
+        def_perf * def_scale,
+    );
 
     for &att_id in event.attacker_ids() {
         let team_id = resolve_team(att_id, offense_team_id, context, true);
@@ -44,7 +44,7 @@ pub(crate) fn translate_duel(
             phase,
             ObservationCategory::Duel,
             att_bd,
-            1.0 * att_scale,
+            att_scale,
             1.0,
             format!("{} attacker", event.kind().as_str()),
         ));
@@ -65,7 +65,7 @@ pub(crate) fn translate_duel(
             phase,
             ObservationCategory::Duel,
             def_bd,
-            1.0 * def_scale,
+            def_scale,
             1.0,
             format!("{} defender", event.kind().as_str()),
         ));
@@ -74,51 +74,188 @@ pub(crate) fn translate_duel(
     observations
 }
 
-fn breakdown_for_duel(kind: DuelKind, ap: f64, dp: f64) -> (PerformanceBreakdown, PerformanceBreakdown) {
+fn expectation_centered_value(attacker_won: bool, win_probability: f64) -> f64 {
+    let observed = if attacker_won { 1.0 } else { 0.0 };
+    (observed - win_probability) * DUEL_EXPECTATION_SCALE
+}
+
+fn breakdown_for_duel(
+    kind: DuelKind,
+    ap: f64,
+    dp: f64,
+) -> (PerformanceBreakdown, PerformanceBreakdown) {
     match kind {
         DuelKind::PassProtection | DuelKind::CentralBlock | DuelKind::LateralBlock => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.75, ap * 0.15, 0.0, 0.0, 0.0, ap * 0.10);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.35, 0.0, dp * 0.80, 0.0, 0.0, dp * 0.25);
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.75,
+                ap * 0.15,
+                0.0,
+                0.0,
+                0.0,
+                ap * 0.10,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.35,
+                0.0,
+                dp * 0.80,
+                0.0,
+                0.0,
+                dp * 0.25,
+            );
             (att, def)
         }
         DuelKind::RunBreakthrough | DuelKind::ArtroBreakthrough => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.55, ap * 0.60, 0.0, ap * 0.20, 0.0, ap * 0.40);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.35, 0.0, dp * 0.85, 0.0, 0.0, dp * 0.35);
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.55,
+                ap * 0.60,
+                0.0,
+                ap * 0.20,
+                0.0,
+                ap * 0.40,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.35,
+                0.0,
+                dp * 0.85,
+                0.0,
+                0.0,
+                dp * 0.35,
+            );
             (att, def)
         }
         DuelKind::RouteContest => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.55, ap * 0.45, 0.0, 0.0, 0.0, ap * 0.15);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.35, 0.0, dp * 0.80, 0.0, 0.0, dp * 0.20);
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.55,
+                ap * 0.45,
+                0.0,
+                0.0,
+                0.0,
+                ap * 0.15,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.35,
+                0.0,
+                dp * 0.80,
+                0.0,
+                0.0,
+                dp * 0.20,
+            );
             (att, def)
         }
         DuelKind::AerialDuel => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.50, ap * 0.45, 0.0, ap * 0.15, 0.0, ap * 0.30);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.35, 0.0, dp * 0.80, 0.0, 0.0, dp * 0.30);
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.50,
+                ap * 0.45,
+                0.0,
+                ap * 0.15,
+                0.0,
+                ap * 0.30,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.35,
+                0.0,
+                dp * 0.80,
+                0.0,
+                0.0,
+                dp * 0.30,
+            );
             (att, def)
         }
         DuelKind::FinishingAttempt => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.65, ap * 0.75, 0.0, 0.0, 0.0, ap * 0.60);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.45, 0.0, dp * 0.95, 0.0, 0.0, dp * 0.60);
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.65,
+                ap * 0.75,
+                0.0,
+                0.0,
+                0.0,
+                ap * 0.60,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.45,
+                0.0,
+                dp * 0.95,
+                0.0,
+                0.0,
+                dp * 0.60,
+            );
             (att, def)
         }
         DuelKind::FieldGoalAttempt => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.60, ap * 0.65, 0.0, 0.0, 0.0, ap * 0.40);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.40, 0.0, dp * 0.80, 0.0, 0.0, dp * 0.45);
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.60,
+                ap * 0.65,
+                0.0,
+                0.0,
+                0.0,
+                ap * 0.40,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.40,
+                0.0,
+                dp * 0.80,
+                0.0,
+                0.0,
+                dp * 0.45,
+            );
             (att, def)
         }
-        DuelKind::ShortDistribution | DuelKind::LongDistribution | DuelKind::CrossDistribution => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.65, ap * 0.45, 0.0, ap * 0.30, 0.0, ap * 0.20);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.35, 0.0, dp * 0.75, 0.0, 0.0, dp * 0.15);
+        DuelKind::ShortDistribution
+        | DuelKind::LongDistribution
+        | DuelKind::CrossDistribution => {
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.65,
+                ap * 0.45,
+                0.0,
+                ap * 0.30,
+                0.0,
+                ap * 0.20,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.35,
+                0.0,
+                dp * 0.75,
+                0.0,
+                0.0,
+                dp * 0.15,
+            );
             (att, def)
         }
         DuelKind::BallSecurityCarry | DuelKind::BallSecurityDistribution => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.35, ap * 0.20, 0.0, ap * 0.90, 0.0, ap * 0.20);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.30, 0.0, dp * 0.70, 0.0, 0.0, dp * 0.35);
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.35,
+                ap * 0.20,
+                0.0,
+                ap * 0.90,
+                0.0,
+                ap * 0.20,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.30,
+                0.0,
+                dp * 0.70,
+                0.0,
+                0.0,
+                dp * 0.35,
+            );
             (att, def)
         }
         DuelKind::KickBlockAttempt => {
-            let att = PerformanceBreakdown::new_unchecked(ap * 0.50, ap * 0.45, 0.0, 0.0, 0.0, ap * 0.20);
-            let def = PerformanceBreakdown::new_unchecked(dp * 0.40, 0.0, dp * 0.85, 0.0, 0.0, dp * 0.55);
+            let att = PerformanceBreakdown::new_unchecked(
+                ap * 0.50,
+                ap * 0.45,
+                0.0,
+                0.0,
+                0.0,
+                ap * 0.20,
+            );
+            let def = PerformanceBreakdown::new_unchecked(
+                dp * 0.40,
+                0.0,
+                dp * 0.85,
+                0.0,
+                0.0,
+                dp * 0.55,
+            );
             (att, def)
         }
     }

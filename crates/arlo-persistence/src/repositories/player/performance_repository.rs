@@ -208,6 +208,8 @@ pub async fn get_player_season_performance(
         INNER JOIN season_stages ss ON ss.id = f.season_stage_id
         WHERE perf.player_id = ?
           AND ss.season_instance_id = ?
+          AND perf.effective_opportunities > 0
+          AND perf.confidence_evidence > 0.0
           AND perf.model_version = (
               SELECT MAX(perf_latest.model_version)
               FROM match_player_performance perf_latest

@@ -35,6 +35,7 @@ pub struct PlayerMatchPerformanceDto {
     pub defensive_position: String,
     pub slot_role: String,
     pub rating: f64,
+    pub is_rated: bool,
     pub performance_rating: f64,
     pub outcome_adjustment: f64,
     pub confidence: f64,
