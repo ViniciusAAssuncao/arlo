@@ -41,8 +41,12 @@ pub(crate) fn map_player_performance_row(
             Ok(PlayerPerformanceCategoryContributionDto {
                 category: category.category,
                 latent_contribution: category.latent_contribution,
+                rating_latent_contribution: category.rating_latent_contribution,
                 observations,
                 opportunity_weight: category.opportunity_weight,
+                rating_opportunity_weight: category.rating_opportunity_weight,
+                positional_relevance: category.positional_relevance,
+                rating_high_impact: category.rating_high_impact,
                 breakdown: PlayerPerformanceBreakdownDto {
                     execution: category.execution_score,
                     production: category.production_score,

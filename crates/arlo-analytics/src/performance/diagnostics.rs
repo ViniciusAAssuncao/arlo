@@ -2,12 +2,24 @@ use crate::performance::observation::ObservationCategory;
 use crate::performance::rating::PerformanceBreakdown;
 use serde::{Deserialize, Serialize};
 
+fn default_positional_relevance() -> f64 {
+    1.0
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PerformanceCategoryContribution {
     category: ObservationCategory,
     latent_contribution: f64,
+    #[serde(default)]
+    rating_latent_contribution: f64,
     observations: u32,
     opportunity_weight: f64,
+    #[serde(default)]
+    rating_opportunity_weight: f64,
+    #[serde(default = "default_positional_relevance")]
+    positional_relevance: f64,
+    #[serde(default)]
+    rating_high_impact: f64,
     breakdown: PerformanceBreakdown,
 }
 
@@ -15,15 +27,23 @@ impl PerformanceCategoryContribution {
     pub fn new(
         category: ObservationCategory,
         latent_contribution: f64,
+        rating_latent_contribution: f64,
         observations: u32,
         opportunity_weight: f64,
+        rating_opportunity_weight: f64,
+        positional_relevance: f64,
+        rating_high_impact: f64,
         breakdown: PerformanceBreakdown,
     ) -> Self {
         Self {
             category,
             latent_contribution,
+            rating_latent_contribution,
             observations,
             opportunity_weight,
+            rating_opportunity_weight,
+            positional_relevance,
+            rating_high_impact,
             breakdown,
         }
     }
@@ -36,12 +56,28 @@ impl PerformanceCategoryContribution {
         self.latent_contribution
     }
 
+    pub fn rating_latent_contribution(&self) -> f64 {
+        self.rating_latent_contribution
+    }
+
     pub fn observations(&self) -> u32 {
         self.observations
     }
 
     pub fn opportunity_weight(&self) -> f64 {
         self.opportunity_weight
+    }
+
+    pub fn rating_opportunity_weight(&self) -> f64 {
+        self.rating_opportunity_weight
+    }
+
+    pub fn positional_relevance(&self) -> f64 {
+        self.positional_relevance
+    }
+
+    pub fn rating_high_impact(&self) -> f64 {
+        self.rating_high_impact
     }
 
     pub fn breakdown(&self) -> &PerformanceBreakdown {

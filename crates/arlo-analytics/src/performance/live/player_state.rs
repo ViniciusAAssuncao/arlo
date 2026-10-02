@@ -297,6 +297,8 @@ impl LivePlayerState {
             scaled_bd,
             &self.offensive_profile,
             &self.defensive_profile,
+            self.offensive_position,
+            self.defensive_position,
         );
         self.accumulated_breakdown = self.offensive_breakdown + self.defensive_breakdown;
         self.effective_opportunities = self.effective_opportunities.saturating_add(1);

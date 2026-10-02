@@ -16,8 +16,12 @@ pub struct PlayerPerformanceBreakdownDto {
 pub struct PlayerPerformanceCategoryContributionDto {
     pub category: String,
     pub latent_contribution: f64,
+    pub rating_latent_contribution: f64,
     pub observations: u32,
     pub opportunity_weight: f64,
+    pub rating_opportunity_weight: f64,
+    pub positional_relevance: f64,
+    pub rating_high_impact: f64,
     pub breakdown: PlayerPerformanceBreakdownDto,
 }
 

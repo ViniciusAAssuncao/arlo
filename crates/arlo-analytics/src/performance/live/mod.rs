@@ -4,6 +4,7 @@ pub mod config;
 pub mod diagnostics;
 pub mod finalizer;
 pub mod player_state;
+pub(crate) mod positional_relevance;
 pub mod rating_calculator;
 pub mod replay;
 pub mod seed;

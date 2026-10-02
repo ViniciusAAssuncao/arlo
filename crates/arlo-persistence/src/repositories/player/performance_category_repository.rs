@@ -11,8 +11,12 @@ const COLUMNS: &[&str] = &[
     "team_id",
     "category",
     "latent_contribution",
+    "rating_latent_contribution",
     "observations",
     "opportunity_weight",
+    "rating_opportunity_weight",
+    "positional_relevance",
+    "rating_high_impact",
     "execution_score",
     "production_score",
     "defense_score",
@@ -38,8 +42,12 @@ pub async fn insert_batch(
             builder.push_bind(&row.team_id);
             builder.push_bind(&row.category);
             builder.push_bind(row.latent_contribution);
+            builder.push_bind(row.rating_latent_contribution);
             builder.push_bind(row.observations);
             builder.push_bind(row.opportunity_weight);
+            builder.push_bind(row.rating_opportunity_weight);
+            builder.push_bind(row.positional_relevance);
+            builder.push_bind(row.rating_high_impact);
             builder.push_bind(row.execution_score);
             builder.push_bind(row.production_score);
             builder.push_bind(row.defense_score);
@@ -64,8 +72,12 @@ pub async fn list_by_match_id(
             team_id,
             category,
             latent_contribution,
+            rating_latent_contribution,
             observations,
             opportunity_weight,
+            rating_opportunity_weight,
+            positional_relevance,
+            rating_high_impact,
             execution_score,
             production_score,
             defense_score,
@@ -97,8 +109,12 @@ pub async fn list_by_match_id_and_player_id(
             team_id,
             category,
             latent_contribution,
+            rating_latent_contribution,
             observations,
             opportunity_weight,
+            rating_opportunity_weight,
+            positional_relevance,
+            rating_high_impact,
             execution_score,
             production_score,
             defense_score,

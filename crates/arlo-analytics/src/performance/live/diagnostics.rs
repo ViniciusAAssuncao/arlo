@@ -2,23 +2,66 @@ use crate::performance::diagnostics::{
     PerformanceCategoryContribution, PerformanceDiagnostics,
 };
 use crate::performance::live::category_signal::{policy_for, reliability};
+use crate::performance::live::positional_relevance::relevance_for;
 use crate::performance::observation::{
     ObservationCategory, PerformanceObservation, PossessionPhase,
 };
 use crate::performance::profile::PerformanceProfile;
 use crate::performance::rating::PerformanceBreakdown;
+use arlo_domain::Position;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(default)]
 struct CategoryAccumulator {
     latent_contribution: f64,
+    rating_latent_contribution: f64,
     observations: u32,
     opportunity_weight: f64,
+    rating_opportunity_weight: f64,
+    relevance_weight: f64,
+    relevance_exposure: f64,
+    rating_high_impact: f64,
     breakdown: PerformanceBreakdown,
 }
 
+impl CategoryAccumulator {
+    fn positional_relevance(&self) -> f64 {
+        if self.relevance_exposure > 0.0 {
+            self.relevance_weight / self.relevance_exposure
+        } else {
+            1.0
+        }
+    }
+
+    fn rating_latent_contribution(&self) -> f64 {
+        if self.rating_opportunity_weight > 0.0 {
+            self.rating_latent_contribution
+        } else {
+            self.latent_contribution
+        }
+    }
+
+    fn rating_opportunity_weight(&self) -> f64 {
+        if self.rating_opportunity_weight > 0.0 {
+            self.rating_opportunity_weight
+        } else {
+            self.opportunity_weight
+        }
+    }
+
+    fn rating_high_impact(&self) -> f64 {
+        if self.relevance_exposure > 0.0 {
+            self.rating_high_impact
+        } else {
+            self.breakdown.high_impact()
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct LivePerformanceDiagnosticsState {
     effective_opportunity_weight: f64,
     categories: HashMap<ObservationCategory, CategoryAccumulator>,
@@ -40,9 +83,14 @@ impl LivePerformanceDiagnosticsState {
             let policy = policy_for(category);
             let reliability =
                 reliability(data.opportunity_weight, policy.saturation);
-            let rate = data.latent_contribution / data.opportunity_weight;
+            let rating_opportunity = data.rating_opportunity_weight();
+            if rating_opportunity <= 0.0 {
+                continue;
+            }
+            let rate = data.rating_latent_contribution() / rating_opportunity;
             let quality = (rate / policy.rate_scale).tanh();
-            let weight = policy.importance * reliability;
+            let weight =
+                policy.importance * reliability * data.positional_relevance();
             weighted_quality += quality * weight;
             total_weight += weight;
         }
@@ -64,7 +112,7 @@ impl LivePerformanceDiagnosticsState {
     pub fn high_impact_total(&self) -> f64 {
         self.categories
             .values()
-            .map(|data| data.breakdown.high_impact())
+            .map(CategoryAccumulator::rating_high_impact)
             .sum()
     }
 
@@ -74,6 +122,8 @@ impl LivePerformanceDiagnosticsState {
         scaled_breakdown: PerformanceBreakdown,
         offensive_profile: &PerformanceProfile,
         defensive_profile: &PerformanceProfile,
+        offensive_position: Position,
+        defensive_position: Position,
     ) {
         self.effective_opportunity_weight += observation.opportunity_value();
 
@@ -98,10 +148,22 @@ impl LivePerformanceDiagnosticsState {
             }
         };
 
+        let relevance = relevance_for(
+            offensive_position,
+            defensive_position,
+            observation.category(),
+            observation.phase(),
+        );
+        let opportunity = observation.opportunity_value();
         let entry = self.categories.entry(observation.category()).or_default();
         entry.latent_contribution += latent;
+        entry.rating_latent_contribution += latent * relevance;
         entry.observations = entry.observations.saturating_add(1);
-        entry.opportunity_weight += observation.opportunity_value();
+        entry.opportunity_weight += opportunity;
+        entry.rating_opportunity_weight += opportunity * relevance;
+        entry.relevance_weight += opportunity * relevance;
+        entry.relevance_exposure += opportunity;
+        entry.rating_high_impact += scaled_breakdown.high_impact() * relevance;
         entry.breakdown = entry.breakdown + scaled_breakdown;
     }
 
@@ -122,8 +184,12 @@ impl LivePerformanceDiagnosticsState {
                 PerformanceCategoryContribution::new(
                     category,
                     data.latent_contribution,
+                    data.rating_latent_contribution(),
                     data.observations,
                     data.opportunity_weight,
+                    data.rating_opportunity_weight(),
+                    data.positional_relevance(),
+                    data.rating_high_impact(),
                     data.breakdown,
                 )
             })
