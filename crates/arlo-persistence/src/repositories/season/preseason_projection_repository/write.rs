@@ -14,7 +14,7 @@ pub async fn publish(
     let id = Uuid::new_v4();
     let mut tx = pool.begin().await?;
     let inserted = sqlx::query(
-        "INSERT OR IGNORE INTO preseason_projections (id, season_instance_id, model_version, calibration_id, generated_year, generated_day_of_year, simulation_count, random_seed, power_seed_model_version, historical_rating_sigma, new_team_rating_sigma, knockout_margin_mean, goal_point_mean, goal_point_rating_slope) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO preseason_projections (id, season_instance_id, model_version, calibration_id, generated_year, generated_day_of_year, simulation_count, random_seed, power_seed_model_version, historical_rating_sigma, new_team_rating_sigma, knockout_margin_mean, knockout_margin_stddev, goal_point_mean, goal_point_rating_slope) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(id.to_string())
     .bind(projection.season_instance_id.to_string())
@@ -28,6 +28,7 @@ pub async fn publish(
     .bind(projection.config.historical_rating_sigma)
     .bind(projection.config.new_team_rating_sigma)
     .bind(projection.config.knockout_margin_mean)
+    .bind(projection.config.knockout_margin_stddev)
     .bind(projection.goal_point_model.map(|model| model.mean_per_team))
     .bind(projection.goal_point_model.map(|model| model.rating_slope))
     .execute(&mut *tx)

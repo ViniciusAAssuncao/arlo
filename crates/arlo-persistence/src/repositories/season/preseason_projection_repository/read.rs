@@ -30,6 +30,7 @@ struct HeaderRow {
     historical_rating_sigma: f64,
     new_team_rating_sigma: f64,
     knockout_margin_mean: f64,
+    knockout_margin_stddev: Option<f64>,
     goal_point_mean: Option<f64>,
     goal_point_rating_slope: Option<f64>,
 }
@@ -145,6 +146,9 @@ pub async fn get(
                 historical_rating_sigma: header.historical_rating_sigma,
                 new_team_rating_sigma: header.new_team_rating_sigma,
                 knockout_margin_mean: header.knockout_margin_mean,
+                knockout_margin_stddev: header.knockout_margin_stddev.unwrap_or_else(|| {
+                    (header.knockout_margin_mean * (header.knockout_margin_mean - 1.0)).sqrt()
+                }),
             },
             goal_point_model: header
                 .goal_point_mean

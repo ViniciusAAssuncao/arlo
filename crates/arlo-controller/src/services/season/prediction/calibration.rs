@@ -81,6 +81,7 @@ pub async fn get_or_create_calibration(
         },
         100,
         500.0,
+        40.0,
         400.0,
     )?;
     let id = Uuid::new_v4();

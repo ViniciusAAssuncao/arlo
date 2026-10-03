@@ -192,14 +192,11 @@ impl<R: Rng> MatchSampler<'_, R> {
         if !with_margin {
             return (fixture, 0);
         }
-        let mean = self.plan.plan.config.knockout_margin_mean.max(1.0);
-        let magnitude = if mean <= 1.0 {
-            1
-        } else {
-            (self.rng.gen::<f64>().max(f64::MIN_POSITIVE).ln() / (1.0 - 1.0 / mean).ln()).floor()
-                as i64
-                + 1
-        };
+        let deviation: f64 = self.rng.sample(StandardNormal);
+        let magnitude = (self.plan.plan.config.knockout_margin_mean
+            + self.plan.plan.config.knockout_margin_stddev * deviation)
+            .round()
+            .max(1.0) as i64;
         (fixture, margin_sign(fixture) * magnitude)
     }
 }

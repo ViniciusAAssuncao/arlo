@@ -1,5 +1,6 @@
 mod calibration;
 mod goal_points;
+mod knockout_margin;
 mod match_forecast;
 mod preseason;
 mod projection_plan;

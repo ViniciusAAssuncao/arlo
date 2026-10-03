@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
-pub const PRESEASON_MODEL_VERSION: u32 = 1;
+pub const PRESEASON_MODEL_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PreseasonConfig {
@@ -17,6 +17,7 @@ pub struct PreseasonConfig {
     pub historical_rating_sigma: f64,
     pub new_team_rating_sigma: f64,
     pub knockout_margin_mean: f64,
+    pub knockout_margin_stddev: f64,
 }
 
 impl Default for PreseasonConfig {
@@ -26,6 +27,7 @@ impl Default for PreseasonConfig {
             historical_rating_sigma: 40.0,
             new_team_rating_sigma: 90.0,
             knockout_margin_mean: 12.0,
+            knockout_margin_stddev: 10.0,
         }
     }
 }
@@ -41,6 +43,7 @@ impl PreseasonConfig {
             ("historical_rating_sigma", self.historical_rating_sigma),
             ("new_team_rating_sigma", self.new_team_rating_sigma),
             ("knockout_margin_mean", self.knockout_margin_mean),
+            ("knockout_margin_stddev", self.knockout_margin_stddev),
         ] {
             if !value.is_finite() || value <= 0.0 {
                 return Err(AnalyticsError::InvalidData(format!(

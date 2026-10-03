@@ -1,4 +1,5 @@
 use super::goal_points::fit_goal_point_model;
+use super::knockout_margin::fit_knockout_margin;
 use crate::domain::calendar::CalendarDate;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::league_calendar::league_calendar_config_cache::get_or_load_league_calendar_config;
@@ -176,6 +177,12 @@ pub(super) async fn build_projection_plan(
         .await?
     };
     let goal_point_model = fit_goal_point_model(&history);
+    let mut config = config;
+    (config.knockout_margin_mean, config.knockout_margin_stddev) = fit_knockout_margin(
+        &history,
+        config.knockout_margin_mean,
+        config.knockout_margin_stddev,
+    );
     Ok(Some(CompetitionProjectionPlan {
         season_instance_id: season_id,
         teams,

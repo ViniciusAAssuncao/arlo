@@ -2,7 +2,7 @@ use crate::error::{AnalyticsError, AnalyticsResult};
 use crate::power_ranking::PowerRating;
 use serde::{Deserialize, Serialize};
 
-pub const MATCH_PREDICTION_MODEL_VERSION: u32 = 1;
+pub const MATCH_PREDICTION_MODEL_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ForecastParameters {

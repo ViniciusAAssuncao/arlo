@@ -45,11 +45,16 @@ pub fn calibrate_forecast(
     history: CalibrationHistory<'_>,
     minimum_local_samples: usize,
     shrinkage_samples: f64,
+    draw_shrinkage_samples: f64,
     rating_scale: f64,
 ) -> AnalyticsResult<ForecastCalibration> {
-    if !shrinkage_samples.is_finite() || shrinkage_samples <= 0.0 {
+    if !shrinkage_samples.is_finite()
+        || shrinkage_samples <= 0.0
+        || !draw_shrinkage_samples.is_finite()
+        || draw_shrinkage_samples <= 0.0
+    {
         return Err(AnalyticsError::InvalidData(
-            "shrinkage_samples must be positive".into(),
+            "shrinkage parameters must be positive".into(),
         ));
     }
     let mut prior = ForecastParameters::default();
@@ -99,9 +104,11 @@ pub fn calibrate_forecast(
         }
     }
     let weight = observations.len() as f64 / (observations.len() as f64 + shrinkage_samples);
+    let draw_weight =
+        observations.len() as f64 / (observations.len() as f64 + draw_shrinkage_samples);
     let parameters = ForecastParameters {
         home_advantage: weight * fitted.home_advantage,
-        draw_propensity: 0.5 + weight * (fitted.draw_propensity - 0.5),
+        draw_propensity: 0.5 + draw_weight * (fitted.draw_propensity - 0.5),
         temperature: 1.0 + weight * (fitted.temperature - 1.0),
         rating_scale,
     };
