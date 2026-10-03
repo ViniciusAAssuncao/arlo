@@ -1,0 +1,3 @@
+migrations/*.sql text eol=crlf
+migrations/0118_create_match_tactical_realignments.sql text eol=lf
+migrations/0119_create_match_prepared_plans.sql text eol=lf

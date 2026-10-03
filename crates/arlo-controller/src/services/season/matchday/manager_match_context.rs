@@ -1,3 +1,4 @@
+use crate::services::season::squad_quality::squad_quality;
 use arlo_domain::{AttributeDefinition, AttributeKey, Manager, Player, Position, Team};
 use std::collections::HashMap;
 use sqlx::{Row, SqlitePool};
@@ -93,8 +94,8 @@ pub fn assess(
     round_index: i32,
     history: RecentTeamHistory,
 ) -> ManagerMatchContext {
-    let own = squad_quality(own_players, keys) + own_team.prestige() as f64 * 0.025;
-    let opponent = squad_quality(opponent_players, keys) + opponent_team.prestige() as f64 * 0.025;
+    let own = squad_quality(own_players.iter(), keys) + own_team.prestige() as f64 * 0.025;
+    let opponent = squad_quality(opponent_players.iter(), keys) + opponent_team.prestige() as f64 * 0.025;
     let knowledge = manager.attributes().iter()
         .find(|entry| definitions.get(&entry.attribute_definition_id())
             .is_some_and(|definition| definition.key() == AttributeKey::TacticalKnowledge))
@@ -137,21 +138,4 @@ fn artrine_strength(player: &Player, keys: &HashMap<Uuid, AttributeKey>) -> f64 
         .find(|entry| keys.get(&entry.attribute_definition_id()) == Some(key))
         .map_or(10.0, |entry| f64::from(entry.value()))).sum::<f64>() / relevant.len() as f64;
     proficiency * 5.0 + skill * 1.8
-}
-
-fn squad_quality(players: &[Player], keys: &HashMap<Uuid, AttributeKey>) -> f64 {
-    let mut ratings: Vec<_> = players.iter().map(|player| {
-        let relevant = [AttributeKey::Finishing, AttributeKey::Passing,
-            AttributeKey::DefensiveContainment, AttributeKey::Decisions,
-            AttributeKey::WorkRate, AttributeKey::Stamina];
-        let total = relevant.iter().map(|key| player.attributes().iter()
-            .find(|entry| keys.get(&entry.attribute_definition_id()) == Some(key))
-            .map_or(10.0, |entry| f64::from(entry.value()))).sum::<f64>();
-        let proficiency = player.positions().iter().map(|entry| entry.proficiency())
-            .max().unwrap_or(0) as f64;
-        total / relevant.len() as f64 + proficiency * 0.18
-    }).collect();
-    ratings.sort_by(|a, b| b.total_cmp(a));
-    let count = ratings.len().min(14);
-    if count == 0 { 10.0 } else { ratings[..count].iter().sum::<f64>() / count as f64 }
 }

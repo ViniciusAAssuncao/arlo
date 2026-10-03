@@ -8,6 +8,7 @@ use crate::services::event_scheduling::event_dispatcher::{
 };
 use crate::services::event_scheduling::pending_trigger_store::PendingTriggerStore;
 use crate::services::season::matchday::matchday_orchestrator;
+use crate::services::season::power_ranking::maybe_publish_power_rankings;
 use arlo_persistence::repositories::calendar::save_calendar_state;
 use sqlx::SqlitePool;
 use std::sync::Arc;
@@ -106,6 +107,7 @@ pub async fn run_day_advancement(
     if phase != "MatchesDone" {
         return Err(ControllerError::InvalidData("Unknown day progress phase".into()));
     }
+    maybe_publish_power_rankings(pool, calendar, current_date).await?;
     day_progress::finish(pool, save_uuid, &current_date).await?;
 
     Ok(DayAdvancementResult::new(

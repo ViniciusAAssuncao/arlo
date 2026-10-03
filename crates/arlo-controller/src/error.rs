@@ -8,6 +8,8 @@ pub enum ControllerError {
     Uuid(#[from] uuid::Error),
     #[error(transparent)]
     Persistence(#[from] arlo_persistence::PersistenceError),
+    #[error(transparent)]
+    Analytics(#[from] arlo_analytics::AnalyticsError),
     #[error("Invalid enum value: {0}")]
     InvalidEnum(String),
     #[error("Invalid data: {0}")]
