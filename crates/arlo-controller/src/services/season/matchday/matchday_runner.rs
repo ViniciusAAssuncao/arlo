@@ -1,9 +1,10 @@
 use crate::error::{ControllerError, ControllerResult};
 use arlo_engine::{MatchInput, MatchState};
-use arlo_match_runner::{run_match_with_registry_and_play_calls, MatchRunResult};
+use arlo_match_runner::{
+    build_default_aggregator_registry, run_match_with_registry_and_play_calls, MatchRunResult,
+};
 use arlo_persistence::models::season::FixtureRow;
 use arlo_persistence::persister::{MatchPersistenceContext, MatchPersister};
-use arlo_stats::AggregatorRegistry;
 use arlo_tactics::PlayCall;
 use arlo_recovery::PlayerCondition;
 use sqlx::{Sqlite, Transaction};
@@ -28,7 +29,8 @@ pub fn simulate_match(
     play_calls: Vec<PlayCall>,
 ) -> ControllerResult<CompletedMatchSimulation> {
     let mut state = MatchState::new(&input);
-    let registry = AggregatorRegistry::with_default_aggregators();
+    let registry = build_default_aggregator_registry(&input)
+        .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
     let run_result = run_match_with_registry_and_play_calls(
         &input,
         &mut state,

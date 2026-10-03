@@ -8,6 +8,8 @@ pub enum ManagerDecisionCategory {
     TimeCall,
     Challenge,
     TacticalSwitch,
+    TacticalRealignment,
+    PreparedPlanActivation,
     PlayCall,
     KickFoulRealignment,
     KickFoulDecision,

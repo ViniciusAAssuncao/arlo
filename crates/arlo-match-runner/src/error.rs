@@ -1,3 +1,4 @@
+use arlo_analytics::AnalyticsError;
 use arlo_engine::EngineError;
 use arlo_manager_control::RequiredManagerDecision;
 use uuid::Uuid;
@@ -12,6 +13,8 @@ pub enum MatchRunnerError {
     },
     #[error("PlayCall {play_call_id} is missing from the supplied playbook")]
     UnknownPlayCall { play_call_id: Uuid },
+    #[error(transparent)]
+    Analytics(#[from] AnalyticsError),
     #[error(transparent)]
     Engine(#[from] EngineError),
 }

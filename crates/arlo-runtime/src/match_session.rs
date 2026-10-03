@@ -1,7 +1,7 @@
 use arlo_engine::{MatchInput, MatchPhase, MatchState, StepOutcome};
-use arlo_events::{EventSink, InMemorySink};
+use arlo_events::{EventSink, InMemorySink, MatchEvent};
 use arlo_manager_control::ManagerDecisionInbox;
-use arlo_match_runner::{resolve_segment, MatchRunnerResult};
+use arlo_match_runner::{resolve_segment_with_registry, DualEventSink, MatchRunnerResult};
 use arlo_stats::AggregatorRegistry;
 use arlo_tactics::PlayCall;
 
@@ -93,12 +93,21 @@ impl MatchSession {
     }
 
     pub fn step(&mut self) -> MatchRunnerResult<StepOutcome> {
-        let result = resolve_segment(&self.input, &mut self.state, &self.inbox, &self.play_calls)?;
+        let result = resolve_segment_with_registry(
+            &self.input,
+            &mut self.state,
+            &self.inbox,
+            &self.play_calls,
+            &self.registry,
+        )?;
         let (events, outcome) = result.into_parts();
-        for envelope in &events {
-            self.registry.handle_envelope(envelope);
+        let mut sink = DualEventSink::new(&mut self.sink, &mut self.registry);
+        for envelope in events {
+            if let MatchEvent::PlayInvalidated(invalidated) = envelope.event() {
+                sink.invalidate_play(invalidated.first_sequence(), invalidated.last_sequence());
+            }
+            sink.record(envelope);
         }
-        self.sink.record_all(events);
         Ok(outcome)
     }
 

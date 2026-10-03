@@ -22,3 +22,8 @@ sqlx.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync", "time"] }
 uuid.workspace = true
+
+[dev-dependencies]
+arlo-analytics.workspace = true
+arlo-manager-control.workspace = true
+serde_json = { version = "1.0.151", features = ["float_roundtrip"] }

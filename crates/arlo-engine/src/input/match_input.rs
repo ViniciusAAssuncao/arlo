@@ -1,6 +1,10 @@
+use super::player_attribute_index::PlayerAttributeIndex;
 use crate::error::{EngineError, EngineResult};
 use crate::input::TeamInput;
-use arlo_domain::{AttributeDefinition, AttributeKey, AttributeTarget, FaultCatalog, InjuryCatalog, MatchFormatRules, Pitch, Player, Referee};
+use arlo_domain::{
+    AttributeDefinition, AttributeKey, AttributeTarget, FaultCatalog, InjuryCatalog,
+    MatchFormatRules, Pitch, Player, Referee,
+};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -17,6 +21,9 @@ pub struct MatchInput {
     fault_catalog: Arc<FaultCatalog>,
     injury_catalog: Arc<InjuryCatalog>,
     player_attribute_definitions: Vec<AttributeDefinition>,
+    player_attributes: Arc<PlayerAttributeIndex>,
+    pub(super) prepared_plan_cache: Arc<super::prepared_plan_cache::PreparedPlanCache>,
+    pub(super) role_fit_cache: Arc<super::role_fit_cache::RoleFitCache>,
     manager_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
     player_start_energy: Arc<HashMap<Uuid, f64>>,
     player_start_morale: Arc<HashMap<Uuid, f64>>,
@@ -86,6 +93,10 @@ impl MatchInput {
                 ));
             }
         }
+        let player_attributes = Arc::new(PlayerAttributeIndex::new(
+            &player_attribute_definitions,
+            [&home, &away],
+        ));
         Ok(Self {
             match_id,
             home,
@@ -97,6 +108,9 @@ impl MatchInput {
             fault_catalog,
             injury_catalog,
             player_attribute_definitions,
+            player_attributes,
+            prepared_plan_cache: Arc::new(super::prepared_plan_cache::PreparedPlanCache::default()),
+            role_fit_cache: Arc::new(super::role_fit_cache::RoleFitCache::default()),
             manager_attribute_keys: Arc::new(HashMap::new()),
             player_start_energy: Arc::new(HashMap::new()),
             player_start_morale: Arc::new(HashMap::new()),
@@ -138,13 +152,29 @@ impl MatchInput {
         self.seed
     }
 
+    pub fn player_attributes(
+        &self,
+        player_id: Uuid,
+    ) -> Option<&[Option<f64>; AttributeKey::COUNT]> {
+        self.player_attributes.player(player_id)
+    }
+
+    pub(crate) fn shared_player_attributes(&self) -> Arc<PlayerAttributeIndex> {
+        self.player_attributes.clone()
+    }
+
     pub fn with_manager_decision_context(
         mut self,
         manager_attribute_keys: Arc<HashMap<Uuid, AttributeKey>>,
         player_start_energy: HashMap<Uuid, f64>,
     ) -> EngineResult<Self> {
-        if player_start_energy.values().any(|energy| !energy.is_finite() || !(0.0..=1.0).contains(energy)) {
-            return Err(EngineError::InvalidInput("player start energy must be between zero and one".into()));
+        if player_start_energy
+            .values()
+            .any(|energy| !energy.is_finite() || !(0.0..=1.0).contains(energy))
+        {
+            return Err(EngineError::InvalidInput(
+                "player start energy must be between zero and one".into(),
+            ));
         }
         self.manager_attribute_keys = manager_attribute_keys;
         self.player_start_energy = Arc::new(player_start_energy);
@@ -156,18 +186,29 @@ impl MatchInput {
     }
 
     pub fn player_start_energy(&self, player_id: Uuid) -> f64 {
-        self.player_start_energy.get(&player_id).copied().unwrap_or(1.0)
+        self.player_start_energy
+            .get(&player_id)
+            .copied()
+            .unwrap_or(1.0)
     }
 
     pub fn with_player_start_morale(mut self, values: HashMap<Uuid, f64>) -> EngineResult<Self> {
-        if values.values().any(|value| !value.is_finite() || !(0.0..=120.0).contains(value)) {
-            return Err(EngineError::InvalidInput("player start morale must be between zero and 120".into()));
+        if values
+            .values()
+            .any(|value| !value.is_finite() || !(0.0..=120.0).contains(value))
+        {
+            return Err(EngineError::InvalidInput(
+                "player start morale must be between zero and 120".into(),
+            ));
         }
         self.player_start_morale = Arc::new(values);
         Ok(self)
     }
 
     pub fn player_start_morale(&self, player_id: Uuid) -> f64 {
-        self.player_start_morale.get(&player_id).copied().unwrap_or(100.0)
+        self.player_start_morale
+            .get(&player_id)
+            .copied()
+            .unwrap_or(100.0)
     }
 }

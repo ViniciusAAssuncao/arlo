@@ -1,12 +1,17 @@
 use crate::error::{MatchRunnerError, MatchRunnerResult};
+use crate::manager_ai;
 use crate::manager_play_call;
 use arlo_engine::{
-    resolve_forced_substitution_segment, resolve_injury_decision_segment, resolve_kick_foul_segment, resolve_next_segment, resolve_time_call_segment,
-    resolve_substitution_segment, resolve_tactical_switch_segment, select_substitution, select_tactical_profile, should_use_time_call, MatchInput,
-    MatchPhase, MatchState, StepOutcome, StepResult,
+    resolve_forced_substitution_segment, resolve_injury_decision_segment,
+    resolve_kick_foul_segment, resolve_next_segment, resolve_prepared_plan_segment,
+    resolve_substitution_segment, resolve_tactical_realignment_segment,
+    resolve_tactical_switch_segment, resolve_time_call_segment, select_tactical_profile,
+    should_use_time_call, try_resolve_automatic_injury_decision_segment, MatchInput, MatchPhase,
+    MatchState, StepOutcome, StepResult,
 };
-use arlo_manager_control::{ManagerDecisionInbox, RequiredManagerDecision};
 use arlo_events::SubstitutionReason;
+use arlo_manager_control::{ManagerDecisionInbox, RequiredManagerDecision};
+use arlo_stats::AggregatorRegistry;
 use arlo_tactics::PlayCall;
 
 pub fn resolve_segment(
@@ -15,29 +20,66 @@ pub fn resolve_segment(
     inbox: &ManagerDecisionInbox,
     play_calls: &[PlayCall],
 ) -> MatchRunnerResult<StepResult> {
+    dispatch(input, state, inbox, play_calls, None)
+}
+
+pub fn resolve_segment_with_registry(
+    input: &MatchInput,
+    state: &mut MatchState,
+    inbox: &ManagerDecisionInbox,
+    play_calls: &[PlayCall],
+    registry: &AggregatorRegistry,
+) -> MatchRunnerResult<StepResult> {
+    dispatch(input, state, inbox, play_calls, Some(registry))
+}
+
+fn dispatch(
+    input: &MatchInput,
+    state: &mut MatchState,
+    inbox: &ManagerDecisionInbox,
+    play_calls: &[PlayCall],
+    registry: Option<&AggregatorRegistry>,
+) -> MatchRunnerResult<StepResult> {
     if let Some(&(team_id, player_id)) = state.pending_forced_substitutions().first() {
         if let Some(intent) = inbox.forced_substitution(team_id, player_id) {
             let result = resolve_forced_substitution_segment(input, state, team_id, intent)?;
             inbox.take_forced_substitution(team_id, player_id);
             return Ok(result);
         }
-        return Ok(StepResult::awaiting_decision(vec![RequiredManagerDecision::ForcedSubstitution {
-            team_id, outgoing_player_ids: vec![player_id],
-        }]));
+        return Ok(StepResult::awaiting_decision(vec![
+            RequiredManagerDecision::ForcedSubstitution {
+                team_id,
+                outgoing_player_ids: vec![player_id],
+            },
+        ]));
     }
     if !matches!(state.phase(), MatchPhase::Live | MatchPhase::Finished) {
-        if let Some(pending) = state.pending_injury_decisions().iter()
-            .find(|pending| state.injury_decisions_ready() && state.injury_decision_is_actionable(**pending)) {
+        if let Some(pending) = state
+            .pending_injury_decisions()
+            .iter()
+            .copied()
+            .find(|pending| {
+                state.injury_decisions_ready() && state.injury_decision_is_actionable(*pending)
+            })
+        {
             let team_id = pending.team_id();
             let player_id = pending.player_id();
+            if let Some(result) =
+                try_resolve_automatic_injury_decision_segment(input, state, pending)?
+            {
+                return Ok(result);
+            }
             if let Some(intent) = inbox.injury_decision(team_id, player_id) {
                 let result = resolve_injury_decision_segment(input, state, team_id, intent)?;
                 inbox.take_injury_decision(team_id, player_id);
                 return Ok(result);
             }
-            return Ok(StepResult::awaiting_decision(vec![RequiredManagerDecision::InjuryResponse {
-                team_id, injured_player_id: player_id,
-            }]));
+            return Ok(StepResult::awaiting_decision(vec![
+                RequiredManagerDecision::InjuryResponse {
+                    team_id,
+                    injured_player_id: player_id,
+                },
+            ]));
         }
     }
     if state.phase() == MatchPhase::Live {
@@ -53,17 +95,61 @@ pub fn resolve_segment(
     }
     if state.phase() == MatchPhase::Stopped {
         for team_id in [input.home().team_id(), input.away().team_id()] {
-            if let Some(profile_id) = select_tactical_profile(input, state, team_id) {
-                return Ok(resolve_tactical_switch_segment(input, state, team_id, profile_id)?);
+            if let Some(intent) = inbox.tactical_switch(team_id) {
+                let result =
+                    resolve_tactical_switch_segment(input, state, team_id, intent.profile_id())?;
+                inbox.take_tactical_switch(team_id);
+                return Ok(result);
+            }
+            if let Some(intent) = inbox.prepared_plan(team_id) {
+                let result = resolve_prepared_plan_segment(input, state, team_id, &intent)?;
+                inbox.take_prepared_plan(team_id);
+                return Ok(result);
+            }
+            if let Some(intent) = inbox.tactical_realignment(team_id) {
+                let result = resolve_tactical_realignment_segment(input, state, team_id, &intent)?;
+                inbox.take_tactical_realignment(team_id);
+                return Ok(result);
+            }
+            let team = if team_id == input.home().team_id() {
+                input.home()
+            } else {
+                input.away()
+            };
+            if let Some(profile_id) = team
+                .prepared_plans()
+                .is_empty()
+                .then(|| select_tactical_profile(input, state, team_id))
+                .flatten()
+            {
+                return Ok(resolve_tactical_switch_segment(
+                    input, state, team_id, profile_id,
+                )?);
             }
             let submitted = inbox.substitutions(team_id);
             if !submitted.is_empty() {
-                let result = resolve_substitution_segment(input, state, team_id, &submitted, SubstitutionReason::Tactical)?;
+                let result = resolve_substitution_segment(
+                    input,
+                    state,
+                    team_id,
+                    &submitted,
+                    SubstitutionReason::Tactical,
+                )?;
                 inbox.take_substitutions(team_id);
                 return Ok(result);
             }
-            if let Some((intent, reason)) = select_substitution(input, state, team_id) {
-                return Ok(resolve_substitution_segment(input, state, team_id, &[intent], reason)?);
+            if let Some(action) = manager_ai::select_action(input, state, registry, team_id) {
+                return Ok(match action {
+                    manager_ai::ManagerAction::PreparedPlan(intent) => {
+                        resolve_prepared_plan_segment(input, state, team_id, &intent)?
+                    }
+                    manager_ai::ManagerAction::Realignment(intent) => {
+                        resolve_tactical_realignment_segment(input, state, team_id, &intent)?
+                    }
+                    manager_ai::ManagerAction::Substitution(intent, reason) => {
+                        resolve_substitution_segment(input, state, team_id, &[intent], reason)?
+                    }
+                });
             }
         }
     }

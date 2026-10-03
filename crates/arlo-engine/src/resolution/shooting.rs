@@ -1,7 +1,9 @@
 use super::actors::select_shooter;
+use super::contest::emit_shot_contest;
 use super::down::emit_down_advanced;
 use super::exchange::{resolve_targeted_pass, ExchangeOutcome};
 use super::ratings::RatingIndex;
+use super::reception::sample_distribution_intent;
 use super::shooting_model::sample_regular_shot;
 use crate::error::EngineResult;
 use crate::input::{MatchInput, TeamInput};
@@ -69,8 +71,17 @@ pub(super) fn resolve_regular_attempt(
         events.push(state.emit(MatchEvent::PossessionTimeRecorded(
             PossessionTimeRecorded::new(team_id, IMMEDIATE_POSSESSION_CONTROL_SECONDS),
         ))?);
+        let distribution_intent =
+            sample_distribution_intent(ratings, offense, selected_play_call, state.rng_mut());
         match resolve_targeted_pass(
-            ratings, offense, defense, holder_id, shooter_id, state, events,
+            ratings,
+            offense,
+            defense,
+            holder_id,
+            shooter_id,
+            distribution_intent,
+            state,
+            events,
         )? {
             ExchangeOutcome::Retained(receiver_id) if receiver_id != shooter_id => {
                 return Ok(true);
@@ -92,6 +103,17 @@ pub(super) fn resolve_regular_attempt(
     }
     let shooter_id = sample.shooter_id;
     let assister_id = state.last_passer_id().filter(|passer_id| *passer_id != shooter_id);
+    emit_shot_contest(
+        state,
+        events,
+        shooter_id,
+        sample.defender_id,
+        sample.post,
+        sample.converted,
+        sample.out_of_bounds,
+        sample.conversion_probability,
+    )?;
+
     if sample.converted {
         let pending = state.pending_call_outcome();
         let territory_advance = if state.series().team_id() == team_id {

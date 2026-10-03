@@ -1,3 +1,4 @@
+use super::contest::emit_shot_contest;
 use super::kicker::select_kicker;
 use super::ratings::RatingIndex;
 use super::shooting_model::sample_bonus_shot;
@@ -40,7 +41,7 @@ pub(super) fn resolve_bonus_segment(
     let maximum_remaining =
         next.clock().maximum_period_seconds() - next.clock().seconds_in_period();
     let duration = sample.duration_seconds.min(maximum_remaining);
-    let mut events = Vec::with_capacity(3);
+    let mut events = Vec::with_capacity(4);
     let extension =
         next.clock().seconds_in_period() + duration - next.clock().period_limit_seconds();
     if extension > 0.0 {
@@ -66,6 +67,18 @@ pub(super) fn resolve_bonus_segment(
     events.push(next.emit(MatchEvent::PossessionTimeRecorded(
         PossessionTimeRecorded::new(scorer_team_id, duration),
     ))?);
+
+    emit_shot_contest(
+        &mut next,
+        &mut events,
+        scorer_id,
+        sample.defender_id,
+        sample.post,
+        sample.converted,
+        false,
+        sample.conversion_probability,
+    )?;
+
     if sample.converted {
         let kind = match sample.post {
             ScoringPost::Goalpost => ScoreKind::BonusGoalpost,

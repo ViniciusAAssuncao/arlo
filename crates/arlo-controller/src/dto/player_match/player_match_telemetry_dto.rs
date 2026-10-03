@@ -4,6 +4,7 @@ use crate::dto::player_match::player_match_impulse_dto::PlayerMatchImpulseDto;
 use crate::dto::player_match::player_match_injury_dto::PlayerMatchInjuryDto;
 use crate::dto::player_match::player_match_physical_dto::PlayerMatchPhysicalDto;
 use crate::dto::player_match::player_match_punishment_dto::PlayerMatchPunishmentDto;
+use crate::dto::r#match::PlayerMatchPerformanceDto;
 use crate::dto::stats::*;
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +26,7 @@ pub struct PlayerMatchTelemetryDto {
     pub artrine_decisions: PlayerArtrineDecisionStatsDto,
     pub fouls: PlayerFoulStatsDto,
     pub kick_fouls: PlayerKickFoulStatsDto,
+    pub performance: Option<PlayerMatchPerformanceDto>,
     pub impulse: Option<PlayerMatchImpulseDto>,
     #[serde(default)]
     pub morale: Option<PlayerMatchImpulseDto>,

@@ -25,6 +25,94 @@ pub(super) fn select_actor(
     select_weighted_actor(ratings, team, role, exclude, rng, |_| Ok(1.0))
 }
 
+pub(super) fn select_primary_defender(
+    ratings: &RatingIndex,
+    team: &TeamInput,
+    rng: &mut ChaCha8Rng,
+) -> EngineResult<Uuid> {
+    select_weighted_primary(
+        ratings,
+        team,
+        rng,
+        "lineup has no active field defender",
+        |assignment, player_id| {
+            let containment =
+                ratings.player_value(team, player_id, AttributeKey::DefensiveContainment)?;
+            let anticipation = ratings.player_value(team, player_id, AttributeKey::Anticipation)?;
+            let line_weight = match assignment.position().line() {
+                PositionLine::DefenseLine => 1.20,
+                PositionLine::BackLine => 1.0,
+                PositionLine::OffensiveLine => 0.70,
+                PositionLine::Goalguard => 0.0,
+            };
+            Ok((0.65 * containment + 0.35 * anticipation) * line_weight)
+        },
+    )
+}
+
+pub(super) fn select_primary_blocker(
+    ratings: &RatingIndex,
+    team: &TeamInput,
+    rng: &mut ChaCha8Rng,
+) -> EngineResult<Uuid> {
+    select_weighted_primary(
+        ratings,
+        team,
+        rng,
+        "lineup has no active blocker",
+        |assignment, player_id| {
+            let blocking =
+                ratings.player_value(team, player_id, AttributeKey::OffensiveBlocking)?;
+            let line_weight = match assignment.position().line() {
+                PositionLine::OffensiveLine => 1.25,
+                PositionLine::BackLine => 1.0,
+                PositionLine::DefenseLine => 0.70,
+                PositionLine::Goalguard => 0.0,
+            };
+            Ok(blocking * line_weight)
+        },
+    )
+}
+
+fn select_weighted_primary(
+    ratings: &RatingIndex,
+    team: &TeamInput,
+    rng: &mut ChaCha8Rng,
+    empty_message: &str,
+    weight: impl Fn(&SlotAssignment, Uuid) -> EngineResult<f64>,
+) -> EngineResult<Uuid> {
+    let mut candidates = Vec::with_capacity(ratings.lineup(team).assignments().len());
+    let mut total_weight = 0.0;
+
+    for assignment in ratings.lineup(team).assignments() {
+        let player_id = ratings.slot_player_id(team, assignment.player_id());
+        if !ratings.is_active(team, player_id)
+            || assignment.position().line() == PositionLine::Goalguard
+        {
+            continue;
+        }
+
+        let player_weight = weight(assignment, player_id)?.max(0.0);
+        if player_weight <= 0.0 {
+            continue;
+        }
+
+        total_weight += player_weight;
+        candidates.push((player_id, total_weight));
+    }
+
+    if total_weight <= 0.0 {
+        return Err(EngineError::InvalidInput(empty_message.into()));
+    }
+
+    let roll = rng.gen_range(0.0..total_weight);
+    Ok(candidates
+        .iter()
+        .find(|(_, cumulative)| roll < *cumulative)
+        .map(|(player_id, _)| *player_id)
+        .unwrap_or(candidates[candidates.len() - 1].0))
+}
+
 pub(super) fn select_receiver(
     ratings: &RatingIndex,
     team: &TeamInput,
@@ -48,21 +136,16 @@ pub(super) fn select_receiver(
                 1.0
             };
             let route_weight = route_weight(selected_play_call, assignment);
-            let threat_weight = if has_drive && assignment.position().line() == PositionLine::OffensiveLine {
-                let finisher = 0.5
-                    * ratings.player_value(team, actor_id, AttributeKey::Finishing)?
-                    + 0.3
-                        * ratings.player_value(
-                            team,
-                            actor_id,
-                            AttributeKey::Anticipation,
-                        )?
-                    + 0.2
-                        * ratings.player_value(team, actor_id, AttributeKey::Composure)?;
-                (1.0 + (finisher - 10.0) * 0.025).clamp(0.75, 1.25)
-            } else {
-                1.0
-            };
+            let threat_weight =
+                if has_drive && assignment.position().line() == PositionLine::OffensiveLine {
+                    let finisher = 0.5
+                        * ratings.player_value(team, actor_id, AttributeKey::Finishing)?
+                        + 0.3 * ratings.player_value(team, actor_id, AttributeKey::Anticipation)?
+                        + 0.2 * ratings.player_value(team, actor_id, AttributeKey::Composure)?;
+                    (1.0 + (finisher - 10.0) * 0.025).clamp(0.75, 1.25)
+                } else {
+                    1.0
+                };
             Ok(return_weight * route_weight * threat_weight)
         },
     )
@@ -79,8 +162,8 @@ pub(super) fn select_shooter(
         .map(|call| *call.decision_emphasis())
         .unwrap_or_else(|| ratings.instructions(team).default_decision_emphasis());
     select_weighted_actor(ratings, team, ActorRole::Shooter, None, rng, |assignment| {
-        let depth = team
-            .formation()
+        let depth = ratings
+            .formation(team)
             .slots()
             .get(assignment.formation_slot_index())
             .and_then(|slot| slot.pitch_length_ratio())
@@ -96,9 +179,7 @@ pub(super) fn select_shooter(
         } else {
             1.0
         };
-        Ok((0.25 + depth).powi(3)
-            * holder_weight
-            * route_weight(selected_play_call, assignment))
+        Ok((0.25 + depth).powi(3) * holder_weight * route_weight(selected_play_call, assignment))
     })
 }
 
@@ -123,9 +204,9 @@ fn select_weighted_actor(
     rng: &mut ChaCha8Rng,
     extra_weight: impl Fn(&SlotAssignment) -> EngineResult<f64>,
 ) -> EngineResult<Uuid> {
-    let mut candidates = Vec::with_capacity(team.lineup().assignments().len());
+    let mut candidates = Vec::with_capacity(ratings.lineup(team).assignments().len());
     let mut total_weight = 0.0;
-    for assignment in team.lineup().assignments() {
+    for assignment in ratings.lineup(team).assignments() {
         let player_id = ratings.slot_player_id(team, assignment.player_id());
         if Some(player_id) == exclude || !ratings.is_active(team, player_id) {
             continue;
@@ -176,22 +257,20 @@ fn select_weighted_actor(
         };
         let tactical_weight = match role {
             ActorRole::Defender => {
-                1.0
-                    + assignment
-                        .player_instructions()
-                        .out_of_possession()
-                        .engagement_bias()
-                        .value()
-                        * 0.3
+                1.0 + assignment
+                    .player_instructions()
+                    .out_of_possession()
+                    .engagement_bias()
+                    .value()
+                    * 0.3
             }
             _ => {
-                0.65
-                    + assignment
-                        .player_instructions()
-                        .in_possession()
-                        .involvement_priority()
-                        .value()
-                        * 0.7
+                0.65 + assignment
+                    .player_instructions()
+                    .in_possession()
+                    .involvement_priority()
+                    .value()
+                    * 0.7
             }
         };
         let weight = position_weight

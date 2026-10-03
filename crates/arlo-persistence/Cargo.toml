@@ -6,14 +6,17 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+arlo-analytics.workspace = true
+arlo-db.workspace = true
 arlo-domain.workspace = true
 arlo-engine.workspace = true
 arlo-events.workspace = true
 arlo-match-runner.workspace = true
 arlo-stats.workspace = true
 arlo-tactics.workspace = true
-sqlx.workspace = true
+sqlx = { workspace = true, features = ["json"] }
 thiserror.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 serde.workspace = true
+serde_json = { version = "1.0.151", features = ["float_roundtrip"] }

@@ -17,6 +17,8 @@ pub enum MatchTimelineEventData {
     TimeCall(MatchTimeCallRow),
     Challenge(MatchChallengeRow),
     TacticalProfileActivation(MatchTacticalProfileActivationRow),
+    TacticalRealignment(MatchTacticalRealignmentRow),
+    TacticalPlan(MatchTacticalPlanActivationRow),
     PlayCallSelection(MatchPlayCallSelectionRow),
     AvailabilityChange(MatchAvailabilityChangeRow),
     ImpulseCritical(MatchImpulseCriticalEventRow),
@@ -45,6 +47,8 @@ pub struct MatchIncidentsBundle<'a> {
     pub time_calls: &'a [MatchTimeCallRow],
     pub challenges: &'a [MatchChallengeRow],
     pub tactical_profile_activations: &'a [MatchTacticalProfileActivationRow],
+    pub tactical_realignments: &'a [MatchTacticalRealignmentRow],
+    pub tactical_plans: &'a [MatchTacticalPlanActivationRow],
     pub play_call_selections: &'a [MatchPlayCallSelectionRow],
     pub availability_changes: &'a [MatchAvailabilityChangeRow],
     pub impulse_critical_events: &'a [MatchImpulseCriticalEventRow],
@@ -65,6 +69,8 @@ pub fn merge_match_timeline(
         + incidents.time_calls.len()
         + incidents.challenges.len()
         + incidents.tactical_profile_activations.len()
+        + incidents.tactical_realignments.len()
+        + incidents.tactical_plans.len()
         + incidents.play_call_selections.len()
         + incidents.availability_changes.len()
         + incidents.impulse_critical_events.len()
@@ -198,6 +204,26 @@ pub fn merge_match_timeline(
         });
     }
 
+    for row in incidents.tactical_plans {
+        items.push(MatchTimelineItem {
+            sequence_number: row.sequence_number.max(0) as u64,
+            period: row.period.max(0) as u32,
+            seconds_in_period: row.seconds_in_period,
+            total_elapsed_seconds: row.total_elapsed_seconds,
+            event: MatchTimelineEventData::TacticalPlan(row.clone()),
+        });
+    }
+
+    for row in incidents.tactical_realignments {
+        items.push(MatchTimelineItem {
+            sequence_number: row.sequence_number.max(0) as u64,
+            period: row.period.max(0) as u32,
+            seconds_in_period: row.seconds_in_period,
+            total_elapsed_seconds: row.total_elapsed_seconds,
+            event: MatchTimelineEventData::TacticalRealignment(row.clone()),
+        });
+    }
+
     for row in incidents.tactical_profile_activations {
         let period = row.period.max(0) as u32;
         let seconds_in_period = row.seconds_in_period.max(0.0);
@@ -303,6 +329,8 @@ pub fn merge_match_timeline_from_slices(
             time_calls,
             challenges,
             tactical_profile_activations,
+            tactical_realignments: &[],
+            tactical_plans: &[],
             play_call_selections,
             availability_changes,
             impulse_critical_events,

@@ -179,6 +179,7 @@ impl IntoSnapshot for PlayerDuelStats {
             defender_wins: self.defender_wins,
             defender_losses: self.defender_losses,
             defender_win_rate: self.defender_win_rate(),
+            by_kind: self.by_kind.clone(),
         }
     }
 }

@@ -125,7 +125,12 @@ pub async fn insert_profile(
 ) -> TacticsResult<Uuid> {
     let profile_id = Uuid::new_v4();
     let profile = TeamTacticalProfile::new(
-        profile_id, team_id, name, *instructions, situational_profile.cloned(), false,
+        profile_id,
+        team_id,
+        name,
+        *instructions,
+        situational_profile.cloned(),
+        false,
     );
     let mut tx = pool.begin().await?;
     insert_profile_in_transaction(&mut tx, &profile).await?;
@@ -252,37 +257,64 @@ pub async fn insert_profile_in_transaction(
         ),
     ];
 
-    for (phase, key, value) in entries {
-        let value_id = Uuid::new_v4().to_string();
-        let phase_code = tactical_phase_to_code(phase);
-        let key_code = instruction_key_to_code(key);
-        sqlx::query(
-            "INSERT INTO tactical_instruction_values (id, team_tactical_profile_id, phase, instruction_key, value) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(value_id)
-        .bind(profile_id.to_string())
-        .bind(phase_code)
-        .bind(key_code)
-        .bind(value)
-        .execute(&mut **tx)
-        .await?;
-    }
+    let values: Vec<_> = entries
+        .into_iter()
+        .map(|(phase, key, value)| {
+            (
+                Uuid::new_v4().to_string(),
+                tactical_phase_to_code(phase),
+                instruction_key_to_code(key),
+                value,
+            )
+        })
+        .collect();
+    let profile_id = profile_id.to_string();
+    arlo_db::repositories::batching::execute_batch_insert(
+        tx,
+        "tactical_instruction_values",
+        &[
+            "id",
+            "team_tactical_profile_id",
+            "phase",
+            "instruction_key",
+            "value",
+        ],
+        &values,
+        |b, row| {
+            b.push_bind(&row.0)
+                .push_bind(&profile_id)
+                .push_bind(row.1)
+                .push_bind(row.2)
+                .push_bind(row.3);
+        },
+    )
+    .await?;
 
     if let Some(profile) = situational_profile {
         let pairs = situational_profile_to_pairs(profile);
-        for (key, val) in pairs {
-            let param_id = Uuid::new_v4().to_string();
-            let key_code = situational_parameter_key_to_code(key);
-            sqlx::query(
-                "INSERT INTO team_tactical_profile_situational_parameters (id, team_tactical_profile_id, parameter_key, value) VALUES (?, ?, ?, ?)",
-            )
-            .bind(param_id)
-            .bind(profile_id.to_string())
-            .bind(key_code)
-            .bind(val)
-            .execute(&mut **tx)
-            .await?;
-        }
+        let parameters: Vec<_> = pairs
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    Uuid::new_v4().to_string(),
+                    situational_parameter_key_to_code(key),
+                    value,
+                )
+            })
+            .collect();
+        arlo_db::repositories::batching::execute_batch_insert(
+            tx,
+            "team_tactical_profile_situational_parameters",
+            &["id", "team_tactical_profile_id", "parameter_key", "value"],
+            &parameters,
+            |b, row| {
+                b.push_bind(&row.0)
+                    .push_bind(&profile_id)
+                    .push_bind(row.1)
+                    .push_bind(row.2);
+            },
+        )
+        .await?;
     }
 
     Ok(())

@@ -1,4 +1,7 @@
+use crate::player::DuelKindStats;
+use arlo_events::DuelKind;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,6 +46,7 @@ pub struct PlayerDuelSnapshot {
     pub defender_wins: u32,
     pub defender_losses: u32,
     pub defender_win_rate: f64,
+    pub by_kind: HashMap<DuelKind, DuelKindStats>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -58,6 +62,32 @@ pub struct PlayerReceivingSnapshot {
     pub receiving_mirins: f64,
     pub average_mirins_per_reception: f64,
     pub average_rac_per_reception: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlayerPassingSnapshot {
+    pub player_id: Uuid,
+    pub passes_attempted: u32,
+    pub passes_completed: u32,
+    pub passes_incompleted: u32,
+    pub passing_mirins: f64,
+    pub longest_pass_mirim: f64,
+    pub aerial_passes_attempted: u32,
+    pub aerial_passes_completed: u32,
+    pub completion_rate: f64,
+    pub aerial_completion_rate: f64,
+    pub average_mirins_per_completion: f64,
+    pub average_mirins_per_attempt: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PlayerGoalguardSnapshot {
+    pub player_id: Uuid,
+    pub total_recoveries: u32,
+    pub first_zone_recoveries: u32,
+    pub second_zone_recoveries: u32,
+    pub open_field_recoveries: u32,
+    pub used_hands_recoveries: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
