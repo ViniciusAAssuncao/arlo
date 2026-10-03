@@ -1,6 +1,7 @@
 pub mod fixtures;
 pub mod generation;
 pub mod league_overview;
+pub mod prediction;
 pub mod overview_calendar;
 pub mod overview_fixtures;
 pub mod overview_spots;
@@ -11,6 +12,7 @@ pub mod standings;
 pub use fixtures::*;
 pub use generation::*;
 pub use league_overview::*;
+pub use prediction::*;
 pub use overview_calendar::*;
 pub use overview_fixtures::*;
 pub use overview_spots::*;
