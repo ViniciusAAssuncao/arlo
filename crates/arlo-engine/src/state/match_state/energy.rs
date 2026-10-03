@@ -74,8 +74,8 @@ impl MatchState {
                 } else {
                     &prior.away
                 };
-                let activity = team
-                    .lineup()
+                let activity = team_state
+                    .lineup(team)
                     .assignments()
                     .iter()
                     .find(|assignment| {
@@ -96,18 +96,18 @@ impl MatchState {
                     })
                     .unwrap_or(1.0);
                 let instructions = self.team_instructions(team);
-                let tempo = instructions
-                    .in_possession()
-                    .tempo()
-                    .value();
+                let tempo = instructions.in_possession().tempo().value();
                 let pressing = instructions
                     .out_of_possession()
                     .pressing_intensity()
                     .value();
                 let physicality = instructions.in_possession().physicality().value();
                 let counter_press = instructions.transition().counter_press_intensity().value();
-                let tactical_load = 0.72 + 0.24 * tempo + 0.16 * pressing
-                    + 0.07 * physicality + 0.06 * counter_press;
+                let tactical_load = 0.72
+                    + 0.24 * tempo
+                    + 0.16 * pressing
+                    + 0.07 * physicality
+                    + 0.06 * counter_press;
                 let role = match position {
                     Position::Goalguard => 0.30,
                     Position::CenterOffense => 0.85,
@@ -124,15 +124,39 @@ impl MatchState {
                 self.reduce_energy(player_id, load);
             }
         }
+        self.recover_reserves(input, prior, elapsed);
         Ok(())
+    }
+
+    fn recover_reserves(&mut self, input: &MatchInput, prior: &Self, elapsed: f64) {
+        for state in [&prior.home, &prior.away] {
+            for &id in state.reserve_player_ids() {
+                if !state.is_available_reserve(id) || !prior.energy_participants.contains(&id) {
+                    continue;
+                }
+                let capacity = prior
+                    .energy_profiles
+                    .get(&id)
+                    .map_or(1.0, |profile| profile.capacity);
+                let ceiling = input.player_start_energy(id);
+                let current = prior.player_energy(id);
+                let recovered =
+                    (ceiling - current).max(0.0) * (1.0 - (-elapsed * capacity / 1800.0).exp());
+                self.energy
+                    .insert(id, (current + recovered).clamp(0.0, 1.0));
+            }
+        }
     }
 
     pub(crate) fn record_final_energy(
         &mut self,
         events: &mut Vec<MatchEventEnvelope>,
     ) -> EngineResult<()> {
-        let mut players: Vec<_> = self.energy_participants.iter()
-            .map(|&id| (id, self.player_energy(id))).collect();
+        let mut players: Vec<_> = self
+            .energy_participants
+            .iter()
+            .map(|&id| (id, self.player_energy(id)))
+            .collect();
         players.sort_by_key(|(id, _)| *id);
         for (player_id, energy) in players {
             events.push(self.emit(MatchEvent::PhysicalStrainRecorded(
@@ -149,7 +173,8 @@ fn assigned_position(team: &TeamInput, state: &MatchState, player_id: Uuid) -> P
     } else {
         &state.away
     };
-    team.lineup()
+    team_state
+        .lineup(team)
         .assignments()
         .iter()
         .find(|assignment| team_state.slot_player_id(assignment.player_id()) == player_id)
@@ -178,15 +203,29 @@ fn attribute(input: &MatchInput, team: &TeamInput, player_id: Uuid, key: Attribu
 }
 
 pub(super) fn initial_profiles(input: &MatchInput) -> HashMap<Uuid, EnergyProfile> {
-    input.home().roster().iter().map(|player| (input.home(), player.id()))
-        .chain(input.away().roster().iter().map(|player| (input.away(), player.id())))
+    input
+        .home()
+        .roster()
+        .iter()
+        .map(|player| (input.home(), player.id()))
+        .chain(
+            input
+                .away()
+                .roster()
+                .iter()
+                .map(|player| (input.away(), player.id())),
+        )
         .map(|(team, player_id)| {
             let stamina = attribute(input, team, player_id, AttributeKey::Stamina);
             let fitness = attribute(input, team, player_id, AttributeKey::NaturalFitness);
             let work_rate = attribute(input, team, player_id, AttributeKey::WorkRate);
-            (player_id, EnergyProfile {
-                capacity: (0.72 + 0.018 * stamina + 0.010 * fitness).clamp(0.75, 1.30),
-                work: (0.82 + 0.018 * work_rate).clamp(0.84, 1.18),
-            })
-        }).collect()
+            (
+                player_id,
+                EnergyProfile {
+                    capacity: (0.72 + 0.018 * stamina + 0.010 * fitness).clamp(0.75, 1.30),
+                    work: (0.82 + 0.018 * work_rate).clamp(0.84, 1.18),
+                },
+            )
+        })
+        .collect()
 }

@@ -25,3 +25,9 @@ pub use substitution_timeline_entry_dto::*;
 pub use tactical_profile_timeline_entry_dto::*;
 pub use time_call_timeline_entry_dto::*;
 pub use turnover_timeline_entry_dto::*;
+
+pub mod tactical_realignment_timeline_entry_dto;
+pub use tactical_realignment_timeline_entry_dto::TacticalRealignmentTimelineEntryDto;
+
+pub mod tactical_plan_timeline_entry_dto;
+pub use tactical_plan_timeline_entry_dto::TacticalPlanTimelineEntryDto;

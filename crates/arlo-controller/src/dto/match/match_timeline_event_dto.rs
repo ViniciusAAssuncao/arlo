@@ -13,6 +13,8 @@ pub enum MatchTimelineEventDto {
     TimeCall(TimeCallTimelineEntryDto),
     Challenge(ChallengeTimelineEntryDto),
     TacticalProfile(TacticalProfileTimelineEntryDto),
+    TacticalRealignment(TacticalRealignmentTimelineEntryDto),
+    TacticalPlan(TacticalPlanTimelineEntryDto),
     PlayCall(PlayCallTimelineEntryDto),
     AvailabilityChange(AvailabilityChangeTimelineEntryDto),
     ImpulseCritical(ImpulseCriticalTimelineEntryDto),

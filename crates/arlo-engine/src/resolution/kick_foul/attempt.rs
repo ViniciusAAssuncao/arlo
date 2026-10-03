@@ -27,10 +27,14 @@ pub fn resolve_kick_foul_segment(
 ) -> EngineResult<StepResult> {
     state.begin_play_checkpoint();
     let prior = state.clone();
-    let result = resolve_kick_foul_segment_inner(input, state, selected_decision, selected_taker_id)?;
+    let result =
+        resolve_kick_foul_segment_inner(input, state, selected_decision, selected_taker_id)?;
     let result = super::super::officiating::resolve_officiating(input, state, result, None)?;
     let (mut events, outcome) = result.into_parts();
-    if !events.iter().any(|event| matches!(event.event(), MatchEvent::PlayInvalidated(_))) {
+    if !events
+        .iter()
+        .any(|event| matches!(event.event(), MatchEvent::PlayInvalidated(_)))
+    {
         state.record_segment_energy(input, &prior, &mut events)?;
         state.record_segment_morale(&prior, &mut events)?;
     }
@@ -41,7 +45,9 @@ pub fn resolve_kick_foul_segment(
     let result = match outcome {
         crate::step::StepOutcome::Resolved => StepResult::resolved(events),
         crate::step::StepOutcome::Finished => StepResult::finished(events),
-        crate::step::StepOutcome::AwaitingDecision(decisions) => StepResult::awaiting_decision(decisions),
+        crate::step::StepOutcome::AwaitingDecision(decisions) => {
+            StepResult::awaiting_decision(decisions)
+        }
     };
     super::super::injury::resolve_injuries(input, state, result)
 }
@@ -93,8 +99,8 @@ pub(in crate::resolution) fn resolve_kick_foul_segment_inner(
     let receiver_id = if artrine_id != taker_id {
         artrine_id
     } else {
-        offense
-            .lineup()
+        ratings
+            .lineup(offense)
             .assignments()
             .iter()
             .find(|assignment| {
@@ -294,7 +300,11 @@ fn resolve_shot(
             state.recover_missed_shot(team_id, recovery_team_id, recovery.position_mirim)?;
             state.set_carrier(recovery.player_id)?;
             events.push(state.emit(MatchEvent::Turnover(Turnover::new(
-                team_id, defense_id, Some(recovery.player_id), Some(taker_id), true,
+                team_id,
+                defense_id,
+                Some(recovery.player_id),
+                Some(taker_id),
+                true,
             )))?);
         } else {
             let position = if goal_line > pitch.length_mirim() / 2.0 {
@@ -329,13 +339,8 @@ fn resolve_launch(
 ) -> EngineResult<()> {
     let defense_id = defense.team_id();
     if !out_of_bounds {
-        let defender_id = select_actor(
-            ratings,
-            defense,
-            ActorRole::Defender,
-            None,
-            state.rng_mut(),
-        )?;
+        let defender_id =
+            select_actor(ratings, defense, ActorRole::Defender, None, state.rng_mut())?;
         let duel_kind = match decision {
             KickFoulDecisionKind::ShortPass => DuelKind::ShortDistribution,
             KickFoulDecisionKind::LongLaunch => DuelKind::LongDistribution,

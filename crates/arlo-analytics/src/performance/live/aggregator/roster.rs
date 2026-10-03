@@ -137,7 +137,11 @@ impl PlayerPerformanceAggregator {
                 out_state.slot_role(),
             )
         } else {
-            (Position::CenterOffense, Position::Centerback, SlotRole::Standard)
+            (
+                Position::CenterOffense,
+                Position::Centerback,
+                SlotRole::Standard,
+            )
         };
 
         if let Some(in_state) = self.players.get_mut(&player_in) {
@@ -185,6 +189,45 @@ impl PlayerPerformanceAggregator {
 
     pub(super) fn inspect_event_for_roster_updates(&mut self, event: &MatchEvent) {
         match event {
+            MatchEvent::TacticalPlanActivated(event) => {
+                for assignment in &event.assignments {
+                    if self.translator.context().is_some_and(|context| {
+                        context
+                            .active_player_for_slot(event.team_id, assignment.formation_slot_index)
+                            != Some(assignment.player_id)
+                    }) {
+                        continue;
+                    }
+                    if let Some(state) = self.players.get_mut(&assignment.player_id) {
+                        state.update_assignment(
+                            assignment.offensive_position,
+                            assignment.defensive_position,
+                            assignment.slot_role,
+                            &self.config,
+                        );
+                    }
+                }
+            }
+            MatchEvent::TacticalRealignmentMade(event) => {
+                for assignment in event.assignments() {
+                    if self.translator.context().is_some_and(|context| {
+                        context.active_player_for_slot(
+                            event.team_id(),
+                            assignment.formation_slot_index,
+                        ) != Some(assignment.player_id)
+                    }) {
+                        continue;
+                    }
+                    if let Some(state) = self.players.get_mut(&assignment.player_id) {
+                        state.update_assignment(
+                            assignment.offensive_position,
+                            assignment.defensive_position,
+                            assignment.slot_role,
+                            &self.config,
+                        );
+                    }
+                }
+            }
             MatchEvent::SubstitutionMade(event) => {
                 self.handle_substitution(event.player_out(), event.player_in(), event.team_id());
             }
@@ -215,7 +258,11 @@ impl PlayerPerformanceAggregator {
                 context.slot_role(&player_id).unwrap_or(SlotRole::Standard),
             )
         } else {
-            (Position::CenterOffense, Position::Centerback, SlotRole::Standard)
+            (
+                Position::CenterOffense,
+                Position::Centerback,
+                SlotRole::Standard,
+            )
         };
 
         let mut state = LivePlayerState::new(

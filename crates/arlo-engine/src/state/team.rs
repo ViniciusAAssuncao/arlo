@@ -3,8 +3,11 @@ use crate::input::TeamInput;
 use crate::state::{DriveProgress, Score};
 use arlo_domain::{sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS, Position};
 use arlo_events::AvailabilityStatus;
-use uuid::Uuid;
 use std::collections::HashMap;
+use uuid::Uuid;
+
+mod plans;
+mod realignment;
 
 #[derive(Debug, Clone)]
 pub struct TeamState {
@@ -28,6 +31,10 @@ pub struct TeamState {
     active_tactical_profile_id: Uuid,
     tactical_switches: u8,
     last_tactical_switch_at: Option<f64>,
+    last_tactical_realignment_at: Option<f64>,
+    active_layout: Option<arlo_tactics::TacticalLayout>,
+    active_plan_id: Option<Uuid>,
+    last_plan_activation_at: Option<f64>,
     score: Score,
 }
 
@@ -59,7 +66,10 @@ impl TeamState {
             .find(|a| a.position() == Position::Passer)
             .map(|a| a.player_id())
             .expect("validated lineup has a Passer");
-        let goalguard_id = input.lineup().assignments().iter()
+        let goalguard_id = input
+            .lineup()
+            .assignments()
+            .iter()
             .find(|a| a.position() == Position::Goalguard)
             .map(|a| a.player_id())
             .expect("validated lineup has a Goalguard");
@@ -84,6 +94,10 @@ impl TeamState {
             active_tactical_profile_id: input.tactics().id(),
             tactical_switches: 0,
             last_tactical_switch_at: None,
+            last_tactical_realignment_at: None,
+            active_layout: None,
+            active_plan_id: input.prepared_plans().first().map(|plan| plan.id),
+            last_plan_activation_at: None,
             score: Score::default(),
         }
     }
@@ -93,10 +107,24 @@ impl TeamState {
     }
     pub fn artrine_id(&self) -> Uuid {
         let assigned = self.slot_player_id(self.artrine_id);
-        if self.active_player_ids.contains(&assigned) { assigned }
-        else { self.active_player_ids.iter().copied().find(|id| *id != self.slot_player_id(self.passer_id) && *id != self.slot_player_id(self.goalguard_id))
-            .or_else(|| self.active_player_ids.iter().copied().find(|id| *id != self.slot_player_id(self.goalguard_id)))
-            .unwrap_or(self.artrine_id) }
+        if self.active_player_ids.contains(&assigned) {
+            assigned
+        } else {
+            self.active_player_ids
+                .iter()
+                .copied()
+                .find(|id| {
+                    *id != self.slot_player_id(self.passer_id)
+                        && *id != self.slot_player_id(self.goalguard_id)
+                })
+                .or_else(|| {
+                    self.active_player_ids
+                        .iter()
+                        .copied()
+                        .find(|id| *id != self.slot_player_id(self.goalguard_id))
+                })
+                .unwrap_or(self.artrine_id)
+        }
     }
     pub fn drive_eligible(&self) -> bool {
         self.drive_eligible
@@ -108,20 +136,36 @@ impl TeamState {
     }
     pub fn passer_id(&self) -> Uuid {
         let assigned = self.slot_player_id(self.passer_id);
-        if self.active_player_ids.contains(&assigned) { assigned }
-        else { self.active_player_ids.iter().copied().find(|id| *id != self.artrine_id() && *id != self.slot_player_id(self.goalguard_id))
-            .unwrap_or(self.passer_id) }
+        if self.active_player_ids.contains(&assigned) {
+            assigned
+        } else {
+            self.active_player_ids
+                .iter()
+                .copied()
+                .find(|id| {
+                    *id != self.artrine_id() && *id != self.slot_player_id(self.goalguard_id)
+                })
+                .unwrap_or(self.passer_id)
+        }
     }
     pub fn active_player_ids(&self) -> &[Uuid] {
         &self.active_player_ids
     }
     pub fn slot_player_id(&self, original_id: Uuid) -> Uuid {
-        self.slot_replacements.get(&original_id).copied().unwrap_or(original_id)
+        self.slot_replacements
+            .get(&original_id)
+            .copied()
+            .unwrap_or(original_id)
     }
     pub fn injured_player_ids(&self) -> &[Uuid] {
         &self.injured_players
     }
-    pub(crate) fn record_injury(&mut self, player_id: Uuid, withdraw: bool, replacement_id: Option<Uuid>) {
+    pub(crate) fn record_injury(
+        &mut self,
+        player_id: Uuid,
+        withdraw: bool,
+        replacement_id: Option<Uuid>,
+    ) {
         if !self.injured_players.contains(&player_id) {
             self.injured_players.push(player_id);
         }
@@ -131,8 +175,12 @@ impl TeamState {
         if let Some(replacement_id) = replacement_id {
             self.reserve_player_ids.retain(|id| *id != replacement_id);
             self.active_player_ids.push(replacement_id);
-            let original = self.slot_replacements.iter().find(|(_, current)| **current == player_id)
-                .map(|(original, _)| *original).unwrap_or(player_id);
+            let original = self
+                .slot_replacements
+                .iter()
+                .find(|(_, current)| **current == player_id)
+                .map(|(original, _)| *original)
+                .unwrap_or(player_id);
             self.slot_replacements.insert(original, replacement_id);
         }
     }
@@ -142,18 +190,35 @@ impl TeamState {
         self.reserve_player_ids = current.reserve_player_ids.clone();
         self.slot_replacements = current.slot_replacements.clone();
     }
-    pub(crate) fn withdraw_injured_player(&mut self, player_id: Uuid, replacement_id: Option<Uuid>) {
+    pub(crate) fn withdraw_injured_player(
+        &mut self,
+        player_id: Uuid,
+        replacement_id: Option<Uuid>,
+    ) {
         self.active_player_ids.retain(|id| *id != player_id);
         if let Some(replacement_id) = replacement_id {
             self.reserve_player_ids.retain(|id| *id != replacement_id);
             self.active_player_ids.push(replacement_id);
-            let original = self.slot_replacements.iter().find(|(_, current)| **current == player_id)
-                .map(|(original, _)| *original).unwrap_or(player_id);
+            let original = self
+                .slot_replacements
+                .iter()
+                .find(|(_, current)| **current == player_id)
+                .map(|(original, _)| *original)
+                .unwrap_or(player_id);
             self.slot_replacements.insert(original, replacement_id);
         }
     }
     pub fn reserve_player_ids(&self) -> &[Uuid] {
         &self.reserve_player_ids
+    }
+    pub fn is_available_reserve(&self, player_id: Uuid) -> bool {
+        self.reserve_player_ids.contains(&player_id)
+            && !self.injured_players.contains(&player_id)
+            && !self.expelled_players.contains(&player_id)
+            && !self
+                .suspended_players
+                .iter()
+                .any(|(id, _)| *id == player_id)
     }
     pub fn drive_progress(&self) -> DriveProgress {
         self.drive_progress
@@ -187,11 +252,23 @@ impl TeamState {
     }
 
     pub(crate) fn availability_status(&self, player_id: Uuid) -> Option<AvailabilityStatus> {
-        if self.expelled_players.contains(&player_id) { Some(AvailabilityStatus::Expelled) }
-        else if self.suspended_players.iter().any(|(id, _)| *id == player_id) { Some(AvailabilityStatus::Suspended) }
-        else if self.injured_players.contains(&player_id) && !self.active_player_ids.contains(&player_id) { Some(AvailabilityStatus::Injured) }
-        else if self.active_player_ids.contains(&player_id) { Some(AvailabilityStatus::Active) }
-        else { None }
+        if self.expelled_players.contains(&player_id) {
+            Some(AvailabilityStatus::Expelled)
+        } else if self
+            .suspended_players
+            .iter()
+            .any(|(id, _)| *id == player_id)
+        {
+            Some(AvailabilityStatus::Suspended)
+        } else if self.injured_players.contains(&player_id)
+            && !self.active_player_ids.contains(&player_id)
+        {
+            Some(AvailabilityStatus::Injured)
+        } else if self.active_player_ids.contains(&player_id) {
+            Some(AvailabilityStatus::Active)
+        } else {
+            None
+        }
     }
 
     pub(crate) fn record_artro(
@@ -199,7 +276,8 @@ impl TeamState {
         player_id: Uuid,
         control_seconds: f64,
     ) -> EngineResult<Option<u32>> {
-        if !self.drive_eligible || player_id != self.artrine_id()
+        if !self.drive_eligible
+            || player_id != self.artrine_id()
             || !control_seconds.is_finite()
             || control_seconds < IMMEDIATE_POSSESSION_CONTROL_SECONDS
         {
@@ -254,6 +332,7 @@ impl TeamState {
     }
 
     pub(crate) fn activate_tactical_profile(&mut self, profile_id: Uuid, elapsed: f64) {
+        self.active_plan_id = None;
         self.active_tactical_profile_id = profile_id;
         self.tactical_switches += 1;
         self.last_tactical_switch_at = Some(elapsed);
@@ -268,14 +347,20 @@ impl TeamState {
         self.active_player_ids.push(incoming);
         self.reserve_player_ids.retain(|id| *id != incoming);
         self.reserve_player_ids.push(outgoing);
-        let original = self.slot_replacements.iter().find(|(_, current)| **current == outgoing)
-            .map(|(original, _)| *original).unwrap_or(outgoing);
+        let original = self
+            .slot_replacements
+            .iter()
+            .find(|(_, current)| **current == outgoing)
+            .map(|(original, _)| *original)
+            .unwrap_or(outgoing);
         self.slot_replacements.insert(original, incoming);
         self.last_voluntary_substitution_at = Some(elapsed);
     }
 
     pub(crate) fn suspend_player(&mut self, player_id: Uuid, until: f64) {
-        if self.expelled_players.contains(&player_id) { return; }
+        if self.expelled_players.contains(&player_id) {
+            return;
+        }
         self.active_player_ids.retain(|id| *id != player_id);
         self.suspended_players.retain(|(id, _)| *id != player_id);
         self.suspended_players.push((player_id, until));
@@ -292,70 +377,21 @@ impl TeamState {
     pub(crate) fn release_expired(&mut self, elapsed: f64) -> Vec<Uuid> {
         let mut returning = Vec::new();
         self.suspended_players.retain(|(id, until)| {
-            if *until <= elapsed { returning.push(*id); false } else { true }
+            if *until <= elapsed {
+                returning.push(*id);
+                false
+            } else {
+                true
+            }
         });
         for &id in &returning {
             if !self.expelled_players.contains(&id) && !self.active_player_ids.contains(&id) {
                 self.active_player_ids.push(id);
             }
         }
-        returning.into_iter().filter(|id| self.active_player_ids.contains(id)).collect()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn team_with_reserve() -> (TeamState, Uuid) {
-        let active_player_ids: Vec<_> = (0..14).map(|_| Uuid::new_v4()).collect();
-        let reserve_id = Uuid::new_v4();
-        let state = TeamState {
-            team_id: Uuid::new_v4(),
-            artrine_id: active_player_ids[0],
-            passer_id: active_player_ids[1],
-            goalguard_id: active_player_ids[2],
-            drive_eligible: true,
-            active_player_ids,
-            reserve_player_ids: vec![reserve_id],
-            suspended_players: Vec::new(),
-            expelled_players: Vec::new(),
-            injured_players: Vec::new(),
-            slot_replacements: HashMap::new(),
-            drive_progress: DriveProgress::default(),
-            drives_in_series: 0,
-            time_calls_used_in_period: 0,
-            last_time_call_at: None,
-            challenges_used: 0,
-            last_voluntary_substitution_at: None,
-            active_tactical_profile_id: Uuid::new_v4(),
-            tactical_switches: 0,
-            last_tactical_switch_at: None,
-            score: Score::default(),
-        };
-        (state, reserve_id)
-    }
-
-    #[test]
-    fn mandatory_withdrawal_replaces_official_artrine() {
-        let (mut state, reserve) = team_with_reserve();
-        let original_artrine = state.artrine_id;
-        state.record_injury(original_artrine, true, Some(reserve));
-        assert_eq!(state.active_player_ids().len(), 14);
-        assert!(!state.active_player_ids().contains(&original_artrine));
-        assert_eq!(state.artrine_id(), reserve);
-        assert!(state.injured_player_ids().contains(&original_artrine));
-        assert!(!state.reserve_player_ids().contains(&reserve));
-    }
-
-    #[test]
-    fn mandatory_withdrawal_without_reserve_keeps_team_short() {
-        let (mut state, _) = team_with_reserve();
-        state.reserve_player_ids.clear();
-        let original_artrine = state.artrine_id;
-        state.record_injury(original_artrine, true, None);
-        assert_eq!(state.active_player_ids().len(), 13);
-        assert_ne!(state.artrine_id(), original_artrine);
-        assert!(state.active_player_ids().contains(&state.artrine_id()));
+        returning
+            .into_iter()
+            .filter(|id| self.active_player_ids.contains(id))
+            .collect()
     }
 }

@@ -1,3 +1,6 @@
+mod plan;
+mod realignment;
+
 use crate::error::{AnalyticsError, AnalyticsResult};
 use arlo_domain::tactics::{Formation, FormationSlot};
 use arlo_domain::{Position, SlotRole};
@@ -211,7 +214,9 @@ impl MatchAnalysisContext {
             )));
         }
 
-        for (slot_index, (&player_id, slot)) in starter_player_ids.iter().zip(slots.iter()).enumerate() {
+        for (slot_index, (&player_id, slot)) in
+            starter_player_ids.iter().zip(slots.iter()).enumerate()
+        {
             self.register_starter(player_id, team_id, slot_index, slot)?;
         }
 
@@ -290,7 +295,9 @@ impl MatchAnalysisContext {
     }
 
     pub fn active_player_for_slot(&self, team_id: Uuid, slot_index: usize) -> Option<Uuid> {
-        self.active_slot_players.get(&(team_id, slot_index)).copied()
+        self.active_slot_players
+            .get(&(team_id, slot_index))
+            .copied()
     }
 
     pub fn team_id(&self, player_id: &Uuid) -> Option<Uuid> {
@@ -298,11 +305,15 @@ impl MatchAnalysisContext {
     }
 
     pub fn offensive_position(&self, player_id: &Uuid) -> Option<Position> {
-        self.assignments.get(player_id).map(|a| a.offensive_position())
+        self.assignments
+            .get(player_id)
+            .map(|a| a.offensive_position())
     }
 
     pub fn defensive_position(&self, player_id: &Uuid) -> Option<Position> {
-        self.assignments.get(player_id).map(|a| a.defensive_position())
+        self.assignments
+            .get(player_id)
+            .map(|a| a.defensive_position())
     }
 
     pub fn slot_role(&self, player_id: &Uuid) -> Option<SlotRole> {

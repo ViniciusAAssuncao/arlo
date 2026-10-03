@@ -14,6 +14,7 @@ pub(super) struct RatingIndex {
     morale: HashMap<Uuid, f64>,
     injured: Vec<Uuid>,
     instructions_by_team: HashMap<Uuid, TeamInstructions>,
+    layouts_by_team: HashMap<Uuid, arlo_tactics::TacticalLayout>,
 }
 
 impl RatingIndex {
@@ -24,36 +25,126 @@ impl RatingIndex {
             .map(|definition| (definition.key(), definition.id()))
             .collect();
         let active_by_team = HashMap::from([
-            (state.home().team_id(), state.home().active_player_ids().to_vec()),
-            (state.away().team_id(), state.away().active_player_ids().to_vec()),
+            (
+                state.home().team_id(),
+                state.home().active_player_ids().to_vec(),
+            ),
+            (
+                state.away().team_id(),
+                state.away().active_player_ids().to_vec(),
+            ),
         ]);
         let slots_by_team = HashMap::from([
-            (input.home().team_id(), input.home().lineup().assignments().iter()
-                .map(|assignment| (assignment.player_id(), state.home().slot_player_id(assignment.player_id()))).collect()),
-            (input.away().team_id(), input.away().lineup().assignments().iter()
-                .map(|assignment| (assignment.player_id(), state.away().slot_player_id(assignment.player_id()))).collect()),
+            (
+                input.home().team_id(),
+                state
+                    .home()
+                    .lineup(input.home())
+                    .assignments()
+                    .iter()
+                    .map(|assignment| {
+                        (
+                            assignment.player_id(),
+                            state.home().slot_player_id(assignment.player_id()),
+                        )
+                    })
+                    .collect(),
+            ),
+            (
+                input.away().team_id(),
+                state
+                    .away()
+                    .lineup(input.away())
+                    .assignments()
+                    .iter()
+                    .map(|assignment| {
+                        (
+                            assignment.player_id(),
+                            state.away().slot_player_id(assignment.player_id()),
+                        )
+                    })
+                    .collect(),
+            ),
         ]);
-        let injured = state.home().injured_player_ids().iter().chain(state.away().injured_player_ids()).copied().collect();
-        let physical_readiness = input.home().roster().iter().chain(input.away().roster().iter())
-            .map(|player| (player.id(), (0.58 + 0.42 * state.player_energy(player.id()))
-                * state.player_settling_factor(player.id()))).collect();
-        let morale = input.home().roster().iter().chain(input.away().roster().iter())
-            .map(|player| (player.id(), state.player_morale(player.id()))).collect();
+        let injured = state
+            .home()
+            .injured_player_ids()
+            .iter()
+            .chain(state.away().injured_player_ids())
+            .copied()
+            .collect();
+        let physical_readiness = input
+            .home()
+            .roster()
+            .iter()
+            .chain(input.away().roster().iter())
+            .map(|player| {
+                (
+                    player.id(),
+                    (0.58 + 0.42 * state.player_energy(player.id()))
+                        * state.player_settling_factor(player.id()),
+                )
+            })
+            .collect();
+        let morale = input
+            .home()
+            .roster()
+            .iter()
+            .chain(input.away().roster().iter())
+            .map(|player| (player.id(), state.player_morale(player.id())))
+            .collect();
         let instructions_by_team = HashMap::from([
-            (input.home().team_id(), state.team_instructions(input.home())),
-            (input.away().team_id(), state.team_instructions(input.away())),
+            (
+                input.home().team_id(),
+                state.team_instructions(input.home()),
+            ),
+            (
+                input.away().team_id(),
+                state.team_instructions(input.away()),
+            ),
         ]);
-        Self { attribute_ids, active_by_team, slots_by_team, physical_readiness, morale, injured, instructions_by_team }
+        let layouts_by_team = HashMap::from([
+            (
+                input.home().team_id(),
+                state.home().tactical_layout(input.home()),
+            ),
+            (
+                input.away().team_id(),
+                state.away().tactical_layout(input.away()),
+            ),
+        ]);
+        Self {
+            layouts_by_team,
+            attribute_ids,
+            active_by_team,
+            slots_by_team,
+            physical_readiness,
+            morale,
+            injured,
+            instructions_by_team,
+        }
+    }
+
+    pub(super) fn lineup(&self, team: &TeamInput) -> &arlo_tactics::TacticalLineup {
+        &self.layouts_by_team[&team.team_id()].lineup
+    }
+    pub(super) fn formation(&self, team: &TeamInput) -> &arlo_domain::Formation {
+        &self.layouts_by_team[&team.team_id()].formation
     }
 
     pub(super) fn instructions(&self, team: &TeamInput) -> TeamInstructions {
-        self.instructions_by_team.get(&team.team_id()).copied()
+        self.instructions_by_team
+            .get(&team.team_id())
+            .copied()
             .unwrap_or(*team.tactics().instructions())
     }
 
     pub(super) fn slot_player_id(&self, team: &TeamInput, original_id: Uuid) -> Uuid {
-        self.slots_by_team.get(&team.team_id())
-            .and_then(|slots| slots.get(&original_id)).copied().unwrap_or(original_id)
+        self.slots_by_team
+            .get(&team.team_id())
+            .and_then(|slots| slots.get(&original_id))
+            .copied()
+            .unwrap_or(original_id)
     }
 
     pub(super) fn is_active_slot(&self, team: &TeamInput, original_id: Uuid) -> bool {
@@ -61,7 +152,9 @@ impl RatingIndex {
     }
 
     pub(super) fn is_active(&self, team: &TeamInput, player_id: Uuid) -> bool {
-        self.active_by_team.get(&team.team_id()).is_some_and(|ids| ids.contains(&player_id))
+        self.active_by_team
+            .get(&team.team_id())
+            .is_some_and(|ids| ids.contains(&player_id))
     }
 
     fn value(&self, player: &Player, key: AttributeKey) -> EngineResult<f64> {
@@ -75,10 +168,22 @@ impl RatingIndex {
             .ok_or_else(|| {
                 EngineError::InvalidInput(format!("player {} lacks {key:?}", player.id()))
             })?;
-        let physical_readiness = self.physical_readiness.get(&player.id()).copied().unwrap_or(1.0);
-        let injury = if self.injured.contains(&player.id()) { 0.72 } else { 1.0 };
+        let physical_readiness = self
+            .physical_readiness
+            .get(&player.id())
+            .copied()
+            .unwrap_or(1.0);
+        let injury = if self.injured.contains(&player.id()) {
+            0.72
+        } else {
+            1.0
+        };
         let morale = self.morale.get(&player.id()).copied().unwrap_or(100.0);
-        let composure = if morale >= 100.0 { 1.0 } else { 0.72 + 0.0028 * morale };
+        let composure = if morale >= 100.0 {
+            1.0
+        } else {
+            0.72 + 0.0028 * morale
+        };
         Ok(f64::from(value.value()) * physical_readiness * injury * composure)
     }
 
@@ -98,7 +203,12 @@ impl RatingIndex {
         self.value(self.player(team, player_id)?, key)
     }
 
-    pub(super) fn reliable_probability(&self, player_id: Uuid, probability: f64, ceiling: f64) -> f64 {
+    pub(super) fn reliable_probability(
+        &self,
+        player_id: Uuid,
+        probability: f64,
+        ceiling: f64,
+    ) -> f64 {
         let morale = self.morale.get(&player_id).copied().unwrap_or(100.0);
         let gain = ((morale - 100.0).max(0.0) * 0.001 * (1.0 - probability)).min(0.02);
         (probability + gain).min(ceiling)
@@ -110,12 +220,20 @@ impl RatingIndex {
         position: Position,
         key: AttributeKey,
     ) -> EngineResult<f64> {
-        let player_id = team
-            .lineup()
+        let player_id = self
+            .lineup(team)
             .assignments()
             .iter()
-            .find(|assignment| assignment.position() == position && self.is_active_slot(team, assignment.player_id()))
-            .or_else(|| team.lineup().assignments().iter().find(|assignment| self.is_active_slot(team, assignment.player_id())))
+            .find(|assignment| {
+                assignment.position() == position
+                    && self.is_active_slot(team, assignment.player_id())
+            })
+            .or_else(|| {
+                self.lineup(team)
+                    .assignments()
+                    .iter()
+                    .find(|assignment| self.is_active_slot(team, assignment.player_id()))
+            })
             .ok_or_else(|| EngineError::InvalidInput("lineup lacks a required specialist".into()))?
             .player_id();
         let player_id = self.slot_player_id(team, player_id);
@@ -130,14 +248,18 @@ impl RatingIndex {
     ) -> EngineResult<f64> {
         let mut total = 0.0;
         let mut count = 0u32;
-        for assignment in team.lineup().assignments() {
-            if !self.is_active_slot(team, assignment.player_id()) || assignment.position() == Position::Goalguard
+        for assignment in self.lineup(team).assignments() {
+            if !self.is_active_slot(team, assignment.player_id())
+                || assignment.position() == Position::Goalguard
                 || (exclude_specialists
                     && matches!(assignment.position(), Position::Artrine | Position::Passer))
             {
                 continue;
             }
-            total += self.value(self.player(team, self.slot_player_id(team, assignment.player_id()))?, key)?;
+            total += self.value(
+                self.player(team, self.slot_player_id(team, assignment.player_id()))?,
+                key,
+            )?;
             count += 1;
         }
         if count == 0 {
@@ -164,8 +286,10 @@ impl RatingIndex {
     fn frontline_attack(&self, team: &TeamInput) -> EngineResult<f64> {
         let mut total = 0.0;
         let mut count = 0u32;
-        for assignment in team.lineup().assignments() {
-            if !self.is_active_slot(team, assignment.player_id()) || assignment.position().line() != PositionLine::OffensiveLine {
+        for assignment in self.lineup(team).assignments() {
+            if !self.is_active_slot(team, assignment.player_id())
+                || assignment.position().line() != PositionLine::OffensiveLine
+            {
                 continue;
             }
             let player_id = self.slot_player_id(team, assignment.player_id());

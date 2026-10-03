@@ -1,4 +1,4 @@
-use crate::decision_dispatch::resolve_segment;
+use crate::decision_dispatch::resolve_segment_with_registry;
 use crate::dual_sink::DualEventSink;
 use crate::error::{MatchRunnerError, MatchRunnerResult};
 use crate::match_run_result::MatchRunResult;
@@ -80,7 +80,15 @@ pub fn run_match_with_registry_and_play_calls(
 ) -> MatchRunnerResult<MatchRunResult> {
     let mut raw_sink = InMemorySink::new();
     let inbox = ManagerDecisionInbox::new();
-    run_loop_with_inbox(input, state, &inbox, play_calls, &mut raw_sink, &mut aggregators, max_segments)?;
+    run_loop_with_inbox(
+        input,
+        state,
+        &inbox,
+        play_calls,
+        &mut raw_sink,
+        &mut aggregators,
+        max_segments,
+    )?;
     finalize_player_performance(input, state, &mut aggregators);
     Ok(MatchRunResult::new(raw_sink, aggregators))
 }
@@ -119,11 +127,18 @@ pub fn run_loop_with_inbox(
         if segments >= max_segments {
             return Err(MatchRunnerError::SegmentLimitExceeded { max_segments });
         }
-        let result = resolve_segment(input, state, inbox, play_calls)?;
+        let result = resolve_segment_with_registry(
+            input,
+            state,
+            inbox,
+            play_calls,
+            dual_sink.aggregator_registry(),
+        )?;
         let (events, outcome) = result.into_parts();
         for event in events {
             if let MatchEvent::PlayInvalidated(invalidated) = event.event() {
-                dual_sink.invalidate_play(invalidated.first_sequence(), invalidated.last_sequence());
+                dual_sink
+                    .invalidate_play(invalidated.first_sequence(), invalidated.last_sequence());
             }
             dual_sink.record(event);
         }

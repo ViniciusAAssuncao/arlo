@@ -120,11 +120,12 @@ pub(super) fn sample_regular_shot(
     let finishing = ratings.player_value(offense, shooter_id, AttributeKey::Finishing)?;
     let composure = ratings.player_value(offense, shooter_id, AttributeKey::Composure)?;
     let anticipation = ratings.player_value(offense, shooter_id, AttributeKey::Anticipation)?;
-    let shooter_readiness =
-        ((0.50 * finishing + 0.30 * composure + 0.20 * anticipation - 10.0) / 10.0)
-            .clamp(-0.8, 1.0);
+    let shooter_readiness = ((0.50 * finishing + 0.30 * composure + 0.20 * anticipation - 10.0)
+        / 10.0)
+        .clamp(-0.8, 1.0);
     let proximity = 1.0 - (distance_to_goal_mirim / pitch_length_mirim).clamp(0.0, 1.0);
-    let patience = ratings.instructions(offense)
+    let patience = ratings
+        .instructions(offense)
         .in_possession()
         .scoring_patience()
         .value();
@@ -142,7 +143,10 @@ pub(super) fn sample_regular_shot(
         + shooter_readiness * SHOOTER_READINESS_GOALPOST_WEIGHT
         + (emphasis.self_finish().value() - 0.5) * TACTICAL_GOALPOST_CHOICE_WEIGHT
         + (patience - 0.5) * TACTICAL_GOALPOST_CHOICE_WEIGHT)
-        .clamp(MIN_GOALPOST_CHOICE_PROBABILITY, MAX_GOALPOST_CHOICE_PROBABILITY);
+        .clamp(
+            MIN_GOALPOST_CHOICE_PROBABILITY,
+            MAX_GOALPOST_CHOICE_PROBABILITY,
+        );
     let post = if has_drive && rng.gen_range(0.0..1.0) < goalpost_probability {
         ScoringPost::Goalpost
     } else {
@@ -183,10 +187,15 @@ fn select_shot_defender(
             }
         }
         ScoringPost::Fieldpost => {
-            let has_active_field_defender = defense.lineup().assignments().iter().any(|assignment| {
-                assignment.position().line() != PositionLine::Goalguard
-                    && ratings.is_active_slot(defense, assignment.player_id())
-            });
+            let has_active_field_defender =
+                ratings
+                    .lineup(defense)
+                    .assignments()
+                    .iter()
+                    .any(|assignment| {
+                        assignment.position().line() != PositionLine::Goalguard
+                            && ratings.is_active_slot(defense, assignment.player_id())
+                    });
             if has_active_field_defender {
                 select_primary_defender(ratings, defense, rng)
             } else {
@@ -212,7 +221,8 @@ fn conversion_probability(
             let finishing = ratings.player_value(offense, shooter_id, AttributeKey::Finishing)?;
             let composure = ratings.player_value(offense, shooter_id, AttributeKey::Composure)?;
             let reflexes = ratings.player_value(defense, defender_id, AttributeKey::Reflexes)?;
-            BASE_GOALPOST_CONVERSION + finishing * FINISHING_CONVERSION_WEIGHT
+            BASE_GOALPOST_CONVERSION
+                + finishing * FINISHING_CONVERSION_WEIGHT
                 + (composure - 10.0) * COMPOSURE_GOALPOST_CONVERSION_WEIGHT
                 - reflexes * GOALGUARD_CONVERSION_WEIGHT
                 - distance_ratio * DISTANCE_CONVERSION_WEIGHT

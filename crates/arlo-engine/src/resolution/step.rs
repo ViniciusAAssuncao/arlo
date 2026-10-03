@@ -1,10 +1,10 @@
 use super::actors::{select_actor, ActorRole};
 use super::bonus::resolve_bonus_segment;
-use super::context::validate_match_state;
 use super::contest::emit_reception_contest;
+use super::context::validate_match_state;
 use super::down::emit_down_advanced;
-use super::kick_foul::resolve_kick_foul_segment_inner;
 use super::injury::resolve_injuries;
+use super::kick_foul::resolve_kick_foul_segment_inner;
 use super::model::sample_call;
 use super::officiating::resolve_officiating;
 use super::open_play::resolve_open_play_segment;
@@ -19,8 +19,8 @@ use crate::state::{MatchPhase, MatchState, PendingCallOutcome, SeriesAdvance};
 use crate::step::StepResult;
 use arlo_domain::sport_constants::IMMEDIATE_POSSESSION_CONTROL_SECONDS;
 use arlo_events::{
-    CallToActionStarted, MatchEvent, OutOfBounds, PassCompleted, PossessionTimeRecorded,
-    PlayCallSelected, ReceptionResolved, Turnover,
+    CallToActionStarted, MatchEvent, OutOfBounds, PassCompleted, PlayCallSelected,
+    PossessionTimeRecorded, ReceptionResolved, Turnover,
 };
 use arlo_manager_control::RequiredManagerDecision;
 use arlo_tactics::{validate_play_call, PlayCall, PlayCallCategory};
@@ -32,7 +32,10 @@ pub fn resolve_next_segment(
     selected_play_call: Option<&PlayCall>,
 ) -> EngineResult<StepResult> {
     if state.initial_lineup_reviewed()
-        && matches!(state.phase(), MatchPhase::Ready | MatchPhase::Stopped | MatchPhase::BonusPhase | MatchPhase::KickFoul)
+        && matches!(
+            state.phase(),
+            MatchPhase::Ready | MatchPhase::Stopped | MatchPhase::BonusPhase | MatchPhase::KickFoul
+        )
     {
         state.begin_play_checkpoint();
     }
@@ -40,7 +43,10 @@ pub fn resolve_next_segment(
     let result = resolve_next_segment_inner(input, state, selected_play_call)?;
     let result = resolve_officiating(input, state, result, Some(&prior))?;
     let (mut events, outcome) = result.into_parts();
-    if !events.iter().any(|event| matches!(event.event(), MatchEvent::PlayInvalidated(_))) {
+    if !events
+        .iter()
+        .any(|event| matches!(event.event(), MatchEvent::PlayInvalidated(_)))
+    {
         state.record_segment_energy(input, &prior, &mut events)?;
         state.record_segment_morale(&prior, &mut events)?;
     }
@@ -51,7 +57,9 @@ pub fn resolve_next_segment(
     let result = match outcome {
         crate::step::StepOutcome::Resolved => StepResult::resolved(events),
         crate::step::StepOutcome::Finished => StepResult::finished(events),
-        crate::step::StepOutcome::AwaitingDecision(decisions) => StepResult::awaiting_decision(decisions),
+        crate::step::StepOutcome::AwaitingDecision(decisions) => {
+            StepResult::awaiting_decision(decisions)
+        }
     };
     resolve_injuries(input, state, result)
 }
@@ -135,7 +143,7 @@ fn resolve_next_segment_inner(
     }
     if let Some(call) = selected_play_call {
         if call.team_id() != offense_id
-            || call.tactical_lineup_id() != offense.lineup().id()
+            || call.tactical_lineup_id() != state.team_lineup(offense).id()
             || call.category() != PlayCallCategory::OpenPlay
         {
             return Err(EngineError::InvalidInput(
@@ -147,7 +155,7 @@ fn resolve_next_segment_inner(
             call.role_overrides(),
             call.misdirection(),
             call.category(),
-            offense.lineup(),
+            state.team_lineup(offense),
         )
         .map_err(|error| EngineError::InvalidInput(error.to_string()))?;
     }
@@ -166,13 +174,8 @@ fn resolve_next_segment_inner(
         (next.away().passer_id(), next.away().artrine_id())
     };
     let remaining_time = next.clock().period_limit_seconds() - next.clock().seconds_in_period();
-    let carry_defender_id = select_actor(
-        &ratings,
-        defense,
-        ActorRole::Defender,
-        None,
-        next.rng_mut(),
-    )?;
+    let carry_defender_id =
+        select_actor(&ratings, defense, ActorRole::Defender, None, next.rng_mut())?;
     let sample = sample_call(
         &ratings,
         offense,
@@ -186,13 +189,7 @@ fn resolve_next_segment_inner(
         next.rng_mut(),
     )?;
     let duration = sample.duration_seconds.min(remaining_time);
-    let defender_id = select_actor(
-        &ratings,
-        defense,
-        ActorRole::Defender,
-        None,
-        next.rng_mut(),
-    )?;
+    let defender_id = select_actor(&ratings, defense, ActorRole::Defender, None, next.rng_mut())?;
     let distribution_intent =
         sample_distribution_intent(&ratings, offense, selected_play_call, next.rng_mut());
     let reception = sample_reception(
@@ -209,9 +206,14 @@ fn resolve_next_segment_inner(
     next.begin_call_to_action()?;
     let mut events = Vec::with_capacity(7);
     if let Some(call) = selected_play_call {
-        events.push(next.emit(MatchEvent::PlayCallSelected(PlayCallSelected::new(
-            offense_id, call.id(), call.name(), arlo_events::PlayCallCategory::OpenPlay,
-        )))?);
+        events.push(
+            next.emit(MatchEvent::PlayCallSelected(PlayCallSelected::new(
+                offense_id,
+                call.id(),
+                call.name(),
+                arlo_events::PlayCallCategory::OpenPlay,
+            )))?,
+        );
     }
     events.push(
         next.emit(MatchEvent::CallToActionStarted(CallToActionStarted::new(
@@ -238,7 +240,13 @@ fn resolve_next_segment_inner(
         )))?,
     );
     super::passer_contact::resolve_after_release(
-        &ratings, offense, defense, passer_id, carry_defender_id, &mut next, &mut events,
+        &ratings,
+        offense,
+        defense,
+        passer_id,
+        carry_defender_id,
+        &mut next,
+        &mut events,
     )?;
     emit_reception_contest(
         &mut next,

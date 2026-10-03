@@ -1,4 +1,3 @@
-
 pub mod discipline;
 pub(crate) mod duel_expectation;
 pub mod duels;
@@ -76,7 +75,10 @@ impl EventPerformanceTranslator {
         }
     }
 
-    pub fn translate_envelope(&mut self, envelope: &MatchEventEnvelope) -> Vec<PerformanceObservation> {
+    pub fn translate_envelope(
+        &mut self,
+        envelope: &MatchEventEnvelope,
+    ) -> Vec<PerformanceObservation> {
         let clock = envelope.clock();
         self.last_clock = clock;
         self.translate_event(envelope.event(), clock)
@@ -91,30 +93,54 @@ impl EventPerformanceTranslator {
         let follows_missed_shot = self.pending_missed_shot_recovery;
 
         let observations = match event {
-            MatchEvent::DuelResolved(e) => {
-                duels::translate_duel(e, clock, self.current_offense_team_id, self.context.as_ref())
-            }
-            MatchEvent::PassCompleted(e) => {
-                passes::translate_pass_completed(e, clock, self.current_offense_team_id, self.context.as_ref())
-            }
-            MatchEvent::ReceptionResolved(e) => {
-                passes::translate_reception_resolved(e, clock, self.current_offense_team_id, self.context.as_ref())
-            }
-            MatchEvent::DistributionCompleted(e) => {
-                passes::translate_distribution_completed(e, clock, self.current_offense_team_id, self.context.as_ref())
-            }
-            MatchEvent::CarryResolved(e) => {
-                passes::translate_carry_resolved(e, clock, self.current_offense_team_id, self.context.as_ref())
-            }
-            MatchEvent::ArtrineDecisionMade(e) => {
-                tactics::translate_artrine_decision(e, clock, self.current_offense_team_id, self.context.as_ref())
-            }
-            MatchEvent::DriveRecorded(e) => {
-                tactics::translate_drive_recorded(e, clock, self.current_offense_team_id, self.context.as_ref())
-            }
-            MatchEvent::PasserContactResolved(e) => {
-                tactics::translate_passer_contact(e, clock, self.current_offense_team_id, self.context.as_ref())
-            }
+            MatchEvent::DuelResolved(e) => duels::translate_duel(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
+            MatchEvent::PassCompleted(e) => passes::translate_pass_completed(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
+            MatchEvent::ReceptionResolved(e) => passes::translate_reception_resolved(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
+            MatchEvent::DistributionCompleted(e) => passes::translate_distribution_completed(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
+            MatchEvent::CarryResolved(e) => passes::translate_carry_resolved(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
+            MatchEvent::ArtrineDecisionMade(e) => tactics::translate_artrine_decision(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
+            MatchEvent::DriveRecorded(e) => tactics::translate_drive_recorded(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
+            MatchEvent::PasserContactResolved(e) => tactics::translate_passer_contact(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
             MatchEvent::GoalPoint(e) => {
                 scoring::translate_goal_point(e, clock, self.context.as_ref())
             }
@@ -128,12 +154,7 @@ impl EventPerformanceTranslator {
                 scoring::translate_scoring_missed(e, clock, self.context.as_ref())
             }
             MatchEvent::Turnover(e) => {
-                possession::translate_turnover(
-                    e,
-                    clock,
-                    self.context.as_ref(),
-                    follows_missed_shot,
-                )
+                possession::translate_turnover(e, clock, self.context.as_ref(), follows_missed_shot)
             }
             MatchEvent::GoalguardRecoveryResolved(e) => {
                 possession::translate_goalguard_recovery(e, clock, self.context.as_ref())
@@ -150,8 +171,23 @@ impl EventPerformanceTranslator {
             MatchEvent::KickFoulAwarded(e) => {
                 discipline::translate_kick_foul_awarded(e, clock, self.context.as_ref())
             }
-            MatchEvent::KickFoulDecisionMade(e) => {
-                discipline::translate_kick_foul_decision(e, clock, self.current_offense_team_id, self.context.as_ref())
+            MatchEvent::KickFoulDecisionMade(e) => discipline::translate_kick_foul_decision(
+                e,
+                clock,
+                self.current_offense_team_id,
+                self.context.as_ref(),
+            ),
+            MatchEvent::TacticalRealignmentMade(e) => {
+                if let Some(ctx) = &mut self.context {
+                    let _ = ctx.handle_realignment_event(e);
+                }
+                Vec::new()
+            }
+            MatchEvent::TacticalPlanActivated(e) => {
+                if let Some(ctx) = &mut self.context {
+                    let _ = ctx.handle_plan_event(e);
+                }
+                Vec::new()
             }
             MatchEvent::SubstitutionMade(e) => {
                 if let Some(ctx) = &mut self.context {

@@ -21,6 +21,8 @@ pub struct MatchIncidentsBundleData {
     pub time_calls: Vec<MatchTimeCallRow>,
     pub challenges: Vec<MatchChallengeRow>,
     pub tactical_profile_activations: Vec<MatchTacticalProfileActivationRow>,
+    pub tactical_realignments: Vec<MatchTacticalRealignmentRow>,
+    pub tactical_plans: Vec<MatchTacticalPlanActivationRow>,
     pub play_call_selections: Vec<MatchPlayCallSelectionRow>,
     pub availability_changes: Vec<MatchAvailabilityChangeRow>,
     pub impulse_critical_events: Vec<MatchImpulseCriticalEventRow>,
@@ -66,6 +68,16 @@ pub async fn load_all_match_incidents(
         match_id,
     )
     .await?;
+    let tactical_plans =
+        arlo_persistence::repositories::match_prepared_plans::list_activations_by_match_id(
+            pool, match_id,
+        )
+        .await?;
+    let tactical_realignments =
+        arlo_persistence::repositories::match_tactical_realignments::list_by_match_id(
+            pool, match_id,
+        )
+        .await?;
     let play_call_selections = arlo_persistence::repositories::match_manager_decision_timeline::list_play_call_selections_by_match_id(
         pool,
         match_id,
@@ -95,6 +107,8 @@ pub async fn load_all_match_incidents(
         time_calls,
         challenges,
         tactical_profile_activations,
+        tactical_realignments,
+        tactical_plans,
         play_call_selections,
         availability_changes,
         impulse_critical_events,
@@ -119,6 +133,8 @@ pub fn build_timeline(
             time_calls: &bundle.time_calls,
             challenges: &bundle.challenges,
             tactical_profile_activations: &bundle.tactical_profile_activations,
+            tactical_realignments: &bundle.tactical_realignments,
+            tactical_plans: &bundle.tactical_plans,
             play_call_selections: &bundle.play_call_selections,
             availability_changes: &bundle.availability_changes,
             impulse_critical_events: &bundle.impulse_critical_events,
@@ -220,6 +236,14 @@ pub fn build_timeline(
                         formatted_time,
                         &row,
                     ))
+                }
+                MatchTimelineEventData::TacticalPlan(row) => MatchTimelineEventDto::TacticalPlan(
+                    TacticalPlanTimelineEntryDto::from_row(&row, formatted_time),
+                ),
+                MatchTimelineEventData::TacticalRealignment(row) => {
+                    MatchTimelineEventDto::TacticalRealignment(
+                        TacticalRealignmentTimelineEntryDto::from_row(&row, formatted_time),
+                    )
                 }
                 MatchTimelineEventData::TacticalProfileActivation(row) => {
                     MatchTimelineEventDto::TacticalProfile(

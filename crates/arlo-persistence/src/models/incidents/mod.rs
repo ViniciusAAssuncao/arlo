@@ -27,3 +27,9 @@ pub use match_substitution_row::MatchSubstitutionRow;
 pub use match_tactical_profile_activation_row::MatchTacticalProfileActivationRow;
 pub use match_time_call_row::MatchTimeCallRow;
 pub use match_turnover_row::MatchTurnoverRow;
+
+pub mod match_tactical_realignment_row;
+pub use match_tactical_realignment_row::MatchTacticalRealignmentRow;
+
+pub mod match_prepared_plan_row;
+pub use match_prepared_plan_row::{MatchPreparedPlanRow, MatchTacticalPlanActivationRow};

@@ -10,25 +10,34 @@ pub(super) fn select_kicker(
     team: &TeamInput,
     play_call: Option<&PlayCall>,
 ) -> EngineResult<Uuid> {
-    if let Some(assignment) = team.lineup().assignments().iter().find(|assignment| {
-        if !ratings.is_active_slot(team, assignment.player_id()) { return false; }
-        let role = play_call
-            .and_then(|call| {
-                call.role_overrides()
-                    .iter()
-                    .rev()
-                    .find(|(slot, _)| *slot == assignment.formation_slot_index())
-                    .map(|(_, role)| *role)
-            })
-            .unwrap_or_else(|| assignment.slot_role());
-        role == SlotRole::Kicker
-    }) {
+    if let Some(assignment) = ratings
+        .lineup(team)
+        .assignments()
+        .iter()
+        .find(|assignment| {
+            if !ratings.is_active_slot(team, assignment.player_id()) {
+                return false;
+            }
+            let role = play_call
+                .and_then(|call| {
+                    call.role_overrides()
+                        .iter()
+                        .rev()
+                        .find(|(slot, _)| *slot == assignment.formation_slot_index())
+                        .map(|(_, role)| *role)
+                })
+                .unwrap_or_else(|| assignment.slot_role());
+            role == SlotRole::Kicker
+        })
+    {
         return Ok(ratings.slot_player_id(team, assignment.player_id()));
     }
     let mut best = None;
-    for assignment in team.lineup().assignments() {
+    for assignment in ratings.lineup(team).assignments() {
         let player_id = ratings.slot_player_id(team, assignment.player_id());
-        if !ratings.is_active(team, player_id) { continue; }
+        if !ratings.is_active(team, player_id) {
+            continue;
+        }
         let finishing = ratings.player_value(team, player_id, AttributeKey::Finishing)?;
         let technique = ratings.player_value(team, player_id, AttributeKey::Technique)?;
         let score = finishing + technique;

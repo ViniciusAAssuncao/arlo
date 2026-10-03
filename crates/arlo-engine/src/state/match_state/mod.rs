@@ -1,24 +1,27 @@
-mod live;
-mod injury;
 mod energy;
-mod morale;
+mod injury;
+mod live;
 mod manager;
+mod morale;
 mod officiating;
 mod period;
+mod plans;
 mod scoring;
 
 use crate::error::{EngineError, EngineResult};
 use crate::input::MatchInput;
-use crate::state::{ClockState, MatchPhase, PendingInjuryDecision, PossessionState, SeriesState, TeamState};
-use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
-use arlo_events::RefereeDecisionResolved;
-use arlo_events::PlayerAvailabilityChanged;
+use crate::state::{
+    ClockState, MatchPhase, PendingInjuryDecision, PossessionState, SeriesState, TeamState,
+};
 use arlo_domain::{InjurySeverityGrade, PunishmentKind};
+use arlo_events::PlayerAvailabilityChanged;
+use arlo_events::RefereeDecisionResolved;
+use arlo_events::{MatchClockInstant, MatchEvent, MatchEventEnvelope};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
-use uuid::Uuid;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy)]
 struct SuspendedRestart {
@@ -95,14 +98,29 @@ impl MatchState {
             pitch_length_mirim,
             next_event_sequence: 1,
             rng: ChaCha8Rng::seed_from_u64(input.seed()),
-            energy: input.home().roster().iter().chain(input.away().roster().iter())
-                .map(|player| (player.id(), input.player_start_energy(player.id()))).collect(),
+            energy: input
+                .home()
+                .roster()
+                .iter()
+                .chain(input.away().roster().iter())
+                .map(|player| (player.id(), input.player_start_energy(player.id())))
+                .collect(),
             energy_profiles: Arc::new(energy::initial_profiles(input)),
-            energy_participants: input.home().lineup().assignments().iter()
+            energy_participants: input
+                .home()
+                .lineup()
+                .assignments()
+                .iter()
                 .chain(input.away().lineup().assignments().iter())
-                .map(|assignment| assignment.player_id()).collect(),
-            morale: input.home().roster().iter().chain(input.away().roster().iter())
-                .map(|player| (player.id(), input.player_start_morale(player.id()))).collect(),
+                .map(|assignment| assignment.player_id())
+                .collect(),
+            morale: input
+                .home()
+                .roster()
+                .iter()
+                .chain(input.away().roster().iter())
+                .map(|player| (player.id(), input.player_start_morale(player.id())))
+                .collect(),
             morale_resilience: Arc::new(morale::initial_resilience(input)),
             recent_scores: Vec::new(),
             injuries: HashMap::new(),
@@ -204,7 +222,9 @@ impl MatchState {
         let active = self.team(self.possessor_team_id())?.active_player_ids();
         if self.phase != MatchPhase::Live
             || passer_id == receiver_id
-            || self.carrier_id().is_some_and(|carrier_id| carrier_id != passer_id)
+            || self
+                .carrier_id()
+                .is_some_and(|carrier_id| carrier_id != passer_id)
             || !active.contains(&passer_id)
             || !active.contains(&receiver_id)
         {

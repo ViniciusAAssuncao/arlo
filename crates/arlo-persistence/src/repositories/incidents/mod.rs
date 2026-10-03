@@ -19,3 +19,9 @@ pub use manager_decision_timeline_repository as match_manager_decision_timeline;
 pub use scoring_plays_repository as match_scoring_plays;
 pub use substitutions_repository as match_substitutions;
 pub use turnovers_repository as match_turnovers;
+
+pub mod tactical_realignment_repository;
+pub use tactical_realignment_repository as match_tactical_realignments;
+
+pub mod prepared_plan_repository;
+pub use prepared_plan_repository as match_prepared_plans;

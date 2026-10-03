@@ -15,6 +15,8 @@ pub fn aggregate_match(events: &[MatchEventEnvelope]) -> HashMap<Uuid, ManagerDe
             MatchEvent::TimeCallUsed(e) => Some(e.team_id()),
             MatchEvent::ChallengeResolved(e) => Some(e.team_id()),
             MatchEvent::TacticalProfileActivated(e) => Some(e.team_id()),
+            MatchEvent::TacticalRealignmentMade(e) => Some(e.team_id()),
+            MatchEvent::TacticalPlanActivated(e) => Some(e.team_id),
             MatchEvent::PlayCallSelected(e) => Some(e.team_id()),
             _ => None,
         };
@@ -57,6 +59,8 @@ impl StatAggregator for ManagerDecisionAggregator {
             MatchEvent::TimeCallUsed(e) => Some(e.team_id()),
             MatchEvent::ChallengeResolved(e) => Some(e.team_id()),
             MatchEvent::TacticalProfileActivated(e) => Some(e.team_id()),
+            MatchEvent::TacticalRealignmentMade(e) => Some(e.team_id()),
+            MatchEvent::TacticalPlanActivated(e) => Some(e.team_id),
             MatchEvent::PlayCallSelected(e) => Some(e.team_id()),
             _ => None,
         };

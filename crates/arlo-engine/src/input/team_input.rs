@@ -4,6 +4,8 @@ use arlo_tactics::{validate_tactical_lineup, TacticalLineup, TeamTacticalProfile
 use std::collections::HashSet;
 use uuid::Uuid;
 
+mod plans;
+
 #[derive(Debug, Clone)]
 pub struct TeamInput {
     team_id: Uuid,
@@ -13,6 +15,7 @@ pub struct TeamInput {
     manager: Manager,
     tactics: TeamTacticalProfile,
     alternative_tactics: Vec<TeamTacticalProfile>,
+    prepared_plans: Vec<arlo_tactics::PreparedTacticalPlan>,
 }
 
 impl TeamInput {
@@ -67,8 +70,14 @@ impl TeamInput {
         let mut assigned_players = HashSet::new();
         let mut assigned_slots = HashSet::new();
         for assignment in lineup.assignments() {
-            if formation.slots().get(assignment.formation_slot_index()).is_none() {
-                return Err(EngineError::InvalidInput("lineup references an unknown slot".into()));
+            if formation
+                .slots()
+                .get(assignment.formation_slot_index())
+                .is_none()
+            {
+                return Err(EngineError::InvalidInput(
+                    "lineup references an unknown slot".into(),
+                ));
             }
             if !assigned_players.insert(assignment.player_id())
                 || !assigned_slots.insert(assignment.formation_slot_index())
@@ -115,14 +124,20 @@ impl TeamInput {
             manager,
             tactics,
             alternative_tactics: Vec::new(),
+            prepared_plans: Vec::new(),
         })
     }
 
-    pub fn with_alternative_tactics(mut self, alternatives: Vec<TeamTacticalProfile>) -> EngineResult<Self> {
+    pub fn with_alternative_tactics(
+        mut self,
+        alternatives: Vec<TeamTacticalProfile>,
+    ) -> EngineResult<Self> {
         let mut ids = HashSet::from([self.tactics.id()]);
         for profile in &alternatives {
             if profile.team_id() != self.team_id || !ids.insert(profile.id()) {
-                return Err(EngineError::InvalidInput("invalid alternative tactical profile".into()));
+                return Err(EngineError::InvalidInput(
+                    "invalid alternative tactical profile".into(),
+                ));
             }
         }
         self.alternative_tactics = alternatives;

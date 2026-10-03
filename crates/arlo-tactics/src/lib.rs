@@ -1,9 +1,14 @@
 pub mod error;
 pub mod instructions;
 pub mod lineup;
+pub mod prepared_plan;
+pub use prepared_plan::{adapt_layout, PreparedTacticalPlan, TacticalLayout};
 pub mod persistence;
 pub mod playcall;
+mod role_fit;
 pub mod series;
+
+pub use role_fit::{position_proficiency, position_skill, static_role_fit};
 
 pub use error::{TacticsError, TacticsResult};
 

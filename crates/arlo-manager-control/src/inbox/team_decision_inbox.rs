@@ -1,6 +1,7 @@
 use crate::intents::{
-    ChallengeIntent, ForcedSubstitutionIntent, InjuryDecisionIntent, KickFoulDecisionIntent, KickFoulRealignmentIntent,
-    PlayCallIntent, SubstitutionIntent, TacticalSwitchIntent, TimeCallIntent,
+    ChallengeIntent, ForcedSubstitutionIntent, InjuryDecisionIntent, KickFoulDecisionIntent,
+    KickFoulRealignmentIntent, PlayCallIntent, PreparedPlanIntent, SubstitutionIntent,
+    TacticalRealignmentIntent, TacticalSwitchIntent, TimeCallIntent,
 };
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +13,10 @@ pub struct TeamDecisionInbox {
     time_call: Option<TimeCallIntent>,
     challenge: Option<ChallengeIntent>,
     tactical_switch: Option<TacticalSwitchIntent>,
+    #[serde(default)]
+    tactical_realignment: Option<TacticalRealignmentIntent>,
+    #[serde(default)]
+    prepared_plan: Option<PreparedPlanIntent>,
     play_call: Option<PlayCallIntent>,
     kick_foul_decision: Option<KickFoulDecisionIntent>,
     kick_foul_realignment: Option<KickFoulRealignmentIntent>,
@@ -31,22 +36,30 @@ impl TeamDecisionInbox {
     }
 
     pub fn submit_forced_substitution(&mut self, intent: ForcedSubstitutionIntent) {
-        self.forced_substitutions.retain(|existing| existing.outgoing_player_id() != intent.outgoing_player_id());
+        self.forced_substitutions
+            .retain(|existing| existing.outgoing_player_id() != intent.outgoing_player_id());
         self.forced_substitutions.push(intent);
     }
 
     pub fn submit_injury_decision(&mut self, intent: InjuryDecisionIntent) {
-        self.injury_decisions.retain(|existing| existing.injured_player_id() != intent.injured_player_id());
+        self.injury_decisions
+            .retain(|existing| existing.injured_player_id() != intent.injured_player_id());
         self.injury_decisions.push(intent);
     }
 
     pub fn take_injury_decision(&mut self, player_id: uuid::Uuid) -> Option<InjuryDecisionIntent> {
-        let index = self.injury_decisions.iter().position(|intent| intent.injured_player_id() == player_id)?;
+        let index = self
+            .injury_decisions
+            .iter()
+            .position(|intent| intent.injured_player_id() == player_id)?;
         Some(self.injury_decisions.remove(index))
     }
 
     pub fn injury_decision(&self, player_id: uuid::Uuid) -> Option<InjuryDecisionIntent> {
-        self.injury_decisions.iter().find(|intent| intent.injured_player_id() == player_id).copied()
+        self.injury_decisions
+            .iter()
+            .find(|intent| intent.injured_player_id() == player_id)
+            .copied()
     }
 
     pub fn submit_forced_substitutions(
@@ -91,11 +104,20 @@ impl TeamDecisionInbox {
     }
 
     pub fn forced_substitution(&self, player_id: uuid::Uuid) -> Option<ForcedSubstitutionIntent> {
-        self.forced_substitutions.iter().find(|intent| intent.outgoing_player_id() == player_id).copied()
+        self.forced_substitutions
+            .iter()
+            .find(|intent| intent.outgoing_player_id() == player_id)
+            .copied()
     }
 
-    pub fn take_forced_substitution(&mut self, player_id: uuid::Uuid) -> Option<ForcedSubstitutionIntent> {
-        let index = self.forced_substitutions.iter().position(|intent| intent.outgoing_player_id() == player_id)?;
+    pub fn take_forced_substitution(
+        &mut self,
+        player_id: uuid::Uuid,
+    ) -> Option<ForcedSubstitutionIntent> {
+        let index = self
+            .forced_substitutions
+            .iter()
+            .position(|intent| intent.outgoing_player_id() == player_id)?;
         Some(self.forced_substitutions.remove(index))
     }
 
@@ -155,7 +177,31 @@ impl TeamDecisionInbox {
         self.kick_foul_realignment
     }
 
+    pub fn submit_tactical_realignment(&mut self, intent: TacticalRealignmentIntent) {
+        self.tactical_realignment = Some(intent);
+    }
+
+    pub fn tactical_realignment(&self) -> Option<TacticalRealignmentIntent> {
+        self.tactical_realignment
+    }
+
+    pub fn take_tactical_realignment(&mut self) -> Option<TacticalRealignmentIntent> {
+        self.tactical_realignment.take()
+    }
+
+    pub fn submit_prepared_plan(&mut self, intent: PreparedPlanIntent) {
+        self.prepared_plan = Some(intent);
+    }
+    pub fn prepared_plan(&self) -> Option<PreparedPlanIntent> {
+        self.prepared_plan
+    }
+    pub fn take_prepared_plan(&mut self) -> Option<PreparedPlanIntent> {
+        self.prepared_plan.take()
+    }
+
     pub fn clear(&mut self) {
+        self.prepared_plan = None;
+        self.tactical_realignment = None;
         self.substitutions.clear();
         self.forced_substitutions.clear();
         self.injury_decisions.clear();
