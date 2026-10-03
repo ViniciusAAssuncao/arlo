@@ -1,29 +1,27 @@
 use crate::error::{EngineError, EngineResult};
+use crate::input::player_attribute_index::PlayerAttributeIndex;
 use crate::input::{MatchInput, TeamInput};
 use crate::state::MatchState;
-use arlo_domain::{AttributeKey, Player, Position, PositionLine};
+use arlo_domain::{AttributeKey, Position, PositionLine};
 use arlo_tactics::TeamInstructions;
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
+mod player;
+pub(super) use player::current_player_value;
+use player::PlayerFactors;
 
 pub(super) struct RatingIndex {
-    attribute_ids: HashMap<AttributeKey, Uuid>,
+    attributes: Arc<PlayerAttributeIndex>,
     active_by_team: HashMap<Uuid, Vec<Uuid>>,
     slots_by_team: HashMap<Uuid, HashMap<Uuid, Uuid>>,
-    physical_readiness: HashMap<Uuid, f64>,
-    morale: HashMap<Uuid, f64>,
-    injured: Vec<Uuid>,
+    player_factors: HashMap<Uuid, PlayerFactors>,
     instructions_by_team: HashMap<Uuid, TeamInstructions>,
     layouts_by_team: HashMap<Uuid, arlo_tactics::TacticalLayout>,
 }
 
 impl RatingIndex {
     pub(super) fn new(input: &MatchInput, state: &MatchState) -> Self {
-        let attribute_ids = input
-            .player_attribute_definitions()
-            .iter()
-            .map(|definition| (definition.key(), definition.id()))
-            .collect();
         let active_by_team = HashMap::from([
             (
                 state.home().team_id(),
@@ -66,32 +64,12 @@ impl RatingIndex {
                     .collect(),
             ),
         ]);
-        let injured = state
-            .home()
-            .injured_player_ids()
-            .iter()
-            .chain(state.away().injured_player_ids())
-            .copied()
-            .collect();
-        let physical_readiness = input
+        let player_factors = input
             .home()
             .roster()
             .iter()
-            .chain(input.away().roster().iter())
-            .map(|player| {
-                (
-                    player.id(),
-                    (0.58 + 0.42 * state.player_energy(player.id()))
-                        * state.player_settling_factor(player.id()),
-                )
-            })
-            .collect();
-        let morale = input
-            .home()
-            .roster()
-            .iter()
-            .chain(input.away().roster().iter())
-            .map(|player| (player.id(), state.player_morale(player.id())))
+            .chain(input.away().roster())
+            .map(|player| (player.id(), PlayerFactors::new(state, player.id())))
             .collect();
         let instructions_by_team = HashMap::from([
             (
@@ -115,12 +93,10 @@ impl RatingIndex {
         ]);
         Self {
             layouts_by_team,
-            attribute_ids,
+            attributes: input.shared_player_attributes(),
             active_by_team,
             slots_by_team,
-            physical_readiness,
-            morale,
-            injured,
+            player_factors,
             instructions_by_team,
         }
     }
@@ -157,50 +133,27 @@ impl RatingIndex {
             .is_some_and(|ids| ids.contains(&player_id))
     }
 
-    fn value(&self, player: &Player, key: AttributeKey) -> EngineResult<f64> {
-        let attribute_id = self.attribute_ids.get(&key).ok_or_else(|| {
-            EngineError::InvalidInput(format!("missing attribute definition: {key:?}"))
-        })?;
-        let value = player
-            .attributes()
-            .iter()
-            .find(|value| value.attribute_definition_id() == *attribute_id)
-            .ok_or_else(|| {
-                EngineError::InvalidInput(format!("player {} lacks {key:?}", player.id()))
-            })?;
-        let physical_readiness = self
-            .physical_readiness
-            .get(&player.id())
-            .copied()
-            .unwrap_or(1.0);
-        let injury = if self.injured.contains(&player.id()) {
-            0.72
-        } else {
-            1.0
-        };
-        let morale = self.morale.get(&player.id()).copied().unwrap_or(100.0);
-        let composure = if morale >= 100.0 {
-            1.0
-        } else {
-            0.72 + 0.0028 * morale
-        };
-        Ok(f64::from(value.value()) * physical_readiness * injury * composure)
-    }
-
-    fn player<'a>(&self, team: &'a TeamInput, player_id: Uuid) -> EngineResult<&'a Player> {
-        team.roster()
-            .iter()
-            .find(|player| player.id() == player_id)
-            .ok_or_else(|| EngineError::InvalidInput("active player is missing from roster".into()))
-    }
-
     pub(super) fn player_value(
         &self,
         team: &TeamInput,
         player_id: Uuid,
         key: AttributeKey,
     ) -> EngineResult<f64> {
-        self.value(self.player(team, player_id)?, key)
+        let values = self
+            .attributes
+            .player_for_team(team.team_id(), player_id)
+            .ok_or_else(|| {
+                EngineError::InvalidInput("active player is missing from roster".into())
+            })?;
+        if !self.attributes.is_defined(key) {
+            return Err(EngineError::InvalidInput(format!(
+                "missing attribute definition: {key:?}"
+            )));
+        }
+        let value = values[key.index()].ok_or_else(|| {
+            EngineError::InvalidInput(format!("player {player_id} lacks {key:?}"))
+        })?;
+        Ok(self.player_factors[&player_id].apply(value))
     }
 
     pub(super) fn reliable_probability(
@@ -209,7 +162,10 @@ impl RatingIndex {
         probability: f64,
         ceiling: f64,
     ) -> f64 {
-        let morale = self.morale.get(&player_id).copied().unwrap_or(100.0);
+        let morale = self
+            .player_factors
+            .get(&player_id)
+            .map_or(100.0, |factors| factors.morale);
         let gain = ((morale - 100.0).max(0.0) * 0.001 * (1.0 - probability)).min(0.02);
         (probability + gain).min(ceiling)
     }
@@ -237,7 +193,7 @@ impl RatingIndex {
             .ok_or_else(|| EngineError::InvalidInput("lineup lacks a required specialist".into()))?
             .player_id();
         let player_id = self.slot_player_id(team, player_id);
-        self.value(self.player(team, player_id)?, key)
+        self.player_value(team, player_id, key)
     }
 
     pub(super) fn active_average(
@@ -256,10 +212,8 @@ impl RatingIndex {
             {
                 continue;
             }
-            total += self.value(
-                self.player(team, self.slot_player_id(team, assignment.player_id()))?,
-                key,
-            )?;
+            total +=
+                self.player_value(team, self.slot_player_id(team, assignment.player_id()), key)?;
             count += 1;
         }
         if count == 0 {

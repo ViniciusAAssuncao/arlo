@@ -26,6 +26,7 @@ pub fn choose_lineup(
         .flat_map(|lineup| lineup.assignments().iter().map(SlotAssignment::player_id))
         .collect();
     let mut best: Option<(f64, TacticalLineup, Formation)> = None;
+    let mut player_scores = HashMap::new();
     for formation in formations
         .iter()
         .filter(|formation| formation.slots().len() == 14)
@@ -56,15 +57,19 @@ pub fn choose_lineup(
                 .map(|player| {
                     (
                         player,
-                        player_score(
-                            player,
-                            slot.position(),
-                            manager,
-                            attributes,
-                            conditions,
-                            context,
-                            previous_starters.contains(&player.id()),
-                        ),
+                        *player_scores
+                            .entry((player.id(), slot.position()))
+                            .or_insert_with(|| {
+                                player_score(
+                                    player,
+                                    slot.position(),
+                                    manager,
+                                    attributes,
+                                    conditions,
+                                    context,
+                                    previous_starters.contains(&player.id()),
+                                )
+                            }),
                     )
                 })
                 .max_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.id().cmp(&b.0.id())))

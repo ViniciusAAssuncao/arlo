@@ -18,19 +18,7 @@ pub(super) fn generate(
     context: &ManagerDecisionContext,
     diagnosis: &TeamDiagnosis,
 ) -> Vec<PreparedPlanCandidate> {
-    if context
-        .last_plan_activation_at
-        .is_some_and(|last| context.elapsed - last < 1800.0)
-        || context
-            .last_substitution_at
-            .is_some_and(|last| context.elapsed - last < 600.0)
-        || context
-            .last_realignment_at
-            .is_some_and(|last| context.elapsed - last < 900.0)
-        || context
-            .last_tactical_switch_at
-            .is_some_and(|last| context.elapsed - last < 900.0)
-    {
+    if !super::cooldowns::DecisionReadiness::from_context(context).plan {
         return Vec::new();
     }
     let mut candidates = Vec::new();

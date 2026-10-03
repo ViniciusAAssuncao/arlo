@@ -85,7 +85,10 @@ pub async fn list_by_lineup_id(pool: &SqlitePool, lineup_id: Uuid) -> TacticsRes
     load_many(pool, rows).await
 }
 
-pub async fn list_authored_by_lineup_id(pool: &SqlitePool, lineup_id: Uuid) -> TacticsResult<Vec<PlayCall>> {
+pub async fn list_authored_by_lineup_id(
+    pool: &SqlitePool,
+    lineup_id: Uuid,
+) -> TacticsResult<Vec<PlayCall>> {
     let rows = fetch_all_by_param::<PlayCallRow>(
         pool,
         "SELECT id, team_id, tactical_lineup_id, name, category, counter_play_id, created_at_unix_seconds FROM play_calls WHERE tactical_lineup_id = ? AND ai_generated = 0 AND name <> 'Jogada Padrão' ORDER BY created_at_unix_seconds ASC",
@@ -144,7 +147,11 @@ pub async fn insert_generated(pool: &SqlitePool, play_call: &PlayCall) -> Tactic
     insert_with_origin(pool, play_call, true).await
 }
 
-async fn insert_with_origin(pool: &SqlitePool, play_call: &PlayCall, ai_generated: bool) -> TacticsResult<()> {
+async fn insert_with_origin(
+    pool: &SqlitePool,
+    play_call: &PlayCall,
+    ai_generated: bool,
+) -> TacticsResult<()> {
     let mut tx = pool.begin().await?;
 
     if let Some(counter_play_id) = play_call.counter_play_id() {
@@ -197,19 +204,30 @@ async fn insert_with_origin(pool: &SqlitePool, play_call: &PlayCall, ai_generate
 
     if let Some(profile) = play_call.situational_profile() {
         let pairs = situational_profile_to_pairs(profile);
-        for (key, val) in pairs {
-            let param_id = Uuid::new_v4().to_string();
-            let key_code = situational_parameter_key_to_code(key);
-            sqlx::query(
-                "INSERT INTO play_call_situational_parameters (id, play_call_id, parameter_key, value) VALUES (?, ?, ?, ?)",
-            )
-            .bind(param_id)
-            .bind(play_call.id().to_string())
-            .bind(key_code)
-            .bind(val)
-            .execute(&mut *tx)
-            .await?;
-        }
+        let parameters: Vec<_> = pairs
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    Uuid::new_v4().to_string(),
+                    situational_parameter_key_to_code(key),
+                    value,
+                )
+            })
+            .collect();
+        let call_id = play_call.id().to_string();
+        arlo_db::repositories::batching::execute_batch_insert(
+            &mut tx,
+            "play_call_situational_parameters",
+            &["id", "play_call_id", "parameter_key", "value"],
+            &parameters,
+            |b, row| {
+                b.push_bind(&row.0)
+                    .push_bind(&call_id)
+                    .push_bind(row.1)
+                    .push_bind(row.2);
+            },
+        )
+        .await?;
     }
 
     let emphasis_entries: [(ArtrineDecisionKind, f64); 5] = [
@@ -235,19 +253,30 @@ async fn insert_with_origin(pool: &SqlitePool, play_call: &PlayCall, ai_generate
         ),
     ];
 
-    for (kind, weight) in emphasis_entries {
-        let emp_id = Uuid::new_v4().to_string();
-        let kind_code = artrine_decision_kind_to_code(kind);
-        sqlx::query(
-            "INSERT INTO play_call_decision_emphasis (id, play_call_id, decision_kind, weight) VALUES (?, ?, ?, ?)",
-        )
-        .bind(emp_id)
-        .bind(play_call.id().to_string())
-        .bind(kind_code)
-        .bind(weight)
-        .execute(&mut *tx)
-        .await?;
-    }
+    let emphasis: Vec<_> = emphasis_entries
+        .into_iter()
+        .map(|(kind, weight)| {
+            (
+                Uuid::new_v4().to_string(),
+                artrine_decision_kind_to_code(kind),
+                weight,
+            )
+        })
+        .collect();
+    let call_id = play_call.id().to_string();
+    arlo_db::repositories::batching::execute_batch_insert(
+        &mut tx,
+        "play_call_decision_emphasis",
+        &["id", "play_call_id", "decision_kind", "weight"],
+        &emphasis,
+        |b, row| {
+            b.push_bind(&row.0)
+                .push_bind(&call_id)
+                .push_bind(row.1)
+                .push_bind(row.2);
+        },
+    )
+    .await?;
 
     let mut role_override_map = HashMap::new();
     for (slot_idx, role) in play_call.role_overrides() {

@@ -2,6 +2,7 @@ mod adapter;
 mod candidates;
 mod choice;
 mod context;
+mod cooldowns;
 mod diagnosis;
 mod evidence;
 mod perception;
@@ -105,6 +106,12 @@ pub(crate) fn select_action(
     registry: Option<&AggregatorRegistry>,
     team_id: Uuid,
 ) -> Option<ManagerAction> {
+    let team = state.team_state(team_id).ok()?;
+    let readiness =
+        cooldowns::DecisionReadiness::from_state(team, state.clock().total_elapsed_seconds());
+    if !readiness.substitution && !readiness.realignment && !readiness.plan {
+        return None;
+    }
     assess(input, state, registry, team_id)?.selected()
 }
 

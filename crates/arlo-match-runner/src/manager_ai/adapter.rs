@@ -2,9 +2,9 @@ use super::context::{ManagerDecisionContext, ManagerSkills, PlayerContext, RoleF
 use super::evidence::read_evidence;
 use arlo_analytics::PlayerPerformanceAggregator;
 use arlo_domain::{sport_constants::effective_manager_flexibility, AttributeKey, Player};
+use arlo_engine::input::RoleFitTable;
 use arlo_engine::{MatchInput, MatchPhase, MatchState, TeamInput, TeamState};
 use arlo_stats::AggregatorRegistry;
-use arlo_tactics::{position_proficiency, static_role_fit};
 use uuid::Uuid;
 
 pub(super) fn build_context(
@@ -52,10 +52,19 @@ pub(super) fn build_context(
             })
         })
         .collect();
+    let targets: Vec<_> = slots
+        .iter()
+        .map(|slot| (slot.offensive_position, slot.defensive_position, slot.role))
+        .collect();
+    let role_fits = input.player_role_fits(team_id, state.team_instructions(team), &targets)?;
     let mut players: Vec<_> = team
         .roster()
         .iter()
-        .map(|player| player_context(input, state, team, team_state, analytics, &slots, player))
+        .map(|player| {
+            player_context(
+                input, state, team, team_state, analytics, &role_fits, player,
+            )
+        })
         .collect();
     players.sort_by_key(|player| player.id);
     let regulation = f64::from(input.format().regulation_periods())
@@ -78,7 +87,11 @@ pub(super) fn build_context(
             &state.team_instructions(team),
             team_state.formation(team),
         ),
-        plans: super::plan_adapter::build(input, state, team, team_state, &slots),
+        plans: if super::cooldowns::DecisionReadiness::from_state(team_state, elapsed).plan {
+            super::plan_adapter::build(input, state, team, team_state, &slots)
+        } else {
+            Vec::new()
+        },
         skills,
         slots,
         players,
@@ -91,41 +104,23 @@ fn player_context(
     team: &TeamInput,
     team_state: &TeamState,
     analytics: Option<&PlayerPerformanceAggregator>,
-    slots: &[SlotContext],
+    role_fits: &RoleFitTable,
     player: &Player,
 ) -> PlayerContext {
-    let mut values = [10.0; AttributeKey::COUNT];
-    for definition in input.player_attribute_definitions() {
-        if let Some(entry) = player
-            .attributes()
-            .iter()
-            .find(|entry| entry.attribute_definition_id() == definition.id())
-        {
-            values[definition.key().index()] = f64::from(entry.value());
-        }
-    }
-    let attribute = |key: AttributeKey| values[key.index()];
+    let values = input.player_attributes(player.id());
+    let attribute = |key: AttributeKey| {
+        values
+            .and_then(|values| values[key.index()])
+            .unwrap_or(10.0)
+    };
     let average = |keys: &[AttributeKey]| {
         keys.iter().map(|key| attribute(*key)).sum::<f64>() / keys.len() as f64 / 20.0
     };
-    let instructions = state.team_instructions(team);
-    let fits = slots
+    let fits = role_fits[&player.id()]
         .iter()
-        .map(|slot| RoleFit {
-            quality: (static_role_fit(
-                player,
-                slot.offensive_position,
-                slot.role,
-                &instructions,
-                attribute,
-            ) + static_role_fit(
-                player,
-                slot.defensive_position,
-                slot.role,
-                &instructions,
-                attribute,
-            )) / 2.0,
-            proficiency: position_proficiency(player, slot.offensive_position),
+        .map(|&(quality, proficiency)| RoleFit {
+            quality,
+            proficiency,
         })
         .collect();
     let history = analytics

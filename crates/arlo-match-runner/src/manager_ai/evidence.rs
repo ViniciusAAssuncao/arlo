@@ -9,15 +9,14 @@ pub(super) fn read_evidence(
     let Some(analytics) = analytics else {
         return PerformanceEvidence::default();
     };
-    let Some(snapshot) = analytics.current_player_snapshot(&player_id) else {
+    let Some(snapshot) = analytics.players().get(&player_id) else {
         return PerformanceEvidence::default();
     };
     let opportunities = snapshot
-        .diagnostics()
         .effective_opportunity_weight()
         .max(f64::from(snapshot.effective_opportunities()));
     let denominator = opportunities.max(4.0);
-    let breakdown = snapshot.breakdown();
+    let breakdown = snapshot.accumulated_breakdown();
     let signal = |value: f64| (value / denominator / 0.30).tanh();
     PerformanceEvidence {
         deviation: ((snapshot.performance_rating().value() - analytics.config().baseline_rating())

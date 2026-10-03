@@ -23,19 +23,7 @@ pub(super) fn generate(
     team: &TeamDiagnosis,
 ) -> Vec<SubstitutionCandidate> {
     let mut candidates = Vec::new();
-    if context
-        .last_plan_activation_at
-        .is_some_and(|last| context.elapsed - last < 900.0)
-    {
-        return candidates;
-    }
-    if context
-        .last_substitution_at
-        .is_some_and(|last| context.elapsed - last < 900.0)
-        || context
-            .last_realignment_at
-            .is_some_and(|last| context.elapsed - last < 600.0)
-    {
+    if !super::cooldowns::DecisionReadiness::from_context(context).substitution {
         return candidates;
     }
     let breadth = 2 + (context.skills.adaptability * 2.0).round() as usize;

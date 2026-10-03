@@ -32,60 +32,57 @@ pub fn preview_prepared_plan(
         .tactical_profiles()
         .find(|profile| profile.id() == plan.profile_id)
         .ok_or_else(|| EngineError::InvalidInput("unknown prepared plan profile".into()))?;
-    let layout = current.tactical_layout(team);
-    adapt_layout(
-        team.lineup(),
-        &layout,
-        &plan.layout,
-        |anchor| {
-            current
-                .active_player_ids()
-                .contains(&current.slot_player_id(anchor))
-        },
-        |anchor, index| {
-            let Some(player) = team
-                .roster()
-                .iter()
-                .find(|player| player.id() == current.slot_player_id(anchor))
-            else {
-                return -1.0;
-            };
-            let slot = &plan.layout.formation.slots()[index];
-            let role = plan
-                .layout
-                .lineup
-                .assignment_for_slot(index)
-                .map_or(slot.role(), |slot| slot.slot_role());
-            let attribute = |key: AttributeKey| {
-                input
-                    .player_attribute_definitions()
+    input.preview_cached_plan(team, current, plan_id, || {
+        let layout = current.tactical_layout(team);
+        adapt_layout(
+            team.lineup(),
+            &layout,
+            &plan.layout,
+            |anchor| {
+                current
+                    .active_player_ids()
+                    .contains(&current.slot_player_id(anchor))
+            },
+            |anchor, index| {
+                let Some(player) = team
+                    .roster()
                     .iter()
-                    .find(|definition| definition.key() == key)
-                    .and_then(|definition| {
-                        player
-                            .attributes()
-                            .iter()
-                            .find(|value| value.attribute_definition_id() == definition.id())
-                    })
-                    .map_or(10.0, |value| f64::from(value.value()))
-            };
-            (static_role_fit(
-                player,
-                slot.offensive_position(),
-                role,
-                profile.instructions(),
-                &attribute,
-            ) + static_role_fit(
-                player,
-                slot.defensive_position(),
-                role,
-                profile.instructions(),
-                &attribute,
-            )) * 0.5
-        },
-    )
-    .ok_or_else(|| {
-        EngineError::InvalidInput("prepared plan cannot preserve the current slot occupants".into())
+                    .find(|player| player.id() == current.slot_player_id(anchor))
+                else {
+                    return -1.0;
+                };
+                let slot = &plan.layout.formation.slots()[index];
+                let role = plan
+                    .layout
+                    .lineup
+                    .assignment_for_slot(index)
+                    .map_or(slot.role(), |slot| slot.slot_role());
+                let values = input.player_attributes(player.id());
+                let attribute = |key: AttributeKey| {
+                    values
+                        .and_then(|values| values[key.index()])
+                        .unwrap_or(10.0)
+                };
+                (static_role_fit(
+                    player,
+                    slot.offensive_position(),
+                    role,
+                    profile.instructions(),
+                    &attribute,
+                ) + static_role_fit(
+                    player,
+                    slot.defensive_position(),
+                    role,
+                    profile.instructions(),
+                    &attribute,
+                )) * 0.5
+            },
+        )
+        .ok_or_else(|| {
+            EngineError::InvalidInput(
+                "prepared plan cannot preserve the current slot occupants".into(),
+            )
+        })
     })
 }
 

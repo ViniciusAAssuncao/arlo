@@ -37,18 +37,11 @@ pub(super) fn build(
                 continue;
             };
             let slot = &layout.formation.slots()[target.formation_slot_index()];
-            let attribute = |key| {
-                input
-                    .player_attribute_definitions()
-                    .iter()
-                    .find(|definition| definition.key() == key)
-                    .and_then(|definition| {
-                        player
-                            .attributes()
-                            .iter()
-                            .find(|value| value.attribute_definition_id() == definition.id())
-                    })
-                    .map_or(10.0, |value| f64::from(value.value()))
+            let values = input.player_attributes(player_id);
+            let attribute = |key: arlo_domain::AttributeKey| {
+                values
+                    .and_then(|values| values[key.index()])
+                    .unwrap_or(10.0)
             };
             let destination = SlotContext {
                 player_id,

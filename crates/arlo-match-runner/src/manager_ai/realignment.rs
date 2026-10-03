@@ -20,19 +20,8 @@ pub(super) fn generate(
     diagnosis: &TeamDiagnosis,
 ) -> Vec<RealignmentCandidate> {
     if context.skills.adaptability < 0.3
-        || context
-            .last_plan_activation_at
-            .is_some_and(|last| context.elapsed - last < 900.0)
         || context.skills.knowledge < 0.3
-        || context
-            .last_realignment_at
-            .is_some_and(|last| context.elapsed - last < 1200.0)
-        || context
-            .last_substitution_at
-            .is_some_and(|last| context.elapsed - last < 600.0)
-        || context
-            .last_tactical_switch_at
-            .is_some_and(|last| context.elapsed - last < 600.0)
+        || !super::cooldowns::DecisionReadiness::from_context(context).realignment
     {
         return Vec::new();
     }
