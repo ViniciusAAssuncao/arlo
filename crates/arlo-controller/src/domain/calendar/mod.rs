@@ -16,7 +16,7 @@ pub use calendar_date::CalendarDate;
 pub use calendar_month::CalendarMonthDefinition;
 pub use calendar_system::CalendarSystem;
 pub use calendar_validation::*;
-pub use calendar_week_day::CalendarWeekDayDefinition;
+pub use calendar_week_day::{CalendarDaySocialRole, CalendarWeekDayDefinition};
 pub use intercalation_placement::IntercalationPlacement;
 pub use intercalation_rule::IntercalationRule;
 pub use resolved_calendar_date::ResolvedCalendarDate;

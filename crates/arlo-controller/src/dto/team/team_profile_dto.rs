@@ -18,6 +18,8 @@ pub struct TeamProfileDto {
     pub country_id: String,
     pub country_name: String,
     pub prestige: i32,
+    pub min_attendance: Option<i32>,
+    pub max_attendance: Option<i32>,
     pub founded_at_unix_seconds: i64,
     pub primary_color_hex: Option<String>,
     pub secondary_color_hex: Option<String>,

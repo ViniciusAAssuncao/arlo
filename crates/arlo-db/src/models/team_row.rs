@@ -11,6 +11,8 @@ pub struct TeamRow {
     pub league_id: Option<String>,
     pub founded_at_unix_seconds: i64,
     pub prestige: i32,
+    pub min_attendance: Option<i32>,
+    pub max_attendance: Option<i32>,
     pub primary_color_hex: Option<String>,
     pub secondary_color_hex: Option<String>,
     pub home_venue_id: Option<String>,
@@ -39,6 +41,7 @@ impl TeamRow {
         builder = builder.with_primary_color_hex(self.primary_color_hex.clone());
         builder = builder.with_secondary_color_hex(self.secondary_color_hex.clone());
         builder = builder.with_home_venue_id(home_venue_id);
+        builder = builder.with_attendance_references(self.min_attendance, self.max_attendance);
         builder.build().map_err(Into::into)
     }
 }

@@ -81,6 +81,8 @@ pub async fn get_team_profile(
         country_id: team.country_id().to_string(),
         country_name,
         prestige: team.prestige(),
+        min_attendance: team.min_attendance(),
+        max_attendance: team.max_attendance(),
         founded_at_unix_seconds: team.founded_at_unix_seconds(),
         primary_color_hex: team.primary_color_hex().map(str::to_string),
         secondary_color_hex: team.secondary_color_hex().map(str::to_string),

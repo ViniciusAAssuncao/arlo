@@ -33,7 +33,7 @@ pub async fn get_by_id(pool: &SqlitePool, id: Uuid) -> ControllerResult<Option<C
     }
 
     let week_day_rows = sqlx::query_as::<_, CalendarWeekDayRow>(
-        "SELECT id, calendar_system_id, order_index, name FROM calendar_week_days WHERE calendar_system_id = ? ORDER BY order_index ASC",
+        "SELECT id, calendar_system_id, order_index, name, social_role FROM calendar_week_days WHERE calendar_system_id = ? ORDER BY order_index ASC",
     )
     .bind(id.to_string())
     .fetch_all(pool)
@@ -69,7 +69,7 @@ pub async fn list_all(pool: &SqlitePool) -> ControllerResult<Vec<CalendarSystem>
     }
 
     let week_day_rows = sqlx::query_as::<_, CalendarWeekDayRow>(
-        "SELECT id, calendar_system_id, order_index, name FROM calendar_week_days ORDER BY calendar_system_id, order_index ASC",
+        "SELECT id, calendar_system_id, order_index, name, social_role FROM calendar_week_days ORDER BY calendar_system_id, order_index ASC",
     )
     .fetch_all(pool)
     .await?;
