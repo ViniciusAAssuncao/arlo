@@ -1,4 +1,5 @@
 use super::season_age_cutoff::season_start_unix_seconds;
+use crate::domain::calendar::CalendarDate;
 use crate::error::ControllerResult;
 use arlo_domain::{award_position_family, AwardCandidateEvidence, AwardMetric, AwardRecipientKind};
 use sqlx::{FromRow, SqlitePool};
@@ -214,15 +215,40 @@ pub(crate) async fn load_season_player_evidence(
     season_instance_id: Uuid,
     competition_id: Uuid,
 ) -> ControllerResult<Vec<AwardCandidateEvidence>> {
+    load_season_player_evidence_between(
+        pool,
+        season_instance_id,
+        competition_id,
+        CalendarDate::new(i64::MIN, 0),
+        CalendarDate::new(i64::MAX, u32::MAX),
+        season_instance_id,
+    )
+    .await
+}
+
+pub(crate) async fn load_season_player_evidence_between(
+    pool: &SqlitePool,
+    season_instance_id: Uuid,
+    competition_id: Uuid,
+    start: CalendarDate,
+    end: CalendarDate,
+    age_cutoff_season_id: Uuid,
+) -> ControllerResult<Vec<AwardCandidateEvidence>> {
     let rows = sqlx::query_as::<_, SeasonPlayerRow>(
-        "SELECT perf.player_id, perf.team_id, p.nationality_id, c.continent_id, p.birthdate_unix_seconds, perf.offensive_position, perf.defensive_position, perf.seconds_played, perf.performance_rating, perf.final_rating, perf.high_impact_score, perf.production_score, perf.defense_score, perf.discipline_score, COALESCE(s.total_points_scored, 0) AS total_points_scored, COALESCE(s.goal_points_scored, 0) AS goal_points_scored, COALESCE(s.field_points_scored, 0) AS field_points_scored, COALESCE(s.field_goals_scored, 0) AS field_goals_scored, COALESCE(a.goalpoint_assists, 0) AS goalpoint_assists, COALESCE(t.passes_attempted, 0) AS passes_attempted, COALESCE(t.passes_received, 0) AS passes_received, COALESCE(t.recoveries, 0) AS recoveries, COALESCE(t.turnovers_conceded, 0) AS turnovers_conceded, COALESCE(d.defender_wins, 0) AS defender_wins, COALESCE(d.defender_duels, 0) AS defender_duels, COALESCE(k.points, 0) AS kicker_points, COALESCE(g.recoveries, 0) AS goalguard_recoveries, COALESCE(g.hand_recoveries, 0) AS goalguard_hand_recoveries FROM match_player_performance perf JOIN matches m ON m.id = perf.match_id JOIN fixtures f ON f.id = m.fixture_id JOIN season_stages ss ON ss.id = f.season_stage_id JOIN players p ON p.id = perf.player_id JOIN countries c ON c.id = p.nationality_id LEFT JOIN match_player_scoring_attempts s ON s.match_id = perf.match_id AND s.player_id = perf.player_id LEFT JOIN match_player_assists a ON a.match_id = perf.match_id AND a.player_id = perf.player_id LEFT JOIN match_player_touches t ON t.match_id = perf.match_id AND t.player_id = perf.player_id LEFT JOIN match_player_duels d ON d.match_id = perf.match_id AND d.player_id = perf.player_id LEFT JOIN (SELECT match_id, scorer_id, SUM(points) AS points FROM match_scoring_plays sp WHERE sp.play_type IN ('FieldPoint', 'FieldGoal') AND NOT EXISTS (SELECT 1 FROM match_play_invalidations i WHERE i.match_id = sp.match_id AND sp.sequence_number BETWEEN i.first_invalidated_sequence AND i.last_invalidated_sequence) GROUP BY sp.match_id, sp.scorer_id) k ON k.match_id = perf.match_id AND k.scorer_id = perf.player_id LEFT JOIN (SELECT gr.match_id, gr.goalguard_id, COUNT(*) AS recoveries, SUM(gr.used_hands) AS hand_recoveries FROM match_goalguard_recoveries gr WHERE NOT EXISTS (SELECT 1 FROM match_play_invalidations i WHERE i.match_id = gr.match_id AND gr.sequence_number BETWEEN i.first_invalidated_sequence AND i.last_invalidated_sequence) GROUP BY gr.match_id, gr.goalguard_id) g ON g.match_id = perf.match_id AND g.goalguard_id = perf.player_id WHERE ss.season_instance_id = ? AND perf.effective_opportunities > 0 AND perf.confidence_evidence > 0.0 ORDER BY perf.player_id, perf.match_id"
+        "SELECT perf.player_id, perf.team_id, p.nationality_id, c.continent_id, p.birthdate_unix_seconds, perf.offensive_position, perf.defensive_position, perf.seconds_played, perf.performance_rating, perf.final_rating, perf.high_impact_score, perf.production_score, perf.defense_score, perf.discipline_score, COALESCE(s.total_points_scored, 0) AS total_points_scored, COALESCE(s.goal_points_scored, 0) AS goal_points_scored, COALESCE(s.field_points_scored, 0) AS field_points_scored, COALESCE(s.field_goals_scored, 0) AS field_goals_scored, COALESCE(a.goalpoint_assists, 0) AS goalpoint_assists, COALESCE(t.passes_attempted, 0) AS passes_attempted, COALESCE(t.passes_received, 0) AS passes_received, COALESCE(t.recoveries, 0) AS recoveries, COALESCE(t.turnovers_conceded, 0) AS turnovers_conceded, COALESCE(d.defender_wins, 0) AS defender_wins, COALESCE(d.defender_duels, 0) AS defender_duels, COALESCE(k.points, 0) AS kicker_points, COALESCE(g.recoveries, 0) AS goalguard_recoveries, COALESCE(g.hand_recoveries, 0) AS goalguard_hand_recoveries FROM match_player_performance perf JOIN matches m ON m.id = perf.match_id JOIN fixtures f ON f.id = m.fixture_id JOIN season_stages ss ON ss.id = f.season_stage_id JOIN players p ON p.id = perf.player_id JOIN countries c ON c.id = p.nationality_id LEFT JOIN match_player_scoring_attempts s ON s.match_id = perf.match_id AND s.player_id = perf.player_id LEFT JOIN match_player_assists a ON a.match_id = perf.match_id AND a.player_id = perf.player_id LEFT JOIN match_player_touches t ON t.match_id = perf.match_id AND t.player_id = perf.player_id LEFT JOIN match_player_duels d ON d.match_id = perf.match_id AND d.player_id = perf.player_id LEFT JOIN (SELECT match_id, scorer_id, SUM(points) AS points FROM match_scoring_plays sp WHERE sp.play_type IN ('FieldPoint', 'FieldGoal') AND NOT EXISTS (SELECT 1 FROM match_play_invalidations i WHERE i.match_id = sp.match_id AND sp.sequence_number BETWEEN i.first_invalidated_sequence AND i.last_invalidated_sequence) GROUP BY sp.match_id, sp.scorer_id) k ON k.match_id = perf.match_id AND k.scorer_id = perf.player_id LEFT JOIN (SELECT gr.match_id, gr.goalguard_id, COUNT(*) AS recoveries, SUM(gr.used_hands) AS hand_recoveries FROM match_goalguard_recoveries gr WHERE NOT EXISTS (SELECT 1 FROM match_play_invalidations i WHERE i.match_id = gr.match_id AND gr.sequence_number BETWEEN i.first_invalidated_sequence AND i.last_invalidated_sequence) GROUP BY gr.match_id, gr.goalguard_id) g ON g.match_id = perf.match_id AND g.goalguard_id = perf.player_id WHERE ss.season_instance_id = ? AND perf.effective_opportunities > 0 AND perf.confidence_evidence > 0.0 AND (f.scheduled_year > ? OR (f.scheduled_year = ? AND f.scheduled_day_of_year >= ?)) AND (f.scheduled_year < ? OR (f.scheduled_year = ? AND f.scheduled_day_of_year <= ?)) ORDER BY perf.player_id, perf.match_id"
     )
     .bind(season_instance_id.to_string())
+    .bind(start.year())
+    .bind(start.year())
+    .bind(i64::from(start.day_of_year()))
+    .bind(end.year())
+    .bind(end.year())
+    .bind(i64::from(end.day_of_year()))
     .fetch_all(pool).await?;
     if rows.is_empty() {
         return Ok(Vec::new());
     }
-    let season_start = season_start_unix_seconds(pool, season_instance_id).await?;
+    let season_start = season_start_unix_seconds(pool, age_cutoff_season_id).await?;
     let mut totals = BTreeMap::<Uuid, PlayerTotals>::new();
     for row in rows {
         let player_id = Uuid::parse_str(&row.player_id)?;

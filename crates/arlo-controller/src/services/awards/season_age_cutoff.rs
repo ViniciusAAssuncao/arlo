@@ -1,5 +1,5 @@
 use crate::controllers::season::overview_calendar::resolve_overview_calendar;
-use crate::domain::calendar::ResolvedCalendarDate;
+use crate::domain::calendar::{CalendarDate, ResolvedCalendarDate};
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::services::calendar::date_encoder;
@@ -10,13 +10,21 @@ pub(super) async fn season_start_unix_seconds(
     pool: &SqlitePool,
     season_id: Uuid,
 ) -> ControllerResult<i64> {
+    let date = season_start_date(pool, season_id).await?;
+    Ok((date.year() - 1970) * 31_557_600 + i64::from(date.day_of_year()) * 86_400)
+}
+
+pub(super) async fn season_start_date(
+    pool: &SqlitePool,
+    season_id: Uuid,
+) -> ControllerResult<CalendarDate> {
     let row = sqlx::query(
         "SELECT si.reference_year, c.season_start_month_order_index, c.season_start_day_of_month FROM season_instances si LEFT JOIN league_calendar_configs c ON c.competition_id = si.competition_id WHERE si.id = ?",
     )
     .bind(season_id.to_string())
     .fetch_one(pool)
     .await?;
-    let (year, day) = if let (Some(month), Some(day)) = (
+    if let (Some(month), Some(day)) = (
         row.try_get::<Option<i64>, _>("season_start_month_order_index")?,
         row.try_get::<Option<i64>, _>("season_start_day_of_month")?,
     ) {
@@ -34,7 +42,7 @@ pub(super) async fn season_start_unix_seconds(
                 week_day_index: 0,
             },
         )?;
-        (date.year(), date.day_of_year())
+        Ok(date)
     } else {
         let fixture = sqlx::query(
             "SELECT f.scheduled_year, f.scheduled_day_of_year FROM fixtures f JOIN season_stages ss ON ss.id = f.season_stage_id WHERE ss.season_instance_id = ? ORDER BY f.scheduled_year, f.scheduled_day_of_year LIMIT 1",
@@ -43,11 +51,10 @@ pub(super) async fn season_start_unix_seconds(
         .fetch_optional(pool)
         .await?
         .ok_or_else(|| ControllerError::NotFound("Season has no scheduled fixtures".into()))?;
-        (
+        Ok(CalendarDate::new(
             fixture.try_get("scheduled_year")?,
             u32::try_from(fixture.try_get::<i64, _>("scheduled_day_of_year")?)
                 .map_err(|_| ControllerError::InvalidData("Invalid fixture day".into()))?,
-        )
-    };
-    Ok((year - 1970) * 31_557_600 + i64::from(day) * 86_400)
+        ))
+    }
 }

@@ -1,5 +1,8 @@
 use super::global_evidence_merge::merge_player_evidence;
-use super::season_player_evidence::load_season_player_evidence;
+use super::season_player_evidence::{
+    load_season_player_evidence, load_season_player_evidence_between,
+};
+use crate::domain::calendar::CalendarDate;
 use crate::error::ControllerResult;
 use arlo_domain::{AwardCandidateEvidence, AwardMetric};
 use sqlx::{Row, SqlitePool};
@@ -10,6 +13,64 @@ use uuid::Uuid;
 pub(super) struct GlobalSeasonSource {
     pub season_id: Uuid,
     pub competition_id: Uuid,
+}
+
+pub(super) struct DatedSeasonSource {
+    pub source: GlobalSeasonSource,
+    pub start: CalendarDate,
+    pub end: CalendarDate,
+    pub age_cutoff_season_id: Uuid,
+    pub include_honors: bool,
+}
+
+pub(super) async fn load_dated_global_player_evidence(
+    pool: &SqlitePool,
+    sources: &[DatedSeasonSource],
+) -> ControllerResult<Vec<AwardCandidateEvidence>> {
+    let mut seasons = Vec::with_capacity(sources.len());
+    for dated in sources {
+        let mut evidence = load_season_player_evidence_between(
+            pool,
+            dated.source.season_id,
+            dated.source.competition_id,
+            dated.start,
+            dated.end,
+            dated.age_cutoff_season_id,
+        )
+        .await?;
+        let title_winners = if dated.include_honors {
+            title_winning_players(pool, &dated.source).await?
+        } else {
+            BTreeSet::new()
+        };
+        let individual_awards = if dated.include_honors {
+            individual_award_winners(pool, &dated.source).await?
+        } else {
+            Vec::new()
+        };
+        for candidate in &mut evidence {
+            candidate.metrics.push(AwardMetric {
+                key: "competition_titles_won".into(),
+                value: f64::from(title_winners.contains(&candidate.subject_id)),
+            });
+            candidate.metrics.push(AwardMetric {
+                key: "individual_awards_won".into(),
+                value: individual_awards
+                    .iter()
+                    .filter(|id| **id == candidate.subject_id)
+                    .count() as f64,
+            });
+        }
+        seasons.push(evidence);
+    }
+    let mut merged = merge_player_evidence(seasons);
+    for candidate in &mut merged {
+        candidate.metrics.push(AwardMetric {
+            key: "competitions_played".into(),
+            value: candidate.competition_ids.len() as f64,
+        });
+    }
+    Ok(merged)
 }
 
 pub(super) async fn load_global_player_evidence(

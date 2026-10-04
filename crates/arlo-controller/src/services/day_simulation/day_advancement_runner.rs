@@ -1,7 +1,9 @@
 use crate::domain::calendar::CalendarDate;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
-use crate::services::awards::{process_global_cycle_jobs, process_season_award_jobs};
+use crate::services::awards::{
+    process_announcement_jobs, process_global_cycle_jobs, process_season_award_jobs,
+};
 use crate::services::calendar::date_advancer;
 use crate::services::day_simulation::day_progress;
 use crate::services::event_scheduling::event_dispatcher::{
@@ -126,6 +128,7 @@ pub async fn run_day_advancement(
     }
     process_season_award_jobs(pool).await?;
     process_global_cycle_jobs(pool).await?;
+    process_announcement_jobs(pool, calendar, current_date).await?;
     maybe_publish_power_rankings(pool, calendar, current_date).await?;
     day_progress::finish(pool, save_uuid, &current_date).await?;
 

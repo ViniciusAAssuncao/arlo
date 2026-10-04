@@ -140,6 +140,8 @@ async fn load_definition(
         evaluation_window: serde_json::from_str::<AwardEvaluationWindow>(
             row.try_get("evaluation_window")?,
         )?,
+        announcement_month_order_index: optional_u32(row, "announcement_month_order_index")?,
+        announcement_day_of_month: optional_u32(row, "announcement_day_of_month")?,
         eligible_positions: list_strings(pool, "award_eligibility_positions", "position_code", id)
             .await?,
         minimum_age: row
@@ -221,6 +223,17 @@ async fn list_uuids(
 
 fn read_positive_u32(value: i64) -> Result<u32, AwardCatalogError> {
     u32::try_from(value).map_err(|_| AwardCatalogError::InvalidValue("minimum_matches".into()))
+}
+
+fn optional_u32(
+    row: &sqlx::sqlite::SqliteRow,
+    column: &str,
+) -> Result<Option<u32>, AwardCatalogError> {
+    row.try_get::<Option<i64>, _>(column)?
+        .map(|value| {
+            u32::try_from(value).map_err(|_| AwardCatalogError::InvalidValue(column.into()))
+        })
+        .transpose()
 }
 
 async fn load_tie_breaks(

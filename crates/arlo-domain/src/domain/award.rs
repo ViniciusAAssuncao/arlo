@@ -39,6 +39,7 @@ pub enum AwardTrigger {
     SeasonCompleted,
     CalendarInterval { days: u32 },
     CalendarDate { month: u32, day: u32 },
+    FixedAnnouncementDate,
     CompetitionMatchCountMultiple { count: u32 },
 }
 
@@ -48,6 +49,7 @@ pub enum AwardEvaluationWindow {
     EntireSeason,
     PreviousCalendarInterval { days: u32 },
     PreviousSeasonCycle,
+    PreviousSeasonThroughAnnouncement,
     PreviousNCompetitionMatches { count: u32 },
 }
 
@@ -119,6 +121,10 @@ pub struct AwardDefinition {
     pub result_kind: AwardResultKind,
     pub trigger: AwardTrigger,
     pub evaluation_window: AwardEvaluationWindow,
+    #[serde(default)]
+    pub announcement_month_order_index: Option<u32>,
+    #[serde(default)]
+    pub announcement_day_of_month: Option<u32>,
     pub eligible_positions: Vec<String>,
     #[serde(default)]
     pub minimum_age: Option<u32>,
