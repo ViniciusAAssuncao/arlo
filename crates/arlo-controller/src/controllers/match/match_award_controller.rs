@@ -74,12 +74,17 @@ pub(crate) fn resolve_match_mvp(
                 subject_kind: AwardRecipientKind::Player,
                 subject_id: snapshot.player_id(),
                 position: Some(format!("{:?}", snapshot.offensive_position())),
+                positions: vec![
+                    format!("{:?}", snapshot.offensive_position()),
+                    format!("{:?}", snapshot.defensive_position()),
+                ],
                 position_family: None,
                 country_id: None,
                 continent_id: None,
                 competition_id: Some(scope.competition_id),
                 team_id: Some(snapshot.team_id()),
                 matches_played: 1,
+                age_years: None,
                 metrics: vec![
                     metric("performance_rating", snapshot.performance_rating().value()),
                     metric("high_impact", breakdown.high_impact()),

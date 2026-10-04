@@ -136,6 +136,20 @@ async fn load_definition(
         )?,
         eligible_positions: list_strings(pool, "award_eligibility_positions", "position_code", id)
             .await?,
+        minimum_age: row
+            .try_get::<Option<i64>, _>("minimum_age")?
+            .map(|age| {
+                u32::try_from(age)
+                    .map_err(|_| AwardCatalogError::InvalidValue("minimum_age".into()))
+            })
+            .transpose()?,
+        maximum_age: row
+            .try_get::<Option<i64>, _>("maximum_age")?
+            .map(|age| {
+                u32::try_from(age)
+                    .map_err(|_| AwardCatalogError::InvalidValue("maximum_age".into()))
+            })
+            .transpose()?,
         eligible_countries: list_uuids(pool, "award_eligibility_countries", "country_id", id)
             .await?,
         eligible_continents: list_uuids(pool, "award_eligibility_continents", "continent_id", id)

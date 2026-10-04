@@ -111,6 +111,10 @@ pub struct AwardDefinition {
     pub trigger: AwardTrigger,
     pub evaluation_window: AwardEvaluationWindow,
     pub eligible_positions: Vec<String>,
+    #[serde(default)]
+    pub minimum_age: Option<u32>,
+    #[serde(default)]
+    pub maximum_age: Option<u32>,
     pub eligible_countries: Vec<Uuid>,
     pub eligible_continents: Vec<Uuid>,
     pub eligible_competitions: Vec<Uuid>,
@@ -138,12 +142,16 @@ pub struct AwardCandidateEvidence {
     pub subject_kind: AwardRecipientKind,
     pub subject_id: Uuid,
     pub position: Option<String>,
+    #[serde(default)]
+    pub positions: Vec<String>,
     pub position_family: Option<String>,
     pub country_id: Option<Uuid>,
     pub continent_id: Option<Uuid>,
     pub competition_id: Option<Uuid>,
     pub team_id: Option<Uuid>,
     pub matches_played: u32,
+    #[serde(default)]
+    pub age_years: Option<u32>,
     pub metrics: Vec<AwardMetric>,
 }
 

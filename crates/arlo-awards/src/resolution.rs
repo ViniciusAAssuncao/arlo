@@ -68,7 +68,22 @@ pub fn resolve_award(
     let mut pool: Vec<_> = candidates
         .iter()
         .filter(|candidate| eligible(definition, candidate))
-        .cloned()
+        .map(|candidate| {
+            let mut candidate = candidate.clone();
+            if !definition.eligible_positions.is_empty()
+                && !candidate
+                    .position
+                    .as_ref()
+                    .is_some_and(|position| definition.eligible_positions.contains(position))
+            {
+                candidate.position = candidate
+                    .positions
+                    .iter()
+                    .find(|position| definition.eligible_positions.contains(position))
+                    .cloned();
+            }
+            candidate
+        })
         .collect();
     pool.sort_by_key(|candidate| candidate.subject_id);
     let mut subject_ids = HashSet::new();
@@ -221,6 +236,15 @@ pub fn resolve_award(
 }
 
 fn validate(definition: &AwardDefinition) -> Result<(), AwardError> {
+    if definition
+        .minimum_age
+        .zip(definition.maximum_age)
+        .is_some_and(|(minimum, maximum)| minimum > maximum)
+    {
+        return Err(AwardError::InvalidDefinition(
+            "minimum age exceeds maximum age".into(),
+        ));
+    }
     if definition.criteria.is_empty()
         || definition
             .criteria
