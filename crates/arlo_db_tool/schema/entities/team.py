@@ -1,0 +1,74 @@
+from arlo_db_tool.schema.entity_spec import EntitySpec
+from arlo_db_tool.schema.field_spec import FieldSpec, FieldType
+
+TEAM_SPEC = EntitySpec(
+    name="Team",
+    table_name="teams",
+    fields=[
+        FieldSpec(
+            name="id",
+            column="id",
+            field_type=FieldType.UUID_PK,
+            primary_key=True,
+        ),
+        FieldSpec(
+            name="name",
+            column="name",
+            field_type=FieldType.TEXT,
+            nullable=False,
+        ),
+        FieldSpec(
+            name="country_id",
+            column="country_id",
+            field_type=FieldType.UUID_FK,
+            nullable=False,
+            fk_target_table="countries",
+            fk_target_column="id",
+        ),
+        FieldSpec(
+            name="league_id",
+            column="league_id",
+            field_type=FieldType.UUID_FK,
+            nullable=True,
+            fk_target_table="competitions",
+            fk_target_column="id",
+            fk_where="kind = 'League'",
+        ),
+        FieldSpec(
+            name="founded_at_unix_seconds",
+            column="founded_at_unix_seconds",
+            field_type=FieldType.UNIX_TIMESTAMP,
+            nullable=False,
+            default=0,
+        ),
+        FieldSpec(
+            name="prestige",
+            column="prestige",
+            field_type=FieldType.INTEGER,
+            nullable=False,
+            min_value=0,
+            max_value=1000,
+            default=0,
+        ),
+        FieldSpec(
+            name="primary_color_hex",
+            column="primary_color_hex",
+            field_type=FieldType.HEX_COLOR,
+            nullable=True,
+        ),
+        FieldSpec(
+            name="secondary_color_hex",
+            column="secondary_color_hex",
+            field_type=FieldType.HEX_COLOR,
+            nullable=True,
+        ),
+        FieldSpec(
+            name="home_venue_id",
+            column="home_venue_id",
+            field_type=FieldType.UUID_FK,
+            nullable=True,
+            fk_target_table="venues",
+            fk_target_column="id",
+        ),
+    ],
+)
