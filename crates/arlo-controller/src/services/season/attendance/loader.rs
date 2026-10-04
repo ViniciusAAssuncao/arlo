@@ -3,7 +3,7 @@ use crate::error::ControllerResult;
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::repositories::season::standings_cache::get_or_compute_standings;
 use crate::services::calendar::date_resolver;
-use crate::services::season::attendance::model::{self, EventDemand, TeamDemand, VenueDemand};
+use arlo_analytics::attendance::{self, EventDemand, TeamDemand, VenueDemand};
 use arlo_domain::Team;
 use arlo_persistence::models::season::FixtureRow;
 use arlo_persistence::persister::match_persistence_context::AttendanceSnapshot;
@@ -177,7 +177,7 @@ async fn table_stakes(
     Ok(progress.clamp(0.0, 1.0) * significance)
 }
 
-pub async fn prepare_for_fixture(
+async fn load_inputs(
     pool: &SqlitePool,
     save_uuid: Uuid,
     fixture: &FixtureRow,
@@ -185,7 +185,7 @@ pub async fn prepare_for_fixture(
     seed: u64,
     home_squad_quality: f64,
     away_squad_quality: f64,
-) -> ControllerResult<Option<AttendanceSnapshot>> {
+) -> ControllerResult<Option<(TeamDemand, TeamDemand, VenueDemand, EventDemand)>> {
     let Some(venue_id) = venue_id else {
         return Ok(None);
     };
@@ -273,5 +273,61 @@ pub async fn prepare_for_fixture(
         owner_team_id: venue.owner_team_id(),
         country_id: venue.country_id(),
     };
-    Ok(Some(model::calculate(home, away, venue, event)))
+    Ok(Some((home, away, venue, event)))
+}
+
+pub async fn prepare_for_fixture(
+    pool: &SqlitePool,
+    save_uuid: Uuid,
+    fixture: &FixtureRow,
+    venue_id: Option<Uuid>,
+    seed: u64,
+    home_squad_quality: f64,
+    away_squad_quality: f64,
+) -> ControllerResult<Option<AttendanceSnapshot>> {
+    let Some((home, away, venue, event)) = load_inputs(
+        pool,
+        save_uuid,
+        fixture,
+        venue_id,
+        seed,
+        home_squad_quality,
+        away_squad_quality,
+    )
+    .await?
+    else {
+        return Ok(None);
+    };
+    let outcome = attendance::calculate(home, away, venue, event);
+    Ok(Some(AttendanceSnapshot {
+        total: outcome.total,
+        home_supporters: outcome.home_supporters,
+        away_supporters: outcome.away_supporters,
+        unaffiliated_spectators: outcome.unaffiliated_spectators,
+        match_appeal: outcome.match_appeal,
+        home_popularity: outcome.home_popularity,
+        away_popularity: outcome.away_popularity,
+        model_version: outcome.model_version,
+    }))
+}
+
+pub async fn estimate_for_fixture(
+    pool: &SqlitePool,
+    save_uuid: Uuid,
+    fixture: &FixtureRow,
+    venue_id: Option<Uuid>,
+    home_squad_quality: f64,
+    away_squad_quality: f64,
+) -> ControllerResult<Option<attendance::ExpectedAttendance>> {
+    let inputs = load_inputs(
+        pool,
+        save_uuid,
+        fixture,
+        venue_id,
+        0,
+        home_squad_quality,
+        away_squad_quality,
+    )
+    .await?;
+    Ok(inputs.map(|(home, away, venue, event)| attendance::estimate(home, away, venue, event)))
 }

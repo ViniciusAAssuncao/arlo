@@ -1,4 +1,3 @@
 mod loader;
-mod model;
 
-pub use loader::prepare_for_fixture;
+pub use loader::{estimate_for_fixture, prepare_for_fixture};

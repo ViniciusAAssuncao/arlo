@@ -1,7 +1,28 @@
-use arlo_persistence::persister::match_persistence_context::AttendanceSnapshot;
 use uuid::Uuid;
 
 pub const ATTENDANCE_MODEL_VERSION: &str = "attendance-v1";
+pub const EXPECTED_ATTENDANCE_MODEL_VERSION: &str = "attendance-expectation-v1";
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AttendanceOutcome {
+    pub total: i32,
+    pub home_supporters: i32,
+    pub away_supporters: i32,
+    pub unaffiliated_spectators: i32,
+    pub match_appeal: f64,
+    pub home_popularity: f64,
+    pub away_popularity: f64,
+    pub model_version: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExpectedAttendance {
+    pub estimate: u32,
+    pub lower: u32,
+    pub upper: u32,
+    pub uncertainty_margin: u32,
+    pub model_version: &'static str,
+}
 
 #[derive(Clone, Copy)]
 pub struct TeamDemand {
@@ -92,8 +113,7 @@ fn appeal(
     (appeal, stakes)
 }
 
-fn variation(seed: u64) -> f64 {
-    let value = sample(seed);
+fn variation_at(value: f64) -> f64 {
     if value < 0.75 {
         -0.34 * (1.0 - value / 0.75).powi(3)
     } else {
@@ -106,7 +126,53 @@ pub fn calculate(
     away: TeamDemand,
     venue: VenueDemand,
     event: EventDemand,
-) -> AttendanceSnapshot {
+) -> AttendanceOutcome {
+    calculate_with_variation(home, away, venue, event, variation_at(sample(event.seed)))
+}
+
+pub fn estimate(
+    home: TeamDemand,
+    away: TeamDemand,
+    venue: VenueDemand,
+    event: EventDemand,
+) -> ExpectedAttendance {
+    let mean = (0..16)
+        .map(|index| {
+            let quantile = (index as f64 + 0.5) / 16.0;
+            calculate_with_variation(home, away, venue, event, variation_at(quantile)).total as f64
+        })
+        .sum::<f64>()
+        / 16.0;
+    let estimate = mean.round() as u32;
+    let capacity = venue.capacity.max(0) as u32;
+    let model_margin = (capacity as f64 * 0.06).round() as u32;
+    let low_scenario = calculate_with_variation(home, away, venue, event, variation_at(0.05))
+        .total
+        .max(0) as u32;
+    let high_scenario = calculate_with_variation(home, away, venue, event, variation_at(0.95))
+        .total
+        .max(0) as u32;
+    let lower = low_scenario.saturating_sub(model_margin);
+    let upper = high_scenario.saturating_add(model_margin).min(capacity);
+    let uncertainty_margin = estimate
+        .saturating_sub(lower)
+        .max(upper.saturating_sub(estimate));
+    ExpectedAttendance {
+        estimate,
+        lower,
+        upper,
+        uncertainty_margin,
+        model_version: EXPECTED_ATTENDANCE_MODEL_VERSION,
+    }
+}
+
+fn calculate_with_variation(
+    home: TeamDemand,
+    away: TeamDemand,
+    venue: VenueDemand,
+    event: EventDemand,
+    variation: f64,
+) -> AttendanceOutcome {
     let capacity = venue.capacity.max(0) as f64;
     let home_popularity = popularity(home);
     let away_popularity = popularity(away);
@@ -130,7 +196,7 @@ pub fn calculate(
             + 0.10 * team.form.clamp(-1.0, 1.0)
             + 0.10 * stakes
             + event.calendar_effect
-            + variation(event.seed);
+            + variation;
         let demand = base * effect;
         let softened = if demand > team.maximum as f64 {
             team.maximum as f64 + 0.30 * (demand - team.maximum as f64)
@@ -147,7 +213,7 @@ pub fn calculate(
             + 0.22 * low
             + 0.10 * stakes
             + event.calendar_effect
-            + variation(event.seed);
+            + variation;
         (capacity * fill.clamp(0.0, 1.0)).round() as i32
     };
 
@@ -191,7 +257,7 @@ pub fn calculate(
         let home_count = (identified as f64 * home_share).round() as i32;
         (home_count, identified - home_count)
     };
-    AttendanceSnapshot {
+    AttendanceOutcome {
         total,
         home_supporters,
         away_supporters,
