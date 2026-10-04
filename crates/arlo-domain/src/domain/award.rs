@@ -19,6 +19,13 @@ pub enum AwardScopeKind {
     Player,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AwardResultKind {
+    #[default]
+    SingleWinner,
+    Roster,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AwardOrganizerPolicy {
     DefinedOrganization,
@@ -108,6 +115,8 @@ pub struct AwardDefinition {
     pub recipient_kind: AwardRecipientKind,
     pub prestige: f64,
     pub scope: AwardScopeKind,
+    #[serde(default)]
+    pub result_kind: AwardResultKind,
     pub trigger: AwardTrigger,
     pub evaluation_window: AwardEvaluationWindow,
     pub eligible_positions: Vec<String>,
@@ -122,9 +131,20 @@ pub struct AwardDefinition {
     pub nomination_limit: Option<usize>,
     pub criteria: Vec<AwardCriterion>,
     #[serde(default)]
+    pub roster_slots: Vec<AwardRosterSlot>,
+    #[serde(default)]
     pub tie_breaks: Vec<AwardTieBreak>,
     pub selection: AwardSelectionPolicy,
     pub active: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AwardRosterSlot {
+    pub slot_index: u32,
+    pub position_code: String,
+    pub selection_group: Option<String>,
+    pub slot_role: Option<String>,
+    pub criteria: Vec<AwardCriterion>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -148,6 +168,8 @@ pub struct AwardCandidateEvidence {
     pub country_id: Option<Uuid>,
     pub continent_id: Option<Uuid>,
     pub competition_id: Option<Uuid>,
+    #[serde(default)]
+    pub competition_ids: Vec<Uuid>,
     pub team_id: Option<Uuid>,
     pub matches_played: u32,
     #[serde(default)]
@@ -166,4 +188,17 @@ pub struct AwardInstanceContext {
     pub period_key: String,
     pub scope_id: Option<Uuid>,
     pub selection_model_version: u32,
+}
+
+pub fn award_position_family(position: &str) -> Option<&'static str> {
+    match position {
+        "CenterOffense" | "WingOffense" | "Midcenter" | "TightWing" | "CenterTight"
+        | "Corridor" => Some("OffensiveLine"),
+        "Artrine" | "Passer" | "PassRusher" | "WideEnd" | "RunningEnd" | "Lineback"
+        | "Fullback" => Some("BackLine"),
+        "Centerback" | "DefensiveEnd" | "Rougieback" | "DefensiveBlocker" | "WideBlocker"
+        | "OutsideZonerback" | "MiddleZonerback" => Some("DefenseLine"),
+        "Goalguard" => Some("Goalguard"),
+        _ => None,
+    }
 }

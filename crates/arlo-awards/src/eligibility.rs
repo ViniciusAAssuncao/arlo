@@ -29,5 +29,9 @@ pub(crate) fn eligible(definition: &AwardDefinition, candidate: &AwardCandidateE
         && (definition.eligible_competitions.is_empty()
             || candidate
                 .competition_id
-                .is_some_and(|id| definition.eligible_competitions.contains(&id)))
+                .is_some_and(|id| definition.eligible_competitions.contains(&id))
+            || candidate
+                .competition_ids
+                .iter()
+                .any(|id| definition.eligible_competitions.contains(id)))
 }

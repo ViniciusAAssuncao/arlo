@@ -1,6 +1,7 @@
 use crate::error::PersistenceResult;
+use crate::repositories::award_instance_repository::insert_instance;
 use arlo_awards::AwardResolution;
-use arlo_domain::{AwardDefinition, AwardOrganizerPolicy, AwardRecipientKind};
+use arlo_domain::{AwardDefinition, AwardRecipientKind};
 use sqlx::{Row, Sqlite, SqlitePool, Transaction};
 use uuid::Uuid;
 
@@ -15,8 +16,13 @@ pub struct AwardHistoryRow {
     pub subject_id: Uuid,
     pub rank: usize,
     pub is_winner: bool,
+    pub roster_slot_index: Option<u32>,
+    pub roster_position_code: Option<String>,
+    pub roster_selection_group: Option<String>,
+    pub roster_slot_role: Option<String>,
     pub organizer_league_id: Option<Uuid>,
     pub organizer_federation_id: Option<Uuid>,
+    pub organizer_id: Option<Uuid>,
 }
 
 pub async fn persist_resolution(
@@ -25,50 +31,18 @@ pub async fn persist_resolution(
     definition: &AwardDefinition,
     organizer_league_id: Option<Uuid>,
 ) -> PersistenceResult<Uuid> {
-    let organizer_federation_id =
-        if definition.organizer_policy == AwardOrganizerPolicy::FederationCommittee {
-            let competition_id = resolution.scope_id.ok_or_else(|| {
-                crate::error::PersistenceError::InvalidData(
-                    "federation award requires a competition scope".into(),
-                )
-            })?;
-            let row = sqlx::query("SELECT federation_id FROM competitions WHERE id = ?")
-                .bind(competition_id.to_string())
-                .fetch_one(&mut **tx)
-                .await?;
-            Some(Uuid::parse_str(row.try_get::<&str, _>("federation_id")?)?)
-        } else {
-            None
-        };
-    let instance_id = Uuid::new_v4();
-    let inserted = sqlx::query(
-        "INSERT INTO award_instances (id, award_definition_id, period_key, scope_id, seed, selection_model_version, definition_snapshot, organizer_id, organizer_league_id, organizer_federation_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
+    let (instance_id, inserted) = insert_instance(
+        tx,
+        definition,
+        &resolution.period_key,
+        resolution.scope_id,
+        resolution.seed,
+        resolution.model_version,
+        organizer_league_id,
     )
-    .bind(instance_id.to_string())
-    .bind(resolution.definition_id.to_string())
-    .bind(&resolution.period_key)
-    .bind(resolution.scope_id.map(|id| id.to_string()))
-    .bind(resolution.seed.to_string())
-    .bind(i64::from(resolution.model_version))
-    .bind(serde_json::to_string(definition)?)
-    .bind(definition.organizer_id.map(|id| id.to_string()))
-    .bind(
-        (definition.organizer_policy == AwardOrganizerPolicy::LeagueCommittee)
-            .then_some(organizer_league_id)
-            .flatten()
-            .map(|id| id.to_string()),
-    )
-    .bind(organizer_federation_id.map(|id| id.to_string()))
-    .execute(&mut **tx).await?;
-    if inserted.rows_affected() == 0 {
-        let row = sqlx::query(
-            "SELECT id FROM award_instances WHERE award_definition_id = ? AND period_key = ? AND scope_id IS ?"
-        )
-        .bind(resolution.definition_id.to_string())
-        .bind(&resolution.period_key)
-        .bind(resolution.scope_id.map(|id| id.to_string()))
-        .fetch_one(&mut **tx).await?;
-        return Ok(Uuid::parse_str(row.try_get::<&str, _>("id")?)?);
+    .await?;
+    if !inserted {
+        return Ok(instance_id);
     }
     let kind = recipient_kind_code(definition.recipient_kind);
     for candidate in &resolution.candidates {
@@ -136,8 +110,10 @@ pub async fn list_history_for_subject(
     subject_id: Uuid,
 ) -> PersistenceResult<Vec<AwardHistoryRow>> {
     let rows = sqlx::query(
-        "SELECT i.id AS instance_id, i.definition_snapshot, i.period_key, n.subject_kind, n.subject_id, n.final_rank, r.subject_id AS winner_id, i.organizer_league_id, i.organizer_federation_id FROM award_nominees n JOIN award_instances i ON i.id = n.award_instance_id JOIN award_results r ON r.award_instance_id = i.id WHERE n.subject_kind = ? AND n.subject_id = ? ORDER BY i.resolved_at DESC, i.period_key"
+        "SELECT i.id AS instance_id, i.definition_snapshot, i.period_key, n.subject_kind, n.subject_id, n.final_rank, r.subject_id AS winner_id, NULL AS slot_index, NULL AS position_code, NULL AS selection_group, NULL AS slot_role, i.organizer_league_id, i.organizer_federation_id, i.organizer_id, i.resolved_at FROM award_nominees n JOIN award_instances i ON i.id = n.award_instance_id JOIN award_results r ON r.award_instance_id = i.id WHERE n.subject_kind = ? AND n.subject_id = ? UNION ALL SELECT i.id AS instance_id, i.definition_snapshot, i.period_key, r.subject_kind, r.subject_id, r.slot_index AS final_rank, r.subject_id AS winner_id, r.slot_index, r.position_code, r.selection_group, r.slot_role, i.organizer_league_id, i.organizer_federation_id, i.organizer_id, i.resolved_at FROM award_roster_results r JOIN award_instances i ON i.id = r.award_instance_id WHERE r.subject_kind = ? AND r.subject_id = ? ORDER BY resolved_at DESC, period_key"
     )
+    .bind(recipient_kind_code(subject_kind))
+    .bind(subject_id.to_string())
     .bind(recipient_kind_code(subject_kind))
     .bind(subject_id.to_string())
     .fetch_all(pool).await?;
@@ -157,6 +133,10 @@ pub async fn list_history_for_subject(
                 .try_get::<Option<String>, _>("organizer_federation_id")?
                 .map(|value| Uuid::parse_str(&value))
                 .transpose()?;
+            let organizer_id = row
+                .try_get::<Option<String>, _>("organizer_id")?
+                .map(|value| Uuid::parse_str(&value))
+                .transpose()?;
             Ok(AwardHistoryRow {
                 instance_id: Uuid::parse_str(row.try_get::<&str, _>("instance_id")?)?,
                 definition_id: definition.id,
@@ -167,14 +147,26 @@ pub async fn list_history_for_subject(
                 subject_id,
                 rank,
                 is_winner: subject_id == winner_id,
+                roster_slot_index: row
+                    .try_get::<Option<i64>, _>("slot_index")?
+                    .map(|value| {
+                        u32::try_from(value).map_err(|_| {
+                            crate::error::PersistenceError::InvalidData("roster slot index".into())
+                        })
+                    })
+                    .transpose()?,
+                roster_position_code: row.try_get("position_code")?,
+                roster_selection_group: row.try_get("selection_group")?,
+                roster_slot_role: row.try_get("slot_role")?,
                 organizer_league_id,
                 organizer_federation_id,
+                organizer_id,
             })
         })
         .collect()
 }
 
-fn recipient_kind_code(kind: AwardRecipientKind) -> &'static str {
+pub(crate) fn recipient_kind_code(kind: AwardRecipientKind) -> &'static str {
     match kind {
         AwardRecipientKind::Player => "Player",
         AwardRecipientKind::Team => "Team",

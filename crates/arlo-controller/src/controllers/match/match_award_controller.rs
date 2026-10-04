@@ -82,6 +82,7 @@ pub(crate) fn resolve_match_mvp(
                 country_id: None,
                 continent_id: None,
                 competition_id: Some(scope.competition_id),
+                competition_ids: vec![scope.competition_id],
                 team_id: Some(snapshot.team_id()),
                 matches_played: 1,
                 age_years: None,

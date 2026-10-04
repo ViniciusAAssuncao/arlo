@@ -1,11 +1,11 @@
 use super::season_player_evidence::load_season_player_evidence;
 use crate::error::ControllerResult;
-use arlo_awards::{resolve_award, AwardError};
+use arlo_awards::{resolve_award, resolve_roster_award, AwardError};
 use arlo_domain::{
     AwardCandidateEvidence, AwardDefinition, AwardEvaluationWindow, AwardInstanceContext,
-    AwardOrganizerPolicy, AwardRecipientKind, AwardTrigger,
+    AwardOrganizerPolicy, AwardRecipientKind, AwardResultKind, AwardTrigger,
 };
-use arlo_persistence::repositories::award_repository;
+use arlo_persistence::repositories::{award_repository, award_roster_repository};
 use sqlx::{FromRow, SqlitePool};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -63,17 +63,27 @@ pub(crate) async fn process_season_award_jobs(pool: &SqlitePool) -> ControllerRe
         }
         let evidence = &evidence_cache[&season_id];
         let supported = evidence.first().is_none_or(|candidate| {
-            definition.criteria.iter().all(|criterion| {
-                candidate
-                    .metrics
-                    .iter()
-                    .any(|metric| metric.key == criterion.key)
-            }) && definition.tie_breaks.iter().all(|tie| {
-                candidate
-                    .metrics
-                    .iter()
-                    .any(|metric| metric.key == tie.metric_key)
-            })
+            definition
+                .criteria
+                .iter()
+                .chain(
+                    definition
+                        .roster_slots
+                        .iter()
+                        .flat_map(|slot| slot.criteria.iter()),
+                )
+                .all(|criterion| {
+                    candidate
+                        .metrics
+                        .iter()
+                        .any(|metric| metric.key == criterion.key)
+                })
+                && definition.tie_breaks.iter().all(|tie| {
+                    candidate
+                        .metrics
+                        .iter()
+                        .any(|metric| metric.key == tie.metric_key)
+                })
         });
         if !supported {
             set_pending_reason(
@@ -91,17 +101,6 @@ pub(crate) async fn process_season_award_jobs(pool: &SqlitePool) -> ControllerRe
             selection_model_version: 1,
         };
         let seed = award_seed(season_id, definition_id);
-        let resolution = match resolve_award(definition, &context, evidence, seed) {
-            Ok(value) => value,
-            Err(AwardError::NoEligibleCandidates) => {
-                set_unavailable(pool, definition_id, season_id, "No eligible candidates").await?;
-                continue;
-            }
-            Err(error) => {
-                set_pending_reason(pool, definition_id, season_id, &error.to_string()).await?;
-                continue;
-            }
-        };
         let organizer_league_id =
             if definition.organizer_policy == AwardOrganizerPolicy::LeagueCommittee {
                 let exists =
@@ -115,8 +114,43 @@ pub(crate) async fn process_season_award_jobs(pool: &SqlitePool) -> ControllerRe
                 None
             };
         let mut tx = pool.begin().await?;
-        award_repository::persist_resolution(&mut tx, &resolution, definition, organizer_league_id)
+        let persisted = match definition.result_kind {
+            AwardResultKind::SingleWinner => resolve_award(definition, &context, evidence, seed)
+                .map(|resolution| (Some(resolution), None)),
+            AwardResultKind::Roster => resolve_roster_award(definition, &context, evidence, seed)
+                .map(|resolution| (None, Some(resolution))),
+        };
+        let (single, roster) = match persisted {
+            Ok(value) => value,
+            Err(AwardError::NoEligibleCandidates) => {
+                drop(tx);
+                set_unavailable(pool, definition_id, season_id, "No eligible candidates").await?;
+                continue;
+            }
+            Err(error) => {
+                drop(tx);
+                set_pending_reason(pool, definition_id, season_id, &error.to_string()).await?;
+                continue;
+            }
+        };
+        if let Some(resolution) = single {
+            award_repository::persist_resolution(
+                &mut tx,
+                &resolution,
+                definition,
+                organizer_league_id,
+            )
             .await?;
+        }
+        if let Some(resolution) = roster {
+            award_roster_repository::persist_roster_resolution(
+                &mut tx,
+                &resolution,
+                definition,
+                organizer_league_id,
+            )
+            .await?;
+        }
         sqlx::query(
             "UPDATE award_season_jobs SET status = 'Completed', reason = NULL, finished_at = CURRENT_TIMESTAMP WHERE award_definition_id = ? AND season_instance_id = ? AND status = 'Pending'"
         ).bind(definition_id.to_string()).bind(season_id.to_string()).execute(&mut *tx).await?;

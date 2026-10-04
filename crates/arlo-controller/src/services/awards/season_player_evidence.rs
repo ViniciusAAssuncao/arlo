@@ -1,10 +1,7 @@
-use crate::controllers::season::overview_calendar::resolve_overview_calendar;
-use crate::domain::calendar::ResolvedCalendarDate;
+use super::season_age_cutoff::season_start_unix_seconds;
 use crate::error::ControllerResult;
-use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
-use crate::services::calendar::date_encoder;
-use arlo_domain::{AwardCandidateEvidence, AwardMetric, AwardRecipientKind};
-use sqlx::{FromRow, Row, SqlitePool};
+use arlo_domain::{award_position_family, AwardCandidateEvidence, AwardMetric, AwardRecipientKind};
+use sqlx::{FromRow, SqlitePool};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -36,6 +33,8 @@ struct SeasonPlayerRow {
     defender_wins: i64,
     defender_duels: i64,
     kicker_points: i64,
+    goalguard_recoveries: i64,
+    goalguard_hand_recoveries: i64,
 }
 
 struct PlayerTotals {
@@ -64,6 +63,8 @@ struct PlayerTotals {
     defender_wins: i64,
     defender_duels: i64,
     kicker_points: i64,
+    goalguard_recoveries: i64,
+    goalguard_hand_recoveries: i64,
 }
 
 impl PlayerTotals {
@@ -94,6 +95,8 @@ impl PlayerTotals {
             defender_wins: 0,
             defender_duels: 0,
             kicker_points: 0,
+            goalguard_recoveries: 0,
+            goalguard_hand_recoveries: 0,
         }
     }
 
@@ -129,6 +132,8 @@ impl PlayerTotals {
         self.defender_wins += row.defender_wins;
         self.defender_duels += row.defender_duels;
         self.kicker_points += row.kicker_points;
+        self.goalguard_recoveries += row.goalguard_recoveries;
+        self.goalguard_hand_recoveries += row.goalguard_hand_recoveries;
         Ok(())
     }
 
@@ -151,7 +156,7 @@ impl PlayerTotals {
             .collect();
         let position_family = position
             .as_deref()
-            .and_then(position_family)
+            .and_then(award_position_family)
             .map(str::to_string);
         let team_id = self
             .team_seconds
@@ -167,6 +172,7 @@ impl PlayerTotals {
             country_id: Some(self.country_id),
             continent_id: Some(self.continent_id),
             competition_id: Some(competition_id),
+            competition_ids: vec![competition_id],
             team_id,
             matches_played: self.matches_played,
             age_years: self.age_years,
@@ -184,6 +190,11 @@ impl PlayerTotals {
                 metric("defender_wins", self.defender_wins as f64),
                 metric("defender_duels", self.defender_duels as f64),
                 metric("kicker_points", self.kicker_points as f64),
+                metric("goalguard_recoveries", self.goalguard_recoveries as f64),
+                metric(
+                    "goalguard_hand_recoveries",
+                    self.goalguard_hand_recoveries as f64,
+                ),
                 metric(
                     "average_performance_rating",
                     self.performance_rating / matches,
@@ -203,38 +214,15 @@ pub(crate) async fn load_season_player_evidence(
     season_instance_id: Uuid,
     competition_id: Uuid,
 ) -> ControllerResult<Vec<AwardCandidateEvidence>> {
-    let start_row = sqlx::query(
-        "SELECT si.reference_year, c.season_start_month_order_index, c.season_start_day_of_month FROM season_instances si JOIN league_calendar_configs c ON c.competition_id = si.competition_id WHERE si.id = ?",
-    )
-    .bind(season_instance_id.to_string())
-    .fetch_one(pool)
-    .await?;
-    let calendar_catalog = get_or_load_calendar_catalog(pool).await?;
-    let calendar = resolve_overview_calendar(pool, &calendar_catalog).await?;
-    let start_date = date_encoder::encode(
-        calendar,
-        &ResolvedCalendarDate::RegularDay {
-            year: start_row.try_get("reference_year")?,
-            month_order_index: u32::try_from(
-                start_row.try_get::<i64, _>("season_start_month_order_index")?,
-            )
-            .map_err(|_| {
-                crate::error::ControllerError::InvalidData("Invalid season start month".into())
-            })?,
-            day_of_month: u32::try_from(start_row.try_get::<i64, _>("season_start_day_of_month")?)
-                .map_err(|_| {
-                    crate::error::ControllerError::InvalidData("Invalid season start day".into())
-                })?,
-            week_day_index: 0,
-        },
-    )?;
-    let season_start =
-        (start_date.year() - 1970) * 31_557_600 + i64::from(start_date.day_of_year()) * 86_400;
     let rows = sqlx::query_as::<_, SeasonPlayerRow>(
-        "SELECT perf.player_id, perf.team_id, p.nationality_id, c.continent_id, p.birthdate_unix_seconds, perf.offensive_position, perf.defensive_position, perf.seconds_played, perf.performance_rating, perf.final_rating, perf.high_impact_score, perf.production_score, perf.defense_score, perf.discipline_score, COALESCE(s.total_points_scored, 0) AS total_points_scored, COALESCE(s.goal_points_scored, 0) AS goal_points_scored, COALESCE(s.field_points_scored, 0) AS field_points_scored, COALESCE(s.field_goals_scored, 0) AS field_goals_scored, COALESCE(a.goalpoint_assists, 0) AS goalpoint_assists, COALESCE(t.passes_attempted, 0) AS passes_attempted, COALESCE(t.passes_received, 0) AS passes_received, COALESCE(t.recoveries, 0) AS recoveries, COALESCE(t.turnovers_conceded, 0) AS turnovers_conceded, COALESCE(d.defender_wins, 0) AS defender_wins, COALESCE(d.defender_duels, 0) AS defender_duels, COALESCE(k.points, 0) AS kicker_points FROM match_player_performance perf JOIN matches m ON m.id = perf.match_id JOIN fixtures f ON f.id = m.fixture_id JOIN season_stages ss ON ss.id = f.season_stage_id JOIN players p ON p.id = perf.player_id JOIN countries c ON c.id = p.nationality_id LEFT JOIN match_player_scoring_attempts s ON s.match_id = perf.match_id AND s.player_id = perf.player_id LEFT JOIN match_player_assists a ON a.match_id = perf.match_id AND a.player_id = perf.player_id LEFT JOIN match_player_touches t ON t.match_id = perf.match_id AND t.player_id = perf.player_id LEFT JOIN match_player_duels d ON d.match_id = perf.match_id AND d.player_id = perf.player_id LEFT JOIN (SELECT match_id, scorer_id, SUM(points) AS points FROM match_scoring_plays sp WHERE sp.play_type IN ('FieldPoint', 'FieldGoal') AND NOT EXISTS (SELECT 1 FROM match_play_invalidations i WHERE i.match_id = sp.match_id AND sp.sequence_number BETWEEN i.first_invalidated_sequence AND i.last_invalidated_sequence) GROUP BY sp.match_id, sp.scorer_id) k ON k.match_id = perf.match_id AND k.scorer_id = perf.player_id WHERE ss.season_instance_id = ? AND perf.effective_opportunities > 0 AND perf.confidence_evidence > 0.0 ORDER BY perf.player_id, perf.match_id"
+        "SELECT perf.player_id, perf.team_id, p.nationality_id, c.continent_id, p.birthdate_unix_seconds, perf.offensive_position, perf.defensive_position, perf.seconds_played, perf.performance_rating, perf.final_rating, perf.high_impact_score, perf.production_score, perf.defense_score, perf.discipline_score, COALESCE(s.total_points_scored, 0) AS total_points_scored, COALESCE(s.goal_points_scored, 0) AS goal_points_scored, COALESCE(s.field_points_scored, 0) AS field_points_scored, COALESCE(s.field_goals_scored, 0) AS field_goals_scored, COALESCE(a.goalpoint_assists, 0) AS goalpoint_assists, COALESCE(t.passes_attempted, 0) AS passes_attempted, COALESCE(t.passes_received, 0) AS passes_received, COALESCE(t.recoveries, 0) AS recoveries, COALESCE(t.turnovers_conceded, 0) AS turnovers_conceded, COALESCE(d.defender_wins, 0) AS defender_wins, COALESCE(d.defender_duels, 0) AS defender_duels, COALESCE(k.points, 0) AS kicker_points, COALESCE(g.recoveries, 0) AS goalguard_recoveries, COALESCE(g.hand_recoveries, 0) AS goalguard_hand_recoveries FROM match_player_performance perf JOIN matches m ON m.id = perf.match_id JOIN fixtures f ON f.id = m.fixture_id JOIN season_stages ss ON ss.id = f.season_stage_id JOIN players p ON p.id = perf.player_id JOIN countries c ON c.id = p.nationality_id LEFT JOIN match_player_scoring_attempts s ON s.match_id = perf.match_id AND s.player_id = perf.player_id LEFT JOIN match_player_assists a ON a.match_id = perf.match_id AND a.player_id = perf.player_id LEFT JOIN match_player_touches t ON t.match_id = perf.match_id AND t.player_id = perf.player_id LEFT JOIN match_player_duels d ON d.match_id = perf.match_id AND d.player_id = perf.player_id LEFT JOIN (SELECT match_id, scorer_id, SUM(points) AS points FROM match_scoring_plays sp WHERE sp.play_type IN ('FieldPoint', 'FieldGoal') AND NOT EXISTS (SELECT 1 FROM match_play_invalidations i WHERE i.match_id = sp.match_id AND sp.sequence_number BETWEEN i.first_invalidated_sequence AND i.last_invalidated_sequence) GROUP BY sp.match_id, sp.scorer_id) k ON k.match_id = perf.match_id AND k.scorer_id = perf.player_id LEFT JOIN (SELECT gr.match_id, gr.goalguard_id, COUNT(*) AS recoveries, SUM(gr.used_hands) AS hand_recoveries FROM match_goalguard_recoveries gr WHERE NOT EXISTS (SELECT 1 FROM match_play_invalidations i WHERE i.match_id = gr.match_id AND gr.sequence_number BETWEEN i.first_invalidated_sequence AND i.last_invalidated_sequence) GROUP BY gr.match_id, gr.goalguard_id) g ON g.match_id = perf.match_id AND g.goalguard_id = perf.player_id WHERE ss.season_instance_id = ? AND perf.effective_opportunities > 0 AND perf.confidence_evidence > 0.0 ORDER BY perf.player_id, perf.match_id"
     )
     .bind(season_instance_id.to_string())
     .fetch_all(pool).await?;
+    if rows.is_empty() {
+        return Ok(Vec::new());
+    }
+    let season_start = season_start_unix_seconds(pool, season_instance_id).await?;
     let mut totals = BTreeMap::<Uuid, PlayerTotals>::new();
     for row in rows {
         let player_id = Uuid::parse_str(&row.player_id)?;
@@ -260,18 +248,5 @@ fn metric(key: &str, value: f64) -> AwardMetric {
     AwardMetric {
         key: key.into(),
         value,
-    }
-}
-
-fn position_family(position: &str) -> Option<&'static str> {
-    match position {
-        "CenterOffense" | "WingOffense" | "Midcenter" | "TightWing" | "CenterTight"
-        | "Corridor" => Some("OffensiveLine"),
-        "Artrine" | "Passer" | "PassRusher" | "WideEnd" | "RunningEnd" | "Lineback"
-        | "Fullback" => Some("BackLine"),
-        "Centerback" | "DefensiveEnd" | "Rougieback" | "DefensiveBlocker" | "WideBlocker"
-        | "OutsideZonerback" | "MiddleZonerback" => Some("DefenseLine"),
-        "Goalguard" => Some("Goalguard"),
-        _ => None,
     }
 }

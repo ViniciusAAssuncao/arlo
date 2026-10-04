@@ -1,8 +1,10 @@
 use crate::eligibility::eligible;
 use crate::scoring::{base_utility, compare_tie_breaks};
+use crate::validation::validate;
 use crate::voting::vote;
 use arlo_domain::{
-    AwardCandidateEvidence, AwardDefinition, AwardInstanceContext, AwardSelectionPolicy,
+    award_position_family, AwardCandidateEvidence, AwardDefinition, AwardInstanceContext,
+    AwardResultKind, AwardSelectionPolicy,
 };
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -59,6 +61,11 @@ pub fn resolve_award(
     candidates: &[AwardCandidateEvidence],
     seed: u64,
 ) -> Result<AwardResolution, AwardError> {
+    if definition.result_kind != AwardResultKind::SingleWinner {
+        return Err(AwardError::InvalidDefinition(
+            "single-winner resolver requires a single-winner definition".into(),
+        ));
+    }
     validate(definition)?;
     if context.period_key.is_empty() || context.selection_model_version == 0 {
         return Err(AwardError::InvalidDefinition(
@@ -81,6 +88,11 @@ pub fn resolve_award(
                     .iter()
                     .find(|position| definition.eligible_positions.contains(position))
                     .cloned();
+                candidate.position_family = candidate
+                    .position
+                    .as_deref()
+                    .and_then(award_position_family)
+                    .map(str::to_string);
             }
             candidate
         })
@@ -233,67 +245,4 @@ pub fn resolve_award(
         candidates: scored,
         electorates,
     })
-}
-
-fn validate(definition: &AwardDefinition) -> Result<(), AwardError> {
-    if definition
-        .minimum_age
-        .zip(definition.maximum_age)
-        .is_some_and(|(minimum, maximum)| minimum > maximum)
-    {
-        return Err(AwardError::InvalidDefinition(
-            "minimum age exceeds maximum age".into(),
-        ));
-    }
-    if definition.criteria.is_empty()
-        || definition
-            .criteria
-            .iter()
-            .map(|item| item.weight)
-            .sum::<f64>()
-            <= 0.0
-        || definition
-            .criteria
-            .iter()
-            .any(|item| !item.weight.is_finite() || item.weight < 0.0)
-    {
-        return Err(AwardError::InvalidDefinition(
-            "criteria must have finite nonnegative weights".into(),
-        ));
-    }
-    if definition.nomination_limit == Some(0) {
-        return Err(AwardError::InvalidDefinition(
-            "nomination limit must be positive".into(),
-        ));
-    }
-    match &definition.selection {
-        AwardSelectionPolicy::Utility { temperature }
-            if !temperature.is_finite() || *temperature < 0.0 =>
-        {
-            Err(AwardError::InvalidDefinition(
-                "temperature must be finite and nonnegative".into(),
-            ))
-        }
-        AwardSelectionPolicy::RankedVoting {
-            ballot_points,
-            groups,
-        } if ballot_points.is_empty()
-            || ballot_points[0] == 0
-            || groups.is_empty()
-            || groups.iter().any(|group| {
-                group.voter_count == 0
-                    || !group.result_weight.is_finite()
-                    || group.result_weight <= 0.0
-                    || group
-                        .criterion_preferences
-                        .iter()
-                        .any(|preference| !preference.multiplier.is_finite())
-            }) =>
-        {
-            Err(AwardError::InvalidDefinition(
-                "ranked voting requires points and positive electorates".into(),
-            ))
-        }
-        _ => Ok(()),
-    }
 }

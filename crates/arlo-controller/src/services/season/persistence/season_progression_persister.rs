@@ -89,6 +89,13 @@ pub async fn finalize_season_instance(
     .execute(&mut *tx)
     .await?;
 
+    sqlx::query(
+        "INSERT INTO award_global_cycle_jobs (award_definition_id, reference_year) SELECT d.id, si.reference_year FROM award_definitions d JOIN season_instances si ON si.id = ? WHERE d.active = 1 AND d.trigger_policy = '\"SeasonCompleted\"' AND d.evaluation_window = '\"PreviousSeasonCycle\"' AND d.scope_kind = 'Global' AND (NOT EXISTS (SELECT 1 FROM award_eligibility_competitions ec WHERE ec.award_definition_id = d.id) OR EXISTS (SELECT 1 FROM award_eligibility_competitions ec WHERE ec.award_definition_id = d.id AND ec.competition_id = si.competition_id)) ON CONFLICT DO NOTHING",
+    )
+    .bind(season_instance_id.to_string())
+    .execute(&mut *tx)
+    .await?;
+
     tx.commit().await?;
 
     Ok(())

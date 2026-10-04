@@ -1,5 +1,7 @@
-pub mod batching;
+mod award_instance_repository;
 pub mod award_repository;
+pub mod award_roster_repository;
+pub mod batching;
 pub mod calendar;
 pub mod condition;
 pub mod incidents;

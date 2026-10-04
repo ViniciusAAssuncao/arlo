@@ -1,9 +1,9 @@
 use crate::domain::calendar::CalendarDate;
 use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
+use crate::services::awards::{process_global_cycle_jobs, process_season_award_jobs};
 use crate::services::calendar::date_advancer;
 use crate::services::day_simulation::day_progress;
-use crate::services::awards::process_season_award_jobs;
 use crate::services::event_scheduling::event_dispatcher::{
     dispatch_due_events, DispatchedEventResult,
 };
@@ -65,16 +65,22 @@ pub async fn run_day_advancement(
     let previous_date = CalendarDate::new(row.current_year, row.current_day_of_year as u32);
     let current_date = date_advancer::advance(calendar, &previous_date, 1);
 
-    let progress = day_progress::load_or_start(pool, save_uuid, &previous_date, &current_date).await?;
+    let progress =
+        day_progress::load_or_start(pool, save_uuid, &previous_date, &current_date).await?;
     let mut phase = progress.phase;
     let mut matches_played_count = progress.matches_played_count as u32;
     if phase == "Started" {
         let plan = arlo_recovery::orchestration::prepare_all_players_one_day(
-            pool, current_date.year(), current_date.day_of_year(),
-        ).await.map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+            pool,
+            current_date.year(),
+            current_date.day_of_year(),
+        )
+        .await
+        .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
         let mut tx = pool.begin().await?;
         arlo_recovery::orchestration::persist_daily_condition_plan(&mut tx, plan)
-            .await.map_err(|error| ControllerError::InvalidData(error.to_string()))?;
+            .await
+            .map_err(|error| ControllerError::InvalidData(error.to_string()))?;
         day_progress::advance_phase_with_tx(&mut tx, save_uuid, "Started", "RecoveryDone").await?;
         tx.commit().await?;
         phase = "RecoveryDone".into();
@@ -85,8 +91,12 @@ pub async fn run_day_advancement(
         if trigger_store.has_due(&current_date).await {
             day_progress::advance_phase(pool, save_uuid, "RecoveryDone", "EventsRunning").await?;
             dispatched_events = dispatch_due_events(
-                pool, Arc::clone(trigger_store), calendar_system_id, &current_date,
-            ).await?;
+                pool,
+                Arc::clone(trigger_store),
+                calendar_system_id,
+                &current_date,
+            )
+            .await?;
             day_progress::advance_phase(pool, save_uuid, "EventsRunning", "EventsDone").await?;
         } else {
             day_progress::advance_phase(pool, save_uuid, "RecoveryDone", "EventsDone").await?;
@@ -101,14 +111,21 @@ pub async fn run_day_advancement(
 
     if phase == "EventsDone" {
         matches_played_count = matchday_orchestrator::run_due_matches(
-            pool, save_uuid, current_date.year(), current_date.day_of_year(),
-        ).await?;
+            pool,
+            save_uuid,
+            current_date.year(),
+            current_date.day_of_year(),
+        )
+        .await?;
         phase = "MatchesDone".into();
     }
     if phase != "MatchesDone" {
-        return Err(ControllerError::InvalidData("Unknown day progress phase".into()));
+        return Err(ControllerError::InvalidData(
+            "Unknown day progress phase".into(),
+        ));
     }
     process_season_award_jobs(pool).await?;
+    process_global_cycle_jobs(pool).await?;
     maybe_publish_power_rankings(pool, calendar, current_date).await?;
     day_progress::finish(pool, save_uuid, &current_date).await?;
 

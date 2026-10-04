@@ -1,8 +1,9 @@
+use crate::award_roster_catalog::load_roster_slots;
 use crate::award_selection_catalog::load_selection;
 use arlo_domain::{
     AwardCriterion, AwardDefinition, AwardEvaluationWindow, AwardNormalization, AwardOrganization,
-    AwardOrganizerPolicy, AwardRecipientKind, AwardScopeKind, AwardTieBreak, AwardTieDirection,
-    AwardTrigger,
+    AwardOrganizerPolicy, AwardRecipientKind, AwardResultKind, AwardScopeKind, AwardTieBreak,
+    AwardTieDirection, AwardTrigger,
 };
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
@@ -130,6 +131,11 @@ async fn load_definition(
         recipient_kind,
         prestige: row.try_get("prestige")?,
         scope,
+        result_kind: match row.try_get::<&str, _>("result_kind")? {
+            "SingleWinner" => AwardResultKind::SingleWinner,
+            "Roster" => AwardResultKind::Roster,
+            other => return Err(AwardCatalogError::InvalidValue(other.into())),
+        },
         trigger: serde_json::from_str::<AwardTrigger>(row.try_get("trigger_policy")?)?,
         evaluation_window: serde_json::from_str::<AwardEvaluationWindow>(
             row.try_get("evaluation_window")?,
@@ -170,6 +176,7 @@ async fn load_definition(
             })
             .transpose()?,
         criteria,
+        roster_slots: load_roster_slots(pool, id).await?,
         tie_breaks: load_tie_breaks(pool, id).await?,
         selection: load_selection(
             pool,
