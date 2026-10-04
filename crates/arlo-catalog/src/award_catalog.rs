@@ -118,9 +118,13 @@ async fn load_definition(
             .try_get::<Option<String>, _>("organizer_id")?
             .map(|value| Uuid::parse_str(&value))
             .transpose()?,
-        organizer_policy: match row.try_get::<&str, _>("organizer_policy")? {
+        organizer_policy: match row
+            .try_get::<Option<&str>, _>("organizer_policy_override")?
+            .unwrap_or(row.try_get::<&str, _>("organizer_policy")?)
+        {
             "DefinedOrganization" => AwardOrganizerPolicy::DefinedOrganization,
             "LeagueCommittee" => AwardOrganizerPolicy::LeagueCommittee,
+            "FederationCommittee" => AwardOrganizerPolicy::FederationCommittee,
             other => return Err(AwardCatalogError::InvalidValue(other.into())),
         },
         recipient_kind,

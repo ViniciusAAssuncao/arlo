@@ -23,6 +23,7 @@ pub enum AwardScopeKind {
 pub enum AwardOrganizerPolicy {
     DefinedOrganization,
     LeagueCommittee,
+    FederationCommittee,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
