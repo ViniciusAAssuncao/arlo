@@ -9,6 +9,8 @@ impl PlayerPerformanceAggregator {
         self.last_clock = envelope.clock();
         self.sequence_counter = envelope.sequence_number();
 
+        self.record_position_time(envelope.event());
+
         let observations = self.translator.translate_envelope(envelope);
         self.apply_observations(&observations);
         self.inspect_event_for_roster_updates(envelope.event());
@@ -21,6 +23,7 @@ impl PlayerPerformanceAggregator {
 
     pub fn process_event(&mut self, event: &MatchEvent) {
         self.sequence_counter = self.sequence_counter.saturating_add(1);
+        self.record_position_time(event);
         let observations = self.translator.translate_event(event, self.last_clock);
         self.apply_observations(&observations);
         self.inspect_event_for_roster_updates(event);
@@ -47,6 +50,17 @@ impl PlayerPerformanceAggregator {
                 state.advance_time(delta, &self.config);
             }
             self.last_clock_seconds = clock_seconds;
+        }
+    }
+
+    fn record_position_time(&mut self, event: &MatchEvent) {
+        if let MatchEvent::PossessionTimeRecorded(possession) = event {
+            for state in self.players.values_mut() {
+                state.record_possession_time(
+                    possession.team_id(),
+                    possession.live_duration_seconds(),
+                );
+            }
         }
     }
 

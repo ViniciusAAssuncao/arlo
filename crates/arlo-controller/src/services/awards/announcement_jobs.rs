@@ -27,6 +27,7 @@ struct SeasonRow {
     competition_id: String,
     reference_year: i64,
     status: String,
+    prestige: i64,
 }
 
 pub(crate) async fn process_announcement_jobs(
@@ -69,7 +70,7 @@ pub(crate) async fn process_announcement_jobs(
             continue;
         }
         let seasons = sqlx::query_as::<_, SeasonRow>(
-            "SELECT id, competition_id, reference_year, status FROM season_instances WHERE reference_year IN (?, ?) ORDER BY reference_year, competition_id, id",
+            "SELECT si.id, si.competition_id, si.reference_year, si.status, c.prestige FROM season_instances si JOIN competitions c ON c.id = si.competition_id WHERE si.reference_year IN (?, ?) ORDER BY si.reference_year, si.competition_id, si.id",
         )
         .bind(job.announcement_year - 1)
         .bind(job.announcement_year)
@@ -89,6 +90,9 @@ pub(crate) async fn process_announcement_jobs(
             if scope_id.is_some_and(|id| id != competition_id)
                 || (!definition.eligible_competitions.is_empty()
                     && !definition.eligible_competitions.contains(&competition_id))
+                || definition
+                    .minimum_competition_prestige
+                    .is_some_and(|minimum| prior.prestige < i64::from(minimum))
             {
                 continue;
             }
@@ -263,9 +267,10 @@ async fn enqueue(
             insert_job(pool, definition.id, date.year(), "").await?;
         } else {
             let rows = sqlx::query_scalar::<_, String>(
-                "SELECT DISTINCT competition_id FROM season_instances WHERE reference_year = ?",
+                "SELECT DISTINCT si.competition_id FROM season_instances si JOIN competitions c ON c.id = si.competition_id WHERE si.reference_year = ? AND c.prestige >= ?",
             )
             .bind(date.year() - 1)
+            .bind(i64::from(definition.minimum_competition_prestige.unwrap_or(0)))
             .fetch_all(pool)
             .await?;
             for competition in rows {
@@ -336,6 +341,12 @@ fn criteria_available(
                     .iter()
                     .flat_map(|slot| slot.criteria.iter()),
             )
+            .chain(
+                definition
+                    .dynamic_position_profiles
+                    .iter()
+                    .flat_map(|profile| profile.criteria.iter()),
+            )
             .all(|criterion| {
                 candidate
                     .metrics
@@ -380,6 +391,12 @@ fn uses_metric(definition: &AwardDefinition, key: &str) -> bool {
                 .roster_slots
                 .iter()
                 .flat_map(|slot| slot.criteria.iter()),
+        )
+        .chain(
+            definition
+                .dynamic_position_profiles
+                .iter()
+                .flat_map(|profile| profile.criteria.iter()),
         )
         .any(|criterion| criterion.key == key)
 }

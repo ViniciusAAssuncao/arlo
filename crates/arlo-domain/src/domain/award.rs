@@ -125,6 +125,14 @@ pub struct AwardDefinition {
     pub announcement_month_order_index: Option<u32>,
     #[serde(default)]
     pub announcement_day_of_month: Option<u32>,
+    #[serde(default)]
+    pub announcement_delay_days: u32,
+    #[serde(default)]
+    pub minimum_competition_prestige: Option<u32>,
+    #[serde(default)]
+    pub dynamic_roster: Option<AwardDynamicRosterPolicy>,
+    #[serde(default)]
+    pub dynamic_position_profiles: Vec<AwardPositionProfile>,
     pub eligible_positions: Vec<String>,
     #[serde(default)]
     pub minimum_age: Option<u32>,
@@ -142,6 +150,27 @@ pub struct AwardDefinition {
     pub tie_breaks: Vec<AwardTieBreak>,
     pub selection: AwardSelectionPolicy,
     pub active: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AwardDynamicRosterPolicy {
+    pub slot_count: u32,
+    pub minimum_position_seconds: f64,
+    pub minimum_position_candidates: u32,
+    pub minimum_utility: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AwardPositionProfile {
+    pub position_code: String,
+    pub criteria: Vec<AwardCriterion>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AwardPositionUsage {
+    pub position_code: String,
+    pub seconds_played: f64,
+    pub proficiency: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -170,6 +199,8 @@ pub struct AwardCandidateEvidence {
     pub position: Option<String>,
     #[serde(default)]
     pub positions: Vec<String>,
+    #[serde(default)]
+    pub position_usage: Vec<AwardPositionUsage>,
     pub position_family: Option<String>,
     pub country_id: Option<Uuid>,
     pub continent_id: Option<Uuid>,

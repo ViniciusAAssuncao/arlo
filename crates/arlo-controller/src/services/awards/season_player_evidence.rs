@@ -1,3 +1,4 @@
+use super::position_usage::load_position_usage;
 use super::season_age_cutoff::season_start_unix_seconds;
 use crate::domain::calendar::CalendarDate;
 use crate::error::ControllerResult;
@@ -169,6 +170,7 @@ impl PlayerTotals {
             subject_id: player_id,
             position,
             positions,
+            position_usage: Vec::new(),
             position_family,
             country_id: Some(self.country_id),
             continent_id: Some(self.continent_id),
@@ -264,10 +266,35 @@ pub(crate) async fn load_season_player_evidence_between(
             })
             .add(&row)?;
     }
-    Ok(totals
+    let mut evidence: Vec<_> = totals
         .into_iter()
         .map(|(id, total)| total.evidence(id, competition_id))
-        .collect())
+        .collect();
+    let usage = load_position_usage(pool, season_instance_id, start, end).await?;
+    for candidate in &mut evidence {
+        if let Some(positions) = usage.get(&candidate.subject_id) {
+            candidate.position_usage = positions.clone();
+            candidate.positions = positions
+                .iter()
+                .map(|item| item.position_code.clone())
+                .collect();
+            candidate.position = positions
+                .iter()
+                .max_by(|left, right| {
+                    left.seconds_played
+                        .total_cmp(&right.seconds_played)
+                        .then_with(|| left.proficiency.cmp(&right.proficiency))
+                        .then_with(|| right.position_code.cmp(&left.position_code))
+                })
+                .map(|item| item.position_code.clone());
+            candidate.position_family = candidate
+                .position
+                .as_deref()
+                .and_then(award_position_family)
+                .map(str::to_string);
+        }
+    }
+    Ok(evidence)
 }
 
 fn metric(key: &str, value: f64) -> AwardMetric {

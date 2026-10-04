@@ -1,3 +1,4 @@
+use crate::dynamic_roster::resolve_dynamic_roster_award;
 use crate::{resolve_award, AwardError, CandidateResult, ElectorateResult};
 use arlo_domain::{
     AwardCandidateEvidence, AwardDefinition, AwardInstanceContext, AwardResultKind, AwardRosterSlot,
@@ -11,6 +12,8 @@ pub struct RosterSelection {
     pub result: CandidateResult,
     pub candidates: Vec<CandidateResult>,
     pub electorates: Vec<ElectorateResult>,
+    pub usage_score: Option<f64>,
+    pub evidence_score: Option<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,6 +32,9 @@ pub fn resolve_roster_award(
     candidates: &[AwardCandidateEvidence],
     seed: u64,
 ) -> Result<AwardRosterResolution, AwardError> {
+    if definition.dynamic_roster.is_some() {
+        return resolve_dynamic_roster_award(definition, context, candidates, seed);
+    }
     if definition.result_kind != AwardResultKind::Roster || definition.roster_slots.is_empty() {
         return Err(AwardError::InvalidDefinition(
             "roster award requires configured slots".into(),
@@ -89,6 +95,8 @@ pub fn resolve_roster_award(
             result,
             candidates: results.clone(),
             electorates: electorates.clone(),
+            usage_score: None,
+            evidence_score: None,
         });
     }
     Ok(AwardRosterResolution {

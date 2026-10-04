@@ -27,7 +27,9 @@ pub async fn persist_player_performance(
 
     let rows: Vec<_> = snapshots
         .iter()
-        .map(|snapshot| MatchPlayerPerformanceRow::from_snapshot(Uuid::new_v4(), match_id, snapshot))
+        .map(|snapshot| {
+            MatchPlayerPerformanceRow::from_snapshot(Uuid::new_v4(), match_id, snapshot)
+        })
         .collect();
 
     let category_rows: Vec<_> = snapshots
@@ -49,5 +51,16 @@ pub async fn persist_player_performance(
         .collect();
 
     match_player_performance::insert_batch(tx, &rows).await?;
+    for player in aggregator.players().values() {
+        for (position_code, seconds_played) in player.position_seconds() {
+            sqlx::query("INSERT INTO match_player_position_seconds (match_id, player_id, position_code, seconds_played) VALUES (?, ?, ?, ?)")
+                .bind(match_id.to_string())
+                .bind(player.player_id().to_string())
+                .bind(position_code)
+                .bind(seconds_played)
+                .execute(&mut **tx)
+                .await?;
+        }
+    }
     match_player_performance_category::insert_batch(tx, &category_rows).await
 }

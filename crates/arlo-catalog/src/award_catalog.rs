@@ -1,9 +1,9 @@
-use crate::award_roster_catalog::load_roster_slots;
+use crate::award_roster_catalog::{load_dynamic_position_profiles, load_roster_slots};
 use crate::award_selection_catalog::load_selection;
 use arlo_domain::{
-    AwardCriterion, AwardDefinition, AwardEvaluationWindow, AwardNormalization, AwardOrganization,
-    AwardOrganizerPolicy, AwardRecipientKind, AwardResultKind, AwardScopeKind, AwardTieBreak,
-    AwardTieDirection, AwardTrigger,
+    AwardCriterion, AwardDefinition, AwardDynamicRosterPolicy, AwardEvaluationWindow,
+    AwardNormalization, AwardOrganization, AwardOrganizerPolicy, AwardRecipientKind,
+    AwardResultKind, AwardScopeKind, AwardTieBreak, AwardTieDirection, AwardTrigger,
 };
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
@@ -142,6 +142,37 @@ async fn load_definition(
         )?,
         announcement_month_order_index: optional_u32(row, "announcement_month_order_index")?,
         announcement_day_of_month: optional_u32(row, "announcement_day_of_month")?,
+        announcement_delay_days: read_positive_u32(row.try_get("announcement_delay_days")?)?,
+        minimum_competition_prestige: optional_u32(row, "minimum_competition_prestige")?,
+        dynamic_roster: optional_u32(row, "dynamic_roster_size")?
+            .map(|slot_count| {
+                Ok::<AwardDynamicRosterPolicy, AwardCatalogError>(AwardDynamicRosterPolicy {
+                    slot_count,
+                    minimum_position_seconds: row
+                        .try_get::<Option<f64>, _>("dynamic_minimum_position_seconds")?
+                        .ok_or_else(|| {
+                            AwardCatalogError::InvalidValue(
+                                "dynamic_minimum_position_seconds".into(),
+                            )
+                        })?,
+                    minimum_position_candidates: optional_u32(
+                        row,
+                        "dynamic_minimum_position_candidates",
+                    )?
+                    .ok_or_else(|| {
+                        AwardCatalogError::InvalidValue(
+                            "dynamic_minimum_position_candidates".into(),
+                        )
+                    })?,
+                    minimum_utility: row
+                        .try_get::<Option<f64>, _>("dynamic_minimum_utility")?
+                        .ok_or_else(|| {
+                            AwardCatalogError::InvalidValue("dynamic_minimum_utility".into())
+                        })?,
+                })
+            })
+            .transpose()?,
+        dynamic_position_profiles: load_dynamic_position_profiles(pool, id).await?,
         eligible_positions: list_strings(pool, "award_eligibility_positions", "position_code", id)
             .await?,
         minimum_age: row

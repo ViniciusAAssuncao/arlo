@@ -1,4 +1,4 @@
-use arlo_domain::{AwardCandidateEvidence, AwardMetric};
+use arlo_domain::{award_position_family, AwardCandidateEvidence, AwardMetric, AwardPositionUsage};
 use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
@@ -7,6 +7,7 @@ struct CandidateAccumulator {
     representative_matches: u32,
     competitions: BTreeSet<Uuid>,
     metrics: BTreeMap<String, f64>,
+    position_usage: BTreeMap<String, (f64, Option<u32>)>,
 }
 
 pub(super) fn merge_player_evidence(
@@ -23,6 +24,7 @@ pub(super) fn merge_player_evidence(
                     representative_matches: 0,
                     competitions: BTreeSet::new(),
                     metrics: BTreeMap::new(),
+                    position_usage: BTreeMap::new(),
                     candidate: initial,
                 }
             });
@@ -37,6 +39,11 @@ pub(super) fn merge_player_evidence(
             entry.candidate.matches_played += candidate.matches_played;
             entry.candidate.positions.extend(candidate.positions);
             entry.competitions.extend(candidate.competition_ids);
+            for usage in candidate.position_usage {
+                let total = entry.position_usage.entry(usage.position_code).or_default();
+                total.0 += usage.seconds_played;
+                total.1 = total.1.max(usage.proficiency);
+            }
             for metric in candidate.metrics {
                 let value = if metric.key.starts_with("average_") {
                     metric.value * f64::from(candidate.matches_played)
@@ -54,6 +61,42 @@ pub(super) fn merge_player_evidence(
             entry.candidate.positions.sort();
             entry.candidate.positions.dedup();
             entry.candidate.competition_ids = entry.competitions.into_iter().collect();
+            entry.candidate.position_usage = entry
+                .position_usage
+                .into_iter()
+                .map(
+                    |(position_code, (seconds_played, proficiency))| AwardPositionUsage {
+                        position_code,
+                        seconds_played,
+                        proficiency,
+                    },
+                )
+                .collect();
+            if !entry.candidate.position_usage.is_empty() {
+                entry.candidate.position = entry
+                    .candidate
+                    .position_usage
+                    .iter()
+                    .max_by(|left, right| {
+                        left.seconds_played
+                            .total_cmp(&right.seconds_played)
+                            .then_with(|| left.proficiency.cmp(&right.proficiency))
+                            .then_with(|| right.position_code.cmp(&left.position_code))
+                    })
+                    .map(|item| item.position_code.clone());
+                entry.candidate.position_family = entry
+                    .candidate
+                    .position
+                    .as_deref()
+                    .and_then(award_position_family)
+                    .map(str::to_string);
+                entry.candidate.positions = entry
+                    .candidate
+                    .position_usage
+                    .iter()
+                    .map(|item| item.position_code.clone())
+                    .collect();
+            }
             entry.candidate.metrics = entry
                 .metrics
                 .into_iter()

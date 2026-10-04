@@ -127,7 +127,7 @@ pub async fn run_day_advancement(
         ));
     }
     process_season_award_jobs(pool).await?;
-    process_global_cycle_jobs(pool).await?;
+    process_global_cycle_jobs(pool, calendar, current_date).await?;
     process_announcement_jobs(pool, calendar, current_date).await?;
     maybe_publish_power_rankings(pool, calendar, current_date).await?;
     day_progress::finish(pool, save_uuid, &current_date).await?;

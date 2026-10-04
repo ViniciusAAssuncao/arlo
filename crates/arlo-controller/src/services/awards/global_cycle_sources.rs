@@ -10,6 +10,7 @@ struct SeasonSourceRow {
     id: String,
     competition_id: String,
     status: String,
+    prestige: i64,
 }
 
 pub(super) async fn ready_sources(
@@ -18,7 +19,7 @@ pub(super) async fn ready_sources(
     year: i64,
 ) -> ControllerResult<Option<Vec<GlobalSeasonSource>>> {
     let rows = sqlx::query_as::<_, SeasonSourceRow>(
-        "SELECT id, competition_id, status FROM season_instances WHERE reference_year = ? ORDER BY competition_id, id",
+        "SELECT si.id, si.competition_id, si.status, c.prestige FROM season_instances si JOIN competitions c ON c.id = si.competition_id WHERE si.reference_year = ? ORDER BY si.competition_id, si.id",
     )
     .bind(year)
     .fetch_all(pool)
@@ -29,6 +30,12 @@ pub(super) async fn ready_sources(
         let competition_id = Uuid::parse_str(&row.competition_id)?;
         if !definition.eligible_competitions.is_empty()
             && !definition.eligible_competitions.contains(&competition_id)
+        {
+            continue;
+        }
+        if definition
+            .minimum_competition_prestige
+            .is_some_and(|minimum| row.prestige < i64::from(minimum))
         {
             continue;
         }
@@ -85,5 +92,10 @@ fn uses_metric(definition: &AwardDefinition, key: &str) -> bool {
             .roster_slots
             .iter()
             .flat_map(|slot| slot.criteria.iter())
+            .any(|item| item.key == key)
+        || definition
+            .dynamic_position_profiles
+            .iter()
+            .flat_map(|profile| profile.criteria.iter())
             .any(|item| item.key == key)
 }

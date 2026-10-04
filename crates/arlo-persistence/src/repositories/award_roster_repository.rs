@@ -67,6 +67,18 @@ pub async fn persist_roster_resolution(
     }
     let kind = recipient_kind_code(definition.recipient_kind);
     for selection in &resolution.selections {
+        if let (Some(usage_score), Some(evidence_score)) =
+            (selection.usage_score, selection.evidence_score)
+        {
+            sqlx::query("INSERT INTO award_roster_instance_slots (award_instance_id, slot_index, position_code, usage_score, evidence_score) VALUES (?, ?, ?, ?, ?)")
+                .bind(instance_id.to_string())
+                .bind(i64::from(selection.slot.slot_index))
+                .bind(&selection.slot.position_code)
+                .bind(usage_score)
+                .bind(evidence_score)
+                .execute(&mut **tx)
+                .await?;
+        }
         for candidate in &selection.candidates {
             sqlx::query(
                 "INSERT INTO award_roster_candidates (award_instance_id, slot_index, subject_kind, subject_id, utility, selection_score, final_rank) VALUES (?, ?, ?, ?, ?, ?, ?)",

@@ -78,6 +78,7 @@ pub(crate) fn resolve_match_mvp(
                     format!("{:?}", snapshot.offensive_position()),
                     format!("{:?}", snapshot.defensive_position()),
                 ],
+                position_usage: Vec::new(),
                 position_family: None,
                 country_id: None,
                 continent_id: None,

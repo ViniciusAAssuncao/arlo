@@ -1,5 +1,5 @@
 use crate::award_catalog::AwardCatalogError;
-use arlo_domain::{AwardCriterion, AwardNormalization, AwardRosterSlot};
+use arlo_domain::{AwardCriterion, AwardNormalization, AwardPositionProfile, AwardRosterSlot};
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
@@ -66,4 +66,27 @@ async fn load_profile_criteria(
             })
         })
         .collect()
+}
+
+pub(crate) async fn load_dynamic_position_profiles(
+    pool: &SqlitePool,
+    definition_id: Uuid,
+) -> Result<Vec<AwardPositionProfile>, AwardCatalogError> {
+    let rows = sqlx::query("SELECT position_code, selection_profile_id FROM award_dynamic_position_profiles WHERE award_definition_id = ? ORDER BY position_code")
+        .bind(definition_id.to_string()).fetch_all(pool).await?;
+    let mut profiles = Vec::with_capacity(rows.len());
+    for row in rows {
+        let profile_id: String = row.try_get("selection_profile_id")?;
+        let criteria = load_profile_criteria(pool, &profile_id).await?;
+        if criteria.is_empty() {
+            return Err(AwardCatalogError::InvalidValue(
+                "dynamic position profile has no criteria".into(),
+            ));
+        }
+        profiles.push(AwardPositionProfile {
+            position_code: row.try_get("position_code")?,
+            criteria,
+        });
+    }
+    Ok(profiles)
 }

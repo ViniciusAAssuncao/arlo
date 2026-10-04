@@ -1,6 +1,8 @@
 use super::global_cycle_sources::ready_sources;
 use super::global_player_evidence::load_global_player_evidence;
+use crate::domain::calendar::{CalendarDate, CalendarSystem};
 use crate::error::ControllerResult;
+use crate::services::calendar::date_advancer;
 use arlo_awards::{resolve_award, resolve_roster_award, AwardError};
 use arlo_domain::{
     AwardDefinition, AwardEvaluationWindow, AwardInstanceContext, AwardRecipientKind,
@@ -17,7 +19,11 @@ struct GlobalCycleJob {
     reference_year: i64,
 }
 
-pub(crate) async fn process_global_cycle_jobs(pool: &SqlitePool) -> ControllerResult<u32> {
+pub(crate) async fn process_global_cycle_jobs(
+    pool: &SqlitePool,
+    calendar: &CalendarSystem,
+    date: CalendarDate,
+) -> ControllerResult<u32> {
     enqueue_completed_cycles(pool).await?;
     let jobs = sqlx::query_as::<_, GlobalCycleJob>(
         "SELECT award_definition_id, reference_year FROM award_global_cycle_jobs WHERE status = 'Pending' ORDER BY reference_year, award_definition_id",
@@ -72,6 +78,24 @@ pub(crate) async fn process_global_cycle_jobs(pool: &SqlitePool) -> ControllerRe
             .await?;
             continue;
         };
+        let ready = sqlx::query_as::<_, (Option<i64>, Option<i64>)>("SELECT ready_year, ready_day_of_year FROM award_global_cycle_jobs WHERE award_definition_id = ? AND reference_year = ?")
+            .bind(definition_id.to_string()).bind(job.reference_year).fetch_one(pool).await?;
+        let ready_date = if let (Some(year), Some(day)) = ready {
+            CalendarDate::new(year, day as u32)
+        } else {
+            sqlx::query("UPDATE award_global_cycle_jobs SET ready_year = ?, ready_day_of_year = ?, reason = NULL WHERE award_definition_id = ? AND reference_year = ? AND ready_year IS NULL")
+                .bind(date.year()).bind(i64::from(date.day_of_year())).bind(definition_id.to_string()).bind(job.reference_year).execute(pool).await?;
+            date
+        };
+        if date
+            < date_advancer::advance(
+                calendar,
+                &ready_date,
+                i64::from(definition.announcement_delay_days),
+            )
+        {
+            continue;
+        }
         let evidence = load_global_player_evidence(pool, &sources).await?;
         if !criteria_available(definition, &evidence) {
             set_reason(
@@ -147,7 +171,7 @@ pub(crate) async fn process_global_cycle_jobs(pool: &SqlitePool) -> ControllerRe
 
 async fn enqueue_completed_cycles(pool: &SqlitePool) -> ControllerResult<()> {
     sqlx::query(
-        "INSERT INTO award_global_cycle_jobs (award_definition_id, reference_year) SELECT DISTINCT d.id, si.reference_year FROM award_definitions d JOIN season_instances si ON si.status = 'Completed' WHERE d.active = 1 AND d.trigger_policy = '\"SeasonCompleted\"' AND d.evaluation_window = '\"PreviousSeasonCycle\"' AND d.scope_kind = 'Global' AND (NOT EXISTS (SELECT 1 FROM award_eligibility_competitions ec WHERE ec.award_definition_id = d.id) OR EXISTS (SELECT 1 FROM award_eligibility_competitions ec WHERE ec.award_definition_id = d.id AND ec.competition_id = si.competition_id)) ON CONFLICT DO NOTHING",
+        "INSERT INTO award_global_cycle_jobs (award_definition_id, reference_year) SELECT DISTINCT d.id, si.reference_year FROM award_definitions d JOIN season_instances si ON si.status = 'Completed' JOIN competitions c ON c.id = si.competition_id WHERE d.active = 1 AND d.trigger_policy = '\"SeasonCompleted\"' AND d.evaluation_window = '\"PreviousSeasonCycle\"' AND d.scope_kind = 'Global' AND c.prestige >= COALESCE(d.minimum_competition_prestige, 0) AND (NOT EXISTS (SELECT 1 FROM award_eligibility_competitions ec WHERE ec.award_definition_id = d.id) OR EXISTS (SELECT 1 FROM award_eligibility_competitions ec WHERE ec.award_definition_id = d.id AND ec.competition_id = si.competition_id)) ON CONFLICT DO NOTHING",
     )
     .execute(pool)
     .await?;
@@ -167,6 +191,12 @@ fn criteria_available(
                     .roster_slots
                     .iter()
                     .flat_map(|slot| slot.criteria.iter()),
+            )
+            .chain(
+                definition
+                    .dynamic_position_profiles
+                    .iter()
+                    .flat_map(|profile| profile.criteria.iter()),
             )
             .all(|criterion| {
                 candidate

@@ -2,9 +2,9 @@ use crate::error::AnalyticsResult;
 use crate::performance::live::config::LiveRatingConfig;
 use crate::performance::live::diagnostics::LivePerformanceDiagnosticsState;
 use crate::performance::live::rating_calculator::{
-    calculate_confidence, calculate_confidence_from_evidence,
-    calculate_dual_rating_with_exposure, calculate_impact_adjustment,
-    calculate_impact_signal, calculate_quality_latent, calculate_rating_from_latent,
+    calculate_confidence, calculate_confidence_from_evidence, calculate_dual_rating_with_exposure,
+    calculate_impact_adjustment, calculate_impact_signal, calculate_quality_latent,
+    calculate_rating_from_latent,
 };
 use crate::performance::observation::{PerformanceObservation, PossessionPhase};
 use crate::performance::profile::PerformanceProfile;
@@ -14,6 +14,7 @@ use crate::performance::rating::{
 };
 use arlo_domain::{Position, SlotRole};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -27,6 +28,8 @@ pub struct LivePlayerState {
     defensive_profile: PerformanceProfile,
     is_active: bool,
     seconds_played: f64,
+    #[serde(default)]
+    position_seconds: BTreeMap<String, f64>,
     effective_opportunities: u32,
     #[serde(default)]
     diagnostics: LivePerformanceDiagnosticsState,
@@ -89,6 +92,7 @@ impl LivePlayerState {
             defensive_profile,
             is_active,
             seconds_played: 0.0,
+            position_seconds: BTreeMap::new(),
             effective_opportunities: 0,
             diagnostics: LivePerformanceDiagnosticsState::default(),
             quality_signal: config.quality_center(),
@@ -149,6 +153,10 @@ impl LivePlayerState {
 
     pub fn seconds_played(&self) -> f64 {
         self.seconds_played
+    }
+
+    pub fn position_seconds(&self) -> &BTreeMap<String, f64> {
+        &self.position_seconds
     }
 
     pub fn effective_opportunities(&self) -> u32 {
@@ -255,6 +263,20 @@ impl LivePlayerState {
         }
     }
 
+    pub fn record_possession_time(&mut self, team_id: Uuid, duration: f64) {
+        if self.is_active && duration > 0.0 {
+            let position = if self.team_id == team_id {
+                self.offensive_position
+            } else {
+                self.defensive_position
+            };
+            *self
+                .position_seconds
+                .entry(format!("{position:?}"))
+                .or_default() += duration;
+        }
+    }
+
     pub fn apply_observation(
         &mut self,
         observation: &PerformanceObservation,
@@ -326,9 +348,8 @@ impl LivePlayerState {
         );
         self.impact_adjustment =
             calculate_impact_adjustment(self.impact_signal, self.confidence, config);
-        self.performance_rating = PerformanceRating::new_clamped(
-            routine_rating.value() + self.impact_adjustment,
-        );
+        self.performance_rating =
+            PerformanceRating::new_clamped(routine_rating.value() + self.impact_adjustment);
     }
 
     pub fn to_snapshot(&self) -> PlayerPerformanceSnapshot {

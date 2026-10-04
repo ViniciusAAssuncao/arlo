@@ -2,6 +2,7 @@ mod global_cycle_jobs;
 mod global_cycle_sources;
 mod global_evidence_merge;
 mod global_player_evidence;
+mod position_usage;
 mod season_age_cutoff;
 mod season_award_jobs;
 mod season_player_evidence;
