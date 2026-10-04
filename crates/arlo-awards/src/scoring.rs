@@ -48,6 +48,29 @@ pub(crate) fn base_utility(
         .sum()
 }
 
+pub(crate) fn global_evidence_quality(
+    criteria: &[AwardCriterion],
+    candidate: &AwardCandidateEvidence,
+    pool: &[AwardCandidateEvidence],
+) -> f64 {
+    let total_weight: f64 = criteria.iter().map(|criterion| criterion.weight).sum();
+    if total_weight <= 0.0 {
+        return 0.0;
+    }
+    criteria
+        .iter()
+        .map(|criterion| {
+            let global_criterion = AwardCriterion {
+                key: criterion.key.clone(),
+                weight: criterion.weight,
+                normalization: AwardNormalization::Global,
+            };
+            criterion.weight * criterion_value(&global_criterion, candidate, pool)
+        })
+        .sum::<f64>()
+        / total_weight
+}
+
 fn same_group(
     normalization: AwardNormalization,
     candidate: &AwardCandidateEvidence,

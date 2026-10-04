@@ -1,4 +1,6 @@
+use crate::eligibility::eligible;
 use crate::roster::{AwardRosterResolution, RosterSelection};
+use crate::scoring::global_evidence_quality;
 use crate::{resolve_award, AwardError, CandidateResult};
 use arlo_domain::{
     AwardCandidateEvidence, AwardDefinition, AwardDynamicRosterPolicy, AwardInstanceContext,
@@ -147,6 +149,7 @@ fn validate_policy(
         || policy.minimum_position_seconds < 0.0
         || !policy.minimum_utility.is_finite()
         || policy.minimum_utility < 0.0
+        || policy.minimum_utility > 1.0
     {
         return Err(AwardError::InvalidDefinition(
             "invalid dynamic roster policy".into(),
@@ -162,11 +165,22 @@ fn discover_positions(
     seed: u64,
     policy: &AwardDynamicRosterPolicy,
 ) -> Result<Vec<PositionPool>, AwardError> {
+    let global_pool: Vec<_> = candidates
+        .iter()
+        .filter(|candidate| eligible(definition, candidate))
+        .filter(|candidate| {
+            candidate.position_usage.iter().any(|position| {
+                position.seconds_played >= policy.minimum_position_seconds
+                    && (definition.eligible_positions.is_empty()
+                        || definition
+                            .eligible_positions
+                            .contains(&position.position_code))
+            })
+        })
+        .cloned()
+        .collect();
     let mut usage = BTreeMap::<String, f64>::new();
-    for candidate in candidates {
-        if candidate.matches_played < definition.minimum_matches {
-            continue;
-        }
+    for candidate in &global_pool {
         for position in &candidate.position_usage {
             if position.seconds_played >= policy.minimum_position_seconds
                 && (definition.eligible_positions.is_empty()
@@ -181,7 +195,7 @@ fn discover_positions(
     }
     let mut pools = Vec::new();
     for (code, usage_seconds) in usage {
-        let position_candidates: Vec<_> = candidates
+        let position_candidates: Vec<_> = global_pool
             .iter()
             .filter(|candidate| {
                 candidate.position_usage.iter().any(|item| {
@@ -205,35 +219,44 @@ fn discover_positions(
             Err(AwardError::NoEligibleCandidates) => continue,
             Err(error) => return Err(error),
         };
-        let mut qualified: Vec<CandidateResult> = resolution
+        let criteria = if position_criteria(definition, &code).is_empty() {
+            &definition.criteria
+        } else {
+            position_criteria(definition, &code)
+        };
+        let mut qualified: Vec<(CandidateResult, f64)> = resolution
             .candidates
             .into_iter()
-            .filter(|item| item.utility >= policy.minimum_utility)
+            .filter_map(|item| {
+                let candidate = global_pool
+                    .iter()
+                    .find(|candidate| candidate.subject_id == item.subject_id)?;
+                let quality = global_evidence_quality(criteria, candidate, &global_pool);
+                (quality >= policy.minimum_utility).then_some((item, quality))
+            })
             .collect();
         if qualified.len() < policy.minimum_position_candidates as usize {
             continue;
         }
         qualified.sort_by(|left, right| {
             right
-                .utility
-                .total_cmp(&left.utility)
-                .then_with(|| left.subject_id.cmp(&right.subject_id))
+                .1
+                .total_cmp(&left.1)
+                .then_with(|| left.0.subject_id.cmp(&right.0.subject_id))
         });
         let count = policy.minimum_position_candidates as usize;
-        let quality = qualified
-            .iter()
-            .take(count)
-            .map(|item| item.utility)
-            .sum::<f64>()
-            / count as f64;
+        let quality = qualified.iter().take(count).map(|item| item.1).sum::<f64>() / count as f64;
         let scores = qualified
             .iter()
-            .map(|item| (item.subject_id, (item.utility, item.selection_score)))
+            .map(|item| (item.0.subject_id, (item.1, item.0.selection_score)))
             .collect();
         pools.push(PositionPool {
             code,
             usage_seconds,
-            qualified: qualified.into_iter().map(|item| item.subject_id).collect(),
+            qualified: qualified
+                .into_iter()
+                .map(|item| item.0.subject_id)
+                .collect(),
             scores,
             quality,
             weight: 0.0,
