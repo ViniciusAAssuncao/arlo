@@ -69,17 +69,27 @@ pub async fn finalize_season_instance(
     pool: &SqlitePool,
     season_instance_id: Uuid,
 ) -> ControllerResult<()> {
+    let mut tx = pool.begin().await?;
     sqlx::query("UPDATE season_instances SET status = 'Completed' WHERE id = ?")
         .bind(season_instance_id.to_string())
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
 
     sqlx::query(
         "UPDATE season_stages SET status = 'Completed' WHERE season_instance_id = ? AND status != 'Completed'",
     )
     .bind(season_instance_id.to_string())
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
+
+    sqlx::query(
+        "INSERT INTO award_season_jobs (award_definition_id, season_instance_id) SELECT id, ? FROM award_definitions WHERE active = 1 AND trigger_policy = '\"SeasonCompleted\"' AND evaluation_window = '\"EntireSeason\"' AND scope_kind = 'Competition' ON CONFLICT DO NOTHING"
+    )
+    .bind(season_instance_id.to_string())
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
 
     Ok(())
 }

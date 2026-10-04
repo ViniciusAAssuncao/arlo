@@ -1,5 +1,5 @@
 use crate::eligibility::eligible;
-use crate::scoring::base_utility;
+use crate::scoring::{base_utility, compare_tie_breaks};
 use crate::voting::vote;
 use arlo_domain::{
     AwardCandidateEvidence, AwardDefinition, AwardInstanceContext, AwardSelectionPolicy,
@@ -17,6 +17,8 @@ pub enum AwardError {
     NoEligibleCandidates,
     #[error("invalid award candidates: {0}")]
     InvalidCandidates(String),
+    #[error("award winner remains tied after all configured tie breaks")]
+    UnresolvedTie,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -84,6 +86,18 @@ pub fn resolve_award(
     if pool.is_empty() {
         return Err(AwardError::NoEligibleCandidates);
     }
+    if pool.iter().any(|candidate| {
+        definition.tie_breaks.iter().any(|tie| {
+            !candidate
+                .metrics
+                .iter()
+                .any(|metric| metric.key == tie.metric_key)
+        })
+    }) {
+        return Err(AwardError::InvalidCandidates(
+            "missing tie-break metric".into(),
+        ));
+    }
     let mut scored: Vec<_> = pool
         .iter()
         .map(|candidate| CandidateResult {
@@ -98,9 +112,33 @@ pub fn resolve_award(
     scored.sort_by(|a, b| {
         b.utility
             .total_cmp(&a.utility)
+            .then_with(|| {
+                let left = pool
+                    .iter()
+                    .find(|item| item.subject_id == a.subject_id)
+                    .unwrap();
+                let right = pool
+                    .iter()
+                    .find(|item| item.subject_id == b.subject_id)
+                    .unwrap();
+                compare_tie_breaks(definition, left, right)
+            })
             .then_with(|| a.subject_id.cmp(&b.subject_id))
     });
     if let Some(limit) = definition.nomination_limit {
+        if limit < scored.len() && scored[limit - 1].utility == scored[limit].utility {
+            let last = pool
+                .iter()
+                .find(|item| item.subject_id == scored[limit - 1].subject_id)
+                .unwrap();
+            let next = pool
+                .iter()
+                .find(|item| item.subject_id == scored[limit].subject_id)
+                .unwrap();
+            if compare_tie_breaks(definition, last, next).is_eq() {
+                return Err(AwardError::UnresolvedTie);
+            }
+        }
         scored.truncate(limit);
     }
     let pool: Vec<_> = scored
@@ -137,8 +175,36 @@ pub fn resolve_award(
             .total_cmp(&a.selection_score)
             .then_with(|| b.first_place_votes.cmp(&a.first_place_votes))
             .then_with(|| b.utility.total_cmp(&a.utility))
+            .then_with(|| {
+                let left = pool
+                    .iter()
+                    .find(|item| item.subject_id == a.subject_id)
+                    .unwrap();
+                let right = pool
+                    .iter()
+                    .find(|item| item.subject_id == b.subject_id)
+                    .unwrap();
+                compare_tie_breaks(definition, left, right)
+            })
             .then_with(|| a.subject_id.cmp(&b.subject_id))
     });
+    if scored.len() > 1
+        && scored[0].selection_score == scored[1].selection_score
+        && scored[0].first_place_votes == scored[1].first_place_votes
+        && scored[0].utility == scored[1].utility
+    {
+        let first = pool
+            .iter()
+            .find(|item| item.subject_id == scored[0].subject_id)
+            .unwrap();
+        let second = pool
+            .iter()
+            .find(|item| item.subject_id == scored[1].subject_id)
+            .unwrap();
+        if compare_tie_breaks(definition, first, second).is_eq() {
+            return Err(AwardError::UnresolvedTie);
+        }
+    }
     for (index, result) in scored.iter_mut().enumerate() {
         result.rank = index + 1;
     }

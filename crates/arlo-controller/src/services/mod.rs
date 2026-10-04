@@ -1,4 +1,5 @@
 pub mod calendar;
+pub(crate) mod awards;
 pub mod day_simulation;
 pub mod event_scheduling;
 pub mod r#match;

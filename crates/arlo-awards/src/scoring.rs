@@ -1,4 +1,7 @@
-use arlo_domain::{AwardCandidateEvidence, AwardCriterion, AwardDefinition, AwardNormalization};
+use arlo_domain::{
+    AwardCandidateEvidence, AwardCriterion, AwardDefinition, AwardNormalization, AwardTieDirection,
+};
+use std::cmp::Ordering;
 
 pub(crate) fn criterion_value(
     criterion: &AwardCriterion,
@@ -56,4 +59,33 @@ fn same_group(
         AwardNormalization::PositionFamily => candidate.position_family == other.position_family,
         AwardNormalization::Competition => candidate.competition_id == other.competition_id,
     }
+}
+
+pub(crate) fn compare_tie_breaks(
+    definition: &AwardDefinition,
+    left: &AwardCandidateEvidence,
+    right: &AwardCandidateEvidence,
+) -> Ordering {
+    for criterion in &definition.tie_breaks {
+        let left_value = left
+            .metrics
+            .iter()
+            .find(|metric| metric.key == criterion.metric_key)
+            .map(|metric| metric.value)
+            .unwrap_or(0.0);
+        let right_value = right
+            .metrics
+            .iter()
+            .find(|metric| metric.key == criterion.metric_key)
+            .map(|metric| metric.value)
+            .unwrap_or(0.0);
+        let order = match criterion.direction {
+            AwardTieDirection::Descending => right_value.total_cmp(&left_value),
+            AwardTieDirection::Ascending => left_value.total_cmp(&right_value),
+        };
+        if order != Ordering::Equal {
+            return order;
+        }
+    }
+    Ordering::Equal
 }

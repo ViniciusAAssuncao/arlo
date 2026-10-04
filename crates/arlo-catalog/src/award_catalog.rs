@@ -1,7 +1,8 @@
 use crate::award_selection_catalog::load_selection;
 use arlo_domain::{
     AwardCriterion, AwardDefinition, AwardEvaluationWindow, AwardNormalization, AwardOrganization,
-    AwardOrganizerPolicy, AwardRecipientKind, AwardScopeKind, AwardTrigger,
+    AwardOrganizerPolicy, AwardRecipientKind, AwardScopeKind, AwardTieBreak, AwardTieDirection,
+    AwardTrigger,
 };
 use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
@@ -151,6 +152,7 @@ async fn load_definition(
             })
             .transpose()?,
         criteria,
+        tie_breaks: load_tie_breaks(pool, id).await?,
         selection: load_selection(
             pool,
             id,
@@ -194,6 +196,31 @@ async fn list_uuids(
 
 fn read_positive_u32(value: i64) -> Result<u32, AwardCatalogError> {
     u32::try_from(value).map_err(|_| AwardCatalogError::InvalidValue("minimum_matches".into()))
+}
+
+async fn load_tie_breaks(
+    pool: &SqlitePool,
+    id: Uuid,
+) -> Result<Vec<AwardTieBreak>, AwardCatalogError> {
+    let rows = sqlx::query(
+        "SELECT metric_key, direction FROM award_tie_breaks WHERE award_definition_id = ? ORDER BY priority"
+    )
+    .bind(id.to_string())
+    .fetch_all(pool)
+    .await?;
+    rows.into_iter()
+        .map(|row| {
+            let direction = match row.try_get::<&str, _>("direction")? {
+                "Descending" => AwardTieDirection::Descending,
+                "Ascending" => AwardTieDirection::Ascending,
+                other => return Err(AwardCatalogError::InvalidValue(other.into())),
+            };
+            Ok(AwardTieBreak {
+                metric_key: row.try_get("metric_key")?,
+                direction,
+            })
+        })
+        .collect()
 }
 
 fn optional_uuid(

@@ -3,6 +3,7 @@ use crate::error::{ControllerError, ControllerResult};
 use crate::repositories::calendar::calendar_catalog_cache::get_or_load_calendar_catalog;
 use crate::services::calendar::date_advancer;
 use crate::services::day_simulation::day_progress;
+use crate::services::awards::process_season_award_jobs;
 use crate::services::event_scheduling::event_dispatcher::{
     dispatch_due_events, DispatchedEventResult,
 };
@@ -107,6 +108,7 @@ pub async fn run_day_advancement(
     if phase != "MatchesDone" {
         return Err(ControllerError::InvalidData("Unknown day progress phase".into()));
     }
+    process_season_award_jobs(pool).await?;
     maybe_publish_power_rankings(pool, calendar, current_date).await?;
     day_progress::finish(pool, save_uuid, &current_date).await?;
 

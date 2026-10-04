@@ -59,6 +59,18 @@ pub struct AwardCriterion {
     pub normalization: AwardNormalization,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AwardTieDirection {
+    Descending,
+    Ascending,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AwardTieBreak {
+    pub metric_key: String,
+    pub direction: AwardTieDirection,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AwardVoterGroup {
     pub code: String,
@@ -104,6 +116,8 @@ pub struct AwardDefinition {
     pub minimum_matches: u32,
     pub nomination_limit: Option<usize>,
     pub criteria: Vec<AwardCriterion>,
+    #[serde(default)]
+    pub tie_breaks: Vec<AwardTieBreak>,
     pub selection: AwardSelectionPolicy,
     pub active: bool,
 }
