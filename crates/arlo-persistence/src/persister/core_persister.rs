@@ -45,6 +45,22 @@ pub async fn persist_match_core(
         created_at,
     );
     repositories::match_repo::insert(tx, &match_row).await?;
+    if let Some(attendance) = &context.attendance {
+        sqlx::query(
+            "INSERT INTO match_attendance (match_id, total, home_supporters, away_supporters, unaffiliated_spectators, match_appeal, home_popularity, away_popularity, model_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(match_id.to_string())
+        .bind(attendance.total)
+        .bind(attendance.home_supporters)
+        .bind(attendance.away_supporters)
+        .bind(attendance.unaffiliated_spectators)
+        .bind(attendance.match_appeal)
+        .bind(attendance.home_popularity)
+        .bind(attendance.away_popularity)
+        .bind(attendance.model_version)
+        .execute(&mut **tx)
+        .await?;
+    }
 
     let home_score_row = MatchTeamScoreRow::new(
         Uuid::new_v4(),

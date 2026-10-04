@@ -1,4 +1,5 @@
 pub mod active_season_resolver;
+pub mod attendance;
 pub mod conflict;
 pub mod grouped_schedule;
 pub mod matchday;

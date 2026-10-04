@@ -14,15 +14,15 @@ The model has three distinct outputs: match appeal, total attendance, and the nu
 
 ## Team reference demand
 
-Treat the two team fields as anchors for ordinary home fixtures at the team's home venue. A provisional interpretation is the 15th and 95th percentiles of ordinary-match attendance. That interpretation gives a greater chance of attendance below `min_attendance` than above `max_attendance`, while still allowing both. It requires owner confirmation before calibration.
+Treat the two team fields as loose anchors for ordinary home fixtures at the team's home venue. They have no defined percentile interpretation. The model should make attendance below `min_attendance` easier than attendance above `max_attendance`, while allowing both.
 
-Use an occupancy-scale model so capacity is respected. For an ordinary home match with capacity `C`, transform the two anchors into occupancy fractions, clamp only for numerical stability, and fit a baseline location and spread on the logit scale. Add effects for form, match appeal, calendar role, and a small asymmetric residual. Apply the inverse logit and cap at `C`. This keeps the computational cost constant per match.
+For an ordinary home match, interpolate between the references using match appeal. Apply bounded form, stakes, weekday, and asymmetric variation. Compress demand above `max_attendance` without forbidding it, then enforce stadium capacity. Attendance below `min_attendance` remains possible. This calculation has constant cost once inputs are loaded.
 
 Team popularity changes slowly and should reflect prestige, historical titles, and longer-run competitive strength. Form is a separate short-run signal, smoothed across recent matches and the current season. A bad run should reduce demand without erasing a major club's core support.
 
 ## Match appeal
 
-Derive a latent appeal score from stage stakes, competition prestige and scope, rivalry when represented, opponent popularity, and the consequences of the result for standings or qualification. Squad absences may change the score modestly. Outcome balance can contribute but should not dominate: published football studies disagree on whether close contests raise stadium attendance. Use only pre-match data.
+Derive a latent appeal score from stage stakes, competition prestige and scope, opponent popularity, current ratings, available squad quality, and table position late in a league stage. Outcome balance contributes only modestly: published football studies disagree on whether close contests raise stadium attendance. Rivalry effects are deferred until rivalry data or rules are defined; frequent matchups do not establish a rivalry. Use only pre-match data.
 
 ## Calendar role without kickoff time
 
@@ -38,7 +38,7 @@ At an effectively neutral venue, estimate local demand for both teams plus unaff
 
 Keep coefficients, noise distribution, and model version explicit. Premier League occupancy is useful for checking elite, capacity-constrained clubs, not as a universal target for every Arlo team. Calibrate wider-league variation from match-level attendance and capacity data if available. Keep the model output deterministic for a fixed match seed and version.
 
-Current schema additions expose the team reference values and weekday social roles. The calculation, persistence of realized attendance, and detailed supporter split remain to be implemented after the model choices are reviewed.
+Version `attendance-v1` calculates attendance before match simulation from the fixture seed and pre-match data. The `match_attendance` table persists the total, supporter split, appeal, popularity, and model version. The match summary reads the persisted total. Missing team references or stadium capacity leave attendance unavailable without guessing a value. The current coefficients are provisional and require review once team references are authored; they are not statistically fitted to Premier League match-level observations.
 
 ## External references
 

@@ -1,5 +1,7 @@
 use crate::error::{ControllerError, ControllerResult};
 use crate::services::day_simulation::day_progress;
+use crate::services::season::attendance;
+use crate::services::season::squad_quality::squad_quality;
 use crate::services::season::matchday::due_fixture_finder::find_due_fixtures;
 use crate::services::season::matchday::matchday_catalog_cache::get_or_load_matchday_catalogs;
 use crate::services::season::matchday::matchday_runner::{
@@ -32,7 +34,26 @@ pub async fn run_due_matches(
 
     for fixture in due_fixtures {
         match build_matchday_setup(pool, &fixture, &catalogs).await {
-            Ok(prep) => {
+            Ok(mut prep) => {
+                let home_squad_quality = squad_quality(
+                    prep.input.home().roster().iter(),
+                    &catalogs.attribute_keys_by_id,
+                );
+                let away_squad_quality = squad_quality(
+                    prep.input.away().roster().iter(),
+                    &catalogs.attribute_keys_by_id,
+                );
+                let attendance = attendance::prepare_for_fixture(
+                    pool,
+                    save_uuid,
+                    &fixture,
+                    prep.persistence_context.venue_id,
+                    prep.input.seed(),
+                    home_squad_quality,
+                    away_squad_quality,
+                )
+                .await?;
+                prep.persistence_context = prep.persistence_context.with_attendance(attendance);
                 prepared_matches.push(prep);
             }
             Err(error) => {

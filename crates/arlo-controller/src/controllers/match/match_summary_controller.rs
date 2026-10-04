@@ -194,7 +194,13 @@ pub async fn build_match_summary_with_incidents(
         quarter_scores,
         final_period,
         went_to_overtime: match_row.went_to_overtime,
-        attendance: None,
+        attendance: sqlx::query_scalar::<_, i32>(
+            "SELECT total FROM match_attendance WHERE match_id = ?",
+        )
+        .bind(&match_row.id)
+        .fetch_optional(pool)
+        .await?
+        .map(|value| value as u32),
         completed_at_unix_seconds: match_row.completed_at_unix_seconds,
     })
 }

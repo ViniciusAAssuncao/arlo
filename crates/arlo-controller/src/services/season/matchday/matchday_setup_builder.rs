@@ -277,38 +277,34 @@ pub async fn build_matchday_setup(
 
     let (head_referee, peace_referee) = select_referees(pool, seed).await?;
 
-    let resolved_venue_id = if fixture.is_neutral_venue {
-        fixture
-            .venue_id
-            .as_deref()
-            .and_then(|vid| Uuid::parse_str(vid).ok())
-    } else {
-        home_team.home_venue_id().or_else(|| {
-            fixture
-                .venue_id
-                .as_deref()
-                .and_then(|vid| Uuid::parse_str(vid).ok())
-        })
-    };
-
-    let pitch = if let Some(venue_id) = resolved_venue_id {
-        let venue = arlo_db::repositories::venue::get_by_id(pool, venue_id)
-            .await
-            .map_err(|e| ControllerError::InvalidData(e.to_string()))?;
-
-        match venue {
-            Some(v) if v.pitch_length_mirim().is_some() && v.pitch_width_mirim().is_some() => {
-                Pitch::from_mirim(
-                    v.pitch_length_mirim().unwrap(),
-                    v.pitch_width_mirim().unwrap(),
-                )
-                .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+    let resolved_venue_id = fixture
+        .venue_id
+        .as_deref()
+        .and_then(|vid| Uuid::parse_str(vid).ok())
+        .or_else(|| {
+            if fixture.is_neutral_venue {
+                None
+            } else {
+                home_team.home_venue_id()
             }
-            _ => Pitch::from_mirim(145.0, 85.0)
-                .map_err(|e| ControllerError::InvalidData(e.to_string()))?,
-        }
+        });
+
+    let resolved_venue = if let Some(venue_id) = resolved_venue_id {
+        arlo_db::repositories::venue::get_by_id(pool, venue_id)
+            .await
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?
     } else {
-        Pitch::from_mirim(145.0, 85.0).map_err(|e| ControllerError::InvalidData(e.to_string()))?
+        None
+    };
+    let pitch = if let Some((length, width)) = resolved_venue
+        .as_ref()
+        .and_then(|venue| venue.pitch_length_mirim().zip(venue.pitch_width_mirim()))
+    {
+        Pitch::from_mirim(length, width)
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?
+    } else {
+        Pitch::from_mirim(145.0, 85.0)
+            .map_err(|e| ControllerError::InvalidData(e.to_string()))?
     };
 
     let format_rules = MatchFormatRules::default_ruleset();
