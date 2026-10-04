@@ -10,6 +10,10 @@ pub enum ControllerError {
     Persistence(#[from] arlo_persistence::PersistenceError),
     #[error(transparent)]
     Analytics(#[from] arlo_analytics::AnalyticsError),
+    #[error(transparent)]
+    Award(#[from] arlo_awards::AwardError),
+    #[error(transparent)]
+    AwardCatalog(#[from] arlo_catalog::AwardCatalogError),
     #[error("Invalid enum value: {0}")]
     InvalidEnum(String),
     #[error("Invalid data: {0}")]

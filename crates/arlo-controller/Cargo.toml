@@ -7,6 +7,8 @@ license.workspace = true
 
 [dependencies]
 arlo-analytics.workspace = true
+arlo-awards.workspace = true
+arlo-catalog = { path = "../arlo-catalog" }
 arlo-domain.workspace = true
 arlo-db.workspace = true
 arlo-engine.workspace = true

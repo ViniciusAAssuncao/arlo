@@ -1,4 +1,5 @@
 use crate::error::{ControllerError, ControllerResult};
+use crate::controllers::r#match::match_award_controller::{load_match_award_scope, load_match_mvp_definition, persist_match_mvp, resolve_match_mvp};
 use crate::repositories::season::standings_cache;
 use arlo_engine::{MatchInput, MatchState};
 use arlo_match_runner::MatchRunResult;
@@ -47,9 +48,14 @@ pub async fn complete_and_persist_match(
 
     let context = context.with_completed_fixture(updated_fixture_row);
 
+    let mvp_definition = load_match_mvp_definition(pool).await?;
+    let award_scope = load_match_award_scope(pool, fixture_id).await?;
+    let mvp_resolution = resolve_match_mvp(mvp_definition.as_ref(), state.match_id(), award_scope, input.seed(), run_result)?;
+
     let mut tx = pool.begin().await?;
     let match_id =
         MatchPersister::persist_completed_match(&mut tx, input, state, run_result, &context).await?;
+    persist_match_mvp(&mut tx, mvp_definition.as_ref(), mvp_resolution.as_ref(), award_scope).await?;
     tx.commit().await?;
 
     standings_cache::invalidate(&stage_id).await;

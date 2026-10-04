@@ -6,6 +6,8 @@ pub enum PersistenceError {
     Domain(#[from] arlo_domain::DomainError),
     #[error(transparent)]
     Uuid(#[from] uuid::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
     #[error("Invalid data: {0}")]
     InvalidData(String),
     #[error("Resource not found: {0}")]

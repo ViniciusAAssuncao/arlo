@@ -1,4 +1,5 @@
 use crate::error::{ControllerError, ControllerResult};
+use crate::controllers::r#match::match_award_controller::{load_match_award_scope, load_match_mvp_definition, persist_match_mvp, resolve_match_mvp};
 use crate::services::day_simulation::day_progress;
 use crate::services::season::attendance;
 use crate::services::season::squad_quality::squad_quality;
@@ -82,6 +83,21 @@ pub async fn run_due_matches(
 
     let simulations = simulation_results.into_iter()
         .collect::<ControllerResult<Vec<_>>>()?;
+    let mvp_definition = load_match_mvp_definition(pool).await?;
+    let mut mvp_resolutions = Vec::with_capacity(simulations.len());
+    for simulation in &simulations {
+        let fixture = simulation.persistence_context.completed_fixture.as_ref()
+            .ok_or_else(|| ControllerError::InvalidData("Completed fixture is missing".into()))?;
+        let award_scope = load_match_award_scope(pool, Uuid::parse_str(&fixture.id)?).await?;
+        let resolution = resolve_match_mvp(
+            mvp_definition.as_ref(),
+            simulation.state.match_id(),
+            award_scope,
+            simulation.input.seed(),
+            &simulation.run_result,
+        )?;
+        mvp_resolutions.push((award_scope, resolution));
+    }
     let mut condition_plans = Vec::with_capacity(simulations.len());
     for simulation in &simulations {
         let (match_year, match_day) = match &simulation.persistence_context.completed_fixture {
@@ -100,8 +116,9 @@ pub async fn run_due_matches(
     for walkover in &walkovers {
         walkover_resolver::persist_walkover_fixture_with_tx(&mut tx, walkover).await?;
     }
-    for (simulation, plan) in simulations.iter().zip(condition_plans) {
+    for ((simulation, plan), (award_scope, mvp_resolution)) in simulations.iter().zip(condition_plans).zip(mvp_resolutions) {
         persist_completed_simulation(&mut tx, simulation).await?;
+        persist_match_mvp(&mut tx, mvp_definition.as_ref(), mvp_resolution.as_ref(), award_scope).await?;
         arlo_recovery::orchestration::persist_post_match_condition(&mut tx, plan)
             .await.map_err(|error| ControllerError::InvalidData(error.to_string()))?;
     }

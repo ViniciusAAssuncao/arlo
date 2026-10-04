@@ -1,4 +1,5 @@
 pub mod artrine_decision;
+pub mod award;
 pub mod attribute_definition;
 pub mod attribute_key;
 pub mod body_region;
@@ -50,6 +51,7 @@ pub mod validation;
 pub mod venue;
 
 pub use artrine_decision::ArtrineDecisionKind;
+pub use award::*;
 pub use attribute_definition::{AttributeCategory, AttributeDefinition, AttributeTarget};
 pub use attribute_key::AttributeKey;
 pub use body_region::BodyRegion;

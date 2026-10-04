@@ -1,4 +1,5 @@
 pub mod calendar_definition_controller;
+pub mod award_resolution_controller;
 pub mod config_reload_controller;
 pub mod day_simulation_controller;
 pub mod league_calendar_config_controller;
@@ -11,6 +12,7 @@ pub mod season;
 pub mod team;
 
 pub use calendar_definition_controller::*;
+pub use award_resolution_controller::*;
 pub use config_reload_controller::*;
 pub use day_simulation_controller::*;
 pub use league_calendar_config_controller::*;

@@ -1,4 +1,5 @@
 pub mod match_detail_controller;
+pub(crate) mod match_award_controller;
 pub mod match_lineup_controller;
 pub mod match_manager_controller;
 pub mod match_officiating_controller;

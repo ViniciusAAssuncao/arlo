@@ -167,16 +167,14 @@ pub async fn get_match_performance(
         6.2
     };
 
-    let match_mvp = home_ratings
-        .iter()
-        .chain(away_ratings.iter())
-        .filter(|performance| performance.is_rated)
-        .max_by(|a, b| {
-            a.rating
-                .partial_cmp(&b.rating)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        })
-        .cloned();
+    let mvp_id = arlo_persistence::repositories::award_repository::winner_for_match(
+        pool, "match-mvp", match_id
+    ).await?;
+    let match_mvp = mvp_id.and_then(|id| {
+        home_ratings.iter().chain(away_ratings.iter())
+            .find(|performance| performance.player_id == id.to_string())
+            .cloned()
+    });
 
     Ok(MatchPerformanceSummaryDto {
         match_id: match_id.to_string(),

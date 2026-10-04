@@ -1,4 +1,5 @@
 pub mod batching;
+pub mod award_repository;
 pub mod calendar;
 pub mod condition;
 pub mod incidents;

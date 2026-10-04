@@ -12,6 +12,7 @@ members = [
     "crates/arlo-events",
     "crates/arlo-stats",
     "crates/arlo-analytics",
+    "crates/arlo-awards",
     "crates/arlo-persistence",
     "crates/arlo-match-runner",
     "crates/arlo-manager-control",
@@ -49,6 +50,7 @@ arlo-runtime         = { path = "crates/arlo-runtime" }
 arlo-events          = { path = "crates/arlo-events" }
 arlo-stats           = { path = "crates/arlo-stats" }
 arlo-analytics       = { path = "crates/arlo-analytics" }
+arlo-awards          = { path = "crates/arlo-awards" }
 arlo-persistence     = { path = "crates/arlo-persistence" }
 arlo-match-runner    = { path = "crates/arlo-match-runner" }
 arlo-manager-control = { path = "crates/arlo-manager-control" }
