@@ -1,13 +1,14 @@
 import tkinter as tk
 from tkinter import ttk
-from typing import Optional
 from arlo_db_tool.app_state import AppState
+from arlo_db_tool.ui.bulk.bulk_attendance_screen import BulkAttendanceScreen
 from arlo_db_tool.ui.bulk.bulk_deletion_screen import BulkDeletionScreen
 from arlo_db_tool.ui.bulk.bulk_manager_screen import BulkManagerScreen
 from arlo_db_tool.ui.bulk.bulk_player_screen import BulkPlayerScreen
 from arlo_db_tool.ui.bulk.bulk_referee_screen import BulkRefereeScreen
 from arlo_db_tool.ui.bulk.bulk_team_roster_screen import BulkTeamRosterScreen
 from arlo_db_tool.ui.bulk.bulk_venue_screen import BulkVenueScreen
+from arlo_db_tool.ui.bulk.calendar_social_role_screen import CalendarSocialRoleScreen
 from arlo_db_tool.ui.bulk.league_population_wizard_screen import (
     LeaguePopulationWizardScreen,
 )
@@ -31,6 +32,18 @@ class BulkHubWindow(tk.Toplevel):
         self.venue_screen = BulkVenueScreen(self.notebook, self.app_state)
         self.notebook.add(self.venue_screen, text="Estádios / Venues (Lote)")
 
+        self.attendance_screen = BulkAttendanceScreen(self.notebook, self.app_state)
+        self.notebook.add(self.attendance_screen, text="Público dos Times")
+
+        self.calendar_social_role_screen = CalendarSocialRoleScreen(
+            self.notebook,
+            self.app_state,
+        )
+        self.notebook.add(
+            self.calendar_social_role_screen,
+            text="Função Social dos Dias",
+        )
+
         self.player_screen = BulkPlayerScreen(self.notebook, self.app_state)
         self.notebook.add(self.player_screen, text="Jogadores (Lote)")
 
@@ -49,6 +62,8 @@ class BulkHubWindow(tk.Toplevel):
     def reload_references(self):
         self.wizard_screen.reload_references()
         self.venue_screen.reload_references()
+        self.attendance_screen.reload_references()
+        self.calendar_social_role_screen.reload_references()
         self.player_screen.reload_references()
         self.roster_screen.reload_references()
         self.manager_screen.reload_references()

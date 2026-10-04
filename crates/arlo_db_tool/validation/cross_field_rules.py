@@ -70,6 +70,26 @@ def validate_venue(values: Dict[str, Any]) -> List[str]:
 
     return errors
 
+def validate_team(values: Dict[str, Any]) -> List[str]:
+    errors: List[str] = []
+    minimum = values.get("min_attendance")
+    maximum = values.get("max_attendance")
+    has_minimum = minimum is not None and str(minimum).strip() != ""
+    has_maximum = maximum is not None and str(maximum).strip() != ""
+
+    if has_minimum != has_maximum:
+        errors.append("min_attendance and max_attendance must be set together")
+        return errors
+
+    if has_minimum and has_maximum:
+        try:
+            if int(minimum) > int(maximum):
+                errors.append("min_attendance must be less than or equal to max_attendance")
+        except (ValueError, TypeError):
+            pass
+
+    return errors
+
 def validate_player(values: Dict[str, Any]) -> List[str]:
     errors: List[str] = []
     captaincy_role = values.get("captaincy_role")

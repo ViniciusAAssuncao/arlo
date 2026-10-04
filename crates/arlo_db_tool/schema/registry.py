@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Union
 from arlo_db_tool.schema.entities.attribute_definition import ATTRIBUTE_DEFINITION_SPEC
+from arlo_db_tool.schema.entities.calendar_week_day import CALENDAR_WEEK_DAY_SPEC
 from arlo_db_tool.schema.entities.competition import COMPETITION_SPEC
 from arlo_db_tool.schema.entities.continent import CONTINENT_SPEC
 from arlo_db_tool.schema.entities.country import COUNTRY_SPEC
@@ -26,6 +27,7 @@ REGISTRY: Dict[str, Union[EntitySpec, CompositeEntitySpec]] = {
     "Continent": CONTINENT_SPEC,
     "Federation": FEDERATION_SPEC,
     "Country": COUNTRY_SPEC,
+    "CalendarWeekDay": CALENDAR_WEEK_DAY_SPEC,
     "Venue": VENUE_SPEC,
     "Competition": COMPETITION_SPEC,
     "League": LEAGUE_SPEC,

@@ -1,5 +1,6 @@
 from arlo_db_tool.schema.entity_spec import EntitySpec
 from arlo_db_tool.schema.field_spec import FieldSpec, FieldType
+from arlo_db_tool.validation.cross_field_rules import validate_team
 
 TEAM_SPEC = EntitySpec(
     name="Team",
@@ -51,6 +52,20 @@ TEAM_SPEC = EntitySpec(
             default=0,
         ),
         FieldSpec(
+            name="min_attendance",
+            column="min_attendance",
+            field_type=FieldType.INTEGER,
+            nullable=True,
+            min_value=0,
+        ),
+        FieldSpec(
+            name="max_attendance",
+            column="max_attendance",
+            field_type=FieldType.INTEGER,
+            nullable=True,
+            min_value=0,
+        ),
+        FieldSpec(
             name="primary_color_hex",
             column="primary_color_hex",
             field_type=FieldType.HEX_COLOR,
@@ -71,4 +86,5 @@ TEAM_SPEC = EntitySpec(
             fk_target_column="id",
         ),
     ],
+    cross_validator=validate_team,
 )
